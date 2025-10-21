@@ -277,7 +277,272 @@
             font-size: 3rem;
         }
     }
+
+        /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.7);
+        animation: fadeIn 0.2s;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .modal-content {
+        background: var(--card-bg);
+        margin: 5% auto;
+        padding: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 600px;
+        animation: slideDown 0.3s;
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-header h2 {
+        font-size: 1.5rem;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .modal-close {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: color 0.2s;
+        padding: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-close:hover {
+        color: var(--stockton-blue);
+    }
+
+    .modal-body {
+        padding: 1.5rem 2rem 2rem;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+    .modal-event-item {
+        background: var(--dark-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .modal-event-item:hover {
+        background: var(--hover-bg);
+        border-color: var(--stockton-blue);
+        transform: translateX(4px);
+    }
+
+    .modal-event-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .modal-event-time {
+        color: var(--stockton-blue);
+        font-weight: 600;
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .modal-event-title {
+        color: var(--text-primary);
+        font-size: 1rem;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    .modal-event-description {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        line-height: 1.4;
+    }
+
+    .modal-event-meta {
+        display: flex;
+        gap: 1rem;
+        margin-top: 0.5rem;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+
+    .modal-event-meta span {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    /* Scrollbar styling for modal */
+    .modal-body::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .modal-body::-webkit-scrollbar-track {
+        background: var(--dark-bg);
+        border-radius: 4px;
+    }
+
+    .modal-body::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 4px;
+    }
+
+    .modal-body::-webkit-scrollbar-thumb:hover {
+        background: var(--stockton-blue);
+    }
+
+    @media (max-width: 768px) {
+        .modal-content {
+            width: 95%;
+            margin: 10% auto;
+        }
+
+        .modal-header {
+            padding: 1rem 1.5rem;
+        }
+
+        .modal-body {
+            padding: 1rem 1.5rem 1.5rem;
+        }
+    }
+
+        /* Event Details Modal - Larger but Compact */
+    .modal-content-large {
+        max-width: 700px;
+    }
+
+    .loading-spinner {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-secondary);
+    }
+
+    .loading-spinner i {
+        font-size: 2rem;
+        color: var(--stockton-blue);
+        margin-bottom: 1rem;
+    }
+
+    .event-detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* Two columns for compact layout */
+        gap: 0.75rem;
+    }
+
+    .event-detail-section {
+        display: flex;
+        gap: 0.75rem;
+        padding: 1rem;
+        background: var(--dark-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+
+    .event-detail-section.full-width {
+        grid-column: 1 / -1; /* Span full width */
+        flex-direction: column;
+    }
+
+    .event-detail-icon {
+        width: 36px;
+        height: 36px;
+        background: rgba(121, 189, 233, 0.1);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--stockton-blue);
+        flex-shrink: 0;
+    }
+
+    .event-detail-icon i {
+        font-size: 1.125rem;
+    }
+
+    .event-detail-content {
+        flex: 1;
+        min-width: 0; /* Allow text truncation */
+    }
+
+    .event-detail-content h3 {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.375rem;
+    }
+
+    .event-detail-content p {
+        font-size: 0.9375rem;
+        color: var(--text-primary);
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .event-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .event-actions .btn {
+        flex: 1;
+    }
+
+    /* Responsive - stack on mobile */
+    @media (max-width: 640px) {
+        .event-detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .event-detail-section.full-width {
+            grid-column: 1;
+        }
+    }
 </style>
+<!-- Import Calendar CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -329,28 +594,114 @@
         {% endif %}
     </div>
 
-    <!-- Calendar Tab -->
+        <!-- Calendar Tab -->
     <div id="calendar" class="tab-content active">
-        <div class="calendar-container">
-            <div class="calendar-main">
-                <div class="card-header">
-                    <h2>Event Calendar</h2>
-                    <p>View all events and match schedules</p>
+        <div class="calendar-wrapper">
+            <!-- Calendar Navigation -->
+            <div class="calendar-navigation">
+                <a href="{{ url_for('dashboard', year=prev_year, month=prev_month) }}" class="nav-button">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </a>
+                <h1 class="calendar-month-year">{{ month_name }} {{ year }}</h1>
+                <a href="{{ url_for('dashboard', year=next_year, month=next_month) }}" class="nav-button">
+                    Next <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+
+            <!-- Days of week header -->
+            <div class="calendar-header">
+                <div class="calendar-day-name">SUN</div>
+                <div class="calendar-day-name">MON</div>
+                <div class="calendar-day-name">TUES</div>
+                <div class="calendar-day-name">WED</div>
+                <div class="calendar-day-name">THURS</div>
+                <div class="calendar-day-name">FRI</div>
+                <div class="calendar-day-name">SAT</div>
+            </div>
+
+            <!-- Calendar grid -->
+            <div class="calendar-grid">
+                {% for week in month_calendar %}
+                    {% for day in week %}
+                        {% if day == 0 %}
+                            <div class="calendar-cell empty"></div>
+                        {% else %}
+                            {% set day_date = '%04d-%02d-%02d'|format(year, month, day) %}
+                            {% set is_today = (day_date == today_str) %}
+
+                            <div class="calendar-cell {% if is_today %}today{% endif %}">
+                                <div class="day-number">{{ day }}</div>
+
+                                <div class="events-container">
+                                    {% if day_date in events_by_date %}
+                                        {% set day_events = events_by_date[day_date] %}
+
+                                        {% for event in day_events[:3] %}
+                                            <div class="event-link" onclick="openEventModal({{ event.id }})">
+                                                <div class="event" title="Click to view details">
+                                                    {% if event.time %}
+                                                        <strong>{{ event.time }}</strong> -
+                                                    {% endif %}
+                                                    {{ event.title }}
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+
+                                        {% if day_events|length > 3 %}
+                                            <div class="event-overflow"
+                                                 onclick="openDayModal('{{ day_date }}', '{{ month_name }} {{ day }}, {{ year }}')"
+                                                 style="cursor: pointer; color: var(--stockton-blue); text-decoration: underline;">
+                                                +{{ day_events|length - 3 }} more
+                                            </div>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            </div>
+
+            <!-- Calendar Footer -->
+            <div class="calendar-footer">
+                <a href="{{ url_for('dashboard') }}" class="today-button">
+                    <i class="fas fa-calendar-day"></i> Jump to Today
+                </a>
+            </div>
+        </div>
+
+        <!-- Day Events Modal -->
+        <div id="dayEventsModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modalDayTitle"></h2>
+                    <button class="modal-close" onclick="closeDayModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-                <div class="empty-state">
-                    <div class="empty-state-icon">📅</div>
-                    <h3>Calendar View Coming Soon</h3>
-                    <p>The interactive calendar will be available here</p>
+                <div class="modal-body" id="modalEventsList">
+                    <!-- Events will be populated here -->
                 </div>
             </div>
-            <div class="calendar-sidebar">
-                <div class="sidebar-card">
-                    <h3>Today's Events</h3>
-                    <p class="empty-state" style="padding: 2rem 0;">No events scheduled for today</p>
+        </div>
+
+        <!-- Event Details Modal -->
+        <div id="eventDetailsModal" class="modal">
+            <div class="modal-content modal-content-large">
+                <div class="modal-header">
+                    <h2 id="eventDetailsTitle"></h2>
+                    <button class="modal-close" onclick="closeEventModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-                <div class="sidebar-card">
-                    <h3>Upcoming Events</h3>
-                    <p class="empty-state" style="padding: 2rem 0;">No upcoming events</p>
+                <div class="modal-body" id="eventDetailsBody">
+                    <!-- Loading spinner -->
+                    <div id="eventLoadingSpinner" class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading event details...</p>
+                    </div>
+                    <!-- Event details will be populated here -->
+                    <div id="eventDetailsContent" style="display: none;"></div>
                 </div>
             </div>
         </div>
@@ -471,7 +822,6 @@
     </div>
     {% endif %}
 </div>
-</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -507,6 +857,273 @@
         });
 
         // Handle dropdown change
+        tabDropdown.addEventListener('change', function() {
+            switchTab(this.value);
+        });
+    });
+</script>
+<script>
+    // Store events data for modal access
+    const eventsData = {{ events_by_date | tojson }};
+
+    // Day Modal Functions
+    function openDayModal(date, dateTitle) {
+        const modal = document.getElementById('dayEventsModal');
+        const modalTitle = document.getElementById('modalDayTitle');
+        const modalBody = document.getElementById('modalEventsList');
+
+        // Set the title
+        modalTitle.textContent = dateTitle;
+
+        // Get events for this date
+        const events = eventsData[date] || [];
+
+        // Clear previous content
+        modalBody.innerHTML = '';
+
+        // Populate with events
+        if (events.length > 0) {
+            events.forEach(event => {
+                const eventItem = document.createElement('div');
+                eventItem.className = 'modal-event-item';
+                eventItem.onclick = (e) => {
+                    e.stopPropagation();
+                    closeDayModal();
+                    openEventModal(event.id);
+                };
+
+                let eventHTML = '';
+
+                if (event.time) {
+                    eventHTML += `<div class="modal-event-time"><i class="fas fa-clock"></i> ${event.time}</div>`;
+                }
+
+                eventHTML += `<div class="modal-event-title">${event.title}</div>`;
+
+                if (event.description) {
+                    eventHTML += `<div class="modal-event-description">${event.description}</div>`;
+                }
+
+                eventItem.innerHTML = eventHTML;
+                modalBody.appendChild(eventItem);
+            });
+        } else {
+            modalBody.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No events scheduled for this day.</p>';
+        }
+
+        // Show modal
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDayModal() {
+        const modal = document.getElementById('dayEventsModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    // Event Details Modal Functions
+    async function openEventModal(eventId) {
+        const modal = document.getElementById('eventDetailsModal');
+        const spinner = document.getElementById('eventLoadingSpinner');
+        const content = document.getElementById('eventDetailsContent');
+
+        // Show modal with loading spinner
+        modal.style.display = 'block';
+        spinner.style.display = 'block';
+        content.style.display = 'none';
+        document.body.style.overflow = 'hidden';
+
+        try {
+            // Fetch event details from API
+            const response = await fetch(`/api/event/${eventId}`);
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch event details');
+            }
+
+            const event = await response.json();
+
+            // Update modal title
+            document.getElementById('eventDetailsTitle').textContent = event.name;
+
+            // Build event details HTML
+            let detailsHTML = '<div class="event-detail-grid">';
+
+            // Date
+            detailsHTML += `
+                <div class="event-detail-section">
+                    <div class="event-detail-icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div class="event-detail-content">
+                        <h3>Date</h3>
+                        <p>${event.date}</p>
+                    </div>
+                </div>
+            `;
+
+            // Time
+            if (event.start_time) {
+                detailsHTML += `
+                    <div class="event-detail-section">
+                        <div class="event-detail-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="event-detail-content">
+                            <h3>Time</h3>
+                            <p>
+                                ${event.start_time}
+                                ${event.end_time ? ' - ' + event.end_time : ''}
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Location
+            if (event.location) {
+                detailsHTML += `
+                    <div class="event-detail-section">
+                        <div class="event-detail-icon">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div class="event-detail-content">
+                            <h3>Location</h3>
+                            <p>${event.location}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Game
+            if (event.game) {
+                detailsHTML += `
+                    <div class="event-detail-section">
+                        <div class="event-detail-icon">
+                            <i class="fas fa-gamepad"></i>
+                        </div>
+                        <div class="event-detail-content">
+                            <h3>Game</h3>
+                            <p>${event.game}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Event Type
+            if (event.event_type) {
+                detailsHTML += `
+                    <div class="event-detail-section">
+                        <div class="event-detail-icon">
+                            <i class="fas fa-tag"></i>
+                        </div>
+                        <div class="event-detail-content">
+                            <h3>Event Type</h3>
+                            <p>${event.event_type}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Description
+            detailsHTML += `
+                <div class="event-detail-section full-width">
+                    <div style="display: flex; gap: 1rem;">
+                        <div class="event-detail-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="event-detail-content">
+                            <h3>Description</h3>
+                            <p>${event.description}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            detailsHTML += '</div>';
+
+            // Optional: Add action buttons
+            detailsHTML += `
+                <div class="event-actions">
+                    <button class="btn btn-secondary" onclick="closeEventModal()">Close</button>
+                </div>
+            `;
+
+            // Update content
+            content.innerHTML = detailsHTML;
+
+            // Hide spinner, show content
+            spinner.style.display = 'none';
+            content.style.display = 'block';
+
+        } catch (error) {
+            console.error('Error loading event details:', error);
+            content.innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                    <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ff5252; margin-bottom: 1rem;"></i>
+                    <p>Failed to load event details. Please try again.</p>
+                    <button class="btn btn-primary" onclick="closeEventModal()" style="margin-top: 1rem;">Close</button>
+                </div>
+            `;
+            spinner.style.display = 'none';
+            content.style.display = 'block';
+        }
+    }
+
+    function closeEventModal() {
+        const modal = document.getElementById('eventDetailsModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    // Close modals when clicking outside
+    window.onclick = function(event) {
+        const dayModal = document.getElementById('dayEventsModal');
+        const eventModal = document.getElementById('eventDetailsModal');
+
+        if (event.target === dayModal) {
+            closeDayModal();
+        }
+        if (event.target === eventModal) {
+            closeEventModal();
+        }
+    }
+
+    // Close modals with Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeDayModal();
+            closeEventModal();
+        }
+    });
+
+    // Tab switching functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const tabDropdown = document.getElementById('tabDropdown');
+
+        function switchTab(targetTab) {
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            const activeButton = document.querySelector(`[data-tab="${targetTab}"]`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+            document.getElementById(targetTab).classList.add('active');
+
+            tabDropdown.value = targetTab;
+        }
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const targetTab = this.getAttribute('data-tab');
+                switchTab(targetTab);
+            });
+        });
+
         tabDropdown.addEventListener('change', function() {
             switchTab(this.value);
         });

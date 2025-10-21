@@ -2,7 +2,7 @@
 # separate our application into multiple modules that are then imported
 # into __init__.py here
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
 import MySQLdb.cursors
@@ -17,6 +17,7 @@ app = Flask(__name__)
 
 # Module imports
 import EsportsManagementTool.exampleModule
+from EsportsManagementTool.calendar_routes import register_calendar_routes
 
 # Change this to your secret key (can be anything, it's for extra protection)
 app.secret_key = 'your secret key'
@@ -48,6 +49,8 @@ leakage across packet transferring.
 mysql = MySQL(app)
 mail = Mail(app)
 
+register_calendar_routes(app, mysql)
+
 # For production, force HTTPS
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -56,7 +59,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # Home/Landing Page
 @app.route('/')
 def index():
-    return render_template('index.html')  #
+    return render_template('index.html')
 
 def send_verify_email(email, token):
     verify_url = url_for('verify_email', token=token, _external=True)
@@ -74,6 +77,50 @@ def send_verify_email(email, token):
     '''
     mail.send(msg)
 
+# API route to get event details for the Event Details Modal within dashboard.html
+@app.route('/api/event/<int:event_id>')
+def api_event_details(event_id):
+    if 'loggedin' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute('SELECT * FROM generalevents WHERE EventID = %s', (event_id,))
+        event = cursor.fetchone()
+
+        if not event:
+            return jsonify({'error': 'Event not found'}), 404
+
+        # Format the event data
+        event_data = {
+            'id': event['EventID'],
+            'name': event['EventName'],
+            'date': event['Date'].strftime('%B %d, %Y'),
+            'start_time': None,
+            'end_time': None,
+            'description': event['Description'] if event['Description'] else 'No description provided',
+            'event_type': event['EventType'] if event['EventType'] else 'General',
+            'game': event['Game'] if event['Game'] else 'N/A',
+            'location': event['Location'] if event['Location'] else 'TBD'
+        }
+
+        # Handle timedelta for StartTime
+        if event['StartTime']:
+            total_seconds = int(event['StartTime'].total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            event_data['start_time'] = f"{hours:02d}:{minutes:02d}"
+
+        # Handle timedelta for EndTime
+        if event['EndTime']:
+            total_seconds = int(event['EndTime'].total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            event_data['end_time'] = f"{hours:02d}:{minutes:02d}"
+
+        return jsonify(event_data)
+    finally:
+        cursor.close()
 
 @app.route('/verify/<token>')
 def verify_email(token):
@@ -182,7 +229,7 @@ def register():
             else:
                 hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
                 cursor.execute(
-                    'INSERT INTO users (firstname, lastname, username, password, email) VALUES (%s, %s, %s, %s, %s)',
+                    'INSERT INTO users (firstname, lastname, username, password, email) VALUES (%s, %s, %s, %s, %s)', # TEST ACCOUNT CREATION
                     (firstname, lastname, username, hashed_password, email))
                 mysql.connection.commit()
                 msg = 'You have successfully created an account! Please check your email for verification!'
@@ -193,19 +240,6 @@ def register():
         msg = 'Please fill out the form!'
 
     return render_template('register.html', msg=msg)
-
-
-@app.route('/profile')
-def profile():
-    if 'loggedin' in session:
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        try:
-            cursor.execute('SELECT * FROM users WHERE id = %s', (session['id'],))
-            account = cursor.fetchone()
-            return render_template('profile.html', account=account)
-        finally:
-            cursor.close()
-    return redirect(url_for('login'))
 
 #App route to get to event registration.
 @app.route('/event-register', methods=['GET', 'POST'])
@@ -247,16 +281,6 @@ def eventRegister():
 
     #Uses the event-register html file to render the page.
     return render_template('event-register.html', msg=msg)
-
-
-@app.route('/calendar')
-def calendar():
-    events = [
-        {"date": "2025-10-01", "title": "smash practice of doom"},
-        {"date": "2025-10-03", "title": "fortnite sesh"},
-        {"date": "2025-10-05", "title": "d's birthday party"},
-    ]
-    return render_template("calendar.html", events=events)
 
 import EsportsManagementTool.dashboard
 
