@@ -15,13 +15,6 @@ pip install -r requirements.txt
 
 Then, you will need to go to .env and **populate** the variables.
 
-### Running MySQL
-Start MySQL in your console (or through AMPPS), then run the following:
-```console
-mysql -h (IP) -u (user) -p
-```
-The IP can be found in the .env variables.
-
 Now, run in terminal:
 ```console
 flask --app EsportsManagementTool run --debug

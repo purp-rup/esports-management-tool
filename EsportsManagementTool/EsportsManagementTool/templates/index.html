@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Stockton Esports{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Textured background */
+    body {
+        background:
+            repeating-linear-gradient(
+                45deg,
+                #0a0a0a,
+                #0a0a0a 10px,
+                #0d0d0d 10px,
+                #0d0d0d 20px
+            ),
+            radial-gradient(circle at 20% 50%, rgba(121, 189, 233, 0.03) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(121, 189, 233, 0.03) 0%, transparent 50%),
+            #0a0a0a;
+    }
+
+    /* Hero Section - Full viewport height minus navbar */
+    .hero {
+        min-height: calc(100vh - 73px); /* Subtract navbar height */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 2rem;
+        position: relative;
+    }
+
+    .hero-content {
+        max-width: 800px;
+    }
+
+    .hero h1 {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        line-height: 1.1;
+    }
+
+    .hero-gradient {
+        color: var(--stockton-blue);
+    }
+
+    .hero p {
+        font-size: 1.25rem;
+        color: var(--text-secondary);
+        max-width: 600px;
+        margin: 0 auto 2rem;
+        line-height: 1.6;
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .btn-large {
+        padding: 1rem 2rem;
+        font-size: 1rem;
+    }
+
+    /* Scroll indicator */
+    .scroll-indicator {
+        position: absolute;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        animation: bounce 2s infinite;
+    }
+
+    .scroll-arrow {
+        font-size: 2rem;
+        color: var(--stockton-blue);
+    }
+
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% {
+            transform: translateX(-50%) translateY(0);
+        }
+        40% {
+            transform: translateX(-50%) translateY(-10px);
+        }
+        60% {
+            transform: translateX(-50%) translateY(-5px);
+        }
+    }
+
+    /* Features Section */
+    .features {
+        padding: 6rem 2rem;
+        background: var(--card-bg);
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .features-header {
+        text-align: center;
+        margin-bottom: 4rem;
+    }
+
+    .features-header h2 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .features-header p {
+        color: var(--text-secondary);
+        font-size: 1.125rem;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .feature-card {
+        background: var(--dark-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 2rem;
+        transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--stockton-blue);
+        box-shadow: 0 8px 16px rgba(121, 189, 233, 0.1);
+    }
+
+    .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .feature-card h3 {
+        font-size: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .feature-card p {
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+
+    /* Stats Section */
+    .stats {
+        background: var(--dark-bg);
+        padding: 4rem 2rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 3rem;
+        max-width: 1000px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    .stat-item h3 {
+        font-size: 3rem;
+        color: var(--stockton-blue);
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-item p {
+        color: var(--text-secondary);
+        font-size: 1rem;
+    }
+
+    /* CTA Section */
+    .cta {
+        text-align: center;
+        padding: 6rem 2rem;
+        background: var(--card-bg);
+        border-top: 1px solid var(--border-color);
+        margin-bottom: 0;
+    }
+
+    .cta h2 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .cta p {
+        font-size: 1.125rem;
+        color: var(--text-secondary);
+        max-width: 600px;
+        margin: 0 auto 2rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .hero h1 {
+            font-size: 2.5rem;
+        }
+
+        .hero p {
+            font-size: 1rem;
+        }
+
+        .features-header h2,
+        .cta h2 {
+            font-size: 2rem;
+        }
+
+        .stat-item h3 {
+            font-size: 2rem;
+        }
+
+        .scroll-indicator {
+            bottom: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section - Full viewport -->
+<section class="hero">
+    <div class="hero-content">
+        <h1>
+            Welcome to<br>
+            <span class="hero-gradient">Stockton Esports</span>
+        </h1>
+        <p>
+            Your centralized hub for competitive gaming, team management, and community engagement.
+            Join us in building the future of collegiate esports at Stockton University.
+        </p>
+        <div class="hero-actions">
+            {% if session.loggedin %}
+                <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-large">Go to Dashboard</a>
+            {% else %}
+                <a href="{{ url_for('register') }}" class="btn btn-primary btn-large">Get Started</a>
+                <a href="{{ url_for('login') }}" class="btn btn-secondary btn-large">Sign In</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Scroll indicator -->
+    <div class="scroll-indicator">
+        <span>Scroll to explore</span>
+        <div class="scroll-arrow">↓</div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features">
+    <div class="container">
+        <div class="features-header">
+            <h2>Everything You Need</h2>
+            <p>A comprehensive platform designed specifically for the Stockton Esports community</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <span class="feature-icon">📅</span>
+                <h3>Visual Calendar</h3>
+                <p>
+                    Stay on top of matches, practices, and community events with customizable alerts
+                    and an intuitive calendar interface.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <span class="feature-icon">👥</span>
+                <h3>Team Management</h3>
+                <p>
+                    Game Managers can easily create and manage rosters, schedules, and send
+                    match reminders to keep teams coordinated.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <span class="feature-icon">🎥</span>
+                <h3>VOD Review</h3>
+                <p>
+                    Upload and annotate match recordings to provide structured feedback
+                    and help players improve their gameplay.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <span class="feature-icon">📊</span>
+                <h3>Analytics Dashboard</h3>
+                <p>
+                    Track team data, event statistics, and community engagement with
+                    comprehensive analytics and insights.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <span class="feature-icon">💬</span>
+                <h3>Centralized Communication</h3>
+                <p>
+                    Replace fragmented tools with a single platform that combines scheduling,
+                    communication, and management features.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <span class="feature-icon">🎮</span>
+                <h3>Community Events</h3>
+                <p>
+                    Enhance engagement through better event visibility, attendance tracking,
+                    and customizable notifications.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="stats">
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <h3>500+</h3>
+                <p>Active Players</p>
+            </div>
+            <div class="stat-item">
+                <h3>20+</h3>
+                <p>Competitive Teams</p>
+            </div>
+            <div class="stat-item">
+                <h3>100+</h3>
+                <p>Events Hosted</p>
+            </div>
+            <div class="stat-item">
+                <h3>24/7</h3>
+                <p>Platform Access</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta">
+    <div class="container">
+        {% if session.loggedin %}
+            <h2>Welcome Back, {{ session.username }}!</h2>
+            <p>
+                Your dashboard is ready and waiting. Check your upcoming events, manage your teams,
+                and stay connected with the Stockton Esports community.
+            </p>
+            <div class="hero-actions">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-large">Go to Dashboard</a>
+            </div>
+        {% else %}
+            <h2>Ready to Level Up?</h2>
+            <p>
+                Join the Stockton Esports community today and be part of something bigger.
+                Whether you're a competitor or a casual player, there's a place for you here.
+            </p>
+            <div class="hero-actions">
+                <a href="{{ url_for('register') }}" class="btn btn-primary btn-large">Create Account</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

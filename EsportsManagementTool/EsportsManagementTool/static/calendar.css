@@ -1,301 +1,217 @@
-/* Claude AI assisted in the creation of this css document */
-/* Calendar Styles */
+/* Calendar Styling - Stockton Esports Theme */
+
 .calendar-wrapper {
-    background-color: white;
-    padding: 20px;
-    max-width: 1100px;
+    max-width: 100%;
     margin: 0 auto;
-    border-radius: 5px;
 }
 
+/* Calendar Navigation */
 .calendar-navigation {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding: 0 10px;
-}
-
-.nav-button {
-    background-color: #3274d6;
-    color: white;
-    padding: 10px 20px;
-    text-decoration: none;
-    border-radius: 5px;
-    font-weight: bold;
-    transition: background-color 0.2s;
-}
-
-.nav-button:hover {
-    background-color: #2868c7;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
 }
 
 .calendar-month-year {
-    text-align: center;
-    font-size: 28px;
-    font-weight: bold;
-    color: #2f3947;
-    margin: 0;
-    letter-spacing: 2px;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
+.nav-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: transparent;
+    color: var(--stockton-blue);
+    text-decoration: none;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.nav-button:hover {
+    background: var(--hover-bg);
+    border-color: var(--stockton-blue);
+}
+
+/* Days of week header */
 .calendar-header {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    border-bottom: 2px solid #2f3947;
-    margin-bottom: 0;
+    gap: 1px;
+    background: var(--border-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px 12px 0 0;
+    overflow: hidden;
 }
 
 .calendar-day-name {
+    background: var(--card-bg);
+    padding: 1rem;
     text-align: center;
-    font-weight: bold;
-    padding: 10px;
-    font-size: 14px;
-    color: #2f3947;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    letter-spacing: 0.05em;
 }
 
+/* Calendar Grid - FIXED EQUAL WIDTHS */
 .calendar-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    border: 1px solid #dee0e4;
-    border-top: none;
+    grid-template-columns: repeat(7, 1fr); /* Equal width columns */
+    gap: 1px;
+    background: var(--border-color);
+    border: 1px solid var(--border-color);
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    overflow: hidden;
+    min-height: 500px;
 }
 
 .calendar-cell {
-    border: 1px solid #dee0e4;
-    min-height: 120px; /* Increased from 100px */
-    padding: 8px;
-    background-color: white;
+    background: var(--card-bg);
+    min-height: 100px;
+    padding: 0.5rem;
     position: relative;
-    overflow: hidden; /* This keeps everything contained */
-    display: flex;
-    flex-direction: column;
+    transition: background 0.2s;
+    overflow: hidden; /* Prevent content from expanding cell */
+    min-width: 0; /* Allow grid items to shrink below content size */
+}
+
+.calendar-cell:hover {
+    background: var(--hover-bg);
 }
 
 .calendar-cell.empty {
-    background-color: #f9f9f9;
+    background: var(--dark-bg);
+    opacity: 0.3;
 }
 
 .calendar-cell.today {
-    background-color: #e3f2fd;
-    border: 2px solid #3274d6;
-}
-
-.calendar-cell.today .day-number {
-    color: #3274d6;
-    font-weight: bold;
-    font-size: 16px;
+    background: rgba(121, 189, 233, 0.1);
+    border: 2px solid var(--stockton-blue);
 }
 
 .day-number {
-    font-size: 14px;
-    font-weight: normal;
-    color: #4a536e;
-    margin-bottom: 5px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
 }
 
+.calendar-cell.today .day-number {
+    color: var(--stockton-blue);
+    font-weight: 700;
+}
+
+/* Events Container - CONSTRAIN WIDTH */
 .events-container {
-    margin-top: 5px;
-    max-height: 85px; 
-    overflow-y: auto; 
-    overflow-x: hidden;
-    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    width: 100%; /* Take full width of parent */
+    min-width: 0; /* Allow shrinking */
 }
 
-.events-container::-webkit-scrollbar {
-    width: 4px;
-}
-
-.events-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 2px;
-}
-
-.events-container::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 2px;
-}
-
-.events-container::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-
-.calendar-cell .event {
-    background: #3274d6;
-    color: white;
-    padding: 4px 6px;
-    margin-top: 3px;
-    border-radius: 3px;
-    font-size: 11px;
-    line-height: 1.3;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    cursor: pointer;
-    position: relative;
-    transition: transform 0.2s;
-}
-
-.calendar-cell .event:hover {
-    transform: scale(1.02);
-    z-index: 10;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-
-.calendar-cell .event[title]:hover::after {
-    content: attr(title);
-    position: absolute;
-    left: 0;
-    top: 100%;
-    background: #2f3947;
-    color: white;
-    padding: 8px 12px;
-    border-radius: 4px;
-    white-space: normal;
-    width: 200px;
-    z-index: 1000;
-    font-size: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    margin-top: 5px;
-}
-
-.event-overflow {
-    background: #ff9800;
-    color: white;
-    padding: 4px 6px;
-    margin-top: 3px;
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: bold;
-    text-align: center;
-}
-
-.calendar-footer {
-    text-align: center;
-    margin-top: 20px;
-}
-
-.today-button {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 20px;
-    text-decoration: none;
-    border-radius: 5px;
-    font-weight: bold;
-    display: inline-block;
-    transition: background-color 0.2s;
-}
-
-.today-button:hover {
-    background-color: #45a049;
-}
-
-
-/* Clickable event links */
 .event-link {
     text-decoration: none;
     display: block;
+    min-width: 0; /* Allow shrinking */
 }
 
-.event-link:hover .event {
-    transform: scale(1.05);
-    background-color: #2868c7;
+/* Event - TEXT TRUNCATION */
+.event {
+    background: var(--stockton-blue);
+    color: var(--stockton-black);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    /* Text truncation */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+    width: 100%;
+    max-width: 100%;
 }
 
-/* Event Details Page Styles */
-.event-details-wrapper {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
+.event:hover {
+    background: #5aabdd;
+    transform: translateY(-1px);
 }
 
-.event-details-header {
-    display: flex;
-    justify-content: space-between;
+.event-overflow {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    padding: 0.25rem 0.5rem;
+    font-style: italic;
+}
+
+/* Calendar Footer */
+.calendar-footer {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.today-button {
+    display: inline-flex;
     align-items: center;
-    margin-bottom: 30px;
-    padding-bottom: 20px;
-    border-bottom: 2px solid #dee0e4;
-}
-
-.event-details-header h1 {
-    color: #2f3947;
-    margin: 0;
-    font-size: 32px;
-}
-
-.back-button {
-    background-color: #3274d6;
-    color: white;
-    padding: 10px 20px;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--stockton-blue);
+    color: var(--stockton-black);
     text-decoration: none;
-    border-radius: 5px;
-    font-weight: bold;
-    transition: background-color 0.2s;
-}
-
-.back-button:hover {
-    background-color: #2868c7;
-}
-
-.event-details-card {
-    background: white;
     border-radius: 8px;
-    padding: 30px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s;
 }
 
-.detail-section {
-    display: flex;
-    align-items: flex-start;
-    padding: 20px 0;
-    border-bottom: 1px solid #f0f0f0;
+.today-button:hover {
+    background: #5aabdd;
+    transform: translateY(-1px);
 }
 
-.detail-section:last-child {
-    border-bottom: none;
-}
+/* Responsive Design */
+@media (max-width: 768px) {
+    .calendar-navigation {
+        flex-direction: column;
+        gap: 1rem;
+    }
 
-.detail-section.full-width {
-    flex-direction: column;
-}
+    .calendar-month-year {
+        font-size: 1.25rem;
+    }
 
-.detail-icon {
-    width: 50px;
-    height: 50px;
-    background-color: #e3f2fd;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 20px;
-    flex-shrink: 0;
-}
+    .calendar-day-name {
+        font-size: 0.65rem;
+        padding: 0.5rem;
+    }
 
-.detail-icon i {
-    color: #3274d6;
-    font-size: 20px;
-}
+    .calendar-cell {
+        min-height: 80px;
+        padding: 0.25rem;
+    }
 
-.detail-content {
-    flex: 1;
-}
+    .day-number {
+        font-size: 0.75rem;
+    }
 
-.detail-content h3 {
-    margin: 0 0 5px 0;
-    color: #4a536e;
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.detail-content p {
-    margin: 0;
-    color: #2f3947;
-    font-size: 18px;
-    line-height: 1.6;
-}
-
-.detail-section.full-width .detail-icon {
-    margin-bottom: 15px;
+    .event {
+        font-size: 0.65rem;
+        padding: 0.2rem 0.3rem;
+    }
 }

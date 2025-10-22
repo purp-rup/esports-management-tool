@@ -2,7 +2,7 @@
 # separate our application into multiple modules that are then imported
 # into __init__.py here
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
 from datetime import datetime
@@ -22,6 +22,7 @@ app = Flask(__name__)
 
 # Module imports
 import EsportsManagementTool.exampleModule
+from EsportsManagementTool.calendar_routes import register_calendar_routes
 import EsportsManagementTool.EventNotificationManager
 
 # Change this to your secret key (can be anything, it's for extra protection)
@@ -54,11 +55,17 @@ leakage across packet transferring.
 mysql = MySQL(app)
 mail = Mail(app)
 
+register_calendar_routes(app, mysql)
+
 # For production, force HTTPS
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
+# Home/Landing Page
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 def send_verify_email(email, token):
     verify_url = url_for('verify_email', token=token, _external=True)
@@ -76,6 +83,50 @@ def send_verify_email(email, token):
     '''
     mail.send(msg)
 
+# API route to get event details for the Event Details Modal within dashboard.html
+@app.route('/api/event/<int:event_id>')
+def api_event_details(event_id):
+    if 'loggedin' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute('SELECT * FROM generalevents WHERE EventID = %s', (event_id,))
+        event = cursor.fetchone()
+
+        if not event:
+            return jsonify({'error': 'Event not found'}), 404
+
+        # Format the event data
+        event_data = {
+            'id': event['EventID'],
+            'name': event['EventName'],
+            'date': event['Date'].strftime('%B %d, %Y'),
+            'start_time': None,
+            'end_time': None,
+            'description': event['Description'] if event['Description'] else 'No description provided',
+            'event_type': event['EventType'] if event['EventType'] else 'General',
+            'game': event['Game'] if event['Game'] else 'N/A',
+            'location': event['Location'] if event['Location'] else 'TBD'
+        }
+
+        # Handle timedelta for StartTime
+        if event['StartTime']:
+            total_seconds = int(event['StartTime'].total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            event_data['start_time'] = f"{hours:02d}:{minutes:02d}"
+
+        # Handle timedelta for EndTime
+        if event['EndTime']:
+            total_seconds = int(event['EndTime'].total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            event_data['end_time'] = f"{hours:02d}:{minutes:02d}"
+
+        return jsonify(event_data)
+    finally:
+        cursor.close()
 
 @app.route('/verify/<token>')
 def verify_email(token):
@@ -132,7 +183,7 @@ def login():
                         session['loggedin'] = True
                         session['id'] = account['id']
                         session['username'] = account['username']
-                        return redirect(url_for('profile'))
+                        return redirect(url_for('dashboard'))
                 else:
                     msg = 'Incorrect username/password!'
             else:
@@ -152,7 +203,7 @@ def logout():
     return redirect(url_for('login'))
 
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/register', methods=['GET', 'POST'])
 def register():
     msg = ''
     if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'passwordconfirm' in request.form and 'email' in request.form:
@@ -184,7 +235,7 @@ def register():
             else:
                 hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
                 cursor.execute(
-                    'INSERT INTO users (firstname, lastname, username, password, email) VALUES (%s, %s, %s, %s, %s)',
+                    'INSERT INTO users (firstname, lastname, username, password, email) VALUES (%s, %s, %s, %s, %s)', # TEST ACCOUNT CREATION
                     (firstname, lastname, username, hashed_password, email))
                 mysql.connection.commit()
                 msg = 'You have successfully created an account! Please check your email for verification!'
@@ -196,27 +247,13 @@ def register():
 
     return render_template('register.html', msg=msg)
 
-
-@app.route('/profile')
-def profile():
-    if 'loggedin' in session:
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        try:
-            cursor.execute('SELECT * FROM users WHERE id = %s', (session['id'],))
-            account = cursor.fetchone()
-            return render_template('profile.html', account=account)
-        finally:
-            cursor.close()
-    return redirect(url_for('login'))
-
-#App route to get to event registration.
+# App route to get to event registration.
 @app.route('/event-register', methods=['GET', 'POST'])
-#eventRegister method
+# eventRegister method
 def eventRegister():
     msg = ''
     if request.method == 'POST':
-
-        #Receives a user response for all of eventName, eventDate, eventTime, and eventDescription
+        # Receives a user response for all of eventName, eventDate, eventTime, and eventDescription
         eventName = request.form.get('eventName', '').strip()
         eventDate = request.form.get('eventDate', '').strip()
         eventType = request.form.get('eventType', '').strip()
@@ -226,34 +263,41 @@ def eventRegister():
         eventDescription = request.form.get('eventDescription', '').strip()
         location = request.form.get('eventLocation', '').strip()
 
-
-    #Does what needs to be done if the fields are filled out.
-        if eventName and eventDate and eventType and game and startTime and endTime and eventDescription:
+        # Does what needs to be done if the fields are filled out.
+        if eventName and eventDate and eventType and startTime and endTime and eventDescription:
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
             try:
-                cursor.execute('INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Game, Location) '
-                                'VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
-                                (eventName, eventDate, startTime, endTime, eventDescription, eventType, game, location))
-                #Confirms that the event is registered.
+                cursor.execute(
+                    'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Game, Location) '
+                    'VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
+                    (eventName, eventDate, startTime, endTime, eventDescription, eventType, game, location))
+                # Confirms that the event is registered.
                 mysql.connection.commit()
                 msg = 'Event Registered!'
 
+                # Check if it's an AJAX request
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                    return jsonify({'success': True, 'message': msg}), 200
+
             except Exception as e:
                 msg = f'Error: {str(e)}'
+                # Return error as JSON for AJAX
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                    return jsonify({'success': False, 'message': msg}), 400
             finally:
                 cursor.close()
 
-        #Prompts user to fill out all fields if they leave any/all blank.
+        # Prompts user to fill out all fields if they leave any/all blank.
         else:
             msg = 'Please fill out all fields!'
+            # Return error as JSON for AJAX
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                return jsonify({'success': False, 'message': msg}), 400
 
-    #Uses the event-register html file to render the page.
+    # Uses the event-register html file to render the page (only for direct GET requests)
     return render_template('event-register.html', msg=msg)
 
-
-@app.route("/test")
-def test():
-    return "<p> This is a test </p>"
+import EsportsManagementTool.dashboard
 
 from EsportsManagementTool.calendar_routes import register_calendar_routes
 register_calendar_routes(app, mysql)

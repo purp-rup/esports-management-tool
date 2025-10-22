@@ -1,6 +1,6 @@
 from EsportsManagementTool import app
 from apscheduler.schedulers.background import BackgroundScheduler
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
 import MySQLdb.cursors
@@ -12,11 +12,17 @@ mysql = MySQL()
 mail = Mail()
 
 """DISCLAIMER: THIS CODE WAS GENERATED USING CLAUDE AI"""
+
+
 # UC-13: ChooseEventNotice - User Notification Preferences
 @app.route('/eventnotificationsettings', methods=['GET', 'POST'])
 def notification_settings():
     """Allow users to configure their event notification preferences"""
     if 'loggedin' not in session:
+        # Handle AJAX requests
+        if request.method == 'POST' and (
+                request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json):
+            return jsonify({'success': False, 'message': 'Not authenticated'}), 401
         flash('Please log in to access notification settings.', 'warning')
         return redirect(url_for('login'))
 
@@ -60,28 +66,26 @@ def notification_settings():
                                      advance_notice_hours))
 
             mysql.connection.commit()
+
+            # Return JSON for AJAX requests
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                return jsonify({'success': True, 'message': 'Notification preferences saved successfully!'}), 200
+
             flash('Notification preferences saved successfully!', 'success')
+
+        except Exception as e:
+            # Return error as JSON for AJAX requests
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 400
+            flash(f'Error saving preferences: {str(e)}', 'error')
 
         finally:
             cursor.close()
 
-        return redirect(url_for('notification_settings'))
+        return redirect(url_for('dashboard'))
 
-    # GET request - fetch current preferences
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    preferences = None
-
-    try:
-        cursor.execute("""
-                       SELECT *
-                       FROM notification_preferences
-                       WHERE user_id = %s
-                       """, (user_id,))
-        preferences = cursor.fetchone()
-    finally:
-        cursor.close()
-
-    return render_template('eventnotificationsettings.html', preferences=preferences)
+    # GET request - redirect to dashboard (no standalone page anymore)
+    return redirect(url_for('dashboard'))
 
 
 # UC-14: SendEventNotice - Automated Email Notifications
@@ -142,25 +146,33 @@ def check_and_send_notifications():
         users = cursor.fetchall()
 
         for user in users:
-            # Calculate notification window
-            advance_time = timedelta(
+            # Calculate how far in advance to notify (time before event)
+            advance_notice = timedelta(
                 days=user['advance_notice_days'],
                 hours=user['advance_notice_hours']
             )
-            notification_time = datetime.now() + advance_time
 
-            # Get all upcoming events from generalevents table
+            current_time = datetime.now()
+
+            # Calculate the time range: events that start between
+            # (now + advance_notice - 15 min) and (now + advance_notice + 15 min)
+            # This gives a 30-minute window centered on the exact notification time
+            target_notification_time = current_time + advance_notice
+            notification_start = target_notification_time - timedelta(minutes=15)
+            notification_end = target_notification_time + timedelta(minutes=15)
+
+            # Get all upcoming events where the event start time falls in our notification window
             cursor.execute("""
                            SELECT ge.EventID,
                                   ge.EventName,
                                   ge.Date as date,
-                                  ge.StartTime,
-                                  ge.location,
-                                  ge.description,
-                                  ge.EventType as event_type
+                                              ge.StartTime,
+                                              ge.location,
+                                              ge.description,
+                                              ge.EventType as event_type
                            FROM generalevents ge
-                           WHERE ge.Date = DATE (%s)
-                             AND ge.StartTime BETWEEN %s
+                           WHERE TIMESTAMP (ge.Date
+                               , ge.StartTime) BETWEEN %s
                              AND %s
                              AND NOT EXISTS (
                                SELECT 1 FROM sent_notifications sn
@@ -170,10 +182,7 @@ def check_and_send_notifications():
                              AND sn.sent_at >= DATE_SUB(NOW()
                                , INTERVAL 1 DAY)
                                )
-                           """, (notification_time.date(),
-                                 notification_time.time(),
-                                 (notification_time + timedelta(hours=1)).time(),
-                                 user['user_id']))
+                           """, (notification_start, notification_end, user['user_id']))
 
             events = cursor.fetchall()
 
@@ -222,5 +231,6 @@ scheduler.add_job(
 scheduler.start()
 
 import atexit
+
 atexit.register(lambda: scheduler.shutdown())
 """DISCLAIMER: THIS CODE WAS GENERATED USING CLAUDE AI"""

@@ -1,40 +1,229 @@
-<!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="utf-8">
-		<title>Login</title>
-		<link rel="stylesheet" href="{{ url_for('static', filename='general.css') }}">
-		<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.1/css/all.css">
-	</head>
+{% extends "base.html" %}
 
-	<body>
-		<div class="login">
-			<h1>Login</h1>
-			<div class="links">
-				<a href="{{ url_for('login') }}" class="active">Login</a>
-				<a href="{{ url_for('register') }}">Register</a>
-			</div>
-			<form action="{{ url_for('login') }}" method="post">
-				<label for="username">
-					<i class="fas fa-user"></i>
-				</label>
-				<input type="text" name="username" placeholder="Username" id="username" required>
-				<label for="password">
-					<i class="fas fa-lock"></i>
-				</label>
-				<input type="password" name="password" placeholder="Password" id="password" required>
-				<div class="msg">{{ msg }}</div>
-				<input type="submit" value="Login">
-			</form>
-		</div>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <script>
-                        alert("{{ message }}");
-                    </script>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-	</body>
-</html>
+{% block title %}Login - Stockton Esports{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Override base.html main styles for login page */
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 !important;
+        min-height: calc(100vh - 73px) !important;
+    }
+
+    .auth-container {
+        width: 100%;
+        max-width: 450px;
+        padding: 2rem;
+    }
+
+    .auth-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 3rem;
+        width: 100%;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .auth-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .auth-header h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+    }
+
+    .auth-header h1 .highlight {
+        color: var(--stockton-blue);
+    }
+
+    .auth-header p {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        background: var(--dark-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--stockton-blue);
+        box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+    }
+
+    .form-input::placeholder {
+        color: var(--text-secondary);
+    }
+
+    .btn-full {
+        width: 100%;
+        padding: 0.875rem;
+        font-size: 1rem;
+        margin-top: 0.5rem;
+    }
+
+    .auth-footer {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .auth-footer a {
+        color: var(--stockton-blue);
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s;
+    }
+
+    .auth-footer a:hover {
+        color: #5aabdd;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .checkbox-group label {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+    }
+
+    .forgot-password {
+        text-align: right;
+        margin-top: -1rem;
+        margin-bottom: 1rem;
+    }
+
+    .forgot-password a {
+        color: var(--stockton-blue);
+        text-decoration: none;
+        font-size: 0.875rem;
+        transition: color 0.2s;
+    }
+
+    .forgot-password a:hover {
+        color: #5aabdd;
+    }
+
+    .error-message {
+        background: rgba(255, 82, 82, 0.1);
+        border: 1px solid #ff5252;
+        color: #ff8a8a;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        font-size: 0.875rem;
+    }
+
+    @media (max-width: 768px) {
+        .auth-card {
+            padding: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1>Welcome <span class="highlight">Back</span></h1>
+            <p>Sign in to access your dashboard</p>
+        </div>
+
+        {% if msg %}
+        <div class="error-message">{{ msg }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="form-group">
+                <label for="username" class="form-label">Username</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    class="form-input"
+                    placeholder="Enter your username"
+                    required
+                    autofocus
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Password</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    class="form-input"
+                    placeholder="Enter your password"
+                    required
+                >
+            </div>
+
+            <div class="forgot-password">
+                <a href="#">Forgot password?</a>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="remember" name="remember">
+                <label for="remember">Remember me</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">
+                Sign In
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            Don't have an account? <a href="{{ url_for('register') }}">Create one</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

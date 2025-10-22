@@ -1,52 +1,289 @@
-<!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="utf-8">
-		<title>Register</title>
-		<link rel="stylesheet" href="{{ url_for('static', filename='general.css') }}">
-		<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.1/css/all.css">
-	</head>
-	<body>
-		<div class="register">
-			<h1>Registry</h1>
-			<div class="links">
-				<a href="{{ url_for('login') }}">Login</a>
-				<a href="{{ url_for('register') }}" class="active">Register</a>
-			</div>
-			<form action="{{ url_for('register') }}" method="post" autocomplete="off">
-				<label for="firstname">
-                    <i class="fas fa-user"></i>
-                </label>
-                <input type="text" name="firstname" placeholder="First name" id="firstname" required>
-                <label for="lastname">
-                    <i class="fas fa-user"></i>
-                </label>
-                <input type="text" name="lastname" placeholder="Last name" id="lastname" required>
-                <label for="username">
-					<i class="fas fa-user"></i>
-				</label>
-				<input type="text" name="username" placeholder="Username" id="username" required>
-				<label for="password">
-					<i class="fas fa-lock"></i>
-				</label>
-				<input type="password" name="password" placeholder="Password" id="password" required>
-                <label for="passwordconfirm">
-					<i class="fas fa-lock"></i>
-				</label>
-				<input type="password" name="passwordconfirm" placeholder="Confirm Password" id="passwordconfirm" required>
-				<label for="email">
-					<i class="fas fa-envelope"></i>
-				</label>
-				<input type="email" name="email" placeholder="Email" id="email" required>
-				<input type="submit" value="Register">
-			</form>
-		</div>
+{% extends "base.html" %}
 
-        <script>
-            {% if msg %}
-                alert("{{ msg }}");
-            {% endif %}
-        </script>
+{% block title %}Register - Stockton Esports{% endblock %}
 
-	</body>
-</html>
+{% block extra_css %}
+<style>
+    /* Override base.html main styles for register page */
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 !important;
+        min-height: calc(100vh - 73px) !important;
+    }
+
+    .auth-container {
+        width: 100%;
+        max-width: 500px;
+        padding: 2rem;
+    }
+
+    .auth-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 2rem;
+        width: 100%;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .auth-header {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .auth-header h1 {
+        font-size: 1.75rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+    }
+
+    .auth-header h1 .highlight {
+        color: var(--stockton-blue);
+    }
+
+    .auth-header p {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        background: var(--dark-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--stockton-blue);
+        box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+    }
+
+    .form-input::placeholder {
+        color: var(--text-secondary);
+    }
+
+    .btn-full {
+        width: 100%;
+        padding: 0.875rem;
+        font-size: 1rem;
+        margin-top: 0.5rem;
+    }
+
+    .auth-footer {
+        text-align: center;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .auth-footer a {
+        color: var(--stockton-blue);
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s;
+    }
+
+    .auth-footer a:hover {
+        color: #5aabdd;
+    }
+
+    .password-requirements {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 0.5rem;
+        line-height: 1.4;
+    }
+
+    .message {
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        font-size: 0.875rem;
+    }
+
+    .message.error {
+        background: rgba(255, 82, 82, 0.1);
+        border: 1px solid #ff5252;
+        color: #ff8a8a;
+    }
+
+    .message.success {
+        background: rgba(121, 189, 233, 0.1);
+        border: 1px solid var(--stockton-blue);
+        color: var(--stockton-blue);
+    }
+
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .auth-card {
+            padding: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1>Create <span class="highlight">Account</span></h1>
+            <p>Join the Stockton Esports community</p>
+        </div>
+
+        {% if msg %}
+        <div class="message {% if 'success' in msg.lower() %}success{% else %}error{% endif %}">
+            {{ msg }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('register') }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="firstname" class="form-label">First Name</label>
+                    <input
+                        type="text"
+                        id="firstname"
+                        name="firstname"
+                        class="form-input"
+                        placeholder="John"
+                        required
+                        autofocus
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="lastname" class="form-label">Last Name</label>
+                    <input
+                        type="text"
+                        id="lastname"
+                        name="lastname"
+                        class="form-input"
+                        placeholder="Doe"
+                        required
+                    >
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="username" class="form-label">Username</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    class="form-input"
+                    placeholder="johndoe123"
+                    pattern="[A-Za-z0-9]+"
+                    title="Username must contain only letters and numbers"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="email" class="form-label">Stockton Email</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    class="form-input"
+                    placeholder="john.doe@go.stockton.edu"
+                    required
+                >
+                <div class="password-requirements">
+                    Must be a valid Stockton email address (@stockton.edu or @go.stockton.edu)
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Password</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    class="form-input"
+                    placeholder="Create a strong password"
+                    minlength="8"
+                    required
+                >
+                <div class="password-requirements">
+                    Password must be at least 8 characters long
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="passwordconfirm" class="form-label">Confirm Password</label>
+                <input
+                    type="password"
+                    id="passwordconfirm"
+                    name="passwordconfirm"
+                    class="form-input"
+                    placeholder="Re-enter your password"
+                    minlength="8"
+                    required
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">
+                Create Account
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            Already have an account? <a href="{{ url_for('login') }}">Sign in</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Client-side password match validation
+    const form = document.querySelector('form');
+    const password = document.getElementById('password');
+    const passwordconfirm = document.getElementById('passwordconfirm');
+
+    form.addEventListener('submit', function(e) {
+        if (password.value !== passwordconfirm.value) {
+            e.preventDefault();
+            alert('Passwords do not match!');
+            passwordconfirm.focus();
+        }
+    });
+</script>
+{% endblock %}

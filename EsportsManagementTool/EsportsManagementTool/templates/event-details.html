@@ -1,15 +1,124 @@
-<!--Claude AI assisted in the creation of this html document-->
-{% extends "layout.html" %}
+{% extends "base.html" %}
 
 {% block title %}{{ event.name }} - Event Details{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
+{% block extra_css %}
+<style>
+    .event-details-wrapper {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
 
+    .event-details-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .event-details-header h1 {
+        font-size: 2rem;
+        color: var(--text-primary);
+    }
+
+    .back-button {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        background: transparent;
+        color: var(--text-secondary);
+        text-decoration: none;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .back-button:hover {
+        background: var(--hover-bg);
+        color: var(--text-primary);
+        border-color: var(--stockton-blue);
+    }
+
+    .event-details-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 2rem;
+    }
+
+    .detail-section {
+        display: flex;
+        gap: 1rem;
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .detail-section:last-child {
+        border-bottom: none;
+    }
+
+    .detail-section.full-width {
+        flex-direction: column;
+    }
+
+    .detail-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(121, 189, 233, 0.1);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--stockton-blue);
+        flex-shrink: 0;
+    }
+
+    .detail-icon i {
+        font-size: 1.25rem;
+    }
+
+    .detail-content {
+        flex: 1;
+    }
+
+    .detail-content h3 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+
+    .detail-content p {
+        font-size: 1rem;
+        color: var(--text-primary);
+        line-height: 1.6;
+    }
+
+    @media (max-width: 768px) {
+        .event-details-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .event-details-header h1 {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
 <div class="event-details-wrapper">
     <div class="event-details-header">
         <h1>{{ event.name }}</h1>
-        <a href="{{ url_for('calendar') }}" class="back-button">
+        <a href="{{ url_for('dashboard') }}" class="back-button">
             <i class="fas fa-arrow-left"></i> Back to Calendar
         </a>
     </div>
@@ -79,12 +188,14 @@
         {% endif %}
 
         <div class="detail-section full-width">
-            <div class="detail-icon">
-                <i class="fas fa-info-circle"></i>
-            </div>
-            <div class="detail-content">
-                <h3>Description</h3>
-                <p>{{ event.description }}</p>
+            <div style="display: flex; gap: 1rem;">
+                <div class="detail-icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="detail-content">
+                    <h3>Description</h3>
+                    <p>{{ event.description }}</p>
+                </div>
             </div>
         </div>
     </div>
