@@ -146,25 +146,33 @@ def check_and_send_notifications():
         users = cursor.fetchall()
 
         for user in users:
-            # Calculate notification window
-            advance_time = timedelta(
+            # Calculate how far in advance to notify (time before event)
+            advance_notice = timedelta(
                 days=user['advance_notice_days'],
                 hours=user['advance_notice_hours']
             )
-            notification_time = datetime.now() + advance_time
 
-            # Get all upcoming events from generalevents table
+            current_time = datetime.now()
+
+            # Calculate the time range: events that start between
+            # (now + advance_notice - 15 min) and (now + advance_notice + 15 min)
+            # This gives a 30-minute window centered on the exact notification time
+            target_notification_time = current_time + advance_notice
+            notification_start = target_notification_time - timedelta(minutes=15)
+            notification_end = target_notification_time + timedelta(minutes=15)
+
+            # Get all upcoming events where the event start time falls in our notification window
             cursor.execute("""
                            SELECT ge.EventID,
                                   ge.EventName,
                                   ge.Date as date,
-                                  ge.StartTime,
-                                  ge.location,
-                                  ge.description,
-                                  ge.EventType as event_type
+                                              ge.StartTime,
+                                              ge.location,
+                                              ge.description,
+                                              ge.EventType as event_type
                            FROM generalevents ge
-                           WHERE ge.Date = DATE (%s)
-                             AND ge.StartTime BETWEEN %s
+                           WHERE TIMESTAMP (ge.Date
+                               , ge.StartTime) BETWEEN %s
                              AND %s
                              AND NOT EXISTS (
                                SELECT 1 FROM sent_notifications sn
@@ -174,10 +182,7 @@ def check_and_send_notifications():
                              AND sn.sent_at >= DATE_SUB(NOW()
                                , INTERVAL 1 DAY)
                                )
-                           """, (notification_time.date(),
-                                 notification_time.time(),
-                                 (notification_time + timedelta(hours=1)).time(),
-                                 user['user_id']))
+                           """, (notification_start, notification_end, user['user_id']))
 
             events = cursor.fetchall()
 
