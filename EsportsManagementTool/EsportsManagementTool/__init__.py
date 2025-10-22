@@ -5,6 +5,8 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
+from datetime import datetime
+import calendar as cal
 import MySQLdb.cursors
 import re
 import bcrypt
@@ -12,6 +14,9 @@ import secrets
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timedelta
+
+
+
 app = Flask(__name__)
 
 
@@ -293,6 +298,9 @@ def eventRegister():
     return render_template('event-register.html', msg=msg)
 
 import EsportsManagementTool.dashboard
+
+from EsportsManagementTool.calendar_routes import register_calendar_routes
+register_calendar_routes(app, mysql)
 
 # This is used for debugging, It will show the app routes that are registered.
 if __name__ != '__main__':

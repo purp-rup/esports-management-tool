@@ -4,9 +4,18 @@
 {% block title %}Calendar{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
     <div class="calendar-wrapper">
-        <!-- Month and Year Header -->
-        <h1 class="calendar-month-year">OCTOBER 2025</h1>
+        <!-- Navigation and Month/Year Header -->
+        <div class="calendar-navigation">
+            <a href="{{ url_for('calendar', year=prev_year, month=prev_month) }}" class="nav-button" id="prev-month">
+                <i class="fas fa-chevron-left"></i> Previous
+            </a>
+            <h1 class="calendar-month-year">{{ month_name }} {{ year }}</h1>
+            <a href="{{ url_for('calendar', year=next_year, month=next_month) }}" class="nav-button" id="next-month">
+                Next <i class="fas fa-chevron-right"></i>
+            </a>
+        </div>
 
         <!-- Days of week header -->
         <div class="calendar-header">
@@ -21,27 +30,89 @@
 
         <!-- Calendar grid -->
         <div class="calendar-grid">
-            <!-- Empty cells before October 1st (Oct 1 is Wednesday, so 3 empty cells) -->
-            <div class="calendar-cell empty"></div>
-            <div class="calendar-cell empty"></div>
-            <div class="calendar-cell empty"></div>
-
-            <!-- Days 1-31 -->
-            {% for day in range(1, 32) %}
-                <div class="calendar-cell">
-                    <div class="day-number">{{ day }}</div>
-                    
-                    <!-- Show events that match this day -->
-                    <div class="events-container">
-                        {% for event in events %}
-                            {% set day_string = '2025-10-%02d'|format(day) %}
-                            {% if event.date == day_string %}
-                                <div class="event">{{ event.title }}</div>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
+            {% for week in month_calendar %}
+                {% for day in week %}
+                    {% if day == 0 %}
+                        <!-- Empty cell for days outside this month -->
+                        <div class="calendar-cell empty"></div>
+                    {% else %}
+                        <!-- Create date string for this day -->
+                        {% set day_date = '%04d-%02d-%02d'|format(year, month, day) %}
+                        {% set is_today = (day_date == today_str) %}
+                        
+                        <!-- Calendar cell with conditional today class -->
+                        <div class="calendar-cell {% if is_today %}today{% endif %}">
+                            <div class="day-number">{{ day }}</div>
+                            
+                            <!-- Show events for this day -->
+                            <div class="events-container">
+                                {% if day_date in events_by_date %}
+                                    {% set day_events = events_by_date[day_date] %}
+                                    
+                                    <!-- Show first 3 events -->
+                                    {% for event in day_events[:3] %}
+                                        <a href="{{ url_for('event_details', event_id=event.id) }}" class="event-link">
+                                            <div class="event" title="Click to view details">
+                                                {% if event.time %}
+                                                    <strong>{{ event.time }}</strong> - 
+                                                {% endif %}
+                                                {{ event.title }}
+                                            </div>
+                                        </a>
+                                    {% endfor %}
+                                    
+                                    <!-- Show "+X more" if there are more than 3 events -->
+                                    {% if day_events|length > 3 %}
+                                        <div class="event-overflow">
+                                            +{{ day_events|length - 3 }} more
+                                        </div>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
             {% endfor %}
         </div>
+        
+        <!-- Today button to jump back to current month -->
+        <div class="calendar-footer">
+            <a href="{{ url_for('calendar') }}" class="today-button">
+                <i class="fas fa-calendar-day"></i> Jump to Today
+            </a>
+        </div>
     </div>
+
+    <script>
+        // Quick jump to selected month/year
+        function jumpToDate() {
+            const month = document.getElementById('month-select').value;
+            const year = document.getElementById('year-select').value;
+            window.location.href = `/calendar/${year}/${month}`;
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(event) {
+            // Left arrow - previous month
+            if (event.key === 'ArrowLeft') {
+                document.getElementById('prev-month').click();
+            }
+            // Right arrow - next month
+            else if (event.key === 'ArrowRight') {
+                document.getElementById('next-month').click();
+            }
+        });
+
+        // Allow Enter key in dropdowns to jump
+        document.getElementById('month-select').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                jumpToDate();
+            }
+        });
+        document.getElementById('year-select').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                jumpToDate();
+            }
+        });
+    </script>
 {% endblock %}
