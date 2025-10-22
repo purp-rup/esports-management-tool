@@ -259,7 +259,7 @@ def eventRegister():
         location = request.form.get('eventLocation', '').strip()
 
         # Does what needs to be done if the fields are filled out.
-        if eventName and eventDate and eventType and game and startTime and endTime and eventDescription:
+        if eventName and eventDate and eventType and startTime and endTime and eventDescription:
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
             try:
                 cursor.execute(
