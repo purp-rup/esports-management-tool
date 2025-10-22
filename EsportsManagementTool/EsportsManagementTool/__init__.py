@@ -18,6 +18,7 @@ app = Flask(__name__)
 # Module imports
 import EsportsManagementTool.exampleModule
 from EsportsManagementTool.calendar_routes import register_calendar_routes
+import EsportsManagementTool.EventNotificationManager
 
 # Change this to your secret key (can be anything, it's for extra protection)
 app.secret_key = 'your secret key'
@@ -241,14 +242,13 @@ def register():
 
     return render_template('register.html', msg=msg)
 
-#App route to get to event registration.
+# App route to get to event registration.
 @app.route('/event-register', methods=['GET', 'POST'])
-#eventRegister method
+# eventRegister method
 def eventRegister():
     msg = ''
     if request.method == 'POST':
-
-        #Receives a user response for all of eventName, eventDate, eventTime, and eventDescription
+        # Receives a user response for all of eventName, eventDate, eventTime, and eventDescription
         eventName = request.form.get('eventName', '').strip()
         eventDate = request.form.get('eventDate', '').strip()
         eventType = request.form.get('eventType', '').strip()
@@ -258,28 +258,38 @@ def eventRegister():
         eventDescription = request.form.get('eventDescription', '').strip()
         location = request.form.get('eventLocation', '').strip()
 
-
-    #Does what needs to be done if the fields are filled out.
+        # Does what needs to be done if the fields are filled out.
         if eventName and eventDate and eventType and game and startTime and endTime and eventDescription:
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
             try:
-                cursor.execute('INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Game, Location) '
-                                'VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
-                                (eventName, eventDate, startTime, endTime, eventDescription, eventType, game, location))
-                #Confirms that the event is registered.
+                cursor.execute(
+                    'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Game, Location) '
+                    'VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
+                    (eventName, eventDate, startTime, endTime, eventDescription, eventType, game, location))
+                # Confirms that the event is registered.
                 mysql.connection.commit()
                 msg = 'Event Registered!'
 
+                # Check if it's an AJAX request
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                    return jsonify({'success': True, 'message': msg}), 200
+
             except Exception as e:
                 msg = f'Error: {str(e)}'
+                # Return error as JSON for AJAX
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                    return jsonify({'success': False, 'message': msg}), 400
             finally:
                 cursor.close()
 
-        #Prompts user to fill out all fields if they leave any/all blank.
+        # Prompts user to fill out all fields if they leave any/all blank.
         else:
             msg = 'Please fill out all fields!'
+            # Return error as JSON for AJAX
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                return jsonify({'success': False, 'message': msg}), 400
 
-    #Uses the event-register html file to render the page.
+    # Uses the event-register html file to render the page (only for direct GET requests)
     return render_template('event-register.html', msg=msg)
 
 import EsportsManagementTool.dashboard

@@ -540,6 +540,296 @@
             grid-column: 1;
         }
     }
+
+    /* Update card-header to flex for button placement */
+    .card-header {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .card-header > div {
+        flex: 1;
+    }
+
+    /* Create Event Form Modal Styles */
+    .modal-subtitle {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .event-form-modal {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .event-form-modal .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .event-form-modal .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+
+    .event-form-modal label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+    }
+
+    .event-form-modal input,
+    .event-form-modal select,
+    .event-form-modal textarea {
+        width: 100%;
+        padding: 0.75rem;
+        background: var(--dark-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        transition: all 0.2s;
+    }
+
+    .event-form-modal input:focus,
+    .event-form-modal select:focus,
+    .event-form-modal textarea:focus {
+        outline: none;
+        border-color: var(--stockton-blue);
+        box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+    }
+
+    .event-form-modal input::placeholder,
+    .event-form-modal textarea::placeholder {
+        color: var(--text-secondary);
+    }
+
+    .event-form-modal textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .form-actions .btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .form-message {
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+    }
+
+    .form-message.success {
+        background: rgba(121, 189, 233, 0.1);
+        border: 1px solid var(--stockton-blue);
+        color: var(--stockton-blue);
+    }
+
+    .form-message.error {
+        background: rgba(255, 82, 82, 0.1);
+        border: 1px solid #ff5252;
+        color: #ff8a8a;
+    }
+
+    @media (max-width: 640px) {
+        .event-form-modal .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .card-header {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .card-header .btn {
+            width: 100%;
+        }
+    }
+
+    /* Notification Settings Styles */
+    .notification-form {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .notification-toggle {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        background: var(--dark-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+
+    .toggle-info h3 {
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+        color: var(--text-primary);
+    }
+
+    .toggle-info p {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    /* Toggle Switch */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--border-color);
+        transition: 0.4s;
+        border-radius: 34px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+    }
+
+    input:checked + .slider {
+        background-color: var(--stockton-blue);
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(26px);
+    }
+
+    .notification-options {
+        padding: 1.5rem;
+        background: var(--dark-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .form-section h3 {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+    }
+
+    .section-description {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+    }
+
+    .notification-form .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .notification-form .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .notification-form label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+    }
+
+    .notification-form input[type="number"] {
+        width: 100%;
+        padding: 0.75rem;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .notification-form input[type="number"]:focus {
+        outline: none;
+        border-color: var(--stockton-blue);
+        box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+    }
+
+    .notification-preview {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        background: rgba(121, 189, 233, 0.1);
+        border: 1px solid var(--stockton-blue);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+    }
+
+    .notification-preview i {
+        color: var(--stockton-blue);
+        font-size: 1.125rem;
+    }
+
+    .notification-preview strong {
+        color: var(--stockton-blue);
+    }`
 </style>
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
@@ -758,7 +1048,81 @@
                 <button class="btn btn-secondary">Change Password</button>
             </div>
         </div>
-    </div>
+
+                <!-- NEW: Notification Settings Card -->
+            <div class="content-card" style="margin-top: 2rem;">
+                <div class="card-header">
+                    <h2>Notification Settings</h2>
+                    <p>Configure how you receive event reminders</p>
+                </div>
+
+                <form id="notificationSettingsForm" class="notification-form">
+                    <div class="notification-toggle">
+                        <div class="toggle-info">
+                            <h3>Enable Event Notifications</h3>
+                            <p>Receive email reminders for upcoming events</p>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox"
+                                   name="enable_notifications"
+                                   id="enableNotifications"
+                                   {% if preferences and preferences.enable_notifications %}checked{% endif %}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div id="notificationOptions"
+                         class="notification-options"
+                         style="{% if not preferences or not preferences.enable_notifications %}display: none;{% endif %}">
+
+                        <div class="form-section">
+                            <h3>Advance Notice</h3>
+                            <p class="section-description">How far in advance should we notify you?</p>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="adviceNoticeDays">Days Before</label>
+                                    <input type="number"
+                                           id="adviceNoticeDays"
+                                           name="advance_notice_days"
+                                           min="0"
+                                           max="30"
+                                           value="{% if preferences %}{{ preferences.advance_notice_days }}{% else %}1{% endif %}">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="adviceNoticeHours">Hours Before</label>
+                                    <input type="number"
+                                           id="adviceNoticeHours"
+                                           name="advance_notice_hours"
+                                           min="0"
+                                           max="23"
+                                           value="{% if preferences %}{{ preferences.advance_notice_hours }}{% else %}0{% endif %}">
+                                </div>
+                            </div>
+
+                            <div class="notification-preview">
+                                <i class="fas fa-info-circle"></i>
+                                <span id="notificationPreview">
+                                    You'll be notified
+                                    <strong id="previewTime">1 day</strong>
+                                    before each event
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="notificationMessage" class="form-message" style="display: none;"></div>
+
+                    <div class="profile-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <span id="saveNotifBtnText">Save Notification Settings</span>
+                            <i id="saveNotifBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
     <!-- Rosters Tab -->
     <div id="rosters" class="tab-content">
@@ -779,13 +1143,131 @@
     <div id="events" class="tab-content">
         <div class="content-card">
             <div class="card-header">
-                <h2>Events</h2>
-                <p>Manage matches, practices, and community events</p>
+                <div>
+                    <h2>Events</h2>
+                    <p>Manage matches, practices, and community events</p>
+                </div>
+                <button class="btn btn-primary" onclick="openCreateEventModal()">
+                    <i class="fas fa-plus"></i> Create Event
+                </button>
             </div>
             <div class="empty-state">
                 <div class="empty-state-icon">🎮</div>
                 <h3>No Events Scheduled</h3>
-                <p>Events and matches will be displayed here</p>
+                <p>Click "Create Event" to add your first event</p>
+            </div>
+        </div>
+
+        <!-- Create Event Modal -->
+        <div id="createEventModal" class="modal">
+            <div class="modal-content modal-content-large">
+                <div class="modal-header">
+                    <h2>Create New Event</h2>
+                    <button class="modal-close" onclick="closeCreateEventModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="modal-subtitle">Add a new event or match to the calendar</p>
+
+                    <form id="createEventForm" class="event-form-modal">
+                        <div class="form-group">
+                            <label for="eventName">Event Name</label>
+                            <input type="text" id="eventName" name="eventName" placeholder="Enter event name" required>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="eventType">Event Type</label>
+                                <select id="eventType" name="eventType" required>
+                                    <option value="">Select type</option>
+                                    <option>Event</option>
+                                    <option>Match</option>
+                                    <option>Practice</option>
+                                    <option>Tournament</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="game">Game</label>
+                                <select id="game" name="game" required>
+                                    <option value="">Select game</option>
+                                    <option>Apex Legends</option>
+                                    <option>Call of Duty</option>
+                                    <option>Counter-Strike 2</option>
+                                    <option>EA FC</option>
+                                    <option>Fortnite</option>
+                                    <option>Game Changers</option>
+                                    <option>Hearthstone</option>
+                                    <option>League of Legends</option>
+                                    <option>Madden NFL</option>
+                                    <option>Mario Kart</option>
+                                    <option>Marvel Rivals</option>
+                                    <option>NBA 2K</option>
+                                    <option>Overwatch 2</option>
+                                    <option>Rainbow 6: Siege</option>
+                                    <option>Rocket League</option>
+                                    <option>Smash Ultimate</option>
+                                    <option>Street Fighter 6</option>
+                                    <option>Team Fight Tactics</option>
+                                    <option>Valorant</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="eventDate">Date</label>
+                                <input type="date" id="eventDate" name="eventDate" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="startTime">Start Time</label>
+                                <input type="time" id="startTime" name="startTime" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="endTime">End Time</label>
+                                <input type="time" id="endTime" name="endTime" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="eventLocation">Location</label>
+                            <select id="eventLocation" name="eventLocation" required>
+                                <option value="">Select location</option>
+                                <option>Campus Center</option>
+                                <option>Campus Center Coffee House</option>
+                                <option>Campus Center Event Room</option>
+                                <option>D-108</option>
+                                <option>Esports Lab (Commons Building 80)</option>
+                                <option>Lakeside Lodge</option>
+                                <option>Online</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" id="customLocationGroup" style="display: none;">
+                            <label for="customLocation">Custom Location</label>
+                            <input type="text" id="customLocation" name="customLocation" placeholder="Enter custom location">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="eventDescription">Description</label>
+                            <textarea id="eventDescription" name="eventDescription" placeholder="Enter event description" rows="4" required></textarea>
+                        </div>
+
+                        <div id="formMessage" class="form-message" style="display: none;"></div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeCreateEventModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">
+                                <span id="submitBtnText">Create Event</span>
+                                <i id="submitBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -1120,6 +1602,215 @@ async function openEventModal(eventId) {
         tabDropdown.addEventListener('change', function() {
             switchTab(this.value);
         });
+    });
+
+    // Create Event Modal Functions
+    function openCreateEventModal() {
+        const modal = document.getElementById('createEventModal');
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+
+        // Reset form
+        document.getElementById('createEventForm').reset();
+        document.getElementById('customLocationGroup').style.display = 'none';
+        document.getElementById('formMessage').style.display = 'none';
+    }
+
+    function closeCreateEventModal() {
+        const modal = document.getElementById('createEventModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    // Handle custom location toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const locationSelect = document.getElementById('eventLocation');
+        const customLocationGroup = document.getElementById('customLocationGroup');
+        const customLocationInput = document.getElementById('customLocation');
+
+        if (locationSelect) {
+            locationSelect.addEventListener('change', function() {
+                if (this.value === 'other') {
+                    customLocationGroup.style.display = 'block';
+                    customLocationInput.required = true;
+                } else {
+                    customLocationGroup.style.display = 'none';
+                    customLocationInput.required = false;
+                    customLocationInput.value = '';
+                }
+            });
+        }
+    });
+
+    // Handle form submission
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('createEventForm');
+
+        if (form) {
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const submitBtnText = document.getElementById('submitBtnText');
+                const submitBtnSpinner = document.getElementById('submitBtnSpinner');
+                const formMessage = document.getElementById('formMessage');
+
+                // Disable submit button
+                submitBtn.disabled = true;
+                submitBtnText.style.display = 'none';
+                submitBtnSpinner.style.display = 'inline-block';
+
+                // Get form data
+                const formData = new FormData(form);
+
+                // Handle custom location
+                const location = formData.get('eventLocation');
+                if (location === 'other') {
+                    formData.set('eventLocation', formData.get('customLocation'));
+                }
+                formData.delete('customLocation');
+
+                try {
+                    const response = await fetch('/event-register', {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        // Show success message
+                        formMessage.textContent = data.message || 'Event created successfully! Refreshing calendar...';
+                        formMessage.className = 'form-message success';
+                        formMessage.style.display = 'block';
+
+                        // Refresh the page after 1.5 seconds to show updated calendar
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        throw new Error(data.message || 'Failed to create event');
+                    }
+                } catch (error) {
+                    // Show error message
+                    formMessage.textContent = error.message || 'Failed to create event. Please try again.';
+                    formMessage.className = 'form-message error';
+                    formMessage.style.display = 'block';
+
+                    // Re-enable submit button
+                    submitBtn.disabled = false;
+                    submitBtnText.style.display = 'inline';
+                    submitBtnSpinner.style.display = 'none';
+                }
+            });
+        }
+    });
+
+    // Notification Settings Functions
+    document.addEventListener('DOMContentLoaded', function() {
+        const enableNotifToggle = document.getElementById('enableNotifications');
+        const notificationOptions = document.getElementById('notificationOptions');
+        const daysInput = document.getElementById('adviceNoticeDays');
+        const hoursInput = document.getElementById('adviceNoticeHours');
+        const previewText = document.getElementById('previewTime');
+
+        // Toggle notification options visibility
+        if (enableNotifToggle) {
+            enableNotifToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    notificationOptions.style.display = 'block';
+                } else {
+                    notificationOptions.style.display = 'none';
+                }
+            });
+        }
+
+        // Update preview text
+        function updatePreview() {
+            const days = parseInt(daysInput.value) || 0;
+            const hours = parseInt(hoursInput.value) || 0;
+
+            let previewParts = [];
+            if (days > 0) {
+                previewParts.push(`${days} day${days !== 1 ? 's' : ''}`);
+            }
+            if (hours > 0) {
+                previewParts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
+            }
+
+            if (previewParts.length === 0) {
+                previewText.textContent = 'at the time of the event';
+            } else {
+                previewText.textContent = previewParts.join(' and ');
+            }
+        }
+
+        if (daysInput && hoursInput) {
+            daysInput.addEventListener('input', updatePreview);
+            hoursInput.addEventListener('input', updatePreview);
+            updatePreview(); // Initial call
+        }
+
+        // Handle form submission
+        const notifForm = document.getElementById('notificationSettingsForm');
+        if (notifForm) {
+            notifForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const submitBtn = notifForm.querySelector('button[type="submit"]');
+                const submitBtnText = document.getElementById('saveNotifBtnText');
+                const submitBtnSpinner = document.getElementById('saveNotifBtnSpinner');
+                const formMessage = document.getElementById('notificationMessage');
+
+                // Disable submit button
+                submitBtn.disabled = true;
+                submitBtnText.style.display = 'none';
+                submitBtnSpinner.style.display = 'inline-block';
+
+                // Get form data
+                const formData = new FormData(notifForm);
+
+                try {
+                    const response = await fetch('/eventnotificationsettings', {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        // Show success message
+                        formMessage.textContent = data.message || 'Notification settings saved successfully!';
+                        formMessage.className = 'form-message success';
+                        formMessage.style.display = 'block';
+
+                        // Hide message after 3 seconds
+                        setTimeout(() => {
+                            formMessage.style.display = 'none';
+                        }, 3000);
+                    } else {
+                        throw new Error(data.message || 'Failed to save settings');
+                    }
+                } catch (error) {
+                    // Show error message
+                    formMessage.textContent = error.message || 'Failed to save notification settings. Please try again.';
+                    formMessage.className = 'form-message error';
+                    formMessage.style.display = 'block';
+
+                } finally {
+                    // Re-enable submit button
+                    submitBtn.disabled = false;
+                    submitBtnText.style.display = 'inline';
+                    submitBtnSpinner.style.display = 'none';
+                }
+            });
+        }
     });
 </script>
 {% endblock %}

@@ -30,6 +30,13 @@ def dashboard(year=None, month=None):
         flash('User not found', 'error')
         return redirect(url_for('login'))
 
+    # Get notification preferences
+    cursor.execute("""
+        SELECT * FROM notification_preferences 
+        WHERE user_id = %s
+    """, (session['id'],))
+    preferences = cursor.fetchone()
+
     # Default to current month/year if not specified
     if year is None or month is None:
         today = datetime.now()
@@ -104,6 +111,7 @@ def dashboard(year=None, month=None):
         return render_template(
             "dashboard.html",
             user=user,
+            preferences=preferences,
             month_calendar=month_calendar,
             month_name=month_name,
             year=year,
