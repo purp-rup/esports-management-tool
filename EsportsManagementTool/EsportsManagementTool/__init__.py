@@ -22,7 +22,6 @@ app = Flask(__name__)
 
 # Module imports
 import EsportsManagementTool.exampleModule
-from EsportsManagementTool.calendar_routes import register_calendar_routes
 import EsportsManagementTool.EventNotificationManager
 
 # Change this to your secret key (can be anything, it's for extra protection)
@@ -55,7 +54,6 @@ leakage across packet transferring.
 mysql = MySQL(app)
 mail = Mail(app)
 
-register_calendar_routes(app, mysql)
 
 # For production, force HTTPS
 app.config['SESSION_COOKIE_SECURE'] = True
@@ -299,8 +297,7 @@ def eventRegister():
 
 import EsportsManagementTool.dashboard
 
-from EsportsManagementTool.calendar_routes import register_calendar_routes
-register_calendar_routes(app, mysql)
+
 
 # This is used for debugging, It will show the app routes that are registered.
 if __name__ != '__main__':
