@@ -1,5 +1,5 @@
 from EsportsManagementTool import app
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
 import MySQLdb.cursors
@@ -24,6 +24,9 @@ def dashboard(year=None, month=None):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute("SELECT * FROM users WHERE id = %s", (session['id'],))
     user = cursor.fetchone()
+
+    ##Temporary override. Makes all users admins to be able to view admin panel!!
+    user['is_admin'] = True
 
     if not user:
         session.clear()
@@ -108,6 +111,40 @@ def dashboard(year=None, month=None):
                 events_by_date[date_str] = []
             events_by_date[date_str].append(event_data)
 
+        # --- Admin Panel Stats ---
+        total_users = active_users = admins = gms = 0
+
+        if user.get('is_admin', True):  # treat everyone as admin for now
+            try:
+                # Count all users
+                cursor.execute("SELECT COUNT(*) AS total_users FROM users")
+                total_users = cursor.fetchone()['total_users']
+
+                # Treat all users as active (no is_active column)
+                active_users = total_users
+
+                # Since there’s no is_admin or role column yet
+                admins = 1  # yourself
+                gms = 0  # none yet
+            except Exception as e:
+                print("Admin stats error:", e)
+
+        # --- Admin User Management ---
+        user_list = []
+
+        if user.get('is_admin', True):  # temporary override: treat all as admin
+            try:
+                cursor.execute("SELECT firstname, lastname, username, email, date FROM users ORDER BY date DESC")
+                user_list = cursor.fetchall()
+
+                ##Temporary (ADD AN ACTIVE/INACTIVE thing)
+                for u in user_list:
+                    u['active'] = True
+                ##Temporary
+
+            except Exception as e:
+                print("Error fetching user list:", e)
+
         return render_template(
             "dashboard.html",
             user=user,
@@ -121,8 +158,73 @@ def dashboard(year=None, month=None):
             prev_year=prev_year,
             prev_month=prev_month,
             next_year=next_year,
-            next_month=next_month
+            next_month=next_month,
+            total_users = total_users,
+            active_users = active_users,
+            admins = admins,
+            gms = gms,
+            user_list = user_list
         )
+
+    finally:
+        cursor.close()
+
+##Delete Events functionality. Includes deleting from table.
+@app.route('/delete-event', methods=['POST'])
+def delete_event():
+    """
+    Delete an event from the generalevents table.
+    Only accessible to logged-in admin users.
+    """
+    # Check if user is logged in
+    if 'loggedin' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized - Please log in'}), 401
+
+    # Get user information to check admin status
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        cursor.execute("SELECT * FROM users WHERE id = %s", (session['id'],))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        # Admin check (temporary override treats all users as admin)
+        if not user.get('is_admin', True):  # treat all as admin for now
+            return jsonify({'success': False, 'message': 'Permission denied - Admin access required'}), 403
+
+        # Get the event ID from request JSON
+        data = request.get_json()
+        event_id = data.get('event_id')
+
+        if not event_id:
+            return jsonify({'success': False, 'message': 'Missing event ID'}), 400
+
+        # Verify event exists before attempting to delete
+        cursor.execute("SELECT EventID FROM generalevents WHERE EventID = %s", (event_id,))
+        event = cursor.fetchone()
+
+        if not event:
+            return jsonify({'success': False, 'message': 'Event not found'}), 404
+
+        # Delete the event from the database
+        cursor.execute("DELETE FROM generalevents WHERE EventID = %s", (event_id,))
+        mysql.connection.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Event deleted successfully'
+        }), 200
+
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error deleting event: {str(e)}")
+        mysql.connection.rollback()
+        return jsonify({
+            'success': False,
+            'message': 'Database error occurred while deleting event'
+        }), 500
 
     finally:
         cursor.close()

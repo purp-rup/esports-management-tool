@@ -296,6 +296,7 @@ def eventRegister():
     return render_template('event-register.html', msg=msg)
 
 import EsportsManagementTool.dashboard
+from EsportsManagementTool import adminPanel
 
 
 
