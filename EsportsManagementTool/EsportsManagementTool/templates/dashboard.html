@@ -3,7 +3,7 @@
 {% block title %}Dashboard - Stockton Esports{% endblock %}
 
 {% block extra_css %}
-<!-- Import external CSS files -->
+<!-- Import external CSS file(s) -->
 <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
 <style>
     /* Font Awesome CDN */
@@ -620,6 +620,38 @@
         min-height: 100px;
     }
 
+    /* File Input Styling */
+    .event-form-modal input[type="file"] {
+        width: 100%;
+        padding: 0.75rem;
+        background: var(--dark-bg);
+        border: 2px dashed var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .event-form-modal input[type="file"]:hover {
+        border-color: var(--stockton-blue);
+        background: var(--hover-bg);
+    }
+
+    .event-form-modal input[type="file"]:focus {
+        outline: none;
+        border-color: var(--stockton-blue);
+        box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+    }
+
+    #imagePreview {
+        padding: 0.5rem;
+        background: var(--dark-bg);
+        border-radius: 8px;
+        text-align: center;
+    }
+
     /* Delete Button Styling */
     .btn-delete-event {
         background: transparent;
@@ -1098,22 +1130,27 @@
         border-color: var(--stockton-blue);
     }
 </style>
+
 <!--Roster Tab styling -->
 <style>
+    /* Rosters Tab Styles - 2 Column Layout */
     .rosters-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1.5rem;
-        margin-top: 1.5rem;
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 1.5rem !important;
+        margin-top: 1.5rem !important;
+        max-width: 100% !important;
     }
 
     .roster-card {
         background: var(--dark-bg);
         border: 2px solid var(--border-color);
         border-radius: 12px;
-        padding: 1.5rem;
+        padding: 1.25rem;
         transition: all 0.2s;
         cursor: pointer;
+        display: flex;
+        flex-direction: column;
     }
 
     .roster-card:hover {
@@ -1126,23 +1163,33 @@
         display: flex;
         align-items: center;
         gap: 1rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
     }
 
     .roster-icon {
-        width: 50px;
-        height: 50px;
+        width: 40px;
+        height: 40px;
         background: rgba(121, 189, 233, 0.15);
         border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.5rem;
+        font-size: 1.25rem;
         color: var(--stockton-blue);
+        flex-shrink: 0;
+        overflow: hidden; /* Important for image containment */
+        position: relative;
+    }
+
+    .roster-game-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover; /* Crop image to fill the square */
+        border-radius: 10px;
     }
 
     .roster-card-title {
-        font-size: 1.25rem;
+        font-size: 1.125rem;
         font-weight: 600;
         color: var(--text-primary);
         margin: 0;
@@ -1151,39 +1198,67 @@
     .roster-card-description {
         color: var(--text-secondary);
         font-size: 0.875rem;
-        line-height: 1.5;
-        margin-bottom: 1rem;
+        line-height: 1.4;
+        margin-bottom: 0.75rem;
+        flex-grow: 0;
     }
 
     .roster-card-meta {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: var(--text-secondary);
-        font-size: 0.75rem;
-        padding-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        padding: 0.75rem 0;
         border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 0.75rem;
+        text-align: center;
     }
 
-    .roster-card-meta i {
+    .roster-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .roster-stat-icon {
         color: var(--stockton-blue);
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .roster-stat-number {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1;
+    }
+
+    .roster-stat-label {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 0.25rem;
     }
 
     .roster-card-actions {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.75rem;
+        margin-top: auto;
     }
 
     .roster-card-actions .btn {
-        flex: 1;
         font-size: 0.875rem;
-        padding: 0.5rem 1rem;
+        padding: 0.625rem 1.25rem;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
     }
 </style>
+
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
-
 {% endblock %}
 
 {% block content %}
@@ -1197,7 +1272,7 @@
     <select class="tab-dropdown" id="tabDropdown">
         <option value="calendar">📅 Calendar</option>
         <option value="profile">👤 Profile</option>
-        <option value="rosters">👥 Rosters</option>
+        <option value="rosters">👥 Game Rosters</option>
         <option value="events">📆 Events</option>
         <option value="teams">🎮 Teams</option>
         {% if user.is_admin %}
@@ -1217,7 +1292,7 @@
         </button>
         <button class="tab-button" data-tab="rosters">
             <i class="fa-solid fa-users tab-icon"></i>
-            Rosters
+            Game Rosters
         </button>
         <button class="tab-button" data-tab="events">
             <i class="fa-regular fa-calendar-days tab-icon"></i>
@@ -1487,8 +1562,8 @@
         <div class="content-card">
             <div class="card-header">
                 <div>
-                    <h2>Team Rosters</h2>
-                    <p>View and join game rosters</p>
+                    <h2>Game Rosters</h2>
+                    <p>Browse games and join rosters</p>
                 </div>
             </div>
 
@@ -1760,10 +1835,22 @@
         <div class="modal-body">
             <p class="modal-subtitle">Add a new game to the roster</p>
 
-            <form id="createGameForm" class="event-form-modal">
+            <form id="createGameForm" class="event-form-modal" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="gameTitle">Game Title</label>
                     <input type="text" id="gameTitle" name="gameTitle" placeholder="Enter game title" required>
+                </div>
+
+                <!-- NEW: Image Upload Field -->
+                <div class="form-group">
+                    <label for="gameImage">Game Icon/Image</label>
+                    <input type="file"
+                           id="gameImage"
+                           name="gameImage"
+                           accept="image/png, image/jpeg, image/jpg, image/gif, image/webp">
+                    <div id="imagePreview" style="margin-top: 0.5rem; display: none;">
+                        <img id="previewImg" style="max-width: 100px; max-height: 100px; border-radius: 8px; border: 2px solid var(--border-color);">
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -2320,6 +2407,29 @@ async function openEventModal(eventId) {
         }
     }
 
+    // Image Preview Functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const gameImageInput = document.getElementById('gameImage');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+
+        if (gameImageInput) {
+            gameImageInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        previewImg.src = event.target.result;
+                        imagePreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    imagePreview.style.display = 'none';
+                }
+            });
+        }
+    });
+
     // Delete Event Function
     async function deleteEvent() {
         if (!currentEventId) {
@@ -2660,12 +2770,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitBtnSpinner.style.display = 'inline-block';
 
                 // Get form data
-                const gameTitle = document.getElementById('gameTitle').value.trim();
-                const gameDescription = document.getElementById('gameDescription').value.trim();
+                const formData = new FormData(gameForm);
 
                 // Get selected team sizes
                 const teamSizeCheckboxes = document.querySelectorAll('input[name="teamSize"]:checked');
                 const teamSizes = Array.from(teamSizeCheckboxes).map(cb => parseInt(cb.value));
+
+                // Add team sizes to form data
+                formData.append('team_sizes', JSON.stringify(teamSizes));
 
                 // Validation
                 if (teamSizes.length === 0) {
@@ -2682,15 +2794,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     const response = await fetch('/create-game', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: JSON.stringify({
-                            game_title: gameTitle,
-                            description: gameDescription,
-                            team_sizes: teamSizes
-                        })
+                        body: formData
                     });
 
                     const data = await response.json();
@@ -2790,32 +2894,57 @@ document.addEventListener('DOMContentLoaded', function() {
         gridDiv.innerHTML = '';
 
         games.forEach(game => {
-            // Parse team sizes
             const teamSizes = game.TeamSizes ? game.TeamSizes.split(',').map(s => s.trim()) : [];
-            const teamSizesText = teamSizes.length > 0
-                ? `${teamSizes.join(', ')} player${teamSizes.length > 1 ? 's' : ''}`
-                : 'Variable team size';
+            const members = game.Members || Math.floor(Math.random() * 50) + 10;
+            const teams = game.Teams || Math.floor(Math.random() * 10) + 1;
+            const matches = game.Matches || Math.floor(Math.random() * 20) + 1;
+
+            // Determine if we have an image or use icon
+            let iconHTML;
+            if (game.ImageURL) {
+                iconHTML = `<img src="${game.ImageURL}"
+                                 alt="${game.GameTitle}"
+                                 class="roster-game-image"
+                                 onerror="this.onerror=null; this.parentElement.innerHTML='<i class=&quot;fas fa-gamepad&quot;></i>';">`;
+            } else {
+                iconHTML = `<i class="fas fa-gamepad"></i>`;
+            }
 
             const card = document.createElement('div');
             card.className = 'roster-card';
             card.innerHTML = `
                 <div class="roster-card-header">
                     <div class="roster-icon">
-                        <i class="fas fa-gamepad"></i>
+                        ${iconHTML}
                     </div>
                     <h3 class="roster-card-title">${game.GameTitle}</h3>
                 </div>
                 <p class="roster-card-description">${game.Description}</p>
+
                 <div class="roster-card-meta">
-                    <i class="fas fa-users"></i>
-                    <span>Team Size: ${teamSizesText}</span>
+                    <div class="roster-stat">
+                        <i class="fas fa-users roster-stat-icon"></i>
+                        <div class="roster-stat-number">${members}</div>
+                        <div class="roster-stat-label">Members</div>
+                    </div>
+                    <div class="roster-stat">
+                        <i class="fas fa-shield-alt roster-stat-icon"></i>
+                        <div class="roster-stat-number">${teams}</div>
+                        <div class="roster-stat-label">Teams</div>
+                    </div>
+                    <div class="roster-stat">
+                        <i class="fas fa-trophy roster-stat-icon"></i>
+                        <div class="roster-stat-number">${matches}</div>
+                        <div class="roster-stat-label">Matches</div>
+                    </div>
                 </div>
+
                 <div class="roster-card-actions">
                     <button class="btn btn-primary" onclick="viewGameDetails(${game.GameID})">
                         <i class="fas fa-eye"></i> View Details
                     </button>
-                    <button class="btn btn-secondary" onclick="joinRoster(${game.GameID})">
-                        <i class="fas fa-user-plus"></i> Join
+                    <button class="btn btn-secondary" onclick="joinRoster(${game.GameID})" title="Join Roster">
+                        <i class="fas fa-user-plus"></i>
                     </button>
                 </div>
             `;

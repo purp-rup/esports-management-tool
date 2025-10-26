@@ -1,6 +1,8 @@
 from EsportsManagementTool import app, mysql
 from flask import request, redirect, url_for, session, flash, jsonify, render_template
 import MySQLdb.cursors
+from flask import send_file
+from io import BytesIO
 
 
 # Route to display all games (for the Rosters tab)
@@ -17,12 +19,26 @@ def view_games():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-        # This will need to be updated once you create the games table
-        # For now, return an empty list or hardcoded games
-        cursor.execute("SELECT * FROM games ORDER BY GameTitle ASC")
+        cursor.execute("SELECT GameID, GameTitle, Description, TeamSizes, GameImage FROM games ORDER BY GameTitle ASC")
         games = cursor.fetchall()
 
-        return jsonify({'success': True, 'games': games})
+        # Add image URL to each game
+        games_with_images = []
+        for game in games:
+            game_dict = dict(game)
+            # Add ImageURL if game has an image
+            if game.get('GameImage'):
+                game_dict['ImageURL'] = f'/game-image/{game["GameID"]}'
+            else:
+                game_dict['ImageURL'] = None
+
+            # Remove the binary image data from response (don't send it in JSON)
+            if 'GameImage' in game_dict:
+                del game_dict['GameImage']
+
+            games_with_images.append(game_dict)
+
+        return jsonify({'success': True, 'games': games_with_images})
 
     except Exception as e:
         print(f"Error fetching games: {str(e)}")
@@ -59,10 +75,24 @@ def create_game():
             return jsonify({'success': False, 'message': 'Permission denied - Admin access required'}), 403
 
         # Get the form data
-        data = request.get_json()
-        game_title = data.get('game_title', '').strip()
-        description = data.get('description', '').strip()
-        team_sizes = data.get('team_sizes', [])  # This will be a list of integers
+        game_title = request.form.get('gameTitle', '').strip()
+        description = request.form.get('gameDescription', '').strip()
+        team_sizes_json = request.form.get('team_sizes', '[]')
+
+        # Parse team sizes from JSON string
+        import json
+        team_sizes = json.loads(team_sizes_json)
+
+        # Handle image upload
+        game_image = None
+        image_mime_type = None
+
+        if 'gameImage' in request.files:
+            file = request.files['gameImage']
+            if file and file.filename:
+                # Read image as binary
+                game_image = file.read()
+                image_mime_type = file.content_type
 
         # Validation
         if not game_title:
@@ -84,12 +114,8 @@ def create_game():
         if existing_game:
             return jsonify({'success': False, 'message': 'A game with this title already exists'}), 400
 
-        # Insert the new game into the database
-        # Note: You'll need to create this table first
-        cursor.execute("""
-            INSERT INTO games (GameTitle, Description, TeamSizes) 
-            VALUES (%s, %s, %s)
-        """, (game_title, description, team_sizes_str))
+        #Insert game into database with image
+        cursor.execute("""INSERT INTO games (GameTitle, Description, TeamSizes, GameImage, ImageMimeType) VALUES (%s, %s, %s, %s, %s)""", (game_title, description, team_sizes_str, game_image, image_mime_type))
 
         mysql.connection.commit()
 
@@ -185,7 +211,7 @@ def get_game_details(game_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-        cursor.execute("SELECT * FROM games WHERE GameID = %s", (game_id,))
+        cursor.execute("SELECT GameID, GameTitle, Description, TeamSizes, GameImage FROM games WHERE GameID = %s", (game_id,))
         game = cursor.fetchone()
 
         if not game:
@@ -193,21 +219,57 @@ def get_game_details(game_id):
 
         # Convert team_sizes string back to list
         if game.get('TeamSizes'):
-            game['team_sizes'] = [int(size) for size in game['TeamSizes'].split(',')]
+            team_sizes = [int(size) for size in game['TeamSizes'].split(',')]
         else:
-            game['team_sizes'] = []
+            team_sizes = []
+
+        # Add image URL if exists
+        image_url = None
+        if game.get('GameImage'):
+            image_url = f'/game-image/{game["GameID"]}'
 
         return jsonify({
             'success': True,
             'id': game['GameID'],
             'title': game['GameTitle'],
             'description': game['Description'],
-            'team_sizes': game['team_sizes']
+            'team_sizes': team_sizes,
+            'image_url': image_url
         }), 200
 
     except Exception as e:
         print(f"Error fetching game details: {str(e)}")
         return jsonify({'success': False, 'message': 'Error fetching game details'}), 500
+
+    finally:
+        cursor.close()
+
+# Route to serve game images
+@app.route('/game-image/<int:game_id>')
+def game_image(game_id):
+    """
+    Serve the game image from the database.
+    """
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        cursor.execute("SELECT GameImage, ImageMimeType FROM games WHERE GameID = %s", (game_id,))
+        game = cursor.fetchone()
+
+        if game and game['GameImage']:
+            return send_file(
+                BytesIO(game['GameImage']),
+                mimetype=game['ImageMimeType'] or 'image/png',
+                as_attachment=False,
+                download_name=f'game_{game_id}.png'
+            )
+        else:
+            # Return 404 if no image exists
+            return jsonify({'error': 'Image not found'}), 404
+
+    except Exception as e:
+        print(f"Error serving game image: {str(e)}")
+        return jsonify({'error': 'Error loading image'}), 500
 
     finally:
         cursor.close()
