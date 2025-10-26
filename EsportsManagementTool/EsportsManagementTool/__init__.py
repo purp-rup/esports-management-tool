@@ -294,6 +294,7 @@ def eventRegister():
 
 import EsportsManagementTool.dashboard
 from EsportsManagementTool import adminPanel
+from EsportsManagementTool import game
 
 # This is used for debugging, It will show the app routes that are registered.
 if __name__ != '__main__':
