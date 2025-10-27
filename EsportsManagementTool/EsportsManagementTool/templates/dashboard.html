@@ -3,6 +3,8 @@
 {% block title %}Dashboard - Stockton Esports{% endblock %}
 
 {% block extra_css %}
+<!-- Import external CSS file(s) -->
+<link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
 <style>
     /* Font Awesome CDN */
     @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
@@ -618,6 +620,38 @@
         min-height: 100px;
     }
 
+    /* File Input Styling */
+    .event-form-modal input[type="file"] {
+        width: 100%;
+        padding: 0.75rem;
+        background: var(--dark-bg);
+        border: 2px dashed var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .event-form-modal input[type="file"]:hover {
+        border-color: var(--stockton-blue);
+        background: var(--hover-bg);
+    }
+
+    .event-form-modal input[type="file"]:focus {
+        outline: none;
+        border-color: var(--stockton-blue);
+        box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+    }
+
+    #imagePreview {
+        padding: 0.5rem;
+        background: var(--dark-bg);
+        border-radius: 8px;
+        text-align: center;
+    }
+
     /* Delete Button Styling */
     .btn-delete-event {
         background: transparent;
@@ -1055,7 +1089,174 @@
         border-color: var(--stockton-blue);
     }
 
+    /* Team Size Checkbox Styling */
+    .team-size-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        background: var(--dark-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        user-select: none;
+    }
+
+    .team-size-checkbox:hover {
+        background: var(--hover-bg);
+        border-color: var(--stockton-blue);
+    }
+
+    .team-size-checkbox input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: var(--stockton-blue);
+    }
+
+    .team-size-checkbox span {
+        font-size: 0.8rem;
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+
+    .team-size-checkbox input[type="checkbox"]:checked {
+        background: var(--stockton-blue);
+    }
+
+    .team-size-checkbox:has(input[type="checkbox"]:checked) {
+        background: rgba(121, 189, 233, 0.1);
+        border-color: var(--stockton-blue);
+    }
 </style>
+
+<!--Roster Tab styling -->
+<style>
+    /* Rosters Tab Styles - 2 Column Layout */
+    .rosters-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 1.5rem !important;
+        margin-top: 1.5rem !important;
+        max-width: 100% !important;
+    }
+
+    .roster-card {
+        background: var(--dark-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.25rem;
+        transition: all 0.2s;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .roster-card:hover {
+        border-color: var(--stockton-blue);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(121, 189, 233, 0.2);
+    }
+
+    .roster-card-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .roster-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(121, 189, 233, 0.15);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: var(--stockton-blue);
+        flex-shrink: 0;
+        overflow: hidden; /* Important for image containment */
+        position: relative;
+    }
+
+    .roster-game-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover; /* Crop image to fill the square */
+        border-radius: 10px;
+    }
+
+    .roster-card-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .roster-card-description {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        line-height: 1.4;
+        margin-bottom: 0.75rem;
+        flex-grow: 0;
+    }
+
+    .roster-card-meta {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        padding: 0.75rem 0;
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 0.75rem;
+        text-align: center;
+    }
+
+    .roster-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .roster-stat-icon {
+        color: var(--stockton-blue);
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .roster-stat-number {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1;
+    }
+
+    .roster-stat-label {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 0.25rem;
+    }
+
+    .roster-card-actions {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.75rem;
+        margin-top: auto;
+    }
+
+    .roster-card-actions .btn {
+        font-size: 0.875rem;
+        padding: 0.625rem 1.25rem;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+</style>
+
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
 {% endblock %}
@@ -1071,7 +1272,7 @@
     <select class="tab-dropdown" id="tabDropdown">
         <option value="calendar">📅 Calendar</option>
         <option value="profile">👤 Profile</option>
-        <option value="rosters">👥 Rosters</option>
+        <option value="rosters">👥 Game Rosters</option>
         <option value="events">📆 Events</option>
         <option value="teams">🎮 Teams</option>
         {% if user.is_admin %}
@@ -1091,7 +1292,7 @@
         </button>
         <button class="tab-button" data-tab="rosters">
             <i class="fa-solid fa-users tab-icon"></i>
-            Rosters
+            Game Rosters
         </button>
         <button class="tab-button" data-tab="events">
             <i class="fa-regular fa-calendar-days tab-icon"></i>
@@ -1360,13 +1561,28 @@
     <div id="rosters" class="tab-content">
         <div class="content-card">
             <div class="card-header">
-                <h2>Team Rosters</h2>
-                <p>View and manage competitive team rosters</p>
+                <div>
+                    <h2>Game Rosters</h2>
+                    <p>Browse games and join rosters</p>
+                </div>
             </div>
-            <div class="empty-state">
-                <div class="empty-state-icon">👥</div>
-                <h3>No Rosters Yet</h3>
-                <p>Team rosters will appear here once created</p>
+
+            <!-- Loading State -->
+            <div id="rostersLoading" style="text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading games...</p>
+            </div>
+
+            <!-- Games Grid -->
+            <div id="rostersGrid" style="display: none;">
+                <!-- Games will be populated here by JavaScript -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="rostersEmpty" class="empty-state" style="display: none;">
+                <div class="empty-state-icon">🎮</div>
+                <h3>No Games Available</h3>
+                <p>Games will appear here once created by administrators</p>
             </div>
         </div>
     </div>
@@ -1528,6 +1744,9 @@
                     <h2>Admin Panel</h2>
                     <p>Manage users, roles, and permissions</p>
                 </div>
+                <button class="btn btn-primary" onclick="openCreateGameModal()">
+                    <i class="fas fa-plus"></i> Create Game
+                </button>
             </div>
 
             <div class="admin-dashboard">
@@ -1604,6 +1823,95 @@
 </div>
 <!-- {% endif %} Commented out temporarily -->
 
+<!-- Create Game Modal -->
+<div id="createGameModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <div class="modal-header">
+            <h2>Create New Game</h2>
+            <button class="modal-close" onclick="closeCreateGameModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Add a new game to the roster</p>
+
+            <form id="createGameForm" class="event-form-modal" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="gameTitle">Game Title</label>
+                    <input type="text" id="gameTitle" name="gameTitle" placeholder="Enter game title" required>
+                </div>
+
+                <!-- NEW: Image Upload Field -->
+                <div class="form-group">
+                    <label for="gameImage">Game Icon/Image</label>
+                    <input type="file"
+                           id="gameImage"
+                           name="gameImage"
+                           accept="image/png, image/jpeg, image/jpg, image/gif, image/webp">
+                    <div id="imagePreview" style="margin-top: 0.5rem; display: none;">
+                        <img id="previewImg" style="max-width: 100px; max-height: 100px; border-radius: 8px; border: 2px solid var(--border-color);">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="gameDescription">Description</label>
+                    <textarea id="gameDescription" name="gameDescription" placeholder="Enter game description" rows="4" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Team Size(s)</label>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                        Select all applicable team sizes for this game
+                    </p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem;">
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="1">
+                            <span>1 Player</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="2">
+                            <span>2 Players</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="3">
+                            <span>3 Players</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="4">
+                            <span>4 Players</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="5">
+                            <span>5 Players</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="6">
+                            <span>6 Players</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="7">
+                            <span>7 Players</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="8">
+                            <span>8 Players</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="gameFormMessage" class="form-message" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateGameModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="submitGameBtnText">Create Game</span>
+                        <i id="submitGameBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 </div>
 {% endblock %}
 
@@ -2099,6 +2407,29 @@ async function openEventModal(eventId) {
         }
     }
 
+    // Image Preview Functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const gameImageInput = document.getElementById('gameImage');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+
+        if (gameImageInput) {
+            gameImageInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        previewImg.src = event.target.result;
+                        imagePreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    imagePreview.style.display = 'none';
+                }
+            });
+        }
+    });
+
     // Delete Event Function
     async function deleteEvent() {
         if (!currentEventId) {
@@ -2321,6 +2652,8 @@ async function openEventModal(eventId) {
         }
     });
 </script>
+
+<!--User search system. -->
 <script>
 function filterUsers() {
   const input = document.getElementById('userSearch');
@@ -2333,6 +2666,8 @@ function filterUsers() {
   }
 }
 </script>
+
+<!--Retrieves user details from database to display in admin panel.-->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const userItems = document.querySelectorAll('.user-item');
@@ -2396,5 +2731,237 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 });
+</script>
+
+<script>
+    // Create Game Modal Functions
+    function openCreateGameModal() {
+        const modal = document.getElementById('createGameModal');
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+
+        // Reset form
+        document.getElementById('createGameForm').reset();
+        document.getElementById('gameFormMessage').style.display = 'none';
+    }
+
+    function closeCreateGameModal() {
+        const modal = document.getElementById('createGameModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    // Handle Create Game form submission
+    document.addEventListener('DOMContentLoaded', function() {
+        const gameForm = document.getElementById('createGameForm');
+
+        if (gameForm) {
+            gameForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const submitBtn = gameForm.querySelector('button[type="submit"]');
+                const submitBtnText = document.getElementById('submitGameBtnText');
+                const submitBtnSpinner = document.getElementById('submitGameBtnSpinner');
+                const formMessage = document.getElementById('gameFormMessage');
+
+                // Disable submit button
+                submitBtn.disabled = true;
+                submitBtnText.style.display = 'none';
+                submitBtnSpinner.style.display = 'inline-block';
+
+                // Get form data
+                const formData = new FormData(gameForm);
+
+                // Get selected team sizes
+                const teamSizeCheckboxes = document.querySelectorAll('input[name="teamSize"]:checked');
+                const teamSizes = Array.from(teamSizeCheckboxes).map(cb => parseInt(cb.value));
+
+                // Add team sizes to form data
+                formData.append('team_sizes', JSON.stringify(teamSizes));
+
+                // Validation
+                if (teamSizes.length === 0) {
+                    formMessage.textContent = 'Please select at least one team size';
+                    formMessage.className = 'form-message error';
+                    formMessage.style.display = 'block';
+
+                    submitBtn.disabled = false;
+                    submitBtnText.style.display = 'inline';
+                    submitBtnSpinner.style.display = 'none';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/create-game', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        // Show success message
+                        formMessage.textContent = data.message || 'Game created successfully! Refreshing...';
+                        formMessage.className = 'form-message success';
+                        formMessage.style.display = 'block';
+
+                        // Refresh the page after 1.5 seconds
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        throw new Error(data.message || 'Failed to create game');
+                    }
+                } catch (error) {
+                    // Show error message
+                    formMessage.textContent = error.message || 'Failed to create game. Please try again.';
+                    formMessage.className = 'form-message error';
+                    formMessage.style.display = 'block';
+
+                    // Re-enable submit button
+                    submitBtn.disabled = false;
+                    submitBtnText.style.display = 'inline';
+                    submitBtnSpinner.style.display = 'none';
+                }
+            });
+        }
+    });
+
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        const gameModal = document.getElementById('createGameModal');
+        if (event.target === gameModal) {
+            closeCreateGameModal();
+        }
+    });
+</script>
+<!--Display games under roster tab functionality. -->
+
+<script>
+    // Load games when the Rosters tab is activated
+    document.addEventListener('DOMContentLoaded', function() {
+        // Listen for tab changes
+        const rostersTab = document.querySelector('[data-tab="rosters"]');
+        if (rostersTab) {
+            rostersTab.addEventListener('click', loadGames);
+        }
+
+        // Also load when dropdown changes to rosters
+        const tabDropdown = document.getElementById('tabDropdown');
+        if (tabDropdown) {
+            tabDropdown.addEventListener('change', function(e) {
+                if (e.target.value === 'rosters') {
+                    loadGames();
+                }
+            });
+        }
+    });
+
+    async function loadGames() {
+        const loadingDiv = document.getElementById('rostersLoading');
+        const gridDiv = document.getElementById('rostersGrid');
+        const emptyDiv = document.getElementById('rostersEmpty');
+
+        // Show loading state
+        loadingDiv.style.display = 'block';
+        gridDiv.style.display = 'none';
+        emptyDiv.style.display = 'none';
+
+        try {
+            const response = await fetch('/games');
+            const data = await response.json();
+
+            if (data.success && data.games && data.games.length > 0) {
+                // Display games
+                displayGames(data.games);
+                loadingDiv.style.display = 'none';
+                gridDiv.style.display = 'block';
+            } else {
+                // Show empty state
+                loadingDiv.style.display = 'none';
+                emptyDiv.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error loading games:', error);
+            loadingDiv.style.display = 'none';
+            emptyDiv.style.display = 'block';
+        }
+    }
+
+    function displayGames(games) {
+        const gridDiv = document.getElementById('rostersGrid');
+        gridDiv.className = 'rosters-grid';
+        gridDiv.innerHTML = '';
+
+        games.forEach(game => {
+            const teamSizes = game.TeamSizes ? game.TeamSizes.split(',').map(s => s.trim()) : [];
+            const members = game.Members || Math.floor(Math.random() * 50) + 10;
+            const teams = game.Teams || Math.floor(Math.random() * 10) + 1;
+            const matches = game.Matches || Math.floor(Math.random() * 20) + 1;
+
+            // Determine if we have an image or use icon
+            let iconHTML;
+            if (game.ImageURL) {
+                iconHTML = `<img src="${game.ImageURL}"
+                                 alt="${game.GameTitle}"
+                                 class="roster-game-image"
+                                 onerror="this.onerror=null; this.parentElement.innerHTML='<i class=&quot;fas fa-gamepad&quot;></i>';">`;
+            } else {
+                iconHTML = `<i class="fas fa-gamepad"></i>`;
+            }
+
+            const card = document.createElement('div');
+            card.className = 'roster-card';
+            card.innerHTML = `
+                <div class="roster-card-header">
+                    <div class="roster-icon">
+                        ${iconHTML}
+                    </div>
+                    <h3 class="roster-card-title">${game.GameTitle}</h3>
+                </div>
+                <p class="roster-card-description">${game.Description}</p>
+
+                <div class="roster-card-meta">
+                    <div class="roster-stat">
+                        <i class="fas fa-users roster-stat-icon"></i>
+                        <div class="roster-stat-number">${members}</div>
+                        <div class="roster-stat-label">Members</div>
+                    </div>
+                    <div class="roster-stat">
+                        <i class="fas fa-shield-alt roster-stat-icon"></i>
+                        <div class="roster-stat-number">${teams}</div>
+                        <div class="roster-stat-label">Teams</div>
+                    </div>
+                    <div class="roster-stat">
+                        <i class="fas fa-trophy roster-stat-icon"></i>
+                        <div class="roster-stat-number">${matches}</div>
+                        <div class="roster-stat-label">Matches</div>
+                    </div>
+                </div>
+
+                <div class="roster-card-actions">
+                    <button class="btn btn-primary" onclick="viewGameDetails(${game.GameID})">
+                        <i class="fas fa-eye"></i> View Details
+                    </button>
+                    <button class="btn btn-secondary" onclick="joinRoster(${game.GameID})" title="Join Roster">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
+                </div>
+            `;
+            gridDiv.appendChild(card);
+        });
+    }
+
+    function viewGameDetails(gameId) {
+        // TODO: Implement game details modal
+        console.log('View details for game:', gameId);
+        alert('Game details view coming soon!');
+    }
+
+    function joinRoster(gameId) {
+        // TODO: Implement join roster functionality
+        console.log('Join roster for game:', gameId);
+        alert('Join roster functionality coming soon!');
+    }
 </script>
 {% endblock %}

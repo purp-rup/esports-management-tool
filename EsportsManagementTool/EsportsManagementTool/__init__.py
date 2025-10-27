@@ -297,6 +297,7 @@ def eventRegister():
 
 import EsportsManagementTool.dashboard
 from EsportsManagementTool import adminPanel
+from EsportsManagementTool import game
 
 
 
