@@ -219,9 +219,8 @@
                 display: none;
             }
         }
-
-        {% block extra_css %}{% endblock %}
     </style>
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
     {% if not hide_nav %}
@@ -275,7 +274,6 @@
             </div>
         </div>
     </footer>
-
     {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,63 @@
+/* Profile Tab Specific */
+.profile-grid {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.profile-avatar { text-align: center; }
+
+.avatar-container {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: var(--stockton-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    font-weight: 700;
+    color: var(--stockton-black);
+    margin: 0 auto 1rem;
+}
+
+.profile-info { display: grid; gap: 1.5rem; }
+
+.info-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.info-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.info-value {
+    color: var(--text-primary);
+}
+
+.profile-actions {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+    .profile-grid { grid-template-columns: 1fr; }
+    .avatar-container {
+        width: 150px;
+        height: 150px;
+        font-size: 3rem;
+    }
+
+    .avatar-container {
+        width: 150px;
+        height: 150px;
+        font-size: 3rem;
+    }
+}
