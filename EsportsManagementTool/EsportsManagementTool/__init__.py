@@ -131,12 +131,12 @@ def verify_email(token):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         cursor.execute(
-            'SELECT * FROM users WHERE verification_token = %s AND token_expiry > NOW()', (token,))
+            'SELECT * FROM verified_users WHERE verification_token = %s AND token_expiry > NOW()', (token,))
         user = cursor.fetchone()
 
         if user:
             cursor.execute(
-                'UPDATE users SET is_verified = TRUE, verification_token = NULL, token_expiry = NULL where id = %s',
+                'UPDATE verified_users SET is_verified = TRUE, verification_token = NULL, token_expiry = NULL where userid = %s',
                 (user['id'],)
             )
             mysql.connection.commit()
@@ -157,19 +157,21 @@ def login():
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+            cursor.execute('SELECT * FROM users WHERE username = %s', [username])
             account = cursor.fetchone()
+            cursor.execute('SELECT userid FROM verified_users WHERE userid = %s', [account['id']])
+            is_verified = cursor.fetchone()
 
             if account:
                 if account and bcrypt.checkpw(password.encode('utf-8'), account['password'].encode('utf-8')):
-                    if not account.get('is_verified', False):
+                    if not is_verified:
                         flash('Account is still not verified! A new email has been sent, check your inbox!')
                         verification_token = secrets.token_urlsafe(32)
                         token_expiry = datetime.now() + timedelta(hours=24)
 
                         cursor.execute(
-                            'UPDATE users SET verification_token = %s, token_expiry = %s WHERE username = %s',
-                            (verification_token, token_expiry, username))
+                            'UPDATE verified_users SET verification_token = %s, token_expiry = %s WHERE userid = %s',
+                            (verification_token, token_expiry, account['id']))
                         mysql.connection.commit()
 
                         try:
@@ -215,7 +217,7 @@ def register():
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+            cursor.execute('SELECT * FROM users WHERE username = %s', username)
             account = cursor.fetchone()
 
             if account:
@@ -233,9 +235,27 @@ def register():
             else:
                 hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
                 cursor.execute(
-                    'INSERT INTO users (firstname, lastname, username, password, email) VALUES (%s, %s, %s, %s, %s)', # TEST ACCOUNT CREATION
+                    'INSERT INTO users (firstname, lastname, username, password, email) VALUES (%s, %s, %s, %s, %s)',
                     (firstname, lastname, username, hashed_password, email))
                 mysql.connection.commit()
+
+                cursor.execute('SELECT id FROM users WHERE username = %s', username)
+                newUser = cursor.fetchone()
+
+                cursor.execute(
+                    'INSERT INTO verified_users (id) VALUES %s', newUser['id'])
+                mysql.connection.commit()
+
+                verification_token = secrets.token_urlsafe(32)
+                token_expiry = datetime.now() + timedelta(hours=24)
+
+
+                cursor.execute(
+                    'UPDATE verified_users SET verification_token = %s, token_expiry = %s WHERE userid = %s',
+                    (verification_token, token_expiry, newUser['id']))
+                mysql.connection.commit()
+
+                send_verify_email(email, verification_token)
                 msg = 'You have successfully created an account! Please check your email for verification!'
         finally:
             cursor.close()

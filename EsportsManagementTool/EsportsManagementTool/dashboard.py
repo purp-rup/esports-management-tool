@@ -24,6 +24,8 @@ def dashboard(year=None, month=None):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute("SELECT * FROM users WHERE id = %s", (session['id'],))
     user = cursor.fetchone()
+    cursor.execute('SELECT * FROM verified_users WHERE userid = %s', [user['id']])
+    is_verified = cursor.fetchone()
 
     ##Temporary override. Makes all users admins to be able to view admin panel!!
     user['is_admin'] = True
@@ -148,6 +150,7 @@ def dashboard(year=None, month=None):
         return render_template(
             "dashboard.html",
             user=user,
+            is_verified=is_verified,
             preferences=preferences,
             month_calendar=month_calendar,
             month_name=month_name,
