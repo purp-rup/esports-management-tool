@@ -159,10 +159,11 @@ def login():
         try:
             cursor.execute('SELECT * FROM users WHERE username = %s', [username])
             account = cursor.fetchone()
-            cursor.execute('SELECT userid FROM verified_users WHERE userid = %s', [account['id']])
-            is_verified = cursor.fetchone()
+
 
             if account:
+                cursor.execute('SELECT is_verified FROM verified_users WHERE userid = %s', (account['id'],))
+                is_verified = cursor.fetchone()
                 if account and bcrypt.checkpw(password.encode('utf-8'), account['password'].encode('utf-8')):
                     if not is_verified:
                         flash('Account is still not verified! A new email has been sent, check your inbox!')
