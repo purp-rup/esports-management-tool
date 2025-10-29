@@ -217,7 +217,7 @@ def register():
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            cursor.execute('SELECT * FROM users WHERE username = %s', username)
+            cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
             account = cursor.fetchone()
 
             if account:
