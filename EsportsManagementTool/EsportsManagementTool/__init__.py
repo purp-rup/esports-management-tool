@@ -286,9 +286,9 @@ def eventRegister():
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
             try:
                 cursor.execute(
-                    'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Game, Location) '
-                    'VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
-                    (eventName, eventDate, startTime, endTime, eventDescription, eventType, game, location))
+                    'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Game, Location, created_by) '
+                    'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                    (eventName, eventDate, startTime, endTime, eventDescription, eventType, game, location, session['id']))
                 # Confirms that the event is registered.
                 mysql.connection.commit()
                 msg = 'Event Registered!'
