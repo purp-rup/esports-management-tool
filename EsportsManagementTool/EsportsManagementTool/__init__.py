@@ -239,19 +239,20 @@ def register():
                     (firstname, lastname, username, hashed_password, email))
                 mysql.connection.commit()
 
-                cursor.execute('SELECT id FROM users WHERE username = %s', username)
+                cursor.execute('SELECT id FROM users WHERE username = %s', [username])
                 newUser = cursor.fetchone()
 
-                cursor.execute(
-                    'INSERT INTO verified_users (id) VALUES %s', newUser['id'])
+                cursor.execute('INSERT INTO verified_users (userid) VALUES (%s)', (newUser['id'],))
+                mysql.connection.commit()
+
+                cursor.execute('INSERT INTO permissions (userid) VALUES (%s)', (newUser['id'],))
                 mysql.connection.commit()
 
                 verification_token = secrets.token_urlsafe(32)
                 token_expiry = datetime.now() + timedelta(hours=24)
 
 
-                cursor.execute(
-                    'UPDATE verified_users SET verification_token = %s, token_expiry = %s WHERE userid = %s',
+                cursor.execute('UPDATE verified_users SET verification_token = %s, token_expiry = %s WHERE userid = %s',
                     (verification_token, token_expiry, newUser['id']))
                 mysql.connection.commit()
 
