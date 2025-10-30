@@ -353,8 +353,21 @@ def toggle_subscription(event_id):
         return jsonify({'error': 'User not logged in'}), 401
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
     try:
+        # Check global notification preference
+        cursor.execute("""
+            SELECT enable_notifications
+            FROM notification_preferences
+            WHERE user_id=%s
+        """, (user_id,))
+        pref = cursor.fetchone()
+        notifications_enabled = pref and pref['enable_notifications'] == 1
+
+        if not notifications_enabled:
+            return jsonify({
+                'error': 'Global notifications are disabled. Enable them first in your preferences.'
+            }), 403
+
         # Check if already subscribed
         cursor.execute("""
             SELECT * FROM event_subscriptions
@@ -377,9 +390,7 @@ def toggle_subscription(event_id):
             """, (user_id, event_id, datetime.now()))
             status = 'subscribed'
 
-        # ✅ Commit changes to the database
         mysql.connection.commit()
-
         return jsonify({'status': status})
     except Exception as e:
         print("Error in toggle_subscription:", e)

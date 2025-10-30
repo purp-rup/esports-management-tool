@@ -497,6 +497,13 @@
     color: white;
 }
 
+.notification-btn.disabled {
+    background-color: #0052c9;
+    cursor: not-allowed;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
 .notification-btn.subscribed:hover {
     background-color: #45a049;
 }

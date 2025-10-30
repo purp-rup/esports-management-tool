@@ -1277,53 +1277,70 @@
 
     //DISCLAIMER: CHATGPT WAS USED TO GENERATE THE BELOW CODE
 
-    async function loadNotificationSection(eventId) {
+   async function loadNotificationSection(eventId) {
         const btn = document.getElementById('notificationBtn');
-        if (!btn) return;
+        const btnText = document.getElementById('notificationBtnText');
 
         try {
-            const res = await fetch(`/api/event/${eventId}/subscription-status`);
-            const data = await res.json();
+            const response = await fetch(`/api/event/${eventId}/subscription-status`);
+            const data = await response.json();
 
-            if (!data.subscribed) {
-                btn.innerHTML = `<i class="fas fa-bell"></i> Subscribe`;
-                btn.classList.remove('unsubscribe');
-                btn.classList.add('subscribe');
-            } else {
-                btn.innerHTML = `<i class="fas fa-bell-slash"></i> Unsubscribe`;
-                btn.classList.remove('subscribe');
-                btn.classList.add('unsubscribe');
+            // If the user hasn't enabled global notifications
+            if (!data.notifications_enabled) {
+                btn.disabled = true;
+                btn.classList.add('disabled');
+                btnText.textContent = 'Enable notifications in Profile';
+                return;
             }
 
-            // Center button
-            btn.parentElement.style.display = 'flex';
-            btn.parentElement.style.justifyContent = 'center';
+            // Enable button if notifications are globally on
+            btn.disabled = false;
+            btn.classList.remove('disabled');
+
+            // Update button text based on event subscription
+            if (data.subscribed) {
+                btnText.textContent = 'Subscribed';
+                btn.classList.add('subscribed');
+            } else {
+                btnText.textContent = 'Subscribe';
+                btn.classList.remove('subscribed');
+            }
 
         } catch (err) {
-            console.error('Error loading subscription status:', err);
+            console.error('Error fetching subscription status:', err);
+            btn.disabled = true;
+            btnText.textContent = 'Error';
         }
     }
 
     // Toggle subscription when button is clicked
     async function toggleEventSubscription() {
         const btn = document.getElementById('notificationBtn');
-        if (!btn) return;
+        const btnText = document.getElementById('notificationBtnText');
 
         try {
-            const res = await fetch(`/api/event/${currentEventId}/toggle-subscription`, { method: 'POST' });
-            const data = await res.json();
+            const response = await fetch(`/api/event/${currentEventId}/toggle-subscription`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.error) {
+                // Show message if subscription is blocked
+                alert(data.error);
+                return;
+            }
 
             if (data.status === 'subscribed') {
-                btn.innerHTML = `<i class="fas fa-bell-slash"></i> Unsubscribe`;
-                btn.classList.remove('subscribe');
-                btn.classList.add('unsubscribe');
-            } else if (data.status === 'unsubscribed') {
-                btn.innerHTML = `<i class="fas fa-bell"></i> Subscribe`;
-                btn.classList.remove('unsubscribe');
-                btn.classList.add('subscribe');
+                btnText.textContent = 'Subscribed';
+                btn.classList.add('subscribed');
+            } else {
+                btnText.textContent = 'Subscribe';
+                btn.classList.remove('subscribed');
             }
+
         } catch (err) {
             console.error('Error toggling subscription:', err);
+            alert('Failed to toggle subscription.');
         }
     }
 
