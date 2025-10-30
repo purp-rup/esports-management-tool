@@ -430,3 +430,75 @@
         width: 100%;
     }
 }
+
+ /* DISCLAIMER: THIS CODE WAS WRITTEN USING CHATGPT*/
+.event-notification-section {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+.notification-opt-in {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 90%;
+    max-width: 500px;
+    padding: 1rem 1.25rem;
+    background-color: #1e1e2f;
+    border-radius: 10px;
+    color: white;
+}
+
+.notification-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.notification-icon i {
+    font-size: 1.5rem;
+    color: #f4b400;
+}
+
+.notification-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #006eff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+}
+
+.notification-btn:hover {
+    background-color: #0052c9;
+}
+
+.notification-btn.unsubscribe {
+    background-color: #ff5252;
+}
+
+.notification-disabled {
+    text-align: center;
+    padding: 1rem;
+}
+
+.notification-disabled i {
+    font-size: 1.75rem;
+    color: #ff5252;
+    margin-bottom: 0.5rem;
+}
+.notification-btn.subscribed {
+    background-color: #4caf50; /* green */
+    color: white;
+}
+
+.notification-btn.subscribed:hover {
+    background-color: #45a049;
+}
+
+/* DISCLAIMER: THIS CODE WAS WRITTEN USING CHATGPT*/

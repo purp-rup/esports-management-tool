@@ -733,276 +733,15 @@
     }
 
     // Event Details Modal Functions
-async function openEventModal(eventId) {
-    const modal = document.getElementById('eventDetailsModal');
-    const spinner = document.getElementById('eventLoadingSpinner');
-    const content = document.getElementById('eventDetailsContent');
-
-    // Show modal with loading spinner
-    modal.style.display = 'block';
-    spinner.style.display = 'block';
-    content.style.display = 'none';
-    document.body.style.overflow = 'hidden';
-
-    try {
-        // Fetch event details from API
-        const response = await fetch(`/api/event/${eventId}`);
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch event details');
-        }
-
-        const event = await response.json();
-
-        // Update modal title
-        document.getElementById('eventDetailsTitle').textContent = event.name;
-
-        // Build event details HTML with compact 2-column layout
-        let detailsHTML = '<div class="event-detail-grid">';
-
-        // Date
-        detailsHTML += `
-            <div class="event-detail-section">
-                <div class="event-detail-icon">
-                    <i class="fas fa-calendar-alt"></i>
-                </div>
-                <div class="event-detail-content">
-                    <h3>Date</h3>
-                    <p>${event.date}</p>
-                </div>
-            </div>
-        `;
-
-        // Time
-        if (event.start_time) {
-            detailsHTML += `
-                <div class="event-detail-section">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3>Time</h3>
-                        <p>
-                            ${event.start_time}
-                            ${event.end_time ? ' - ' + event.end_time : ''}
-                        </p>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Event Type
-        if (event.event_type) {
-            detailsHTML += `
-                <div class="event-detail-section">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-tag"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3>Event Type</h3>
-                        <p>${event.event_type}</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Game
-        if (event.game) {
-            detailsHTML += `
-                <div class="event-detail-section">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-gamepad"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3>Game</h3>
-                        <p>${event.game}</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Location (can span 2 columns if needed)
-        if (event.location) {
-            detailsHTML += `
-                <div class="event-detail-section" style="grid-column: 1 / -1;">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-map-marker-alt"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3>Location</h3>
-                        <p>${event.location}</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Description - Full Width at bottom
-        detailsHTML += `
-            <div class="event-detail-section full-width">
-                <div style="display: flex; gap: 0.75rem;">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-info-circle"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3>Description</h3>
-                        <p>${event.description}</p>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        detailsHTML += '</div>';
-
-        // Update content
-        content.innerHTML = detailsHTML;
-
-        // Hide spinner, show content
-        spinner.style.display = 'none';
-        content.style.display = 'block';
-
-    } catch (error) {
-        console.error('Error loading event details:', error);
-        content.innerHTML = `
-            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ff5252; margin-bottom: 1rem;"></i>
-                <p>Failed to load event details. Please try again.</p>
-                <button class="btn btn-primary" onclick="closeEventModal()" style="margin-top: 1rem;">Close</button>
-            </div>
-        `;
-        spinner.style.display = 'none';
-        content.style.display = 'block';
-    }
-}
-
-    function closeEventModal() {
-        const modal = document.getElementById('eventDetailsModal');
-        modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-
-
-    // Close modals when clicking outside
-    window.onclick = function(event) {
-        const dayModal = document.getElementById('dayEventsModal');
-        const eventModal = document.getElementById('eventDetailsModal');
-        const createEventModal = document.getElementById('createEventModal');
-        const gameModal = document.getElementById('createGameModal');
-
-        if (event.target === dayModal) {
-            closeDayModal();
-        }
-        if (event.target === eventModal) {
-            closeEventModal();
-        }
-        if (event.target === createEventModal) {
-            closeCreateEventModal();
-        }
-        if (event.target === gameModal) {
-            closeCreateGameModal();
-        }
-    }
-
-    // Close modals with Escape key
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            closeDayModal();
-            closeEventModal();
-        }
-    });
-
-    // Tab switching functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        const tabButtons = document.querySelectorAll('.tab-button');
-        const tabContents = document.querySelectorAll('.tab-content');
-        const tabDropdown = document.getElementById('tabDropdown');
-
-        function switchTab(targetTab) {
-            // Remove active class from all buttons and contents
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
-
-            // Add active class to corresponding button and content
-            const activeButton = document.querySelector(`[data-tab="${targetTab}"]`);
-            if (activeButton) {
-                activeButton.classList.add('active');
-            }
-            document.getElementById(targetTab).classList.add('active');
-
-            // Update dropdown value
-            tabDropdown.value = targetTab;
-        }
-
-        // Handle button clicks
-        tabButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const targetTab = this.getAttribute('data-tab');
-                switchTab(targetTab);
-            });
-        });
-
-        // Handle dropdown change
-        tabDropdown.addEventListener('change', function() {
-            switchTab(this.value);
-        });
-    });
-
-    // Create Event Modal Functions
-    function openCreateEventModal() {
-        const modal = document.getElementById('createEventModal');
-        modal.style.display = 'block';
-        document.body.style.overflow = 'hidden';
-
-        // Reset form
-        document.getElementById('createEventForm').reset();
-        document.getElementById('customLocationGroup').style.display = 'none';
-        document.getElementById('formMessage').style.display = 'none';
-    }
-
-    function closeCreateEventModal() {
-        const modal = document.getElementById('createEventModal');
-        modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-
-    // Handle custom location toggle
-    document.addEventListener('DOMContentLoaded', function() {
-        const locationSelect = document.getElementById('eventLocation');
-        const customLocationGroup = document.getElementById('customLocationGroup');
-        const customLocationInput = document.getElementById('customLocation');
-
-        if (locationSelect) {
-            locationSelect.addEventListener('change', function() {
-                if (this.value === 'other') {
-                    customLocationGroup.style.display = 'block';
-                    customLocationInput.required = true;
-                } else {
-                    customLocationGroup.style.display = 'none';
-                    customLocationInput.required = false;
-                    customLocationInput.value = '';
-                }
-            });
-        }
-    });
-
-    //Delete Button functionality
-    // Store current event ID for delete functionality
-    let currentEventId = null;
-
-    // Updated openEventModal function with delete button support
     async function openEventModal(eventId) {
         const modal = document.getElementById('eventDetailsModal');
         const spinner = document.getElementById('eventLoadingSpinner');
         const content = document.getElementById('eventDetailsContent');
-        const deleteBtn = document.getElementById('deleteEventBtn');
-
-        // Store the event ID globally
-        currentEventId = eventId;
 
         // Show modal with loading spinner
         modal.style.display = 'block';
         spinner.style.display = 'block';
         content.style.display = 'none';
-        if (deleteBtn) deleteBtn.style.display = 'none'; // Hide delete button initially
         document.body.style.overflow = 'hidden';
 
         try {
@@ -1017,11 +756,6 @@ async function openEventModal(eventId) {
 
             // Update modal title
             document.getElementById('eventDetailsTitle').textContent = event.name;
-
-            // Show delete button for admins
-            if (deleteBtn) {
-                deleteBtn.style.display = 'flex';
-            }
 
             // Build event details HTML with compact 2-column layout
             let detailsHTML = '<div class="event-detail-grid">';
@@ -1139,6 +873,358 @@ async function openEventModal(eventId) {
             content.style.display = 'block';
         }
     }
+
+    function closeEventModal() {
+        const modal = document.getElementById('eventDetailsModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+
+    // Close modals when clicking outside
+    window.onclick = function(event) {
+        const dayModal = document.getElementById('dayEventsModal');
+        const eventModal = document.getElementById('eventDetailsModal');
+        const createEventModal = document.getElementById('createEventModal');
+        const gameModal = document.getElementById('createGameModal');
+
+        if (event.target === dayModal) {
+            closeDayModal();
+        }
+        if (event.target === eventModal) {
+            closeEventModal();
+        }
+        if (event.target === createEventModal) {
+            closeCreateEventModal();
+        }
+        if (event.target === gameModal) {
+            closeCreateGameModal();
+        }
+    }
+
+    // Close modals with Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeDayModal();
+            closeEventModal();
+        }
+    });
+
+    // Tab switching functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const tabDropdown = document.getElementById('tabDropdown');
+
+        function switchTab(targetTab) {
+            // Remove active class from all buttons and contents
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            // Add active class to corresponding button and content
+            const activeButton = document.querySelector(`[data-tab="${targetTab}"]`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+            document.getElementById(targetTab).classList.add('active');
+
+            // Update dropdown value
+            tabDropdown.value = targetTab;
+        }
+
+        // Handle button clicks
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const targetTab = this.getAttribute('data-tab');
+                switchTab(targetTab);
+            });
+        });
+
+        // Handle dropdown change
+        tabDropdown.addEventListener('change', function() {
+            switchTab(this.value);
+        });
+    });
+
+    // Create Event Modal Functions
+    function openCreateEventModal() {
+        const modal = document.getElementById('createEventModal');
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+
+        // Reset form
+        document.getElementById('createEventForm').reset();
+        document.getElementById('customLocationGroup').style.display = 'none';
+        document.getElementById('formMessage').style.display = 'none';
+    }
+
+    function closeCreateEventModal() {
+        const modal = document.getElementById('createEventModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    // Handle custom location toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const locationSelect = document.getElementById('eventLocation');
+        const customLocationGroup = document.getElementById('customLocationGroup');
+        const customLocationInput = document.getElementById('customLocation');
+
+        if (locationSelect) {
+            locationSelect.addEventListener('change', function() {
+                if (this.value === 'other') {
+                    customLocationGroup.style.display = 'block';
+                    customLocationInput.required = true;
+                } else {
+                    customLocationGroup.style.display = 'none';
+                    customLocationInput.required = false;
+                    customLocationInput.value = '';
+                }
+            });
+        }
+    });
+
+    //Delete Button functionality
+    // Store current event ID for delete functionality
+    let currentEventId = null;
+
+    // Updated openEventModal function with notification integration
+
+    //DISCLAIMER: CHATGPT WAS USED TO EDIT THE BELOW CODE. SOME OF IT WAS WRITTEN BY A PERSON, SOME BY AI
+    async function openEventModal(eventId) {
+        const modal = document.getElementById('eventDetailsModal');
+        const spinner = document.getElementById('eventLoadingSpinner');
+        const content = document.getElementById('eventDetailsContent');
+        const deleteBtn = document.getElementById('deleteEventBtn');
+
+        // Store current event ID globally
+        currentEventId = eventId;
+
+        // Show modal with loading spinner
+        modal.style.display = 'block';
+        spinner.style.display = 'block';
+        content.style.display = 'none';
+        if (deleteBtn) deleteBtn.style.display = 'none';
+        document.body.style.overflow = 'hidden';
+
+        try {
+            // Fetch event details
+            const response = await fetch(`/api/event/${eventId}`);
+            if (!response.ok) throw new Error('Failed to fetch event details');
+            const event = await response.json();
+
+            // Build event details HTML
+            let detailsHTML = '<div class="event-detail-grid">';
+
+            // Date
+            detailsHTML += `
+                <div class="event-detail-section">
+                    <div class="event-detail-icon"><i class="fas fa-calendar-alt"></i></div>
+                    <div class="event-detail-content">
+                        <h3>Date</h3>
+                        <p>${event.date}</p>
+                    </div>
+                </div>
+            `;
+
+            // Time
+            if (event.start_time) {
+                detailsHTML += `
+                    <div class="event-detail-section">
+                        <div class="event-detail-icon"><i class="fas fa-clock"></i></div>
+                        <div class="event-detail-content">
+                            <h3>Time</h3>
+                            <p>${event.start_time}${event.end_time ? ' - ' + event.end_time : ''}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Event Type
+            if (event.event_type) {
+                detailsHTML += `
+                    <div class="event-detail-section">
+                        <div class="event-detail-icon"><i class="fas fa-tag"></i></div>
+                        <div class="event-detail-content">
+                            <h3>Event Type</h3>
+                            <p>${event.event_type}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Game
+            if (event.game) {
+                detailsHTML += `
+                    <div class="event-detail-section">
+                        <div class="event-detail-icon"><i class="fas fa-gamepad"></i></div>
+                        <div class="event-detail-content">
+                            <h3>Game</h3>
+                            <p>${event.game}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Location
+            if (event.location) {
+                detailsHTML += `
+                    <div class="event-detail-section" style="grid-column: 1 / -1;">
+                        <div class="event-detail-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="event-detail-content">
+                            <h3>Location</h3>
+                            <p>${event.location}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Description
+            detailsHTML += `
+                <div class="event-detail-section full-width">
+                    <div style="display: flex; gap: 0.75rem;">
+                        <div class="event-detail-icon"><i class="fas fa-info-circle"></i></div>
+                        <div class="event-detail-content">
+                            <h3>Description</h3>
+                            <p>${event.description}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Notification section (render once, state will be updated dynamically)
+            detailsHTML += `
+                <div class="event-notification-section full-width" id="eventNotificationSection"
+                     style="grid-column: 1 / -1;">
+                    <div class="notification-opt-in" style="width: 100%; display: flex; justify-content: center;"">
+                        <div class="notification-icon">
+                            <i class="fas fa-bell" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div class="notification-text">
+                            <div class="title">Event Reminders</div>
+                            <div class="subtitle">Get notified about this event</div>
+                        </div>
+                        <button class="notification-btn" id="notificationBtn" onclick="toggleEventSubscription()">
+                            <span id="notificationBtnText">Loading...</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Insert into DOM
+            content.innerHTML = detailsHTML;
+
+            // Show modal content
+            spinner.style.display = 'none';
+            content.style.display = 'block';
+
+            // Show delete button for admins
+            if (deleteBtn) deleteBtn.style.display = 'flex';
+
+            // Load notification state for the user
+            await loadNotificationSection(eventId);
+
+        } catch (error) {
+            console.error('Error loading event details:', error);
+            content.innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                    <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ff5252; margin-bottom: 1rem;"></i>
+                    <p>Failed to load event details. Please try again.</p>
+                    <button class="btn btn-primary" onclick="closeEventModal()" style="margin-top: 1rem;">Close</button>
+                </div>
+            `;
+            spinner.style.display = 'none';
+            content.style.display = 'block';
+        }
+    }
+
+    //DISCLAIMER: CHATGPT WAS USED TO EDIT THE ABOVE CODE
+
+    //DISCLAIMER: CHATGPT WAS USED TO GENERATE THE BELOW CODE
+
+    async function loadNotificationSection(eventId) {
+        const btn = document.getElementById('notificationBtn');
+        if (!btn) return;
+
+        try {
+            const res = await fetch(`/api/event/${eventId}/subscription-status`);
+            const data = await res.json();
+
+            if (!data.subscribed) {
+                btn.innerHTML = `<i class="fas fa-bell"></i> Subscribe`;
+                btn.classList.remove('unsubscribe');
+                btn.classList.add('subscribe');
+            } else {
+                btn.innerHTML = `<i class="fas fa-bell-slash"></i> Unsubscribe`;
+                btn.classList.remove('subscribe');
+                btn.classList.add('unsubscribe');
+            }
+
+            // Center button
+            btn.parentElement.style.display = 'flex';
+            btn.parentElement.style.justifyContent = 'center';
+
+        } catch (err) {
+            console.error('Error loading subscription status:', err);
+        }
+    }
+
+    // Toggle subscription when button is clicked
+    async function toggleEventSubscription() {
+        const btn = document.getElementById('notificationBtn');
+        if (!btn) return;
+
+        try {
+            const res = await fetch(`/api/event/${currentEventId}/toggle-subscription`, { method: 'POST' });
+            const data = await res.json();
+
+            if (data.status === 'subscribed') {
+                btn.innerHTML = `<i class="fas fa-bell-slash"></i> Unsubscribe`;
+                btn.classList.remove('subscribe');
+                btn.classList.add('unsubscribe');
+            } else if (data.status === 'unsubscribed') {
+                btn.innerHTML = `<i class="fas fa-bell"></i> Subscribe`;
+                btn.classList.remove('unsubscribe');
+                btn.classList.add('subscribe');
+            }
+        } catch (err) {
+            console.error('Error toggling subscription:', err);
+        }
+    }
+
+    function showNotificationDisabledMessage() {
+        const modalContent = document.getElementById('eventDetailsContent');
+        const section = document.getElementById('eventNotificationSection');
+
+        if (!section) return;
+
+        section.innerHTML = `
+            <div class="notification-disabled">
+                <div class="notification-icon"><i class="fas fa-bell-slash"></i></div>
+                <h4>Notifications Disabled</h4>
+                <p>You’ve turned off event notifications in your settings.</p>
+                <button class="notification-btn settings" onclick="window.location.href='/eventnotificationsettings'">
+                    Go to Settings
+                </button>
+            </div>
+        `;
+    }
+
+    async function subscribeToEvent(eventId) {
+        const res = await fetch(`/api/subscribe-event/${eventId}`, { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || 'Subscribed!');
+        await loadNotificationSection(eventId);
+    }
+
+    async function unsubscribeFromEvent(eventId) {
+        const res = await fetch(`/api/unsubscribe-event/${eventId}`, { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || 'Unsubscribed!');
+        await loadNotificationSection(eventId);
+    }
+
+    //DISCLAIMER: CHATGPT WAS USED TO GENERATE THE ABOVE CODE
 
     // Image Preview Functionality
     document.addEventListener('DOMContentLoaded', function() {
