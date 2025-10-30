@@ -11,8 +11,8 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='notifications.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='admin-panel.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='teams.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='rosters.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='discord.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
 
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
@@ -29,7 +29,7 @@
     <select class="tab-dropdown" id="tabDropdown">
         <option value="calendar">📅 Calendar</option>
         <option value="profile">👤 Profile</option>
-        <option value="rosters">👥 Game Rosters</option>
+        <option value="rosters">👥 Communities</option>
         <option value="events">📆 Events</option>
         <option value="teams">🎮 Teams</option>
         {% if user.is_admin %}
@@ -49,7 +49,7 @@
         </button>
         <button class="tab-button" data-tab="rosters">
             <i class="fa-solid fa-users tab-icon"></i>
-            Game Rosters
+            Communities
         </button>
         <button class="tab-button" data-tab="events">
             <i class="fa-regular fa-calendar-days tab-icon"></i>
@@ -381,13 +381,13 @@
 </div>
         </div>
 
-    <!-- Rosters Tab -->
+    <!-- Communities Tab -->
     <div id="rosters" class="tab-content">
         <div class="content-card">
             <div class="card-header">
                 <div>
-                    <h2>Game Rosters</h2>
-                    <p>Browse games and join rosters</p>
+                    <h2>Game Communities</h2>
+                    <p>Browse games and join communities</p>
                 </div>
             </div>
 
@@ -419,18 +419,25 @@
                     <h2>Events</h2>
                     <p>Manage matches, practices, and community events</p>
                 </div>
+                {%if user.is_admin or user.is_gm %}
                 <button class="btn btn-primary" onclick="openCreateEventModal()">
                     <i class="fas fa-plus"></i> Create Event
                 </button>
+                {% endif %}
             </div>
             <div class="empty-state">
                 <div class="empty-state-icon">🎮</div>
                 <h3>No Events Scheduled</h3>
+                {% if user.is_admin or user.is_gm %}
                 <p>Click "Create Event" to add your first event</p>
+                {% else %}
+                <p>Events will appear here once created by administrators</p>
+                {% endif %}
             </div>
         </div>
 
         <!-- Create Event Modal -->
+        {% if user.is_admin or user.is_gm %}
         <div id="createEventModal" class="modal">
             <div class="modal-content modal-content-large">
                 <div class="modal-header">
@@ -464,26 +471,11 @@
                                 <label for="game">Game (Optional)</label>
                                 <select id="game" name="game">
                                     <option value="">Select game</option>
-                                    <option>Apex Legends</option>
-                                    <option>Call of Duty</option>
-                                    <option>Counter-Strike 2</option>
-                                    <option>EA FC</option>
-                                    <option>Fortnite</option>
-                                    <option>Game Changers</option>
-                                    <option>Hearthstone</option>
-                                    <option>League of Legends</option>
-                                    <option>Madden NFL</option>
-                                    <option>Mario Kart</option>
-                                    <option>Marvel Rivals</option>
-                                    <option>NBA 2K</option>
-                                    <option>Overwatch 2</option>
-                                    <option>Rainbow 6: Siege</option>
-                                    <option>Rocket League</option>
-                                    <option>Smash Ultimate</option>
-                                    <option>Street Fighter 6</option>
-                                    <option>Team Fight Tactics</option>
-                                    <option>Valorant</option>
+                                    <!-- Games will be loaded dynamically via JavaScript -->
                                 </select>
+                                <div id="gameLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading games...
+                                </div>
                             </div>
                         </div>
 
@@ -542,6 +534,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 
     <!-- Teams Tab -->
@@ -549,7 +542,11 @@
         <div class="content-card">
             <div class="card-header">
                 <h2>Teams</h2>
-                <p>Browse and join esports teams</p>
+                {% if user.is_gm %}
+                <p>Manage created teams</p>
+                {% else %}
+                <p>View joined teams</p>
+                {% endif %}
             </div>
             <div class="empty-state">
                 <div class="empty-state-icon">🏆</div>
@@ -614,24 +611,40 @@
                     <input type="text" id="userSearch" placeholder="Search users..." class="search-input" onkeyup="filterUsers()">
 
                     <ul class="user-items" id="userItems">
-                      {% if user_list %}
-                        {% for u in user_list %}
-                          <li class="user-item"
-                              data-username="{{ u.username }}"
-                              data-firstname="{{ u.firstname }}"
-                              data-lastname="{{ u.lastname }}"
-                              data-email="{{ u.email }}"
-                              data-date="{{ u.date.strftime('%B %d, %Y') }}"
-                              data-active="{{ 'true' if u.active else 'false' }}">
-                            <div>
-                              <strong>{{ u.firstname }} {{ u.lastname }}</strong>
-                              <p>@{{ u.username }} — {{ u.email }}</p>
-                            </div>
-                          </li>
-                        {% endfor %}
-                      {% else %}
-                        <li style="color: var(--text-secondary); padding: 1rem;">No users found.</li>
-                      {% endif %}
+                        {% if user_list %}
+                            {% for u in user_list %}
+                                <li class="user-item"
+                                    data-userid="{{ u.id }}"
+                                    data-username="{{ u.username }}"
+                                    data-firstname="{{ u.firstname }}"
+                                    data-lastname="{{ u.lastname }}"
+                                    data-email="{{ u.email }}"
+                                    data-date="{{ u.date.strftime('%B %d, %Y') }}"
+                                    data-active="{{ 'true' if u.is_active else 'false' }}"
+                                    data-last-seen="{{ u.last_seen.strftime('%B %d, %Y at %I:%M %p') if u.last_seen else 'Never logged in' }}"
+                                    data-is-admin="{{ u.is_admin }}"
+                                    data-is-gm="{{ u.is_gm }}"
+                                    data-is-player="{{ u.is_player }}">
+                                    <div>
+                                        <strong>{{ u.firstname }} {{ u.lastname }}</strong>
+                                        <p>@{{ u.username }} — {{ u.email }}</p>
+                                        <div style="margin-top: 0.25rem; display: flex; gap: 0.5rem; align-items: center;">
+
+                                            <!-- Role Badges -->
+                                            {% if u.is_admin %}
+                                            <span class="role-badge admin">Admin</span>
+                                            {% endif %}
+                                            {% if u.is_gm %}
+                                            <span class="role-badge gm">GM</span>
+                                            {% endif %}
+                                            {% if u.is_player %}
+                                            <span class="role-badge player">Player</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        {% endif %}
                     </ul>
                 </div>
 
@@ -644,8 +657,8 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
-<!-- {% endif %} Commented out temporarily -->
 
 <!-- Create Game Modal -->
 <div id="createGameModal" class="modal">
@@ -736,7 +749,6 @@
         </div>
     </div>
 </div>
-</div>
 
 <!-- Change Avatar Modal -->
 <div id="changeAvatarModal" class="modal">
@@ -802,6 +814,66 @@
 
 {% block extra_js %}
 <script>
+    // Add this at the top of your script section
+    let gamesCache = null;
+
+    async function loadGamesForDropdown() {
+        const gameSelect = document.getElementById('game');
+        const loadingIndicator = document.getElementById('gameLoadingIndicator');
+
+        // Check if we already have games cached
+        if (gamesCache) {
+            populateGameDropdown(gamesCache);
+            return;
+        }
+
+        // Show loading indicator
+        loadingIndicator.style.display = 'block';
+        gameSelect.disabled = true;
+
+        try {
+            const response = await fetch('/api/games-list');
+            const data = await response.json();
+
+            if (data.success && data.games) {
+                // Cache the games
+                gamesCache = data.games;
+                populateGameDropdown(data.games);
+            } else {
+                gameSelect.innerHTML = '<option value="">Error loading games</option>';
+            }
+        } catch (error) {
+            console.error('Error fetching games:', error);
+            gameSelect.innerHTML = '<option value="">Error loading games</option>';
+        } finally {
+            loadingIndicator.style.display = 'none';
+            gameSelect.disabled = false;
+        }
+    }
+
+    function populateGameDropdown(games) {
+        const gameSelect = document.getElementById('game');
+
+        // Clear and repopulate
+        gameSelect.innerHTML = '<option value="">Select game</option>';
+
+        if (games.length === 0) {
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "No games available";
+            option.disabled = true;
+            gameSelect.appendChild(option);
+            return;
+        }
+
+        games.forEach(game => {
+            const option = document.createElement('option');
+            option.value = game.GameTitle;
+            option.textContent = game.GameTitle;
+            gameSelect.appendChild(option);
+        });
+    }
+
     // Store events data for modal access
     const eventsData = {{ events_by_date | tojson }};
 
@@ -861,173 +933,24 @@
         document.body.style.overflow = 'auto';
     }
 
-    // Event Details Modal Functions
-async function openEventModal(eventId) {
-    const modal = document.getElementById('eventDetailsModal');
-    const spinner = document.getElementById('eventLoadingSpinner');
-    const content = document.getElementById('eventDetailsContent');
-
-    // Show modal with loading spinner
-    modal.style.display = 'block';
-    spinner.style.display = 'block';
-    content.style.display = 'none';
-    document.body.style.overflow = 'hidden';
-
-    try {
-        // Fetch event details from API
-        const response = await fetch(`/api/event/${eventId}`);
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch event details');
-        }
-
-        const event = await response.json();
-
-        // Update modal title
-        document.getElementById('eventDetailsTitle').textContent = event.name;
-
-        // Build event details HTML with compact 2-column layout
-        let detailsHTML = '<div class="event-detail-grid">';
-
-        // Date
-        detailsHTML += `
-            <div class="event-detail-section">
-                <div class="event-detail-icon">
-                    <i class="fas fa-calendar-alt"></i>
-                </div>
-                <div class="event-detail-content">
-                    <h3>Date</h3>
-                    <p>${event.date}</p>
-                </div>
-            </div>
-        `;
-
-        // Time
-        if (event.start_time) {
-            detailsHTML += `
-                <div class="event-detail-section">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3>Time</h3>
-                        <p>
-                            ${event.start_time}
-                            ${event.end_time ? ' - ' + event.end_time : ''}
-                        </p>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Event Type
-        if (event.event_type) {
-            detailsHTML += `
-                <div class="event-detail-section">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-tag"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3>Event Type</h3>
-                        <p>${event.event_type}</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Game
-        if (event.game) {
-            detailsHTML += `
-                <div class="event-detail-section">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-gamepad"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3>Game</h3>
-                        <p>${event.game}</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Location (can span 2 columns if needed)
-        if (event.location) {
-            detailsHTML += `
-                <div class="event-detail-section" style="grid-column: 1 / -1;">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-map-marker-alt"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3>Location</h3>
-                        <p>${event.location}</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Description - Full Width at bottom
-        detailsHTML += `
-            <div class="event-detail-section full-width">
-                <div style="display: flex; gap: 0.75rem;">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-info-circle"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3>Description</h3>
-                        <p>${event.description}</p>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        detailsHTML += '</div>';
-
-        // Update content
-        content.innerHTML = detailsHTML;
-
-        // Hide spinner, show content
-        spinner.style.display = 'none';
-        content.style.display = 'block';
-
-    } catch (error) {
-        console.error('Error loading event details:', error);
-        content.innerHTML = `
-            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ff5252; margin-bottom: 1rem;"></i>
-                <p>Failed to load event details. Please try again.</p>
-                <button class="btn btn-primary" onclick="closeEventModal()" style="margin-top: 1rem;">Close</button>
-            </div>
-        `;
-        spinner.style.display = 'none';
-        content.style.display = 'block';
-    }
-}
-
     function closeEventModal() {
         const modal = document.getElementById('eventDetailsModal');
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
     }
 
-
     // Close modals when clicking outside
     window.onclick = function(event) {
-        const dayModal = document.getElementById('dayEventsModal');
-        const eventModal = document.getElementById('eventDetailsModal');
-        const createEventModal = document.getElementById('createEventModal');
-        const gameModal = document.getElementById('createGameModal');
+        if (event.target.classList.contains('modal')) {
+            const modals = {
+                'dayEventsModal': closeDayModal,
+                'eventDetailsModal': closeEventModal,
+                'createEventModal': closeCreateEventModal,
+                'createGameModal': closeCreateGameModal
+            };
 
-        if (event.target === dayModal) {
-            closeDayModal();
-        }
-        if (event.target === eventModal) {
-            closeEventModal();
-        }
-        if (event.target === createEventModal) {
-            closeCreateEventModal();
-        }
-        if (event.target === gameModal) {
-            closeCreateGameModal();
+            const handler = modals[event.target.id];
+            if (handler) handler();
         }
     }
 
@@ -1036,71 +959,50 @@ async function openEventModal(eventId) {
         if (event.key === 'Escape') {
             closeDayModal();
             closeEventModal();
+            closeCreateEventModal();
+            closeCreateGameModal();
         }
     });
 
-    // Tab switching functionality
+    //Consolidating *most* DOMContentLoaded functions into one. This does not include the two for notifications.
     document.addEventListener('DOMContentLoaded', function() {
+        // ========================================
+        // TAB SWITCHING
+        // ========================================
         const tabButtons = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
         const tabDropdown = document.getElementById('tabDropdown');
 
-                // Check if there's a tab hash in URL (for returning to profile after avatar sync)
+        // Check if there's a tab hash in URL (for returning to profile after avatar sync)
         const urlHash = window.location.hash.substring(1); // Remove the '#'
         if (urlHash && document.getElementById(urlHash)) {
             switchTab(urlHash);
         }
 
         function switchTab(targetTab) {
-            // Remove active class from all buttons and contents
             tabButtons.forEach(btn => btn.classList.remove('active'));
             tabContents.forEach(content => content.classList.remove('active'));
 
-            // Add active class to corresponding button and content
             const activeButton = document.querySelector(`[data-tab="${targetTab}"]`);
-            if (activeButton) {
-                activeButton.classList.add('active');
-            }
-            document.getElementById(targetTab).classList.add('active');
+            if (activeButton) activeButton.classList.add('active');
 
-            // Update dropdown value
+            document.getElementById(targetTab).classList.add('active');
             tabDropdown.value = targetTab;
         }
 
-        // Handle button clicks
         tabButtons.forEach(button => {
             button.addEventListener('click', function() {
-                const targetTab = this.getAttribute('data-tab');
-                switchTab(targetTab);
+                switchTab(this.getAttribute('data-tab'));
             });
         });
 
-        // Handle dropdown change
         tabDropdown.addEventListener('change', function() {
             switchTab(this.value);
         });
-    });
 
-    // Create Event Modal Functions
-    function openCreateEventModal() {
-        const modal = document.getElementById('createEventModal');
-        modal.style.display = 'block';
-        document.body.style.overflow = 'hidden';
-
-        // Reset form
-        document.getElementById('createEventForm').reset();
-        document.getElementById('customLocationGroup').style.display = 'none';
-        document.getElementById('formMessage').style.display = 'none';
-    }
-
-    function closeCreateEventModal() {
-        const modal = document.getElementById('createEventModal');
-        modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-
-    // Handle custom location toggle
-    document.addEventListener('DOMContentLoaded', function() {
+        // ========================================
+        // LOCATION DROPDOWN CUSTOM OPTION
+        // ========================================
         const locationSelect = document.getElementById('eventLocation');
         const customLocationGroup = document.getElementById('customLocationGroup');
         const customLocationInput = document.getElementById('customLocation');
@@ -1117,7 +1019,506 @@ async function openEventModal(eventId) {
                 }
             });
         }
+
+        // ========================================
+        // GAME IMAGE PREVIEW
+        // ========================================
+        const gameImageInput = document.getElementById('gameImage');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+
+        if (gameImageInput) {
+            gameImageInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        previewImg.src = event.target.result;
+                        imagePreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    imagePreview.style.display = 'none';
+                }
+            });
+        }
+
+        // =======================================
+        // AVATAR FILE PREVIEW
+        // =======================================
+        const avatarFileInput = document.getElementById('avatarFile');
+
+        if (avatarFileInput) {
+            avatarFileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                const preview = document.getElementById('avatarPreview');
+                const previewImg = document.getElementById('avatarPreviewImg');
+
+                if (file) {
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('File is too large. Maximum size is 5MB.');
+                        this.value = '';
+                        preview.style.display = 'none';
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        previewImg.src = event.target.result;
+                        preview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    preview.style.display = 'none';
+                }
+            });
+        }
+
+        // =========================================
+        // AVATAR SUBMISSION HANDLER
+        // =========================================
+        const uploadForm = document.getElementById('uploadAvatarForm');
+
+        if (uploadForm) {
+            uploadForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const submitBtn = uploadForm.querySelector('button[type="submit"]');
+                const submitBtnText = document.getElementById('uploadBtnText');
+                const submitBtnSpinner = document.getElementById('uploadBtnSpinner');
+                const messageDiv = document.getElementById('avatarUploadMessage');
+
+                submitBtn.disabled = true;
+                submitBtnText.style.display = 'none';
+                submitBtnSpinner.style.display = 'inline-block';
+
+                const formData = new FormData(uploadForm);
+
+                try {
+                    const response = await fetch('/upload-avatar', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        messageDiv.textContent = data.message;
+                        messageDiv.className = 'form-message success';
+                        messageDiv.style.display = 'block';
+
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        throw new Error(data.message || 'Failed to upload avatar');
+                    }
+                } catch (error) {
+                    messageDiv.textContent = error.message;
+                    messageDiv.className = 'form-message error';
+                    messageDiv.style.display = 'block';
+
+                    submitBtn.disabled = false;
+                    submitBtnText.style.display = 'inline';
+                    submitBtnSpinner.style.display = 'none';
+                }
+            });
+        }
+
+        // ===============================
+        // NOTIFICATION SETTINGS
+        // ===============================
+        const enableNotifToggle = document.getElementById('enableNotifications');
+        const notificationOptions = document.getElementById('notificationOptions');
+        const daysInput = document.getElementById('adviceNoticeDays');
+        const hoursInput = document.getElementById('adviceNoticeHours');
+        const previewText = document.getElementById('previewTime');
+
+        // Toggle notification options visibility
+        if (enableNotifToggle) {
+            enableNotifToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    notificationOptions.style.display = 'block';
+                } else {
+                    notificationOptions.style.display = 'none';
+                }
+            });
+        }
+
+        // Update preview text
+        function updatePreview() {
+            const days = parseInt(daysInput.value) || 0;
+            const hours = parseInt(hoursInput.value) || 0;
+
+            let previewParts = [];
+            if (days > 0) {
+                previewParts.push(`${days} day${days !== 1 ? 's' : ''}`);
+            }
+            if (hours > 0) {
+                previewParts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
+            }
+
+            if (previewParts.length === 0) {
+                previewText.textContent = 'at the time of the event';
+            } else {
+                previewText.textContent = previewParts.join(' and ');
+            }
+        }
+
+        if (daysInput && hoursInput) {
+            daysInput.addEventListener('input', updatePreview);
+            hoursInput.addEventListener('input', updatePreview);
+            updatePreview(); // Initial call
+        }
+
+        // ===============================
+        // NOTIFICATION FORM SUBMISSION
+        // ===============================
+        const notifForm = document.getElementById('notificationSettingsForm');
+        if (notifForm) {
+            notifForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const submitBtn = notifForm.querySelector('button[type="submit"]');
+                const submitBtnText = document.getElementById('saveNotifBtnText');
+                const submitBtnSpinner = document.getElementById('saveNotifBtnSpinner');
+                const formMessage = document.getElementById('notificationMessage');
+
+                // Disable submit button
+                submitBtn.disabled = true;
+                submitBtnText.style.display = 'none';
+                submitBtnSpinner.style.display = 'inline-block';
+
+                // Get form data
+                const formData = new FormData(notifForm);
+
+                try {
+                    const response = await fetch('/eventnotificationsettings', {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        // Show success message
+                        formMessage.textContent = data.message || 'Notification settings saved successfully!';
+                        formMessage.className = 'form-message success';
+                        formMessage.style.display = 'block';
+
+                        // Hide message after 3 seconds
+                        setTimeout(() => {
+                            formMessage.style.display = 'none';
+                        }, 3000);
+                    } else {
+                        throw new Error(data.message || 'Failed to save settings');
+                    }
+                } catch (error) {
+                    // Show error message
+                    formMessage.textContent = error.message || 'Failed to save notification settings. Please try again.';
+                    formMessage.className = 'form-message error';
+                    formMessage.style.display = 'block';
+
+                } finally {
+                    // Re-enable submit button
+                    submitBtn.disabled = false;
+                    submitBtnText.style.display = 'inline';
+                    submitBtnSpinner.style.display = 'none';
+                }
+            });
+        }
+
+        // ========================================
+        // CREATE EVENT FORM SUBMISSION
+        // ========================================
+        const createEventForm = document.getElementById('createEventForm');
+        if (createEventForm) {
+            createEventForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const submitBtn = createEventForm.querySelector('button[type="submit"]');
+                const submitBtnText = document.getElementById('submitBtnText');
+                const submitBtnSpinner = document.getElementById('submitBtnSpinner');
+                const formMessage = document.getElementById('formMessage');
+
+                submitBtn.disabled = true;
+                submitBtnText.style.display = 'none';
+                submitBtnSpinner.style.display = 'inline-block';
+
+                const formData = new FormData(createEventForm);
+
+                const location = formData.get('eventLocation');
+                if (location === 'other') {
+                    formData.set('eventLocation', formData.get('customLocation'));
+                }
+                formData.delete('customLocation');
+
+                try {
+                    const response = await fetch('/event-register', {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        formMessage.textContent = data.message || 'Event created successfully! Refreshing calendar...';
+                        formMessage.className = 'form-message success';
+                        formMessage.style.display = 'block';
+
+                        setTimeout(() => { window.location.reload(); }, 1500);
+                    } else {
+                        throw new Error(data.message || 'Failed to create event');
+                    }
+                } catch (error) {
+                    formMessage.textContent = error.message || 'Failed to create event. Please try again.';
+                    formMessage.className = 'form-message error';
+                    formMessage.style.display = 'block';
+
+                    submitBtn.disabled = false;
+                    submitBtnText.style.display = 'inline';
+                    submitBtnSpinner.style.display = 'none';
+                }
+            });
+        }
+
+        // ========================================
+        // CREATE GAME FORM SUBMISSION
+        // ========================================
+        const createGameForm = document.getElementById('createGameForm');
+        if (createGameForm) {
+            createGameForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const submitBtn = createGameForm.querySelector('button[type="submit"]');
+                const submitBtnText = document.getElementById('submitGameBtnText');
+                const submitBtnSpinner = document.getElementById('submitGameBtnSpinner');
+                const formMessage = document.getElementById('gameFormMessage');
+
+                submitBtn.disabled = true;
+                submitBtnText.style.display = 'none';
+                submitBtnSpinner.style.display = 'inline-block';
+
+                const formData = new FormData(createGameForm);
+
+                const teamSizeCheckboxes = document.querySelectorAll('input[name="teamSize"]:checked');
+                const teamSizes = Array.from(teamSizeCheckboxes).map(cb => parseInt(cb.value));
+
+                formData.append('team_sizes', JSON.stringify(teamSizes));
+
+                if (teamSizes.length === 0) {
+                    formMessage.textContent = 'Please select at least one team size';
+                    formMessage.className = 'form-message error';
+                    formMessage.style.display = 'block';
+
+                    submitBtn.disabled = false;
+                    submitBtnText.style.display = 'inline';
+                    submitBtnSpinner.style.display = 'none';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/create-game', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        formMessage.textContent = data.message || 'Game created successfully! Refreshing...';
+                        formMessage.className = 'form-message success';
+                        formMessage.style.display = 'block';
+
+                        setTimeout(() => { window.location.reload(); }, 1500);
+                    } else {
+                        throw new Error(data.message || 'Failed to create game');
+                    }
+                } catch (error) {
+                    formMessage.textContent = error.message || 'Failed to create game. Please try again.';
+                    formMessage.className = 'form-message error';
+                    formMessage.style.display = 'block';
+
+                    submitBtn.disabled = false;
+                    submitBtnText.style.display = 'inline';
+                    submitBtnSpinner.style.display = 'none';
+                }
+            });
+        }
+
+        // ========================================
+        // ADMIN USER MANAGEMENT
+        // ========================================
+        const userItems = document.querySelectorAll('.user-item');
+        const detailsPanel = document.getElementById('userDetailsPanel');
+
+        userItems.forEach(item => {
+            item.addEventListener('click', function() {
+                const userid = this.dataset.userid;
+                const username = this.dataset.username;
+                const firstname = this.dataset.firstname;
+                const lastname = this.dataset.lastname;
+                const email = this.dataset.email;
+                const date = this.dataset.date;
+                const isActive = this.dataset.active === 'true';
+                const lastSeen = this.dataset.lastSeen;
+                const isAdmin = this.dataset.isAdmin === '1';
+                const isGm = this.dataset.isGm === '1';
+                const isPlayer = this.dataset.isPlayer === '1';
+
+                // Build role badges HTML
+                let roleBadges = '';
+                if (isAdmin) roleBadges += '<span class="role-badge admin">Admin</span> ';
+                if (isGm) roleBadges += '<span class="role-badge gm">GM</span> ';
+                if (isPlayer) roleBadges += '<span class="role-badge player">Player</span> ';
+
+                detailsPanel.innerHTML = `
+                    <h3>User Details</h3>
+                    <div class="user-detail-info">
+                        <p><strong>Full Name:</strong> ${firstname} ${lastname}</p>
+                        <p><strong>Username:</strong> @${username}</p>
+                        <p><strong>Email:</strong> ${email}</p>
+                        <p><strong>Date Registered:</strong> ${date}</p>
+                        <p><strong>Status:</strong>
+                            ${isActive ?
+                                '<span class="status-badge active"><i class="fas fa-circle" style="font-size: 0.5rem; margin-right: 0.25rem;"></i> Online</span>' :
+                                '<span class="status-badge inactive">Offline</span>'}
+                        </p>
+                        <p><strong>Last Seen:</strong> ${lastSeen}</p>
+                        <p><strong>Current Roles:</strong> ${roleBadges || '<span style="color: var(--text-secondary);">No roles assigned</span>'}</p>
+                    </div>
+
+                    <div class="admin-actions">
+                        <label><strong>Role Management:</strong></label>
+                        <div class="role-action-row">
+                            <select id="roleActionSelect" class="styled-dropdown">
+                                <option value="assign">Assign</option>
+                                <option value="remove">Remove</option>
+                            </select>
+
+                            <select id="roleTypeSelect" class="styled-dropdown">
+                                <option value="Game Manager">Game Manager</option>
+                                <option value="Admin">Admin</option>
+                            </select>
+
+                            <button id="roleGoBtn" class="btn-go">
+                                <i class="fa-solid fa-check"></i>
+                            </button>
+                        </div>
+
+                        <div id="roleStatusMessage" style="display: none; margin-top: 1rem; padding: 0.75rem; border-radius: 4px;"></div>
+
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary">Suspend User</button>
+                            <button class="btn btn-danger">Remove User</button>
+                        </div>
+                    </div>
+                `;
+
+                userItems.forEach(u => u.classList.remove('active'));
+                this.classList.add('active');
+
+                const goBtn = document.getElementById('roleGoBtn');
+                goBtn.addEventListener('click', function() {
+                    handleRoleChange(username);
+                });
+            });
+        });
+
+        // ========================================
+        // LOAD GAMES FOR ROSTERS TAB
+        // ========================================
+        const rostersTab = document.querySelector('[data-tab="rosters"]');
+        if (rostersTab) {
+            rostersTab.addEventListener('click', loadGames);
+        }
+
+        const tabDropdownForRosters = document.getElementById('tabDropdown');
+        if (tabDropdownForRosters) {
+            tabDropdownForRosters.addEventListener('change', function(e) {
+                if (e.target.value === 'rosters') {
+                    loadGames();
+                }
+            });
+        }
     });
+
+    // Create Event Modal Functions
+    function openCreateEventModal() {
+        const modal = document.getElementById('createEventModal');
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+
+        // Reset form
+        document.getElementById('createEventForm').reset();
+        document.getElementById('customLocationGroup').style.display = 'none';
+        document.getElementById('formMessage').style.display = 'none';
+
+        // Load games into dropdown
+        loadGamesForDropdown();
+    }
+
+    /**
+     * Load games from database into the game dropdown
+     */
+    async function loadGamesForDropdown() {
+        const gameSelect = document.getElementById('game');
+        const loadingIndicator = document.getElementById('gameLoadingIndicator');
+
+        // Show loading indicator
+        loadingIndicator.style.display = 'block';
+
+        // Disable dropdown while loading
+        gameSelect.disabled = true;
+
+        try {
+            const response = await fetch('/api/games-list');
+            const data = await response.json();
+
+            if (data.success && data.games) {
+                // Clear existing options except the first "Select game" option
+                gameSelect.innerHTML = '<option value="">Select game</option>';
+
+                // Add games from database
+                data.games.forEach(game => {
+                    const option = document.createElement('option');
+                    option.value = game.GameTitle;
+                    option.textContent = game.GameTitle;
+                    gameSelect.appendChild(option);
+                });
+
+                // If no games exist, show message
+                if (data.games.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = "";
+                    option.textContent = "No games available";
+                    option.disabled = true;
+                    gameSelect.appendChild(option);
+                }
+            } else {
+                // Error loading games
+                console.error('Failed to load games');
+                gameSelect.innerHTML = '<option value="">Error loading games</option>';
+            }
+        } catch (error) {
+            console.error('Error fetching games:', error);
+            gameSelect.innerHTML = '<option value="">Error loading games</option>';
+        } finally {
+            // Hide loading indicator and re-enable dropdown
+            loadingIndicator.style.display = 'none';
+            gameSelect.disabled = false;
+        }
+    }
+
+    function closeCreateEventModal() {
+        const modal = document.getElementById('createEventModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
 
     //Delete Button functionality
     // Store current event ID for delete functionality
@@ -1275,29 +1676,6 @@ async function openEventModal(eventId) {
         }
     }
 
-    // Image Preview Functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        const gameImageInput = document.getElementById('gameImage');
-        const imagePreview = document.getElementById('imagePreview');
-        const previewImg = document.getElementById('previewImg');
-
-        if (gameImageInput) {
-            gameImageInput.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        previewImg.src = event.target.result;
-                        imagePreview.style.display = 'block';
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    imagePreview.style.display = 'none';
-                }
-            });
-        }
-    });
-
     // Delete Event Function
     async function deleteEvent() {
         if (!currentEventId) {
@@ -1349,180 +1727,8 @@ async function openEventModal(eventId) {
         document.body.style.overflow = 'auto';
         currentEventId = null; // Reset the event ID
     }
-    // Handle form submission
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.getElementById('createEventForm');
-
-        if (form) {
-            form.addEventListener('submit', async function(e) {
-                e.preventDefault();
-
-                const submitBtn = form.querySelector('button[type="submit"]');
-                const submitBtnText = document.getElementById('submitBtnText');
-                const submitBtnSpinner = document.getElementById('submitBtnSpinner');
-                const formMessage = document.getElementById('formMessage');
-
-                // Disable submit button
-                submitBtn.disabled = true;
-                submitBtnText.style.display = 'none';
-                submitBtnSpinner.style.display = 'inline-block';
-
-                // Get form data
-                const formData = new FormData(form);
-
-                // Handle custom location
-                const location = formData.get('eventLocation');
-                if (location === 'other') {
-                    formData.set('eventLocation', formData.get('customLocation'));
-                }
-                formData.delete('customLocation');
-
-                try {
-                    const response = await fetch('/event-register', {
-                        method: 'POST',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: formData
-                    });
-
-                    const data = await response.json();
-
-                    if (response.ok && data.success) {
-                        // Show success message
-                        formMessage.textContent = data.message || 'Event created successfully! Refreshing calendar...';
-                        formMessage.className = 'form-message success';
-                        formMessage.style.display = 'block';
-
-                        // Refresh the page after 1.5 seconds to show updated calendar
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1500);
-                    } else {
-                        throw new Error(data.message || 'Failed to create event');
-                    }
-                } catch (error) {
-                    // Show error message
-                    formMessage.textContent = error.message || 'Failed to create event. Please try again.';
-                    formMessage.className = 'form-message error';
-                    formMessage.style.display = 'block';
-
-                    // Re-enable submit button
-                    submitBtn.disabled = false;
-                    submitBtnText.style.display = 'inline';
-                    submitBtnSpinner.style.display = 'none';
-                }
-            });
-        }
-    });
-
-    // Notification Settings Functions
-    document.addEventListener('DOMContentLoaded', function() {
-        const enableNotifToggle = document.getElementById('enableNotifications');
-        const notificationOptions = document.getElementById('notificationOptions');
-        const daysInput = document.getElementById('adviceNoticeDays');
-        const hoursInput = document.getElementById('adviceNoticeHours');
-        const previewText = document.getElementById('previewTime');
-
-        // Toggle notification options visibility
-        if (enableNotifToggle) {
-            enableNotifToggle.addEventListener('change', function() {
-                if (this.checked) {
-                    notificationOptions.style.display = 'block';
-                } else {
-                    notificationOptions.style.display = 'none';
-                }
-            });
-        }
-
-        // Update preview text
-        function updatePreview() {
-            const days = parseInt(daysInput.value) || 0;
-            const hours = parseInt(hoursInput.value) || 0;
-
-            let previewParts = [];
-            if (days > 0) {
-                previewParts.push(`${days} day${days !== 1 ? 's' : ''}`);
-            }
-            if (hours > 0) {
-                previewParts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
-            }
-
-            if (previewParts.length === 0) {
-                previewText.textContent = 'at the time of the event';
-            } else {
-                previewText.textContent = previewParts.join(' and ');
-            }
-        }
-
-        if (daysInput && hoursInput) {
-            daysInput.addEventListener('input', updatePreview);
-            hoursInput.addEventListener('input', updatePreview);
-            updatePreview(); // Initial call
-        }
-
-        // Handle form submission
-        const notifForm = document.getElementById('notificationSettingsForm');
-        if (notifForm) {
-            notifForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-
-                const submitBtn = notifForm.querySelector('button[type="submit"]');
-                const submitBtnText = document.getElementById('saveNotifBtnText');
-                const submitBtnSpinner = document.getElementById('saveNotifBtnSpinner');
-                const formMessage = document.getElementById('notificationMessage');
-
-                // Disable submit button
-                submitBtn.disabled = true;
-                submitBtnText.style.display = 'none';
-                submitBtnSpinner.style.display = 'inline-block';
-
-                // Get form data
-                const formData = new FormData(notifForm);
-
-                try {
-                    const response = await fetch('/eventnotificationsettings', {
-                        method: 'POST',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: formData
-                    });
-
-                    const data = await response.json();
-
-                    if (response.ok && data.success) {
-                        // Show success message
-                        formMessage.textContent = data.message || 'Notification settings saved successfully!';
-                        formMessage.className = 'form-message success';
-                        formMessage.style.display = 'block';
-
-                        // Hide message after 3 seconds
-                        setTimeout(() => {
-                            formMessage.style.display = 'none';
-                        }, 3000);
-                    } else {
-                        throw new Error(data.message || 'Failed to save settings');
-                    }
-                } catch (error) {
-                    // Show error message
-                    formMessage.textContent = error.message || 'Failed to save notification settings. Please try again.';
-                    formMessage.className = 'form-message error';
-                    formMessage.style.display = 'block';
-
-                } finally {
-                    // Re-enable submit button
-                    submitBtn.disabled = false;
-                    submitBtnText.style.display = 'inline';
-                    submitBtnSpinner.style.display = 'none';
-                }
-            });
-        }
-    });
-</script>
 
 <!--User search system. -->
-<script>
 function filterUsers() {
   const input = document.getElementById('userSearch');
   const filter = input.value.toLowerCase();
@@ -1533,72 +1739,117 @@ function filterUsers() {
     items[i].style.display = text.toLowerCase().includes(filter) ? '' : 'none';
   }
 }
-</script>
 
-<!--Retrieves user details from database to display in admin panel.-->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const userItems = document.querySelectorAll('.user-item');
-  const detailsPanel = document.getElementById('userDetailsPanel');
+/**
+ * Toggle user active/inactive status
+ */
+async function toggleUserActivity(userId, newStatus, username) {
+    const action = newStatus ? 'activate' : 'deactivate';
 
-  userItems.forEach(item => {
-    item.addEventListener('click', function() {
-      // Extract user info from data attributes
-      const username = this.dataset.username;
-      const firstname = this.dataset.firstname;
-      const lastname = this.dataset.lastname;
-      const email = this.dataset.email;
-      const date = this.dataset.date;
-      const isActive = this.dataset.active === "true";
+    if (!confirm(`Are you sure you want to ${action} @${username}?`)) {
+        return;
+    }
 
-      // Determine badge HTML
-        const statusBadge = isActive
-            ? '<span class="status-badge active">Active</span>'
-            : '<span class="status-badge inactive">Inactive</span>';
+    try {
+        const response = await fetch('/admin/toggle-user-activity', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                is_active: newStatus
+            })
+        });
 
-      // Build the details panel content
-      detailsPanel.innerHTML = `
-          <h3>User Details</h3>
-          <div class="user-detail-info">
-            <p><strong>Full Name:</strong> ${firstname} ${lastname}</p>
-            <p><strong>Username:</strong> @${username}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Date Registered:</strong> ${date}</p>
-            <p><strong>Status:</strong> <span class="status-badge active">Active</span></p>
-          </div>
+        const data = await response.json();
 
-          <div class="admin-actions">
-              <label><strong>Role Management:</strong></label>
-              <div class="role-action-row">
-                <select id="roleActionSelect" class="styled-dropdown">
-                  <option value="assign">Assign</option>
-                  <option value="remove">Remove</option>
-                </select>
+        if (data.success) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert(`Error: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Error toggling user activity:', error);
+        alert('An error occurred. Please try again.');
+    }
+}
 
-                <select id="roleTypeSelect" class="styled-dropdown">
-                  <option value="Game Manager">Game Manager</option>
-                  <option value="Admin">Admin</option>
-                </select>
+/**
+ * Handle role assignment/removal
+ */
+async function handleRoleChange(username) {
+    const actionSelect = document.getElementById('roleActionSelect');
+    const roleSelect = document.getElementById('roleTypeSelect');
+    const goBtn = document.getElementById('roleGoBtn');
+    const statusMessage = document.getElementById('roleStatusMessage');
 
-                <button id="roleGoBtn" class="btn-go">
-                  <i class="fa-solid fa-check"></i>
-                </button>
-              </div>
+    const action = actionSelect.value;  // 'assign' or 'remove'
+    const role = roleSelect.value;      // 'Admin' or 'Game Manager'
 
-              <div class="action-buttons">
-                <button class="btn btn-secondary">Suspend User</button>
-                <button class="btn btn-danger">Remove User</button>
-              </div>
-            </div>
+    // Disable button during request
+    goBtn.disabled = true;
+    goBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    // Hide previous messages
+    statusMessage.style.display = 'none';
+
+    try {
+        const response = await fetch('/admin/manage-role', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                username: username,
+                action: action,
+                role: role
+            })
+        });
+
+        const data = await response.json();
+
+        // Show status message
+        statusMessage.style.display = 'block';
+
+        if (data.success) {
+            // Success message
+            statusMessage.style.backgroundColor = '#d4edda';
+            statusMessage.style.color = '#155724';
+            statusMessage.style.border = '1px solid #c3e6cb';
+            statusMessage.innerHTML = `
+                <i class="fas fa-check-circle"></i> ${data.message}
+            `;
+
+            // Refresh the page after 2 seconds to show updated stats
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            // Error message
+            statusMessage.style.backgroundColor = '#f8d7da';
+            statusMessage.style.color = '#721c24';
+            statusMessage.style.border = '1px solid #f5c6cb';
+            statusMessage.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i> ${data.message}
+            `;
+        }
+    } catch (error) {
+        console.error('Error managing role:', error);
+        statusMessage.style.display = 'block';
+        statusMessage.style.backgroundColor = '#f8d7da';
+        statusMessage.style.color = '#721c24';
+        statusMessage.style.border = '1px solid #f5c6cb';
+        statusMessage.innerHTML = `
+            <i class="fas fa-exclamation-circle"></i> Failed to update role. Please try again.
         `;
-
-
-      // Highlight selected user
-      userItems.forEach(u => u.classList.remove('active'));
-      this.classList.add('active');
-    });
-  });
-});
+    } finally {
+        // Re-enable button
+        goBtn.disabled = false;
+        goBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+    }
+}
 
     // Create Game Modal Functions
     function openCreateGameModal() {
@@ -1617,82 +1868,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.style.overflow = 'auto';
     }
 
-    // Handle Create Game form submission
-    document.addEventListener('DOMContentLoaded', function() {
-        const gameForm = document.getElementById('createGameForm');
-
-        if (gameForm) {
-            gameForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-
-                const submitBtn = gameForm.querySelector('button[type="submit"]');
-                const submitBtnText = document.getElementById('submitGameBtnText');
-                const submitBtnSpinner = document.getElementById('submitGameBtnSpinner');
-                const formMessage = document.getElementById('gameFormMessage');
-
-                // Disable submit button
-                submitBtn.disabled = true;
-                submitBtnText.style.display = 'none';
-                submitBtnSpinner.style.display = 'inline-block';
-
-                // Get form data
-                const formData = new FormData(gameForm);
-
-                // Get selected team sizes
-                const teamSizeCheckboxes = document.querySelectorAll('input[name="teamSize"]:checked');
-                const teamSizes = Array.from(teamSizeCheckboxes).map(cb => parseInt(cb.value));
-
-                // Add team sizes to form data
-                formData.append('team_sizes', JSON.stringify(teamSizes));
-
-                // Validation
-                if (teamSizes.length === 0) {
-                    formMessage.textContent = 'Please select at least one team size';
-                    formMessage.className = 'form-message error';
-                    formMessage.style.display = 'block';
-
-                    submitBtn.disabled = false;
-                    submitBtnText.style.display = 'inline';
-                    submitBtnSpinner.style.display = 'none';
-                    return;
-                }
-
-                try {
-                    const response = await fetch('/create-game', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const data = await response.json();
-
-                    if (response.ok && data.success) {
-                        // Show success message
-                        formMessage.textContent = data.message || 'Game created successfully! Refreshing...';
-                        formMessage.className = 'form-message success';
-                        formMessage.style.display = 'block';
-
-                        // Refresh the page after 1.5 seconds
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1500);
-                    } else {
-                        throw new Error(data.message || 'Failed to create game');
-                    }
-                } catch (error) {
-                    // Show error message
-                    formMessage.textContent = error.message || 'Failed to create game. Please try again.';
-                    formMessage.className = 'form-message error';
-                    formMessage.style.display = 'block';
-
-                    // Re-enable submit button
-                    submitBtn.disabled = false;
-                    submitBtnText.style.display = 'inline';
-                    submitBtnSpinner.style.display = 'none';
-                }
-            });
-        }
-    });
-
     // Close modal when clicking outside
     window.addEventListener('click', function(event) {
         const gameModal = document.getElementById('createGameModal');
@@ -1704,25 +1879,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!--Display games under roster tab functionality. -->
 <script>
-    // Load games when the Rosters tab is activated
-    document.addEventListener('DOMContentLoaded', function() {
-        // Listen for tab changes
-        const rostersTab = document.querySelector('[data-tab="rosters"]');
-        if (rostersTab) {
-            rostersTab.addEventListener('click', loadGames);
-        }
-
-        // Also load when dropdown changes to rosters
-        const tabDropdown = document.getElementById('tabDropdown');
-        if (tabDropdown) {
-            tabDropdown.addEventListener('change', function(e) {
-                if (e.target.value === 'rosters') {
-                    loadGames();
-                }
-            });
-        }
-    });
-
     async function loadGames() {
         const loadingDiv = document.getElementById('rostersLoading');
         const gridDiv = document.getElementById('rostersGrid');
@@ -1759,11 +1915,13 @@ document.addEventListener('DOMContentLoaded', function() {
         gridDiv.className = 'rosters-grid';
         gridDiv.innerHTML = '';
 
+        // Check if current user is admin (passed from backend)
+        const isAdmin = {{ 'true' if user.is_admin else 'false' }};
+
         games.forEach(game => {
             const teamSizes = game.TeamSizes ? game.TeamSizes.split(',').map(s => s.trim()) : [];
             const members = game.Members || Math.floor(Math.random() * 50) + 10;
             const teams = game.Teams || Math.floor(Math.random() * 10) + 1;
-            const matches = game.Matches || Math.floor(Math.random() * 20) + 1;
 
             // Determine if we have an image or use icon
             let iconHTML;
@@ -1776,9 +1934,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 iconHTML = `<i class="fas fa-gamepad"></i>`;
             }
 
+            // Add delete button HTML for admins
+            const deleteButtonHTML = isAdmin ? `
+                <button class="game-delete-btn"
+                        onclick="confirmDeleteGame(${game.GameID}, '${game.GameTitle.replace(/'/g, "\\'")}')"
+                        title="Delete game">
+                    <i class="fas fa-trash"></i>
+                </button>
+            ` : '';
+
             const card = document.createElement('div');
             card.className = 'roster-card';
             card.innerHTML = `
+                ${deleteButtonHTML}
                 <div class="roster-card-header">
                     <div class="roster-icon">
                         ${iconHTML}
@@ -1798,24 +1966,67 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="roster-stat-number">${teams}</div>
                         <div class="roster-stat-label">Teams</div>
                     </div>
-                    <div class="roster-stat">
-                        <i class="fas fa-trophy roster-stat-icon"></i>
-                        <div class="roster-stat-number">${matches}</div>
-                        <div class="roster-stat-label">Matches</div>
-                    </div>
                 </div>
 
                 <div class="roster-card-actions">
                     <button class="btn btn-primary" onclick="viewGameDetails(${game.GameID})">
                         <i class="fas fa-eye"></i> View Details
                     </button>
-                    <button class="btn btn-secondary" onclick="joinRoster(${game.GameID})" title="Join Roster">
+                    <button class="btn btn-secondary" onclick="joinRoster(${game.GameID})" title="Join Community">
                         <i class="fas fa-user-plus"></i>
                     </button>
                 </div>
             `;
             gridDiv.appendChild(card);
         });
+    }
+
+    /**
+     * Confirm game deletion
+     */
+    function confirmDeleteGame(gameId, gameTitle) {
+        // Show confirmation dialog
+        if (!confirm(`Are you sure you want to delete "${gameTitle}"?\n\nThis action cannot be undone and may affect associated events.`)) {
+            return;
+        }
+
+        deleteGame(gameId, gameTitle);
+    }
+
+    /**
+     * Delete game from database
+     */
+    async function deleteGame(gameId, gameTitle) {
+        try {
+            const response = await fetch('/delete-game', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ game_id: gameId })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Show success message
+                alert(`"${gameTitle}" has been deleted successfully!`);
+
+                // Clear games cache if you're using it
+                if (typeof gamesCache !== 'undefined') {
+                    gamesCache = null;
+                }
+
+                // Reload games to refresh the display
+                loadGames();
+            } else {
+                // Show error message
+                alert(`Error: ${data.message}`);
+            }
+        } catch (error) {
+            console.error('Error deleting game:', error);
+            alert('An error occurred while deleting the game. Please try again.');
+        }
     }
 
     function viewGameDetails(gameId) {
@@ -1849,87 +2060,6 @@ function closeAvatarModal() {
     document.body.style.overflow = 'auto';
 }
 
-// Image Preview on File Select
-document.addEventListener('DOMContentLoaded', function() {
-    const avatarFileInput = document.getElementById('avatarFile');
-    
-    if (avatarFileInput) {
-        avatarFileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const preview = document.getElementById('avatarPreview');
-            const previewImg = document.getElementById('avatarPreviewImg');
-            
-            if (file) {
-                if (file.size > 5 * 1024 * 1024) {
-                    alert('File is too large. Maximum size is 5MB.');
-                    this.value = '';
-                    preview.style.display = 'none';
-                    return;
-                }
-                
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    previewImg.src = event.target.result;
-                    preview.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            } else {
-                preview.style.display = 'none';
-            }
-        });
-    }
-});
-
-// Handle Avatar Upload Form Submission
-document.addEventListener('DOMContentLoaded', function() {
-    const uploadForm = document.getElementById('uploadAvatarForm');
-    
-    if (uploadForm) {
-        uploadForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const submitBtn = uploadForm.querySelector('button[type="submit"]');
-            const submitBtnText = document.getElementById('uploadBtnText');
-            const submitBtnSpinner = document.getElementById('uploadBtnSpinner');
-            const messageDiv = document.getElementById('avatarUploadMessage');
-            
-            submitBtn.disabled = true;
-            submitBtnText.style.display = 'none';
-            submitBtnSpinner.style.display = 'inline-block';
-            
-            const formData = new FormData(uploadForm);
-            
-            try {
-                const response = await fetch('/upload-avatar', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok && data.success) {
-                    messageDiv.textContent = data.message;
-                    messageDiv.className = 'form-message success';
-                    messageDiv.style.display = 'block';
-                    
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
-                } else {
-                    throw new Error(data.message || 'Failed to upload avatar');
-                }
-            } catch (error) {
-                messageDiv.textContent = error.message;
-                messageDiv.className = 'form-message error';
-                messageDiv.style.display = 'block';
-                
-                submitBtn.disabled = false;
-                submitBtnText.style.display = 'inline';
-                submitBtnSpinner.style.display = 'none';
-            }
-        });
-    }
-});
 // Sync Avatar from Modal
 async function syncAvatarFromModal() {
     const messageDiv = document.getElementById('avatarUploadMessage');

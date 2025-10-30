@@ -37,7 +37,7 @@ def notification_settings():
         try:
             # Check if preferences exist
             cursor.execute("""
-                           SELECT id
+                           SELECT user_id
                            FROM notification_preferences
                            WHERE user_id = %s
                            """, (user_id,))

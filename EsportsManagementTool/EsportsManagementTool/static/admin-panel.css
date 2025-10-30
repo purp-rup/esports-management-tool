@@ -99,22 +99,48 @@
   color: #4444ff;
 }
 
+/* Status badges with online indicator */
 .status-badge {
-  text-transform: lowercase;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 6px;
-  font-weight: 600;
+    display: inline-block;
+    align-items: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
 }
 
 .status-badge.active {
-  background: #2ecc7020;
-  color: #2ecc70;
+    background-color: #4CAF50;
+    color: white;
 }
 
 .status-badge.inactive {
-    background: #ff4d4d20;
-    color: #ff4d4d;
+    background-color: #9e9e9e;
+    color: white;
+}
+
+/* Pulse animation for online status */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+/* Online indicator dot */
+.status-badge.active .fa-circle {
+    animation: blink 2s ease-in-out infinite;
+}
+
+@keyframes blink {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
 }
 
 .status-badge.suspended {
@@ -196,3 +222,58 @@
     background: rgba(121, 189, 233, 0.1);
     border-color: var(--stockton-blue);
 }
+
+.role-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-right: 0.25rem;
+}
+
+.role-badge.admin {
+    background-color: #ff5252;
+    color: white;
+}
+
+.role-badge.gm {
+    background-color: #2196F3;
+    color: white;
+}
+
+.role-badge.player {
+    background-color: #e3d500;
+    color: white;
+}
+
+/* Warning button for deactivate */
+.btn-warning {
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-warning:hover {
+    background-color: #f57c00;
+}
+
+/* Success button for activate */
+.btn-success {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-success:hover {
+    background-color: #388E3C;
+}
+

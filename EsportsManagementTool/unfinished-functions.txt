@@ -1,18 +1,11 @@
 Functionality notes:
 Needs doing: Active User function on Admin Panel
-            Admin count on Admin Panel
-            GM count on Admin Panel
-            Assign/Remove Admin/GM roles
-            Role Management button
             Suspend user function on Admin Panel
             Remove User function on Admin Panel
 
             View Details on Game Rosters page
             Show member count on Game Rosters
             Show team count on Game Rosters
-            Upload Game Icon on Game Creation (admin only)
-            Delete Game on Game Rosters page (admin only)
 
-            Change Avatar button on profile page
             Edit Profile button on profile page
             change password button on profile page
