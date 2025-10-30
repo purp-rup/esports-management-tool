@@ -1,4 +1,4 @@
-from EsportsManagementTool import app
+from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, has_role
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
@@ -27,11 +27,8 @@ def allowed_file(filename):
 
 @app.route('/dashboard')
 @app.route('/dashboard/<int:year>/<int:month>')
+@login_required  # Added security
 def dashboard(year=None, month=None):
-    if 'loggedin' not in session:
-        flash('Please log in to access the dashboard', 'error')
-        return redirect(url_for('login'))
-
     # Get user data
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute("SELECT * FROM users WHERE id = %s", (session['id'],))
@@ -39,8 +36,11 @@ def dashboard(year=None, month=None):
     cursor.execute('SELECT * FROM verified_users WHERE userid = %s', [user['id']])
     is_verified = cursor.fetchone()
 
-    ##Temporary override. Makes all users admins to be able to view admin panel!!
-    user['is_admin'] = True
+    # CRITICAL FIX: Get actual permissions from database instead of overriding
+    permissions = get_user_permissions(user['id'])
+    user['is_admin'] = permissions['is_admin']
+    user['is_gm'] = permissions['is_gm']
+    user['is_player'] = permissions['is_player']
 
     if not user:
         session.clear()
@@ -128,33 +128,66 @@ def dashboard(year=None, month=None):
         # --- Admin Panel Stats ---
         total_users = active_users = admins = gms = 0
 
-        if user.get('is_admin', True):  # treat everyone as admin for now
+        if user['is_admin'] == 1:
             try:
                 # Count all users
                 cursor.execute("SELECT COUNT(*) AS total_users FROM users")
                 total_users = cursor.fetchone()['total_users']
 
-                # Treat all users as active (no is_active column)
-                active_users = total_users
+                # Count currently active users (logged in and active)
+                cursor.execute("""
+                    SELECT COUNT(*) AS active_users 
+                    FROM user_activity 
+                    WHERE is_active = 1
+                """)
+                active_users_result = cursor.fetchone()
+                active_users = active_users_result['active_users'] if active_users_result else 0
 
-                # Since there’s no is_admin or role column yet
-                admins = 1  # yourself
-                gms = 0  # none yet
+                # Count admins from permissions table
+                cursor.execute("""
+                    SELECT COUNT(DISTINCT u.id) AS admins
+                    FROM users u
+                    INNER JOIN permissions p ON p.userid = u.id
+                    WHERE p.is_admin = 1
+                """)
+                admins = cursor.fetchone()['admins']
+
+                # Count game managers
+                cursor.execute("SELECT COUNT(*) AS gms FROM permissions WHERE is_gm = 1")
+                gms = cursor.fetchone()['gms']
             except Exception as e:
                 print("Admin stats error:", e)
 
         # --- Admin User Management ---
         user_list = []
 
-        if user.get('is_admin', True):  # temporary override: treat all as admin
-            try:
-                cursor.execute("SELECT firstname, lastname, username, email, date FROM users ORDER BY date DESC")
-                user_list = cursor.fetchall()
+        # FIXED: Only fetch user list if user is actually an admin
+        if user['is_admin'] == 1:
+            #Clean up inactive users before displaying stats
+            from EsportsManagementTool import cleanup_inactive_users
+            cleanup_inactive_users()
 
-                ##Temporary (ADD AN ACTIVE/INACTIVE thing)
-                for u in user_list:
-                    u['active'] = True
-                ##Temporary
+            try:
+                # Fetch users with their activity status
+                cursor.execute("""
+                    SELECT 
+                        u.id,
+                        u.firstname, 
+                        u.lastname, 
+                        u.username, 
+                        u.email, 
+                        u.date,
+                        COALESCE(ua.is_active, 0) as is_active,
+                        ua.last_seen,
+                        p.is_admin,
+                        p.is_gm,
+                        p.is_player
+                    FROM users u
+                    LEFT JOIN user_activity ua ON u.id = ua.userid
+                    LEFT JOIN permissions p ON u.id = p.userid
+                    ORDER BY ua.is_active DESC, u.date DESC
+                """)
+                user_list = cursor.fetchall()
 
             except Exception as e:
                 print("Error fetching user list:", e)
@@ -174,41 +207,28 @@ def dashboard(year=None, month=None):
             prev_month=prev_month,
             next_year=next_year,
             next_month=next_month,
-            total_users = total_users,
-            active_users = active_users,
-            admins = admins,
-            gms = gms,
-            user_list = user_list
+            total_users=total_users,
+            active_users=active_users,
+            admins=admins,
+            gms=gms,
+            user_list=user_list
         )
 
     finally:
         cursor.close()
 
-##Delete Events functionality. Includes deleting from table.
+
+# Delete Events functionality. Includes deleting from table.
 @app.route('/delete-event', methods=['POST'])
+@roles_required('admin')  # Added security - Only admins can delete events
 def delete_event():
     """
     Delete an event from the generalevents table.
     Only accessible to logged-in admin users.
     """
-    # Check if user is logged in
-    if 'loggedin' not in session:
-        return jsonify({'success': False, 'message': 'Unauthorized - Please log in'}), 401
-
-    # Get user information to check admin status
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-        cursor.execute("SELECT * FROM users WHERE id = %s", (session['id'],))
-        user = cursor.fetchone()
-
-        if not user:
-            return jsonify({'success': False, 'message': 'User not found'}), 404
-
-        # Admin check (temporary override treats all users as admin)
-        if not user.get('is_admin', True):  # treat all as admin for now
-            return jsonify({'success': False, 'message': 'Permission denied - Admin access required'}), 403
-
         # Get the event ID from request JSON
         data = request.get_json()
         event_id = data.get('event_id')
@@ -307,3 +327,100 @@ def upload_avatar():
         print(f"Error uploading avatar: {str(e)}")
         mysql.connection.rollback()
         return jsonify({'success': False, 'message': 'Failed to upload avatar'}), 500
+
+#Route meant to assign and remove roles. Hopefully will move to adminPanel.py at some point
+#unless that file gets nuked eventually.
+@app.route('/admin/manage-role', methods=['POST'])
+@roles_required('admin')
+def manage_role():
+    """
+    Assign or remove roles from users
+    """
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        action = data.get('action')  # 'assign' or 'remove'
+        role = data.get('role')  # 'Admin' or 'Game Manager'
+
+        # Validate input
+        if not username or not action or not role:
+            return jsonify({
+                'success': False,
+                'message': 'Missing required fields'
+            }), 400
+
+        if action not in ['assign', 'remove']:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid action'
+            }), 400
+
+        if role not in ['Admin', 'Game Manager']:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid role'
+            }), 400
+
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            # Get user ID from username
+            cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+            user = cursor.fetchone()
+
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': f'User "{username}" not found'
+                }), 404
+
+            user_id = user['id']
+
+            # Prevent admin from removing their own admin role
+            if action == 'remove' and role == 'Admin' and user_id == session['id']:
+                return jsonify({
+                    'success': False,
+                    'message': 'You cannot remove your own admin privileges'
+                }), 403
+
+            # Map role names to database columns
+            role_column_map = {
+                'Admin': 'is_admin',
+                'Game Manager': 'is_gm'
+            }
+
+            role_column = role_column_map[role]
+            new_value = 1 if action == 'assign' else 0
+
+            # Update the permissions table
+            query = f"UPDATE permissions SET {role_column} = %s WHERE userid = %s"
+            cursor.execute(query, (new_value, user_id))
+            mysql.connection.commit()
+
+            # Prepare success message
+            action_past_tense = 'assigned' if action == 'assign' else 'removed'
+            message = f'{role} role {action_past_tense} {"to" if action == "assign" else "from"} {username} successfully'
+
+            return jsonify({
+                'success': True,
+                'message': message
+            }), 200
+
+        except Exception as e:
+            mysql.connection.rollback()
+            print(f"Database error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Database error occurred'
+            }), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Server error occurred'
+        }), 500
+

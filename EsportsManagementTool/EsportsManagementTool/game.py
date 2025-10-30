@@ -1,12 +1,13 @@
-from EsportsManagementTool import app, mysql
+from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, has_role, mysql
 from flask import request, redirect, url_for, session, flash, jsonify, render_template
 import MySQLdb.cursors
 from flask import send_file
 from io import BytesIO
 
 
-# Route to display all games (for the Rosters tab)
+# Route to display all games (for the Communities tab)
 @app.route('/games')
+@login_required
 def view_games():
     """
     View all available games in the system.
@@ -51,6 +52,7 @@ def view_games():
 
 # Route to create a new game
 @app.route('/create-game', methods=['POST'])
+@roles_required('admin')
 def create_game():
     """
     Create a new game in the system.
@@ -139,67 +141,86 @@ def create_game():
 
 # Route to delete a game
 @app.route('/delete-game', methods=['POST'])
+@roles_required('admin')
 def delete_game():
     """
-    Delete a game from the system.
-    Only accessible to Admin users.
+    Delete a game from the games table
     """
-    # Check if user is logged in
-    if 'loggedin' not in session:
-        return jsonify({'success': False, 'message': 'Unauthorized - Please log in'}), 401
-
-    # Get user information to check admin status
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
     try:
-        cursor.execute("SELECT * FROM users WHERE id = %s", (session['id'],))
-        user = cursor.fetchone()
-
-        if not user:
-            return jsonify({'success': False, 'message': 'User not found'}), 404
-
-        # Admin check (temporary override treats all users as admin)
-        if not user.get('is_admin', True):
-            return jsonify({'success': False, 'message': 'Permission denied - Admin access required'}), 403
-
-        # Get the game ID from request JSON
         data = request.get_json()
         game_id = data.get('game_id')
 
         if not game_id:
-            return jsonify({'success': False, 'message': 'Missing game ID'}), 400
+            return jsonify({
+                'success': False,
+                'message': 'Missing game ID'
+            }), 400
 
-        # Verify game exists before attempting to delete
-        cursor.execute("SELECT GameID FROM games WHERE GameID = %s", (game_id,))
-        game = cursor.fetchone()
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        if not game:
-            return jsonify({'success': False, 'message': 'Game not found'}), 404
+        try:
+            # Check if game exists
+            cursor.execute("SELECT GameID, GameTitle FROM games WHERE GameID = %s", (game_id,))
+            game = cursor.fetchone()
 
-        # Delete the game from the database
-        cursor.execute("DELETE FROM games WHERE GameID = %s", (game_id,))
-        mysql.connection.commit()
+            if not game:
+                return jsonify({
+                    'success': False,
+                    'message': 'Game not found'
+                }), 404
 
-        return jsonify({
-            'success': True,
-            'message': 'Game deleted successfully'
-        }), 200
+            game_title = game['GameTitle']
+
+            # Optional: Check if game has associated events
+            cursor.execute("SELECT COUNT(*) as event_count FROM generalevents WHERE Game = %s", (game_title,))
+            event_check = cursor.fetchone()
+
+            if event_check['event_count'] > 0:
+                return jsonify({
+                    'success': False,
+                    'message': f'Cannot delete game. {event_check["event_count"]} event(s) are associated with this game.'
+                }), 400
+
+            # Optional: Check if game has associated teams (if you have a teams table)
+            # cursor.execute("SELECT COUNT(*) as team_count FROM teams WHERE game_id = %s", (game_id,))
+            # team_check = cursor.fetchone()
+            # if team_check['team_count'] > 0:
+            #     return jsonify({
+            #         'success': False,
+            #         'message': f'Cannot delete game. {team_check["team_count"]} team(s) exist for this game.'
+            #     }), 400
+
+            # Delete the game
+            cursor.execute("DELETE FROM games WHERE GameID = %s", (game_id,))
+            mysql.connection.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'"{game_title}" deleted successfully'
+            }), 200
+
+        except Exception as e:
+            mysql.connection.rollback()
+            print(f"Database error deleting game: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Database error occurred'
+            }), 500
+
+        finally:
+            cursor.close()
 
     except Exception as e:
-        # Log the error for debugging
-        print(f"Error deleting game: {str(e)}")
-        mysql.connection.rollback()
+        print(f"Error in delete_game: {str(e)}")
         return jsonify({
             'success': False,
-            'message': 'Database error occurred while deleting game'
+            'message': 'Server error occurred'
         }), 500
-
-    finally:
-        cursor.close()
 
 
 # Route to get a single game's details
 @app.route('/api/game/<int:game_id>')
+@login_required
 def get_game_details(game_id):
     """
     Get details for a specific game.
@@ -273,3 +294,37 @@ def game_image(game_id):
 
     finally:
         cursor.close()
+
+#Retrieves game list to be implemented in event-creation dropdown.
+@app.route('/api/games-list', methods=['GET'])
+@login_required
+def get_games_list():
+    """
+    Get list of all games for dropdowns
+    Returns simplified game data for dropdowns
+    """
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute("""
+                SELECT GameID, GameTitle 
+                FROM games 
+                ORDER BY GameTitle ASC
+            """)
+            games = cursor.fetchall()
+
+            return jsonify({
+                'success': True,
+                'games': games
+            }), 200
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error fetching games list: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to fetch games'
+        }), 500
