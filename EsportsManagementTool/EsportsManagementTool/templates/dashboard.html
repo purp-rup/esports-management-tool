@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='admin-panel.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='teams.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='rosters.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='discord.css') }}">
 
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
@@ -197,9 +198,15 @@
             <div class="profile-grid">
                 <div class="profile-avatar">
                     <div class="avatar-container">
-                        {{ user.firstname[0] }}{{ user.lastname[0] }}
+                        {% if user.profile_picture %}
+                            <img src="{{ url_for('static', filename='uploads/avatars/' + user.profile_picture) }}" 
+                                alt="Profile Picture" 
+                                style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                        {% else %}
+                            {{ user.firstname[0] }}{{ user.lastname[0] }}
+                        {% endif %}
                     </div>
-                    <button class="btn btn-secondary">Change Avatar</button>
+                    <button class="btn btn-secondary" onclick="openAvatarModal()">Change Avatar</button>
                 </div>
 
                 <div class="profile-info">
@@ -311,6 +318,67 @@
                     </div>
                 </form>
             </div>
+            
+    <!-- ========================================
+     DISCORD INTEGRATION CARD
+     Add this AFTER the Notification Settings Card
+     in your Profile Tab (around line 280)
+     ======================================== -->
+
+<div class="content-card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h2>Discord Integration</h2>
+        <p>Connect your Discord account to enhance your profile</p>
+    </div>
+
+    <!-- Loading State -->
+    <div id="discordLoading" style="text-align: center; padding: 2rem;">
+        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+        <p style="color: var(--text-secondary); margin-top: 1rem;">Loading Discord connection...</p>
+    </div>
+
+    <!-- Not Connected State -->
+    <div id="discordNotConnected" style="display: none;">
+        <div class="empty-state" style="padding: 2rem;">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">
+                <i class="fab fa-discord" style="color: #5865F2;"></i>
+            </div>
+            <h3>Connect Your Discord Account</h3>
+            <p style="max-width: 500px; margin: 1rem auto;">
+                Link your Discord account to display your Discord username and profile picture on your esports profile.
+            </p>
+            <button onclick="connectDiscord()" class="btn btn-primary discord-connect-btn">
+                Connect Discord
+            </button>
+        </div>
+    </div>
+
+    <!-- Connected State -->
+    <div id="discordConnected" style="display: none;">
+        <div class="discord-profile-container">
+            <div class="discord-profile-header">
+                <div id="discordAvatarContainer" class="discord-avatar-large">
+                    <!-- Avatar will be inserted here -->
+                </div>
+                <div class="discord-profile-info">
+                    <h3 id="discordUsername"></h3>
+
+                    <p id="discordConnectedDate">
+                        <i class="fas fa-link"></i> Connected on <span id="connectedDateText"></span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="profile-actions discord-actions">
+                <button onclick="disconnectDiscord()" class="btn btn-secondary">
+                    <i class="fas fa-unlink"></i> Disconnect Discord
+                </button>
+            </div>
+
+
+        </div>
+    </div>
+</div>
         </div>
 
     <!-- Rosters Tab -->
@@ -669,6 +737,67 @@
     </div>
 </div>
 </div>
+
+<!-- Change Avatar Modal -->
+<div id="changeAvatarModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Change Profile Picture</h2>
+            <button class="modal-close" onclick="closeAvatarModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Upload a custom avatar or sync from Discord</p>
+
+            <form id="uploadAvatarForm" enctype="multipart/form-data" style="margin-bottom: 2rem;">
+                <div class="form-group">
+                    <label for="avatarFile">Choose Image</label>
+                    <input type="file" 
+                           id="avatarFile" 
+                           name="avatar" 
+                           accept="image/png, image/jpeg, image/jpg, image/gif, image/webp"
+                           required>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                        Accepted formats: PNG, JPG, GIF, WEBP (Max 5MB)
+                    </p>
+                </div>
+
+                <div id="avatarPreview" style="display: none; text-align: center; margin: 1rem 0;">
+                    <img id="avatarPreviewImg" 
+                         style="max-width: 200px; max-height: 200px; border-radius: 50%; border: 4px solid var(--stockton-blue);">
+                </div>
+
+                <div id="avatarUploadMessage" class="form-message" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeAvatarModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="uploadBtnText">Upload Avatar</span>
+                        <i id="uploadBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                    </button>
+                </div>
+            </form>
+
+            <div style="text-align: center; margin: 2rem 0; color: var(--text-secondary); position: relative;">
+                <span style="background: var(--background-secondary); padding: 0 1rem; position: relative; z-index: 1;">
+                    OR
+                </span>
+                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--border-color); z-index: 0;"></div>
+            </div>
+
+            <div style="text-align: center;">
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                    Use your Discord profile picture
+                </p>
+                <button onclick="syncAvatarFromModal()" class="btn btn-primary" style="background-color: #5865F2 !important;">
+                    Sync from Discord
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -915,6 +1044,12 @@ async function openEventModal(eventId) {
         const tabButtons = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
         const tabDropdown = document.getElementById('tabDropdown');
+
+                // Check if there's a tab hash in URL (for returning to profile after avatar sync)
+        const urlHash = window.location.hash.substring(1); // Remove the '#'
+        if (urlHash && document.getElementById(urlHash)) {
+            switchTab(urlHash);
+        }
 
         function switchTab(targetTab) {
             // Remove active class from all buttons and contents
@@ -1694,5 +1829,158 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Join roster for game:', gameId);
         alert('Join roster functionality coming soon!');
     }
+</script>
+<script src="{{ url_for('static', filename='discord.js') }}"></script>
+<script>
+// Avatar Upload Modal Functions
+function openAvatarModal() {
+    const modal = document.getElementById('changeAvatarModal');
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    
+    document.getElementById('uploadAvatarForm').reset();
+    document.getElementById('avatarPreview').style.display = 'none';
+    document.getElementById('avatarUploadMessage').style.display = 'none';
+}
+
+function closeAvatarModal() {
+    const modal = document.getElementById('changeAvatarModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+// Image Preview on File Select
+document.addEventListener('DOMContentLoaded', function() {
+    const avatarFileInput = document.getElementById('avatarFile');
+    
+    if (avatarFileInput) {
+        avatarFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const preview = document.getElementById('avatarPreview');
+            const previewImg = document.getElementById('avatarPreviewImg');
+            
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('File is too large. Maximum size is 5MB.');
+                    this.value = '';
+                    preview.style.display = 'none';
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    previewImg.src = event.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.style.display = 'none';
+            }
+        });
+    }
+});
+
+// Handle Avatar Upload Form Submission
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadForm = document.getElementById('uploadAvatarForm');
+    
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = uploadForm.querySelector('button[type="submit"]');
+            const submitBtnText = document.getElementById('uploadBtnText');
+            const submitBtnSpinner = document.getElementById('uploadBtnSpinner');
+            const messageDiv = document.getElementById('avatarUploadMessage');
+            
+            submitBtn.disabled = true;
+            submitBtnText.style.display = 'none';
+            submitBtnSpinner.style.display = 'inline-block';
+            
+            const formData = new FormData(uploadForm);
+            
+            try {
+                const response = await fetch('/upload-avatar', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    messageDiv.textContent = data.message;
+                    messageDiv.className = 'form-message success';
+                    messageDiv.style.display = 'block';
+                    
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    throw new Error(data.message || 'Failed to upload avatar');
+                }
+            } catch (error) {
+                messageDiv.textContent = error.message;
+                messageDiv.className = 'form-message error';
+                messageDiv.style.display = 'block';
+                
+                submitBtn.disabled = false;
+                submitBtnText.style.display = 'inline';
+                submitBtnSpinner.style.display = 'none';
+            }
+        });
+    }
+});
+// Sync Avatar from Modal
+async function syncAvatarFromModal() {
+    const messageDiv = document.getElementById('avatarUploadMessage');
+    
+    if (messageDiv) {
+        messageDiv.style.display = 'none';
+    }
+    
+    try {
+        const response = await fetch('/discord/sync-avatar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            if (messageDiv) {
+                messageDiv.textContent = data.message;
+                messageDiv.className = 'form-message success';
+                messageDiv.style.display = 'block';
+            }
+            
+            // Close modal and reload to profile tab
+            setTimeout(() => {
+                closeAvatarModal();
+                window.location.href = window.location.pathname + '#profile';
+                window.location.reload();
+            }, 1500);
+        } else {
+            throw new Error(data.message || 'Failed to sync avatar');
+        }
+    } catch (error) {
+        console.error('Error syncing Discord avatar:', error);
+        
+        if (messageDiv) {
+            messageDiv.textContent = error.message || 'Failed to sync Discord avatar. Make sure you have Discord connected.';
+            messageDiv.className = 'form-message error';
+            messageDiv.style.display = 'block';
+        }
+    }
+}
+
+// Close modal when clicking outside
+window.addEventListener('click', function(event) {
+    const avatarModal = document.getElementById('changeAvatarModal');
+    if (event.target === avatarModal) {
+        closeAvatarModal();
+    }
+});
 </script>
 {% endblock %}
