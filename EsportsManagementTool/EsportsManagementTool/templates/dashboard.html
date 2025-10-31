@@ -621,7 +621,7 @@
                                     data-email="{{ u.email }}"
                                     data-date="{{ u.date.strftime('%B %d, %Y') }}"
                                     data-active="{{ 'true' if u.is_active else 'false' }}"
-                                    data-last-seen="{{ u.last_seen.strftime('%B %d, %Y at %I:%M %p') if u.last_seen else 'Never logged in' }}"
+                                    data-last-seen="{{ u.last_seen.strftime('%B %d, %Y; %I:%M %p') if u.last_seen else 'Never logged in' }}"
                                     data-is-admin="{{ u.is_admin }}"
                                     data-is-gm="{{ u.is_gm }}"
                                     data-is-player="{{ u.is_player }}">
@@ -1388,7 +1388,7 @@
                                 '<span class="status-badge active"><i class="fas fa-circle" style="font-size: 0.5rem; margin-right: 0.25rem;"></i> Online</span>' :
                                 '<span class="status-badge inactive">Offline</span>'}
                         </p>
-                        <p><strong>Last Seen:</strong> ${lastSeen}</p>
+                        <p><strong>Active:</strong> ${lastSeen}</p>
                         <p><strong>Current Roles:</strong> ${roleBadges || '<span style="color: var(--text-secondary);">No roles assigned</span>'}</p>
                     </div>
 
@@ -1414,7 +1414,9 @@
 
                         <div class="action-buttons">
                             <button class="btn btn-secondary">Suspend User</button>
-                            <button class="btn btn-danger">Remove User</button>
+                            <button class="btn btn-danger" onclick="confirmRemoveUser(${userid}, '${username}', '${firstname} ${lastname}')">
+                                <i class="fas fa-user-times"></i> Remove User
+                            </button>
                         </div>
                     </div>
                 `;
@@ -1848,6 +1850,149 @@ async function handleRoleChange(username) {
         // Re-enable button
         goBtn.disabled = false;
         goBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+    }
+}
+
+/**
+ * Confirm user deletion with warning dialog
+ */
+function confirmRemoveUser(userId, username, fullName) {
+    // Create custom confirmation modal with strong warning
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header" style="background-color: #d32f2f; color: white;">
+                <h2><i class="fas fa-exclamation-triangle"></i> Permanently Delete User</h2>
+            </div>
+            <div class="modal-body">
+                <div style="background-color: #fff3cd; border-left: 4px solid #ff9800; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <strong style="color: #d32f2f;"><i class="fas fa-exclamation-circle"></i> WARNING:</strong>
+                    <p style="color: #856404; margin-top: 0.5rem; margin-bottom: 0;">
+                        This action is <strong>PERMANENT</strong> and <strong>CANNOT BE UNDONE</strong>.
+                    </p>
+                </div>
+
+                <p style="margin-bottom: 1rem;">
+                    You are about to permanently delete:
+                </p>
+
+                <div style="background-color: #000000; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                    <p style="margin: 0.25rem 0;"><strong>Name:</strong> ${fullName}</p>
+                    <p style="margin: 0.25rem 0;"><strong>Username:</strong> @${username}</p>
+                </div>
+
+                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+                    This will delete all associated data including:
+                </p>
+
+                <ul style="color: var(--text-secondary); font-size: 0.875rem; margin-left: 1.5rem; margin-bottom: 1rem;">
+                    <li>User account and profile</li>
+                    <li>Permissions and roles</li>
+                    <li>Discord connectivity</li>
+                    <li>Their life essence</li>
+                </ul>
+
+                <div style="background-color: #ffebee; border: 1px solid #ef5350; padding: 1rem; border-radius: 4px; margin-top: 1rem;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="confirmDeleteCheckbox" style="margin-right: 0.5rem;">
+                        <span style="color: #d32f2f; font-weight: 600;">
+                            I understand this action cannot be undone
+                        </span>
+                    </label>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeRemoveUserModal()">
+                    Cancel
+                </button>
+                <button class="btn btn-danger" id="confirmDeleteBtn" disabled onclick="removeUser(${userId}, '${username}', '${fullName}')">
+                    <i class="fas fa-trash"></i> Permanently Delete User
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+
+    // Store modal reference
+    modal.id = 'removeUserModal';
+
+    // Enable delete button only when checkbox is checked
+    const checkbox = document.getElementById('confirmDeleteCheckbox');
+    const deleteBtn = document.getElementById('confirmDeleteBtn');
+
+    checkbox.addEventListener('change', function() {
+        deleteBtn.disabled = !this.checked;
+    });
+
+    // Close on background click
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeRemoveUserModal();
+        }
+    });
+}
+
+/**
+ * Close the remove user modal
+ */
+function closeRemoveUserModal() {
+    const modal = document.getElementById('removeUserModal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = 'auto';
+    }
+}
+
+/**
+ * Execute user deletion
+ */
+async function removeUser(userId, username, fullName) {
+    const deleteBtn = document.getElementById('confirmDeleteBtn');
+    const originalText = deleteBtn.innerHTML;
+
+    // Show loading state
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+
+    try {
+        const response = await fetch('/admin/remove-user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: userId })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Close modal
+            closeRemoveUserModal();
+
+            // Show success message
+            alert(`✓ ${data.message}`);
+
+            // Reload page to refresh user list
+            window.location.reload();
+        } else {
+            // Show error message
+            alert(`Error: ${data.message}`);
+
+            // Re-enable button
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = originalText;
+        }
+    } catch (error) {
+        console.error('Error removing user:', error);
+        alert('An error occurred while removing the user. Please try again.');
+
+        // Re-enable button
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = originalText;
     }
 }
 
