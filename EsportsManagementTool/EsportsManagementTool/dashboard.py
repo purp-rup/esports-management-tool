@@ -424,3 +424,121 @@ def manage_role():
             'message': 'Server error occurred'
         }), 500
 
+
+@app.route('/admin/remove-user', methods=['POST'])
+@roles_required('admin')
+def remove_user():
+    """
+    Permanently delete a user and all associated data
+    """
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': 'Missing user ID'
+            }), 400
+
+        # Prevent admin from deleting themselves
+        if user_id == session['id']:
+            return jsonify({
+                'success': False,
+                'message': 'You cannot delete your own account'
+            }), 403
+
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            # Get user info before deletion
+            cursor.execute("SELECT username, firstname, lastname FROM users WHERE id = %s", (user_id,))
+            user = cursor.fetchone()
+
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found'
+                }), 404
+
+            username = user['username']
+            full_name = f"{user['firstname']} {user['lastname']}"
+
+            # Check if user is the last admin
+            cursor.execute("""
+                SELECT COUNT(*) as admin_count 
+                FROM permissions 
+                WHERE is_admin = 1
+            """)
+            admin_count = cursor.fetchone()['admin_count']
+
+            cursor.execute("""
+                SELECT is_admin 
+                FROM permissions 
+                WHERE userid = %s
+            """, (user_id,))
+            user_perms = cursor.fetchone()
+
+            if user_perms and user_perms['is_admin'] == 1 and admin_count <= 1:
+                return jsonify({
+                    'success': False,
+                    'message': 'Cannot delete the last admin user'
+                }), 403
+
+            # Delete user data from all tables
+            # The order matters due to foreign key constraints
+
+            # 1. Delete from sent_notifications
+            cursor.execute("DELETE FROM sent_notifications WHERE id = %s", (user_id,))
+
+            # 2. Delete from notification_preferences
+            cursor.execute("DELETE FROM notification_preferences WHERE user_id = %s", (user_id,))
+
+            # 3. Delete from event_subscriptions (if exists)
+            cursor.execute("DELETE FROM event_subscriptions WHERE user_id = %s", (user_id,))
+
+            # 4. Delete from Discord table
+            cursor.execute("DELETE FROM discord WHERE userid = %s", (user_id,))
+
+            # 5. Delete from permissions
+            cursor.execute("DELETE FROM permissions WHERE userid = %s", (user_id,))
+
+            # 6. Delete from verified_users
+            cursor.execute("DELETE FROM verified_users WHERE userid = %s", (user_id,))
+
+            # 7. Delete from user_activity
+            cursor.execute("DELETE FROM user_activity WHERE userid = %s", (user_id,))
+
+            # 8. Delete from suspensions (if exists)
+            cursor.execute("DELETE FROM suspensions WHERE userid = %s", (user_id,))
+
+            # 9. Optional: Update or delete events created by user
+            cursor.execute("UPDATE generalevents SET created_by = NULL WHERE created_by = %s", (user_id,))
+
+            # 10. Finally, delete from users table
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+
+            mysql.connection.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'User {full_name} (@{username}) has been permanently deleted'
+            }), 200
+
+        except Exception as e:
+            mysql.connection.rollback()
+            print(f"Database error removing user: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Database error: {str(e)}'
+            }), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error in remove_user: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Server error occurred'
+        }), 500

@@ -52,6 +52,15 @@ leakage across packet transferring.
 mysql = MySQL(app)
 mail = Mail(app)
 
+# Set timezone for all MySQL connections
+@app.before_request
+def set_mysql_timezone():
+    """Set MySQL session timezone to match server"""
+    if mysql.connection:
+        cursor = mysql.connection.cursor()
+        cursor.execute("SET time_zone = '-04:00';")  # Adjust based on your timezone
+        cursor.close()
+
 # For production, force HTTPS
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
