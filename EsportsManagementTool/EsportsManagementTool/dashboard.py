@@ -12,7 +12,6 @@ from datetime import datetime, timedelta
 import calendar as cal
 from EsportsManagementTool import discord_integration
 
-
 from EsportsManagementTool import mysql
 
 from werkzeug.utils import secure_filename
@@ -21,9 +20,11 @@ from werkzeug.utils import secure_filename
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
+
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @app.route('/dashboard')
 @app.route('/dashboard/<int:year>/<int:month>')
@@ -163,7 +164,7 @@ def dashboard(year=None, month=None):
 
         # FIXED: Only fetch user list if user is actually an admin
         if user['is_admin'] == 1:
-            #Clean up inactive users before displaying stats
+            # Clean up inactive users before displaying stats
             from EsportsManagementTool import cleanup_inactive_users
             cleanup_inactive_users()
 
@@ -264,72 +265,74 @@ def delete_event():
     finally:
         cursor.close()
 
+
 @app.route('/upload-avatar', methods=['POST'])
 def upload_avatar():
     """Handle custom avatar upload"""
     if 'loggedin' not in session:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
-    
+
     if 'avatar' not in request.files:
         return jsonify({'success': False, 'message': 'No file uploaded'}), 400
-    
+
     file = request.files['avatar']
-    
+
     if file.filename == '':
         return jsonify({'success': False, 'message': 'No file selected'}), 400
-    
+
     if not allowed_file(file.filename):
         return jsonify({'success': False, 'message': 'Invalid file type. Use PNG, JPG, JPEG, GIF, or WEBP'}), 400
-    
+
     file.seek(0, os.SEEK_END)
     file_size = file.tell()
     file.seek(0)
-    
+
     if file_size > MAX_FILE_SIZE:
         return jsonify({'success': False, 'message': 'File too large. Maximum size is 5MB'}), 400
-    
+
     try:
         file_extension = file.filename.rsplit('.', 1)[1].lower()
         filename = f"user_{session['id']}.{file_extension}"
-        
+
         upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'avatars')
         os.makedirs(upload_dir, exist_ok=True)
-        
+
         filepath = os.path.join(upload_dir, filename)
-        
+
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         cursor.execute("SELECT profile_picture FROM users WHERE id = %s", (session['id'],))
         old_avatar = cursor.fetchone()
-        
+
         if old_avatar and old_avatar['profile_picture']:
             old_filepath = os.path.join(upload_dir, old_avatar['profile_picture'])
             if os.path.exists(old_filepath):
                 os.remove(old_filepath)
-        
+
         file.save(filepath)
-        
+
         cursor.execute("""
             UPDATE users 
             SET profile_picture = %s 
             WHERE id = %s
         """, (filename, session['id']))
-        
+
         mysql.connection.commit()
         cursor.close()
-        
+
         return jsonify({
             'success': True,
             'message': 'Avatar uploaded successfully!',
             'avatar_url': f"/static/uploads/avatars/{filename}"
         })
-        
+
     except Exception as e:
         print(f"Error uploading avatar: {str(e)}")
         mysql.connection.rollback()
         return jsonify({'success': False, 'message': 'Failed to upload avatar'}), 500
 
-#Route meant to assign and remove roles. Hopefully will move to adminPanel.py at some point
-#unless that file gets nuked eventually.
+
+# Route meant to assign and remove roles. Hopefully will move to adminPanel.py at some point
+# unless that file gets nuked eventually.
 @app.route('/admin/manage-role', methods=['POST'])
 @roles_required('admin')
 def manage_role():
@@ -541,4 +544,318 @@ def remove_user():
         return jsonify({
             'success': False,
             'message': 'Server error occurred'
+        }), 500
+
+
+# ===================================
+# EVENTS TAB API ROUTES
+# ===================================
+
+@app.route('/api/events', methods=['GET'])
+@login_required
+def get_events():
+    """
+    Get events based on user role:
+    - Admins: See all events (or upcoming based on filter)
+    - Game Managers: See events they created (or upcoming based on filter)
+    - Regular Users: See events they're subscribed to (or upcoming based on filter)
+    """
+    try:
+        user_id = session['id']
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        # Get user permissions
+        permissions = get_user_permissions(user_id)
+        is_admin = permissions['is_admin']
+        is_gm = permissions['is_gm']
+
+        # Get filter parameter from request (default to 'all')
+        event_filter = request.args.get('filter', 'all')
+
+        # Get current date and time
+        now = datetime.now()
+        current_date = now.date()
+        current_time = now.time()
+
+        # Determine date filter based on filter type
+        if event_filter == 'upcoming':
+            # Show events in next 7 days
+            end_date = current_date + timedelta(days=7)
+            date_condition = "Date >= %s AND Date <= %s"
+            date_params = (current_date, end_date)
+        else:  # 'all'
+            # Show all events (no date filter)
+            date_condition = "1=1"  # Always true
+            date_params = ()
+
+        # Build query based on user role
+        if is_admin:
+            # Admins see all events (based on filter)
+            if event_filter == 'upcoming':
+                cursor.execute(f"""
+                    SELECT 
+                        EventID,
+                        EventName,
+                        Date,
+                        StartTime,
+                        EndTime,
+                        EventType,
+                        Game,
+                        Location,
+                        Description,
+                        created_by
+                    FROM generalevents
+                    WHERE {date_condition}
+                    ORDER BY Date ASC, StartTime ASC
+                """, date_params)
+            else:
+                cursor.execute("""
+                    SELECT 
+                        EventID,
+                        EventName,
+                        Date,
+                        StartTime,
+                        EndTime,
+                        EventType,
+                        Game,
+                        Location,
+                        Description,
+                        created_by
+                    FROM generalevents
+                    ORDER BY Date DESC, StartTime DESC
+                """)
+
+        elif is_gm:
+            # Game Managers see only events they created (based on filter)
+            if event_filter == 'upcoming':
+                cursor.execute(f"""
+                    SELECT 
+                        EventID,
+                        EventName,
+                        Date,
+                        StartTime,
+                        EndTime,
+                        EventType,
+                        Game,
+                        Location,
+                        Description,
+                        created_by
+                    FROM generalevents
+                    WHERE {date_condition} AND created_by = %s
+                    ORDER BY Date ASC, StartTime ASC
+                """, (*date_params, user_id))
+            else:
+                cursor.execute("""
+                    SELECT 
+                        EventID,
+                        EventName,
+                        Date,
+                        StartTime,
+                        EndTime,
+                        EventType,
+                        Game,
+                        Location,
+                        Description,
+                        created_by
+                    FROM generalevents
+                    WHERE created_by = %s
+                    ORDER BY Date DESC, StartTime DESC
+                """, (user_id,))
+
+        else:
+            # Regular users see events they're subscribed to (based on filter)
+            if event_filter == 'upcoming':
+                cursor.execute(f"""
+                    SELECT 
+                        ge.EventID,
+                        ge.EventName,
+                        ge.Date,
+                        ge.StartTime,
+                        ge.EndTime,
+                        ge.EventType,
+                        ge.Game,
+                        ge.Location,
+                        ge.Description,
+                        ge.created_by
+                    FROM generalevents ge
+                    INNER JOIN event_subscriptions es ON ge.EventID = es.event_id
+                    WHERE {date_condition} AND es.user_id = %s
+                    ORDER BY ge.Date ASC, ge.StartTime ASC
+                """, (*date_params, user_id))
+            else:
+                cursor.execute("""
+                    SELECT 
+                        ge.EventID,
+                        ge.EventName,
+                        ge.Date,
+                        ge.StartTime,
+                        ge.EndTime,
+                        ge.EventType,
+                        ge.Game,
+                        ge.Location,
+                        ge.Description,
+                        ge.created_by
+                    FROM generalevents ge
+                    INNER JOIN event_subscriptions es ON ge.EventID = es.event_id
+                    WHERE es.user_id = %s
+                    ORDER BY ge.Date DESC, ge.StartTime DESC
+                """, (user_id,))
+
+        events = cursor.fetchall()
+        cursor.close()
+
+        # Process events to format time and check if ongoing
+        events_list = []
+        for event in events:
+            # Convert timedelta to time string
+            start_time_str = None
+            end_time_str = None
+
+            if event['StartTime']:
+                if isinstance(event['StartTime'], timedelta):
+                    total_seconds = int(event['StartTime'].total_seconds())
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    start_time_str = f"{hours:02d}:{minutes:02d}"
+                else:
+                    start_time_str = event['StartTime'].strftime('%H:%M')
+
+            if event['EndTime']:
+                if isinstance(event['EndTime'], timedelta):
+                    total_seconds = int(event['EndTime'].total_seconds())
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    end_time_str = f"{hours:02d}:{minutes:02d}"
+                else:
+                    end_time_str = event['EndTime'].strftime('%H:%M')
+
+            # Check if event is ongoing
+            is_ongoing = False
+            event_date = event['Date']
+
+            if event_date == current_date and start_time_str and end_time_str:
+                # Parse times for comparison
+                try:
+                    start_hour, start_min = map(int, start_time_str.split(':'))
+                    end_hour, end_min = map(int, end_time_str.split(':'))
+
+                    # Create time objects for comparison
+                    from datetime import time as dt_time
+                    start_time = dt_time(start_hour, start_min)
+                    end_time = dt_time(end_hour, end_min)
+
+                    # Compare with current time
+                    if start_time <= current_time <= end_time:
+                        is_ongoing = True
+                        print(
+                            f"Event {event['EventName']} is ongoing! Current: {current_time}, Start: {start_time}, End: {end_time}")
+                except Exception as e:
+                    print(f"Error checking if event is ongoing: {str(e)}")
+                    pass
+
+            # Format date for display
+            date_str = event_date.strftime('%B %d, %Y')
+
+            event_data = {
+                'id': event['EventID'],
+                'name': event['EventName'],
+                'date': date_str,
+                'date_raw': event_date.strftime('%Y-%m-%d'),
+                'start_time': start_time_str,
+                'end_time': end_time_str,
+                'event_type': event['EventType'] or 'Event',
+                'game': event['Game'] or 'N/A',
+                'location': event['Location'] or 'TBD',
+                'description': event['Description'] or 'No description provided',
+                'is_ongoing': is_ongoing,
+                'created_by': event['created_by']
+            }
+
+            events_list.append(event_data)
+
+        return jsonify({
+            'success': True,
+            'events': events_list,
+            'is_admin': is_admin,
+            'is_gm': is_gm
+        }), 200
+
+    except Exception as e:
+        print(f"Error fetching events: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': 'Failed to fetch events'
+        }), 500
+
+
+@app.route('/api/events/<int:event_id>', methods=['DELETE'])
+@login_required
+def delete_event_from_tab(event_id):
+    """
+    Delete an event from the Events tab
+    - Admins can delete any event
+    - Game Managers can only delete events they created
+    """
+    try:
+        user_id = session['id']
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        # Get user permissions
+        permissions = get_user_permissions(user_id)
+        is_admin = permissions['is_admin']
+        is_gm = permissions['is_gm']
+
+        # Get event details
+        cursor.execute("""
+            SELECT EventID, EventName, created_by
+            FROM generalevents
+            WHERE EventID = %s
+        """, (event_id,))
+
+        event = cursor.fetchone()
+
+        if not event:
+            cursor.close()
+            return jsonify({
+                'success': False,
+                'message': 'Event not found'
+            }), 404
+
+        # Check permissions
+        if is_admin:
+            # Admins can delete any event
+            can_delete = True
+        elif is_gm and event['created_by'] == user_id:
+            # Game Managers can only delete their own events
+            can_delete = True
+        else:
+            can_delete = False
+
+        if not can_delete:
+            cursor.close()
+            return jsonify({
+                'success': False,
+                'message': 'You do not have permission to delete this event'
+            }), 403
+
+        # Delete the event
+        cursor.execute("DELETE FROM generalevents WHERE EventID = %s", (event_id,))
+        mysql.connection.commit()
+        cursor.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'Event "{event["EventName"]}" deleted successfully'
+        }), 200
+
+    except Exception as e:
+        print(f"Error deleting event: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        mysql.connection.rollback()
+        return jsonify({
+            'success': False,
+            'message': 'Failed to delete event'
         }), 500
