@@ -122,3 +122,52 @@
     justify-content: center;
     gap: 0.5rem;
 }
+
+/* Delete button styling */
+.roster-card {
+    position: relative; /* Make card relative for absolute positioning of delete button */
+}
+
+.game-delete-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 4px;
+    background-color: #ff5252;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 10;
+    font-size: 0.875rem;
+    opacity: 0.9;
+}
+
+.game-delete-btn:hover {
+    background-color: #ff1744;
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.game-delete-btn:active {
+    transform: scale(0.95);
+}
+
+.game-delete-btn i {
+    pointer-events: none;
+}
+
+/* Adjust card padding to make room for delete button */
+.roster-card {
+    padding-top: 3rem; /* Add extra space at top for delete button */
+}
+
+/* Optional: Add a subtle hover effect to show delete button more prominently */
+.roster-card:hover .game-delete-btn {
+    opacity: 1;
+}

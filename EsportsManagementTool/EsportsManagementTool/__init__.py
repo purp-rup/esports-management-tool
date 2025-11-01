@@ -14,11 +14,9 @@ import secrets
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timedelta
-
-
+from functools import wraps
 
 app = Flask(__name__)
-
 
 # Module imports
 import EsportsManagementTool.exampleModule
@@ -54,16 +52,176 @@ leakage across packet transferring.
 mysql = MySQL(app)
 mail = Mail(app)
 
+# Set timezone for all MySQL connections
+@app.before_request
+def set_mysql_timezone():
+    """Set MySQL session timezone to match server"""
+    if mysql.connection:
+        cursor = mysql.connection.cursor()
+        cursor.execute("SET time_zone = '-04:00';")  # Adjust based on your timezone
+        cursor.close()
 
 # For production, force HTTPS
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
+
+# ============================================
+# ROLE-BASED SECURITY SYSTEM
+# ============================================
+def login_required(f):
+    """Require user to be logged in"""
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'loggedin' not in session:
+            flash('Please log in to access this page.', 'error')
+            return redirect(url_for('login'))
+
+        # Update last_seen timestamp on each request
+        if 'id' in session:
+            update_user_last_seen(session['id'])
+
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+def roles_required(*required_roles):
+    """
+    Flexible decorator that checks if user has ANY of the specified roles.
+
+    Usage:
+        @roles_required('admin')                    # Only admins
+        @roles_required('admin', 'gm')              # Admins OR GMs
+        @roles_required('admin', 'gm', 'player')    # Any user with a role
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'loggedin' not in session:
+                flash('Please log in to access this page.', 'error')
+                return redirect(url_for('login'))
+
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+            try:
+                cursor.execute("""
+                    SELECT is_admin, is_gm, is_player 
+                    FROM permissions 
+                    WHERE userid = %s
+                """, (session['id'],))
+                permissions = cursor.fetchone()
+
+                if not permissions:
+                    flash('User permissions not found.', 'error')
+                    return redirect(url_for('dashboard'))
+
+                # Map role names to permission columns
+                role_map = {
+                    'admin': permissions.get('is_admin', 0),
+                    'gm': permissions.get('is_gm', 0),
+                    'player': permissions.get('is_player', 0)
+                }
+
+                # Check if user has ANY of the required roles
+                has_permission = any(role_map.get(role, 0) == 1 for role in required_roles)
+
+                if not has_permission:
+                    flash('You do not have permission to access this page.', 'error')
+                    return redirect(url_for('dashboard'))
+
+                return f(*args, **kwargs)
+
+            finally:
+                cursor.close()
+
+        return decorated_function
+
+    return decorator
+
+
+def get_user_permissions(user_id):
+    """Fetch user permissions from database"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT is_admin, is_gm, is_player 
+            FROM permissions 
+            WHERE userid = %s
+        """, (user_id,))
+        permissions = cursor.fetchone()
+
+        if permissions:
+            return permissions
+        else:
+            return {'is_admin': 0, 'is_gm': 0, 'is_player': 0}
+    finally:
+        cursor.close()
+
+
+def has_role(role_name):
+    """
+    Check if current user has a specific role.
+    Useful for conditional logic in views.
+    """
+    if 'loggedin' not in session:
+        return False
+
+    permissions = get_user_permissions(session['id'])
+    role_map = {
+        'admin': permissions['is_admin'],
+        'gm': permissions['is_gm'],
+        'player': permissions['is_player']
+    }
+
+    return role_map.get(role_name, 0) == 1
+
+def update_user_last_seen(user_id):
+    """
+    Update user's last_seen timestamp
+    Called on each authenticated request to keep them marked as active
+    """
+    try:
+        cursor = mysql.connection.cursor()
+        cursor.execute("""
+            UPDATE user_activity 
+            SET last_seen = NOW(), is_active = 1
+            WHERE userid = %s
+        """, (user_id,))
+        mysql.connection.commit()
+        cursor.close()
+    except Exception as e:
+        print(f"Error updating last_seen: {str(e)}")
+
+def cleanup_inactive_users():
+    """
+    Mark users as inactive if they haven't been seen in 15 minutes
+    This can be called periodically or before displaying the admin panel
+    """
+    try:
+        cursor = mysql.connection.cursor()
+        cursor.execute("""
+            UPDATE user_activity 
+            SET is_active = 0
+            WHERE is_active = 1 
+            AND last_seen < DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+        """)
+        mysql.connection.commit()
+        cursor.close()
+    except Exception as e:
+        print(f"Error cleaning up inactive users: {str(e)}")
+
+# ============================================
+# ROUTES
+# ============================================
+
 # Home/Landing Page
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 def send_verify_email(email, token):
     verify_url = url_for('verify_email', token=token, _external=True)
@@ -81,12 +239,11 @@ def send_verify_email(email, token):
     '''
     mail.send(msg)
 
+
 # API route to get event details for the Event Details Modal within dashboard.html
 @app.route('/api/event/<int:event_id>')
+@login_required  # Added security
 def api_event_details(event_id):
-    if 'loggedin' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         cursor.execute('SELECT * FROM generalevents WHERE EventID = %s', (event_id,))
@@ -126,6 +283,7 @@ def api_event_details(event_id):
     finally:
         cursor.close()
 
+
 @app.route('/verify/<token>')
 def verify_email(token):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -148,6 +306,7 @@ def verify_email(token):
     finally:
         cursor.close()
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     msg = ''
@@ -159,7 +318,6 @@ def login():
         try:
             cursor.execute('SELECT * FROM users WHERE username = %s', [username])
             account = cursor.fetchone()
-
 
             if account:
                 cursor.execute('SELECT is_verified FROM verified_users WHERE userid = %s', (account['id'],))
@@ -184,6 +342,20 @@ def login():
                         session['loggedin'] = True
                         session['id'] = account['id']
                         session['username'] = account['username']
+
+                        # Update user activity tracking
+                        try:
+                            cursor.execute("""
+                                    INSERT INTO user_activity (userid, is_active, last_seen)
+                                    VALUES (%s, 1, NOW())
+                                    ON DUPLICATE KEY UPDATE
+                                        is_active = 1,
+                                        last_seen = NOW()
+                                """, (account['id'],))
+                            mysql.connection.commit()
+                        except Exception as e:
+                            print(f"Error updating user activity: {str(e)}")
+
                         return redirect(url_for('dashboard'))
                 else:
                     msg = 'Incorrect username/password!'
@@ -197,12 +369,25 @@ def login():
 
 @app.route('/logout', methods=['POST'])
 def logout():
+    # Mark user as inactive before logging out
+    if 'id' in session:
+        try:
+            cursor = mysql.connection.cursor()
+            cursor.execute("""
+                UPDATE user_activity 
+                SET is_active = 0, last_seen = NOW()
+                WHERE userid = %s
+            """, (session['id'],))
+            mysql.connection.commit()
+            cursor.close()
+        except Exception as e:
+            print(f"Error updating logout activity: {str(e)}")
+
     session.pop('loggedin', None)
     session.pop('id', None)
     session.pop('username', None)
     flash('Successfully logged out.')
     return redirect(url_for('login'))
-
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -249,12 +434,18 @@ def register():
                 cursor.execute('INSERT INTO permissions (userid) VALUES (%s)', (newUser['id'],))
                 mysql.connection.commit()
 
+                # Create user activity record (initially inactive)
+                cursor.execute("""
+                    INSERT INTO user_activity (userid, is_active, last_seen)
+                    VALUES (%s, 0, NULL)
+                """, (newUser['id'],))
+                mysql.connection.commit()
+
                 verification_token = secrets.token_urlsafe(32)
                 token_expiry = datetime.now() + timedelta(hours=24)
 
-
                 cursor.execute('UPDATE verified_users SET verification_token = %s, token_expiry = %s WHERE userid = %s',
-                    (verification_token, token_expiry, newUser['id']))
+                               (verification_token, token_expiry, newUser['id']))
                 mysql.connection.commit()
 
                 send_verify_email(email, verification_token)
@@ -267,9 +458,10 @@ def register():
 
     return render_template('register.html', msg=msg)
 
+
 # App route to get to event registration.
 @app.route('/event-register', methods=['GET', 'POST'])
-# eventRegister method
+@roles_required('admin', 'gm')  # Added security - GMs and Admins can create events
 def eventRegister():
     msg = ''
     if request.method == 'POST':
@@ -290,7 +482,8 @@ def eventRegister():
                 cursor.execute(
                     'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Game, Location, created_by) '
                     'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                    (eventName, eventDate, startTime, endTime, eventDescription, eventType, game, location, session['id']))
+                    (eventName, eventDate, startTime, endTime, eventDescription, eventType, game, location,
+                     session['id']))
                 # Confirms that the event is registered.
                 mysql.connection.commit()
                 msg = 'Event Registered!'
@@ -317,11 +510,69 @@ def eventRegister():
     # Uses the event-register html file to render the page (only for direct GET requests)
     return render_template('event-register.html', msg=msg)
 
+@app.route('/admin/toggle-user-activity', methods=['POST'])
+@roles_required('admin')
+def toggle_user_activity():
+    """
+    Toggle user active/inactive status
+    """
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        is_active = data.get('is_active')  # True or False
+
+        if user_id is None or is_active is None:
+            return jsonify({
+                'success': False,
+                'message': 'Missing required fields'
+            }), 400
+
+        # Prevent admin from deactivating themselves
+        if user_id == session['id'] and not is_active:
+            return jsonify({
+                'success': False,
+                'message': 'You cannot deactivate your own account'
+            }), 403
+
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            # Get username
+            cursor.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+            user = cursor.fetchone()
+
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found'
+                }), 404
+
+            # Update activity status
+            cursor.execute("""
+                UPDATE user_activity 
+                SET is_active = %s 
+                WHERE userid = %s
+            """, (1 if is_active else 0, user_id))
+            mysql.connection.commit()
+
+            status_text = 'activated' if is_active else 'deactivated'
+            return jsonify({
+                'success': True,
+                'message': f'User @{user["username"]} has been {status_text}'
+            }), 200
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error toggling user activity: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Server error occurred'
+        }), 500
+
 import EsportsManagementTool.dashboard
-from EsportsManagementTool import adminPanel
 from EsportsManagementTool import game
-
-
 
 # This is used for debugging, It will show the app routes that are registered.
 if __name__ != '__main__':
