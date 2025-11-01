@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='teams.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='discord.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
 
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
@@ -142,49 +143,6 @@
                 </a>
             </div>
         </div>
-
-        <!-- Day Events Modal -->
-        <div id="dayEventsModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 id="modalDayTitle"></h2>
-                    <button class="modal-close" onclick="closeDayModal()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body" id="modalEventsList">
-                    <!-- Events will be populated here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Event Details Modal - Updated Header with Delete Button -->
-        <div id="eventDetailsModal" class="modal">
-            <div class="modal-content modal-content-large">
-                <div class="modal-header">
-                    <h2 id="eventDetailsTitle"></h2>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        {% if user.is_admin %}
-                        <button id="deleteEventBtn" class="btn-delete-event" style="display: none;" onclick="deleteEvent()">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                        {% endif %}
-                        <button class="modal-close" onclick="closeEventModal()">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="modal-body" id="eventDetailsBody">
-                    <!-- Loading spinner -->
-                    <div id="eventLoadingSpinner" class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p>Loading event details...</p>
-                    </div>
-                    <!-- Event details will be populated here -->
-                    <div id="eventDetailsContent" style="display: none;"></div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Profile Tab -->
@@ -199,8 +157,8 @@
                 <div class="profile-avatar">
                     <div class="avatar-container">
                         {% if user.profile_picture %}
-                            <img src="{{ url_for('static', filename='uploads/avatars/' + user.profile_picture) }}" 
-                                alt="Profile Picture" 
+                            <img src="{{ url_for('static', filename='uploads/avatars/' + user.profile_picture) }}"
+                                alt="Profile Picture"
                                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
                         {% else %}
                             {{ user.firstname[0] }}{{ user.lastname[0] }}
@@ -318,7 +276,7 @@
                     </div>
                 </form>
             </div>
-            
+
     <!-- ========================================
      DISCORD INTEGRATION CARD
      Add this AFTER the Notification Settings Card
@@ -419,20 +377,61 @@
                     <h2>Events</h2>
                     <p>Manage matches, practices, and community events</p>
                 </div>
-                {%if user.is_admin or user.is_gm %}
-                <button class="btn btn-primary" onclick="openCreateEventModal()">
-                    <i class="fas fa-plus"></i> Create Event
-                </button>
-                {% endif %}
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <div class="event-filter-dropdown">
+                        <label for="eventFilter" style="margin-right: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">Show:</label>
+                        <select id="eventFilter" onchange="filterEvents()" style="padding: 0.5rem 1rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; cursor: pointer;">
+                            <option value="all">All Events</option>
+                            <option value="upcoming">Upcoming (Next 7 Days)</option>
+                        </select>
+                    </div>
+                    {%if user.is_admin or user.is_gm %}
+                    <button class="btn btn-primary" onclick="openCreateEventModal()">
+                        <i class="fas fa-plus"></i> Create Event
+                    </button>
+                    {% endif %}
+                </div>
             </div>
-            <div class="empty-state">
-                <div class="empty-state-icon">🎮</div>
-                <h3>No Events Scheduled</h3>
+
+            <!-- Events Loading State -->
+            <div id="eventsLoading" class="events-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading events...</p>
+            </div>
+
+            <!-- Events Grid Container -->
+            <div id="eventsContainer" style="display: none;">
+                <!-- Events will be dynamically loaded here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="eventsEmptyState" class="events-empty-state" style="display: none;">
+                <div class="events-empty-state-icon">🎮</div>
+                <h3>No Events Found</h3>
                 {% if user.is_admin or user.is_gm %}
                 <p>Click "Create Event" to add your first event</p>
                 {% else %}
-                <p>Events will appear here once created by administrators</p>
+                <p>Subscribe to events to see them here, or check back later</p>
                 {% endif %}
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div id="deleteEventConfirmModal" class="delete-confirmation-modal">
+            <div class="delete-confirmation-content">
+                <div class="delete-confirmation-header">
+                    <div class="delete-confirmation-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h3>Delete Event?</h3>
+                </div>
+                <div class="delete-confirmation-message">
+                    Are you sure you want to delete <span id="deleteEventName" class="delete-confirmation-event-name"></span>? This action cannot be undone.
+                </div>
+                <div class="delete-confirmation-actions">
+                    <button class="btn btn-cancel" onclick="closeDeleteConfirmModal()">Cancel</button>
+                    <button class="btn btn-confirm-delete" onclick="confirmDeleteEvent()">Delete Event</button>
+                </div>
             </div>
         </div>
 
@@ -660,6 +659,51 @@
     {% endif %}
 </div>
 
+<!-- Global Modals (Accessible from all tabs) -->
+
+<!-- Day Events Modal -->
+<div id="dayEventsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalDayTitle"></h2>
+            <button class="modal-close" onclick="closeDayModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="modalEventsList">
+            <!-- Events will be populated here -->
+        </div>
+    </div>
+</div>
+
+<!-- Event Details Modal - Updated Header with Delete Button -->
+<div id="eventDetailsModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <div class="modal-header">
+            <h2 id="eventDetailsTitle"></h2>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                {% if user.is_admin %}
+                <button id="deleteEventBtn" class="btn-delete-event" style="display: none;" onclick="deleteEvent()">
+                    <i class="fas fa-trash"></i>
+                </button>
+                {% endif %}
+                <button class="modal-close" onclick="closeEventModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="modal-body" id="eventDetailsBody">
+            <!-- Loading spinner -->
+            <div id="eventLoadingSpinner" class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading event details...</p>
+            </div>
+            <!-- Event details will be populated here -->
+            <div id="eventDetailsContent" style="display: none;"></div>
+        </div>
+    </div>
+</div>
+
 <!-- Create Game Modal -->
 <div id="createGameModal" class="modal">
     <div class="modal-content modal-content-large">
@@ -765,9 +809,9 @@
             <form id="uploadAvatarForm" enctype="multipart/form-data" style="margin-bottom: 2rem;">
                 <div class="form-group">
                     <label for="avatarFile">Choose Image</label>
-                    <input type="file" 
-                           id="avatarFile" 
-                           name="avatar" 
+                    <input type="file"
+                           id="avatarFile"
+                           name="avatar"
                            accept="image/png, image/jpeg, image/jpg, image/gif, image/webp"
                            required>
                     <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
@@ -776,7 +820,7 @@
                 </div>
 
                 <div id="avatarPreview" style="display: none; text-align: center; margin: 1rem 0;">
-                    <img id="avatarPreviewImg" 
+                    <img id="avatarPreviewImg"
                          style="max-width: 200px; max-height: 200px; border-radius: 50%; border: 4px solid var(--stockton-blue);">
                 </div>
 
@@ -929,12 +973,6 @@
 
     function closeDayModal() {
         const modal = document.getElementById('dayEventsModal');
-        modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-
-    function closeEventModal() {
-        const modal = document.getElementById('eventDetailsModal');
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
     }
@@ -2185,6 +2223,271 @@ async function removeUser(userId, username, fullName) {
         console.log('Join roster for game:', gameId);
         alert('Join roster functionality coming soon!');
     }
+
+    // ===================================
+    // EVENTS TAB FUNCTIONS
+    // ===================================
+
+    let currentDeleteEventId = null;
+    let currentDeleteEventName = '';
+    let currentUserPermissions = { is_admin: false, is_gm: false };
+
+    /**
+     * Load events when tab becomes active
+     */
+    function loadEvents() {
+        const loadingDiv = document.getElementById('eventsLoading');
+        const containerDiv = document.getElementById('eventsContainer');
+        const emptyStateDiv = document.getElementById('eventsEmptyState');
+
+        // Show loading state
+        loadingDiv.style.display = 'block';
+        containerDiv.style.display = 'none';
+        emptyStateDiv.style.display = 'none';
+
+        // Get current filter value
+        const filterSelect = document.getElementById('eventFilter');
+        const filterValue = filterSelect ? filterSelect.value : 'all';
+
+        // Fetch events with filter parameter
+        fetch(`/api/events?filter=${filterValue}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Store events and permissions
+                    currentUserPermissions = {
+                        is_admin: data.is_admin,
+                        is_gm: data.is_gm
+                    };
+
+                    // Render events directly (backend already filtered them)
+                    renderEvents(data.events, data.is_admin, data.is_gm);
+                } else {
+                    console.error('Failed to load events:', data.message);
+                    showEventsError();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading events:', error);
+                showEventsError();
+            })
+            .finally(() => {
+                loadingDiv.style.display = 'none';
+            });
+    }
+
+    /**
+     * Filter events based on dropdown selection
+     */
+    function filterEvents() {
+        // Simply reload events with new filter
+        loadEvents();
+    }
+
+    /**
+     * Render events in the grid
+     */
+    function renderEvents(events, isAdmin, isGm) {
+        const containerDiv = document.getElementById('eventsContainer');
+        const emptyStateDiv = document.getElementById('eventsEmptyState');
+
+        if (events.length === 0) {
+            containerDiv.style.display = 'none';
+            emptyStateDiv.style.display = 'block';
+
+            // Update empty state message based on filter
+            const filterSelect = document.getElementById('eventFilter');
+            const filterValue = filterSelect ? filterSelect.value : 'all';
+            const emptyStateTitle = emptyStateDiv.querySelector('h3');
+            const emptyStateText = emptyStateDiv.querySelector('p');
+
+            if (filterValue === 'upcoming') {
+                emptyStateTitle.textContent = 'No Upcoming Events';
+                emptyStateText.textContent = 'No events scheduled for the next 7 days. Check "All Events" to see all events.';
+            } else {
+                emptyStateTitle.textContent = 'No Events Found';
+                {% if user.is_admin or user.is_gm %}
+                emptyStateText.textContent = 'Click "Create Event" to add your first event';
+                {% else %}
+                emptyStateText.textContent = 'Subscribe to events to see them here, or check back later';
+                {% endif %}
+            }
+            return;
+        }
+
+        // Create events grid
+        const gridHTML = '<div class="events-grid">' + events.map(event => createEventCard(event, isAdmin, isGm)).join('') + '</div>';
+
+        containerDiv.innerHTML = gridHTML;
+        containerDiv.style.display = 'block';
+        emptyStateDiv.style.display = 'none';
+    }
+
+    /**
+     * Create an event card HTML
+     */
+    function createEventCard(event, isAdmin, isGm) {
+        const canDelete = isAdmin || (isGm && event.created_by === {{ session['id'] }});
+        const ongoingIndicator = event.is_ongoing ? '<div class="event-ongoing-indicator" title="Event is currently ongoing"></div>' : '';
+
+        const deleteButton = canDelete ? `
+            <button class="btn btn-secondary btn-delete" onclick="event.stopPropagation(); openDeleteConfirmModal(${event.id}, '${event.name.replace(/'/g, "\\'")}')">
+                <i class="fas fa-trash"></i>
+            </button>
+        ` : '';
+
+        // Always show game, even if None
+        const gameDisplay = event.game && event.game !== 'N/A' ? event.game : 'None';
+
+        return `
+            <div class="event-card" onclick="openEventModal(${event.id})">
+                ${ongoingIndicator}
+                <div class="event-card-header">
+                    <h3 class="event-card-title">${event.name}</h3>
+                </div>
+
+                <div class="event-card-details">
+                    <div class="event-detail-row">
+                        <div class="event-detail-icon">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <span class="event-detail-label">Date:</span>
+                        <span class="event-detail-value">${event.date}</span>
+                    </div>
+
+                    ${event.start_time ? `
+                    <div class="event-detail-row">
+                        <div class="event-detail-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <span class="event-detail-label">Time:</span>
+                        <span class="event-detail-value">${event.start_time} - ${event.end_time}</span>
+                    </div>
+                    ` : ''}
+
+                    <div class="event-detail-row">
+                        <div class="event-detail-icon">
+                            <i class="fas fa-tag"></i>
+                        </div>
+                        <span class="event-detail-label">Type:</span>
+                        <span class="event-detail-value">
+                            <span class="event-type-badge">${event.event_type}</span>
+                        </span>
+                    </div>
+
+                    <div class="event-detail-row">
+                        <div class="event-detail-icon">
+                            <i class="fas fa-gamepad"></i>
+                        </div>
+                        <span class="event-detail-label">Game:</span>
+                        <span class="event-detail-value">${gameDisplay}</span>
+                    </div>
+
+                    <div class="event-detail-row">
+                        <div class="event-detail-icon">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <span class="event-detail-label">Location:</span>
+                        <span class="event-detail-value">${event.location}</span>
+                    </div>
+                </div>
+
+                <div class="event-card-actions">
+                    <button class="btn btn-primary" onclick="event.stopPropagation(); openEventModal(${event.id})">
+                        <i class="fas fa-eye"></i> View Details
+                    </button>
+                    ${deleteButton}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Show error state
+     */
+    function showEventsError() {
+        const containerDiv = document.getElementById('eventsContainer');
+        containerDiv.innerHTML = `
+            <div class="events-info-message">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Failed to load events. Please refresh the page to try again.</p>
+            </div>
+        `;
+        containerDiv.style.display = 'block';
+    }
+
+    /**
+     * Open delete confirmation modal
+     */
+    function openDeleteConfirmModal(eventId, eventName) {
+        currentDeleteEventId = eventId;
+        currentDeleteEventName = eventName;
+
+        document.getElementById('deleteEventName').textContent = eventName;
+        document.getElementById('deleteEventConfirmModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    /**
+     * Close delete confirmation modal
+     */
+    function closeDeleteConfirmModal() {
+        document.getElementById('deleteEventConfirmModal').classList.remove('active');
+        document.body.style.overflow = 'auto';
+        currentDeleteEventId = null;
+        currentDeleteEventName = '';
+    }
+
+    /**
+     * Confirm event deletion
+     */
+    async function confirmDeleteEvent() {
+        if (!currentDeleteEventId) return;
+
+        try {
+            const response = await fetch(`/api/events/${currentDeleteEventId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Close modal
+                closeDeleteConfirmModal();
+
+                // Show success message and refresh page
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error deleting event:', error);
+            alert('An error occurred while deleting the event. Please try again.');
+        }
+    }
+
+    // Load events when Events tab is clicked
+    document.addEventListener('DOMContentLoaded', function() {
+        const eventsTab = document.querySelector('[data-tab="events"]');
+        if (eventsTab) {
+            eventsTab.addEventListener('click', function() {
+                // Small delay to ensure tab is visible
+                setTimeout(loadEvents, 100);
+            });
+        }
+
+        // Close delete modal when clicking outside
+        document.getElementById('deleteEventConfirmModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDeleteConfirmModal();
+            }
+        });
+    });
+
 </script>
 <script src="{{ url_for('static', filename='discord.js') }}"></script>
 <script>
@@ -2193,7 +2496,7 @@ function openAvatarModal() {
     const modal = document.getElementById('changeAvatarModal');
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
-    
+
     document.getElementById('uploadAvatarForm').reset();
     document.getElementById('avatarPreview').style.display = 'none';
     document.getElementById('avatarUploadMessage').style.display = 'none';
@@ -2208,11 +2511,11 @@ function closeAvatarModal() {
 // Sync Avatar from Modal
 async function syncAvatarFromModal() {
     const messageDiv = document.getElementById('avatarUploadMessage');
-    
+
     if (messageDiv) {
         messageDiv.style.display = 'none';
     }
-    
+
     try {
         const response = await fetch('/discord/sync-avatar', {
             method: 'POST',
@@ -2220,16 +2523,16 @@ async function syncAvatarFromModal() {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok && data.success) {
             if (messageDiv) {
                 messageDiv.textContent = data.message;
                 messageDiv.className = 'form-message success';
                 messageDiv.style.display = 'block';
             }
-            
+
             // Close modal and reload to profile tab
             setTimeout(() => {
                 closeAvatarModal();
@@ -2241,7 +2544,7 @@ async function syncAvatarFromModal() {
         }
     } catch (error) {
         console.error('Error syncing Discord avatar:', error);
-        
+
         if (messageDiv) {
             messageDiv.textContent = error.message || 'Failed to sync Discord avatar. Make sure you have Discord connected.';
             messageDiv.className = 'form-message error';
