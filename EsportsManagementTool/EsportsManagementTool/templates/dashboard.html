@@ -1564,50 +1564,38 @@
     // Store current event ID for delete functionality
     let currentEventId = null;
 
-    // Updated openEventModal function with delete button support
+    // Updated openEventModal function with notification integration
+
+    //DISCLAIMER: CHATGPT WAS USED TO EDIT THE BELOW CODE. SOME OF IT WAS WRITTEN BY A PERSON, SOME BY AI
     async function openEventModal(eventId) {
         const modal = document.getElementById('eventDetailsModal');
         const spinner = document.getElementById('eventLoadingSpinner');
         const content = document.getElementById('eventDetailsContent');
         const deleteBtn = document.getElementById('deleteEventBtn');
 
-        // Store the event ID globally
+        // Store current event ID globally
         currentEventId = eventId;
 
         // Show modal with loading spinner
         modal.style.display = 'block';
         spinner.style.display = 'block';
         content.style.display = 'none';
-        if (deleteBtn) deleteBtn.style.display = 'none'; // Hide delete button initially
+        if (deleteBtn) deleteBtn.style.display = 'none';
         document.body.style.overflow = 'hidden';
 
         try {
-            // Fetch event details from API
+            // Fetch event details
             const response = await fetch(`/api/event/${eventId}`);
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch event details');
-            }
-
+            if (!response.ok) throw new Error('Failed to fetch event details');
             const event = await response.json();
 
-            // Update modal title
-            document.getElementById('eventDetailsTitle').textContent = event.name;
-
-            // Show delete button for admins
-            if (deleteBtn) {
-                deleteBtn.style.display = 'flex';
-            }
-
-            // Build event details HTML with compact 2-column layout
+            // Build event details HTML
             let detailsHTML = '<div class="event-detail-grid">';
 
             // Date
             detailsHTML += `
                 <div class="event-detail-section">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-calendar-alt"></i>
-                    </div>
+                    <div class="event-detail-icon"><i class="fas fa-calendar-alt"></i></div>
                     <div class="event-detail-content">
                         <h3>Date</h3>
                         <p>${event.date}</p>
@@ -1619,15 +1607,10 @@
             if (event.start_time) {
                 detailsHTML += `
                     <div class="event-detail-section">
-                        <div class="event-detail-icon">
-                            <i class="fas fa-clock"></i>
-                        </div>
+                        <div class="event-detail-icon"><i class="fas fa-clock"></i></div>
                         <div class="event-detail-content">
                             <h3>Time</h3>
-                            <p>
-                                ${event.start_time}
-                                ${event.end_time ? ' - ' + event.end_time : ''}
-                            </p>
+                            <p>${event.start_time}${event.end_time ? ' - ' + event.end_time : ''}</p>
                         </div>
                     </div>
                 `;
@@ -1637,9 +1620,7 @@
             if (event.event_type) {
                 detailsHTML += `
                     <div class="event-detail-section">
-                        <div class="event-detail-icon">
-                            <i class="fas fa-tag"></i>
-                        </div>
+                        <div class="event-detail-icon"><i class="fas fa-tag"></i></div>
                         <div class="event-detail-content">
                             <h3>Event Type</h3>
                             <p>${event.event_type}</p>
@@ -1652,9 +1633,7 @@
             if (event.game) {
                 detailsHTML += `
                     <div class="event-detail-section">
-                        <div class="event-detail-icon">
-                            <i class="fas fa-gamepad"></i>
-                        </div>
+                        <div class="event-detail-icon"><i class="fas fa-gamepad"></i></div>
                         <div class="event-detail-content">
                             <h3>Game</h3>
                             <p>${event.game}</p>
@@ -1663,13 +1642,11 @@
                 `;
             }
 
-            // Location (can span 2 columns if needed)
+            // Location
             if (event.location) {
                 detailsHTML += `
                     <div class="event-detail-section" style="grid-column: 1 / -1;">
-                        <div class="event-detail-icon">
-                            <i class="fas fa-map-marker-alt"></i>
-                        </div>
+                        <div class="event-detail-icon"><i class="fas fa-map-marker-alt"></i></div>
                         <div class="event-detail-content">
                             <h3>Location</h3>
                             <p>${event.location}</p>
@@ -1682,9 +1659,7 @@
             detailsHTML += `
                 <div class="event-detail-section full-width">
                     <div style="display: flex; gap: 0.75rem;">
-                        <div class="event-detail-icon">
-                            <i class="fas fa-info-circle"></i>
-                        </div>
+                        <div class="event-detail-icon"><i class="fas fa-info-circle"></i></div>
                         <div class="event-detail-content">
                             <h3>Description</h3>
                             <p>${event.description}</p>
@@ -1693,14 +1668,37 @@
                 </div>
             `;
 
-            detailsHTML += '</div>';
+            // Notification section (render once, state will be updated dynamically)
+            detailsHTML += `
+                <div class="event-notification-section full-width" id="eventNotificationSection"
+                     style="grid-column: 1 / -1;">
+                    <div class="notification-opt-in" style="width: 100%; display: flex; justify-content: center;"">
+                        <div class="notification-icon">
+                            <i class="fas fa-bell" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div class="notification-text">
+                            <div class="title">Event Reminders</div>
+                            <div class="subtitle">Get notified about this event</div>
+                        </div>
+                        <button class="notification-btn" id="notificationBtn" onclick="toggleEventSubscription()">
+                            <span id="notificationBtnText">Loading...</span>
+                        </button>
+                    </div>
+                </div>
+            `;
 
-            // Update content
+            // Insert into DOM
             content.innerHTML = detailsHTML;
 
-            // Hide spinner, show content
+            // Show modal content
             spinner.style.display = 'none';
             content.style.display = 'block';
+
+            // Show delete button for admins
+            if (deleteBtn) deleteBtn.style.display = 'flex';
+
+            // Load notification state for the user
+            await loadNotificationSection(eventId);
 
         } catch (error) {
             console.error('Error loading event details:', error);
@@ -1715,6 +1713,134 @@
             content.style.display = 'block';
         }
     }
+
+    //DISCLAIMER: CHATGPT WAS USED TO EDIT THE ABOVE CODE
+
+    //DISCLAIMER: CHATGPT WAS USED TO GENERATE THE BELOW CODE
+
+   async function loadNotificationSection(eventId) {
+        const btn = document.getElementById('notificationBtn');
+        const btnText = document.getElementById('notificationBtnText');
+
+        try {
+            const response = await fetch(`/api/event/${eventId}/subscription-status`);
+            const data = await response.json();
+
+            // If the user hasn't enabled global notifications
+            if (!data.notifications_enabled) {
+                btn.disabled = true;
+                btn.classList.add('disabled');
+                btnText.textContent = 'Enable notifications in Profile';
+                return;
+            }
+
+            // Enable button if notifications are globally on
+            btn.disabled = false;
+            btn.classList.remove('disabled');
+
+            // Update button text based on event subscription
+            if (data.subscribed) {
+                btnText.textContent = 'Subscribed';
+                btn.classList.add('subscribed');
+            } else {
+                btnText.textContent = 'Subscribe';
+                btn.classList.remove('subscribed');
+            }
+
+        } catch (err) {
+            console.error('Error fetching subscription status:', err);
+            btn.disabled = true;
+            btnText.textContent = 'Error';
+        }
+    }
+
+    // Toggle subscription when button is clicked
+    async function toggleEventSubscription() {
+        const btn = document.getElementById('notificationBtn');
+        const btnText = document.getElementById('notificationBtnText');
+
+        try {
+            const response = await fetch(`/api/event/${currentEventId}/toggle-subscription`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.error) {
+                // Show message if subscription is blocked
+                alert(data.error);
+                return;
+            }
+
+            if (data.status === 'subscribed') {
+                btnText.textContent = 'Subscribed';
+                btn.classList.add('subscribed');
+            } else {
+                btnText.textContent = 'Subscribe';
+                btn.classList.remove('subscribed');
+            }
+
+        } catch (err) {
+            console.error('Error toggling subscription:', err);
+            alert('Failed to toggle subscription.');
+        }
+    }
+
+    function showNotificationDisabledMessage() {
+        const modalContent = document.getElementById('eventDetailsContent');
+        const section = document.getElementById('eventNotificationSection');
+
+        if (!section) return;
+
+        section.innerHTML = `
+            <div class="notification-disabled">
+                <div class="notification-icon"><i class="fas fa-bell-slash"></i></div>
+                <h4>Notifications Disabled</h4>
+                <p>You’ve turned off event notifications in your settings.</p>
+                <button class="notification-btn settings" onclick="window.location.href='/eventnotificationsettings'">
+                    Go to Settings
+                </button>
+            </div>
+        `;
+    }
+
+    async function subscribeToEvent(eventId) {
+        const res = await fetch(`/api/subscribe-event/${eventId}`, { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || 'Subscribed!');
+        await loadNotificationSection(eventId);
+    }
+
+    async function unsubscribeFromEvent(eventId) {
+        const res = await fetch(`/api/unsubscribe-event/${eventId}`, { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || 'Unsubscribed!');
+        await loadNotificationSection(eventId);
+    }
+
+    //DISCLAIMER: CHATGPT WAS USED TO GENERATE THE ABOVE CODE
+
+    // Image Preview Functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const gameImageInput = document.getElementById('gameImage');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+
+        if (gameImageInput) {
+            gameImageInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        previewImg.src = event.target.result;
+                        imagePreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    imagePreview.style.display = 'none';
+                }
+            });
+        }
+    });
 
     // Delete Event Function
     async function deleteEvent() {
@@ -2508,6 +2634,87 @@ function closeAvatarModal() {
     document.body.style.overflow = 'auto';
 }
 
+// Image Preview on File Select
+document.addEventListener('DOMContentLoaded', function() {
+    const avatarFileInput = document.getElementById('avatarFile');
+
+    if (avatarFileInput) {
+        avatarFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const preview = document.getElementById('avatarPreview');
+            const previewImg = document.getElementById('avatarPreviewImg');
+
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('File is too large. Maximum size is 5MB.');
+                    this.value = '';
+                    preview.style.display = 'none';
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    previewImg.src = event.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.style.display = 'none';
+            }
+        });
+    }
+});
+
+// Handle Avatar Upload Form Submission
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadForm = document.getElementById('uploadAvatarForm');
+
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitBtn = uploadForm.querySelector('button[type="submit"]');
+            const submitBtnText = document.getElementById('uploadBtnText');
+            const submitBtnSpinner = document.getElementById('uploadBtnSpinner');
+            const messageDiv = document.getElementById('avatarUploadMessage');
+
+            submitBtn.disabled = true;
+            submitBtnText.style.display = 'none';
+            submitBtnSpinner.style.display = 'inline-block';
+
+            const formData = new FormData(uploadForm);
+
+            try {
+                const response = await fetch('/upload-avatar', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    messageDiv.textContent = data.message;
+                    messageDiv.className = 'form-message success';
+                    messageDiv.style.display = 'block';
+
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    throw new Error(data.message || 'Failed to upload avatar');
+                }
+            } catch (error) {
+                messageDiv.textContent = error.message;
+                messageDiv.className = 'form-message error';
+                messageDiv.style.display = 'block';
+
+                submitBtn.disabled = false;
+                submitBtnText.style.display = 'inline';
+                submitBtnSpinner.style.display = 'none';
+            }
+        });
+    }
+});
 // Sync Avatar from Modal
 async function syncAvatarFromModal() {
     const messageDiv = document.getElementById('avatarUploadMessage');
