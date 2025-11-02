@@ -1,4 +1,4 @@
-from EsportsManagementTool import app
+from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, has_role
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
@@ -15,8 +15,6 @@ from EsportsManagementTool import discord_integration
 from EsportsManagementTool import mysql
 
 from werkzeug.utils import secure_filename
-
-from EsportsManagementTool import login_required, get_user_permissions, roles_required
 
 # Allowed file extensions for avatars
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
