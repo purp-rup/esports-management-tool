@@ -171,3 +171,464 @@
 .roster-card:hover .game-delete-btn {
     opacity: 1;
 }
+
+/* Game Details Modal */
+.game-details-header {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.game-details-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2.5rem;
+    flex-shrink: 0;
+}
+
+.game-details-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+.game-details-info {
+    flex: 1;
+}
+
+.game-details-info h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+}
+
+.game-details-info p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* Game Stats Row */
+.game-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.game-stat-card {
+    background: var(--card-background);
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    border: 2px solid var(--border-color);
+}
+
+.game-stat-card i {
+    font-size: 2rem;
+    color: var(--stockton-blue);
+    margin-bottom: 0.5rem;
+}
+
+.game-stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0.5rem 0;
+}
+
+.game-stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Members Section */
+.game-members-section {
+    margin-top: 2rem;
+}
+
+.game-members-section h3 {
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+}
+
+.members-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.member-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.member-item:hover {
+    background: var(--hover-background);
+    transform: translateX(4px);
+}
+
+.member-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--stockton-blue);
+}
+
+.member-avatar-initials {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.125rem;
+}
+
+.member-info {
+    flex: 1;
+}
+
+.member-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.member-username {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.member-role {
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--stockton-blue);
+    color: white;
+}
+
+.empty-state-small {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+}
+
+.empty-state-small i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state-small p {
+    margin: 0;
+}
+
+/* Game Details Actions */
+.game-details-actions {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--border-color);
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+/* Success button for Join */
+.btn-success {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-success:hover {
+    background-color: #388E3C;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.btn-success:active {
+    transform: translateY(0);
+}
+
+/* Warning button for Leave */
+.btn-warning {
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-warning:hover {
+    background-color: #f57c00;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
+}
+
+/* My Communities Grid in Profile */
+.my-communities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* two per row when possible */
+  gap: 1.5rem; /* space between cards */
+  width: 100%;
+}
+
+.community-card-small {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: var(--dark-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem; /* more breathing room inside */
+  box-sizing: border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.community-card-small:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.community-card-small h3,
+.community-card-small p {
+  margin: 0.4rem 0;
+  line-height: 1.5; /* less cramped text */
+  word-break: break-word;
+}
+
+.community-icon-container {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.75rem;
+    flex-shrink: 0;
+}
+
+.community-icon-small {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.community-info-small {
+    flex: 1;
+    min-width: 0;
+}
+
+.community-info-small h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.community-card-small .community-meta {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.community-joined {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+/* Scrollbar styling for members list */
+.members-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.members-list::-webkit-scrollbar-track {
+    background: var(--card-background);
+    border-radius: 3px;
+}
+
+.members-list::-webkit-scrollbar-thumb {
+    background: var(--stockton-blue);
+    border-radius: 3px;
+}
+
+.members-list::-webkit-scrollbar-thumb:hover {
+    background: #1976D2;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .game-details-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .game-details-icon {
+        margin: 0 auto;
+    }
+
+    .game-stats-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .my-communities-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .game-details-actions {
+        flex-direction: column;
+    }
+
+    .game-details-actions button {
+        width: 100%;
+    }
+}
+
+.member-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #4CAF50;
+    margin-left: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 4px;
+}
+
+.member-badge i {
+    font-size: 0.875rem;
+}
+
+/* Compact join button for community cards/modals */
+#gameDetailsJoinBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 50px;
+    width: 44px;
+    height: 44px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+/* Hide text label by default */
+#gameDetailsJoinBtn span {
+    display: none;
+}
+
+/* On hover, expand and show text */
+#gameDetailsJoinBtn:hover {
+    width: auto;
+    padding: 0.5rem 1rem;
+}
+
+/* Show the text smoothly */
+#gameDetailsJoinBtn:hover span {
+    display: inline;
+}
+
+#gameDetailsLeaveBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 50px;
+    width: 44px;
+    height: 44px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+#gameDetailsLeaveBtn span {
+    display: none;
+}
+
+#gameDetailsLeaveBtn:hover {
+    width: auto;
+    padding: 0.5rem 1rem;
+}
+
+#gameDetailsLeaveBtn:hover span {
+    display: inline;
+}
+
+#gameDetailsJoinBtn, #gameDetailsLeaveBtn {
+    transition: width 0.3s ease, padding 0.3s ease;
+}
+
+.member-role.admin {
+    background: #ff5252;
+}
+
+.member-role.gm {
+    background: #2196F3;
+}
+
+.member-role.player {
+    background: #4CAF50;
+}
+
+.member-role.member {
+    background: #9e9e9e;
+}
