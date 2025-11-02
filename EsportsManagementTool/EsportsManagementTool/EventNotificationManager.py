@@ -7,6 +7,8 @@ import MySQLdb.cursors
 import bcrypt
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
 
 mysql = MySQL()
 mail = Mail()
@@ -128,10 +130,9 @@ def check_and_send_notifications():
     to users who have subscribed to specific events.
 
     Notifications are only sent to users who:
-    1. Have enable_notifications = TRUE in their preferences
+    1. Have enable_notifications = 1 in their preferences
     2. Have specifically subscribed to the event via event_subscriptions table
     """
-
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -157,15 +158,17 @@ def check_and_send_notifications():
                               u.email,
                               u.firstname,
                               u.lastname,
+                              np.enable_notifications,
                               np.advance_notice_days,
                               np.advance_notice_hours
                        FROM event_subscriptions es
                                 JOIN generalevents ge ON es.event_id = ge.EventID
                                 JOIN users u ON es.user_id = u.id
                                 LEFT JOIN notification_preferences np ON np.user_id = u.id
-                       WHERE ge.Date >= CURDATE()
-                         AND np.enable_notifications = TRUE
-                       ORDER BY ge.Date, ge.StartTime
+                       WHERE np.enable_notifications = 1
+                         AND ge.Date >= DATE (DATE_SUB(UTC_TIMESTAMP()
+                           , INTERVAL 5 HOUR))
+                       ORDER BY ge.Date, ge.StartTime;
                        """)
 
         subscriptions = cursor.fetchall()
@@ -204,13 +207,12 @@ def check_and_send_notifications():
             if notification_start <= current_time <= notification_end:
                 # Check if notification already sent for this subscription
                 cursor.execute("""
-                               SELECT sn.notification_id
+                               SELECT sn.id
                                FROM sent_notifications sn
                                WHERE sn.user_id = %s
                                  AND sn.event_id = %s
-                                 AND sn.event_type = %s
                                  AND sn.sent_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
-                               """, (sub['user_id'], sub['EventID'], sub['EventType']))
+                               """, (sub['user_id'], sub['EventID']))
 
                 if not cursor.fetchone():
                     # Prepare event details for email
@@ -228,12 +230,12 @@ def check_and_send_notifications():
 
                     # Send notification
                     if send_event_notification(user_email, user_name, event_type, event_details):
-                        # Log sent notification
+                        # Log sent notification (removed event_type)
                         cursor.execute("""
                                        INSERT INTO sent_notifications
-                                           (user_id, event_id, event_type, sent_at)
-                                       VALUES (%s, %s, %s, NOW())
-                                       """, (sub['user_id'], sub['EventID'], sub['EventType']))
+                                           (user_id, event_id, sent_at)
+                                       VALUES (%s, %s, NOW())
+                                       """, (sub['user_id'], sub['EventID']))
 
                         print(f"Sent subscription notification to {user_email} for {sub['EventName']}")
 
@@ -247,17 +249,35 @@ def check_and_send_notifications():
     finally:
         cursor.close()
 
+# ========================================================================
+# Initialize scheduler for background notifications (UC-14)
+# ========================================================================
 
-# Initialize scheduler for background notifications
+def scheduled_check_wrapper():
+    """Wrapper ensures the scheduler runs safely within the Flask app context"""
+    with app.app_context():
+        try:
+            check_and_send_notifications()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"Error in notification scheduler: {str(e)}")
+
+# Initialize the background scheduler
 scheduler = BackgroundScheduler()
+
+# Add job to run every 5 minutes
 scheduler.add_job(
-    func=check_and_send_notifications,
+    func=scheduled_check_wrapper,
     trigger="interval",
-    minutes=60
+    minutes=1,
+    id="event_notification_job",
+    replace_existing=True
 )
+
+# Start the scheduler
 scheduler.start()
 
-import atexit
-
-atexit.register(lambda: scheduler.shutdown())
+# Ensure clean shutdown on app exit
+atexit.register(lambda: scheduler.shutdown(wait=False))
 """DISCLAIMER: THIS CODE WAS GENERATED USING CLAUDE AI"""
