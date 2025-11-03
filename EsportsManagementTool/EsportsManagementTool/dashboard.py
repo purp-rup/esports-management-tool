@@ -428,6 +428,56 @@ def manage_role():
         }), 500
 
 
+@app.route('/api/user/<int:user_id>/managed-game', methods=['GET'])
+@login_required
+def get_user_managed_game(user_id):
+    """Get which game (if any) this user manages"""
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            # Get all games
+            cursor.execute("SELECT GameID, GameTitle, GameImage FROM games")
+            all_games = cursor.fetchall()
+
+            # Check each game table to see if this user is the GM
+            for game in all_games:
+                table_name = get_game_table_name(game['GameTitle'])
+
+                try:
+                    cursor.execute(
+                        f"SELECT 1 FROM `{table_name}` WHERE user_id = %s AND is_game_manager = 1",
+                        (user_id,)
+                    )
+
+                    if cursor.fetchone():
+                        # This user manages this game
+                        image_url = f'/game-image/{game["GameID"]}' if game.get('GameImage') else None
+
+                        return jsonify({
+                            'success': True,
+                            'manages_game': True,
+                            'game_id': game['GameID'],
+                            'game_title': game['GameTitle'],
+                            'game_icon': image_url
+                        })
+                except Exception as e:
+                    # Table might not exist, continue
+                    continue
+
+            # User doesn't manage any game
+            return jsonify({
+                'success': True,
+                'manages_game': False
+            })
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error getting managed game: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to get managed game'}), 500
+
 @app.route('/admin/remove-user', methods=['POST'])
 @roles_required('admin')
 def remove_user():

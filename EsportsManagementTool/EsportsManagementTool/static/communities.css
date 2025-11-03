@@ -702,18 +702,6 @@
     padding-right: 0.65rem;
 }
 
-.member-item .role-badge.gm.assigned::before {
-    content: '';
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    background: white;
-    border-radius: 3px;
-    mask-size: contain;
-    mask-repeat: no-repeat;
-    mask-position: center;
-}
-
 /* GM Assignment Button */
 .btn-assign-gm {
     background: linear-gradient(135deg, #2196F3, #1976D2);

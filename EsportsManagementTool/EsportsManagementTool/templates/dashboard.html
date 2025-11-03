@@ -995,7 +995,67 @@
 
 {% block extra_js %}
 <script>
-    // Add this at the top of your script section
+    /**
+     * Build role badges for a user
+     * @param {Object} options - Badge options
+     * @param {Array} options.roles - Array of role strings ['Admin', 'Game Manager', 'Player']
+     * @param {boolean} options.isAssignedGM - Is this user the assigned GM for this game?
+     * @param {string} options.gameIconUrl - URL of the game icon (optional)
+     * @returns {string} HTML string of badges
+     */
+    function buildRoleBadges(options) {
+        const { roles = [], isAssignedGM = false, gameIconUrl = null } = options;
+        let badgesHTML = '';
+
+        try {
+            let hasGMRole = roles.includes('Game Manager');
+
+            // Build GM badge if user has GM permissions
+            if (hasGMRole || isAssignedGM) {
+                let gmBadgeClass = 'role-badge gm';
+                let gmContent = 'GM';
+
+                // Add gold border if this is the assigned GM for a specific game
+                if (isAssignedGM) {
+                    gmBadgeClass += ' assigned';
+
+                    // Add game icon if available
+                    if (gameIconUrl) {
+                        gmContent = '<img src="' + gameIconUrl + '" style="width: 16px; height: 16px; border-radius: 3px; object-fit: cover; margin-right: 0.35rem;"> GM';
+                    }
+                }
+
+                badgesHTML += '<span class="' + gmBadgeClass + '" style="display: inline-flex; align-items: center;">' + gmContent + '</span>';
+            }
+
+            // Show other permission-based role badges
+            roles.forEach(function(role) {
+                if (role === 'Admin') {
+                    badgesHTML += '<span class="role-badge admin">Admin</span>';
+                } else if (role === 'Player') {
+                    badgesHTML += '<span class="role-badge player">Player</span>';
+                } else if (role === 'Member' && !hasGMRole && !isAssignedGM) {
+                    // Only show "Member" badge if they have no other roles
+                    if (roles.length === 1) {
+                        badgesHTML += '<span class="role-badge member">Member</span>';
+                    }
+                }
+            });
+
+            // If no roles at all, show Member
+            if (badgesHTML === '') {
+                badgesHTML = '<span class="role-badge member">Member</span>';
+            }
+
+        } catch (error) {
+            console.error('Error building badges:', error);
+            badgesHTML = '<span class="role-badge member">Member</span>';
+        }
+
+        return badgesHTML;
+    }
+
+    //Loading games.
     let gamesCache = null;
 
     async function loadGamesForDropdown() {
@@ -1532,7 +1592,7 @@
         const detailsPanel = document.getElementById('userDetailsPanel');
 
         userItems.forEach(item => {
-            item.addEventListener('click', function() {
+            item.addEventListener('click', async function() {
                 const userid = this.dataset.userid;
                 const username = this.dataset.username;
                 const firstname = this.dataset.firstname;
@@ -1545,11 +1605,33 @@
                 const isGm = this.dataset.isGm === '1';
                 const isPlayer = this.dataset.isPlayer === '1';
 
-                // Build role badges HTML
-                let roleBadges = '';
-                if (isAdmin) roleBadges += '<span class="role-badge admin">Admin</span> ';
-                if (isGm) roleBadges += '<span class="role-badge gm">GM</span> ';
-                if (isPlayer) roleBadges += '<span class="role-badge player">Player</span> ';
+                // Build roles array
+                const roles = [];
+                if (isAdmin) roles.push('Admin');
+                if (isGm) roles.push('Game Manager');
+                if (isPlayer) roles.push('Player');
+
+                // Fetch managed game info if user is a GM
+                let managedGameIcon = null;
+                if (isGm) {
+                    try {
+                        const response = await fetch(`/api/user/${userid}/managed-game`);
+                        const data = await response.json();
+
+                        if (data.success && data.manages_game) {
+                            managedGameIcon = data.game_icon;
+                        }
+                    } catch (error) {
+                        console.error('Error fetching managed game:', error);
+                    }
+                }
+
+                // Use shared badge builder with game icon
+                const roleBadges = buildRoleBadges({
+                    roles: roles,
+                    isAssignedGM: false, // Don't show gold border in admin panel
+                    gameIconUrl: managedGameIcon // But DO show the game icon
+                });
 
                 detailsPanel.innerHTML = `
                     <h3>User Details</h3>
@@ -2819,68 +2901,12 @@ window.addEventListener('click', function(event) {
                             roleClass = 'player';
                         }
 
-                        // Build role badges - use same classes as admin panel
-                        let badgesHTML = '';
-
-                        try {
-                            // Safely check for GM role and assignment
-                            let hasGMRole = false;
-                            let isAssignedGM = false;
-
-                            if (member.roles && Array.isArray(member.roles)) {
-                                hasGMRole = member.roles.includes('Game Manager');
-                            }
-
-                            if (member.is_game_manager !== undefined) {
-                                isAssignedGM = Boolean(member.is_game_manager);
-                            }
-
-                            console.log(`Building badges for ${member.name}: hasGMRole=${hasGMRole}, isAssignedGM=${isAssignedGM}`);
-
-                            // Build GM badge if user has GM permissions
-                            if (hasGMRole || isAssignedGM) {
-                                let gmBadgeClass = 'role-badge gm';
-                                let gmContent = 'GM';
-
-                                // Add gold border if this is the assigned GM for THIS game
-                                if (isAssignedGM) {
-                                    gmBadgeClass += ' assigned';
-
-                                    // Add game icon if available
-                                    if (game.image_url) {
-                                        gmContent = '<img src="' + game.image_url + '" style="width: 16px; height: 16px; border-radius: 3px; object-fit: cover; margin-right: 0.35rem;"> GM';
-                                    }
-                                }
-
-                                badgesHTML += '<span class="' + gmBadgeClass + '" style="display: inline-flex; align-items: center;">' + gmContent + '</span>';
-                            }
-
-                            // Show other permission-based role badges
-                            if (member.roles && Array.isArray(member.roles)) {
-                                member.roles.forEach(function(role) {
-                                    if (role === 'Admin') {
-                                        badgesHTML += '<span class="role-badge admin">Admin</span>';
-                                    } else if (role === 'Player') {
-                                        badgesHTML += '<span class="role-badge player">Player</span>';
-                                    } else if (role === 'Member' && !hasGMRole && !isAssignedGM) {
-                                        // Only show "Member" badge if they have no other roles
-                                        if (member.roles.length === 1) {
-                                            badgesHTML += '<span class="role-badge member">Member</span>';
-                                        }
-                                    }
-                                });
-                            } else {
-                                // Fallback if roles not available
-                                if (!hasGMRole && !isAssignedGM) {
-                                    badgesHTML += '<span class="role-badge member">Member</span>';
-                                }
-                            }
-
-                        } catch (error) {
-                            console.error('Error building badges for member:', member, error);
-                            // Fallback badge if something breaks
-                            badgesHTML = '<span class="role-badge member">Member</span>';
-                        }
+                        // Build role badges using shared function
+                        const badgesHTML = buildRoleBadges({
+                            roles: member.roles || [],
+                            isAssignedGM: member.is_game_manager,
+                            gameIconUrl: game.image_url
+                        });
 
                         memberItem.innerHTML = `
                             ${profilePicHTML}
