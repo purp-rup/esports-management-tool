@@ -574,6 +574,7 @@ def toggle_user_activity():
 
 import EsportsManagementTool.dashboard
 from EsportsManagementTool import game
+from EsportsManagementTool import teamCreation
 
 # This is used for debugging, It will show the app routes that are registered.
 if __name__ != '__main__':
