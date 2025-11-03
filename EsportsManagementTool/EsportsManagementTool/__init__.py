@@ -13,6 +13,7 @@ import bcrypt
 import secrets
 from dotenv import load_dotenv
 import os
+import requests
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -31,12 +32,12 @@ app.config['MYSQL_USER'] = os.environ.get('MYSQL_USER')
 app.config['MYSQL_PASSWORD'] = os.environ.get('MYSQL_PASSWORD')
 app.config['MYSQL_DB'] = os.environ.get('MYSQL_DB')
 
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_SERVER'] = 'smtp-relay.brevo.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
 
 app.config['MYSQL_SSL_DISABLED'] = False
 app.config['MYSQL_CUSTOM_OPTIONS'] = {
@@ -295,7 +296,7 @@ def verify_email(token):
         if user:
             cursor.execute(
                 'UPDATE verified_users SET is_verified = TRUE, verification_token = NULL, token_expiry = NULL where userid = %s',
-                (user['id'],)
+                (user['userid'],)
             )
             mysql.connection.commit()
             flash('Email is successfully verified, welcome to Stockton Esports! You can now log in.', 'success')
@@ -324,7 +325,7 @@ def login():
                 is_verified = cursor.fetchone()
                 if account and bcrypt.checkpw(password.encode('utf-8'), account['password'].encode('utf-8')):
                     if is_verified['is_verified'] == 0:
-                        flash('Account is still not verified! A new email has been sent, check your inbox!')
+                        flash('Account is still not verified! A new email has been sent, check your inbox! If mail does not appear, please check your spam!')
                         verification_token = secrets.token_urlsafe(32)
                         token_expiry = datetime.now() + timedelta(hours=24)
 
@@ -449,7 +450,7 @@ def register():
                 mysql.connection.commit()
 
                 send_verify_email(email, verification_token)
-                msg = 'You have successfully created an account! Please check your email for verification!'
+                msg = 'You have successfully created an account! Please check your email for verification! If the email does not appear in your inbox, please check your spam!'
         finally:
             cursor.close()
 
