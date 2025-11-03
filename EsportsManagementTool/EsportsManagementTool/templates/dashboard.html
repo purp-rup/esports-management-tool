@@ -398,9 +398,14 @@
         <div class="modal-content modal-content-large">
             <div class="modal-header">
                 <h2 id="gameDetailsModalTitle">Game Details</h2>
-                <button class="modal-close" onclick="closeGameDetailsModal()">
-                    <i class="fas fa-times"></i>
-                </button>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <!-- GM Button will be inserted here by JavaScript -->
+                    <div id="gmButtonContainer"></div>
+
+                    <button class="modal-close" onclick="closeGameDetailsModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
             </div>
             <div class="modal-body">
                 <!-- Loading Spinner -->
@@ -434,14 +439,20 @@
 
                     <div class="game-members-section">
                         <h3>Community Members</h3>
+
+                        <!-- Search input FIRST -->
+                        <input type="text"
+                               id="memberSearch"
+                               placeholder="Search members..."
+                               onkeyup="filterMembers()"
+                               style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px; background: var(--dark-bg); border: 1px solid var(--border-color); color: var(--text-primary);">
+
+                        <!-- Members list SECOND -->
                         <div id="gameMembersList" class="members-list">
                             <!-- Members will be populated here -->
                         </div>
-                        <input type="text"
-                           id="memberSearch"
-                           placeholder="Search members..."
-                           onkeyup="filterMembers()"
-                           style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px;">
+
+                        <!-- Empty state -->
                         <div id="gameNoMembers" class="empty-state-small" style="display: none;">
                             <i class="fas fa-users-slash"></i>
                             <p>No members yet. Be the first to join!</p>
@@ -457,6 +468,40 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Game Manager Modal -->
+    <div id="assignGMModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Assign Game Manager</h2>
+                <button class="modal-close" onclick="closeAssignGMModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-subtitle">Select a Game Manager to assign to this community</p>
+
+                <!-- Loading State -->
+                <div id="gmListLoading" style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">Loading Game Managers...</p>
+                </div>
+
+                <!-- GM List -->
+                <div id="gmListContainer" style="display: none;">
+                    <div id="gmList" class="gm-selection-list"></div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="gmListEmpty" class="empty-state-small" style="display: none;">
+                    <i class="fas fa-user-shield"></i>
+                    <p>No Game Managers available</p>
+                </div>
+
+                <div id="assignGMMessage" class="form-message" style="display: none; margin-top: 1rem;"></div>
             </div>
         </div>
     </div>
@@ -2694,7 +2739,7 @@ window.addEventListener('click', function(event) {
     let currentGameId = null;
 
     /**
-     * Open game details modal
+     * Open game details modal with GM assignment functionality
      */
     async function openGameDetailsModal(gameId) {
         currentGameId = gameId;
@@ -2714,7 +2759,7 @@ window.addEventListener('click', function(event) {
             if (data.success) {
                 const game = data.game;
 
-                // Update modal content
+                // Update modal title
                 document.getElementById('gameDetailsModalTitle').textContent = game.title;
                 document.getElementById('gameDetailsTitle').textContent = game.title;
                 document.getElementById('gameDetailsDescription').textContent = game.description;
@@ -2732,15 +2777,28 @@ window.addEventListener('click', function(event) {
                 // Populate members list
                 const membersList = document.getElementById('gameMembersList');
                 const noMembers = document.getElementById('gameNoMembers');
+                const searchInput = document.getElementById('memberSearch');
 
                 if (game.members.length > 0) {
                     membersList.innerHTML = '';
                     membersList.style.display = 'block';
                     noMembers.style.display = 'none';
 
+                    // Show search input
+                    if (searchInput) {
+                        searchInput.style.display = 'block';
+                        searchInput.value = ''; // Clear previous search
+                    }
+
                     game.members.forEach(member => {
                         const memberItem = document.createElement('div');
-                        memberItem.className = 'member-item';
+                        const isAssignedGM = member.is_game_manager;
+
+                        console.log(`Member: ${member.name}, is_game_manager: ${isAssignedGM}, role: ${member.role}`);
+
+                        memberItem.className = 'member-item' + (isAssignedGM ? ' assigned-gm' : '');
+                        memberItem.setAttribute('data-username', member.username.toLowerCase());
+                        memberItem.setAttribute('data-name', member.name.toLowerCase());
 
                         // Profile picture or initials
                         let profilePicHTML;
@@ -2751,13 +2809,88 @@ window.addEventListener('click', function(event) {
                             profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
                         }
 
+                        // Determine role class for styling
+                        let roleClass = 'member';
+                        if (member.role === 'Admin') {
+                            roleClass = 'admin';
+                        } else if (member.role === 'Game Manager') {
+                            roleClass = 'gm';
+                        } else if (member.role === 'Player') {
+                            roleClass = 'player';
+                        }
+
+                        // Build role badges - use same classes as admin panel
+                        let badgesHTML = '';
+
+                        try {
+                            // Safely check for GM role and assignment
+                            let hasGMRole = false;
+                            let isAssignedGM = false;
+
+                            if (member.roles && Array.isArray(member.roles)) {
+                                hasGMRole = member.roles.includes('Game Manager');
+                            }
+
+                            if (member.is_game_manager !== undefined) {
+                                isAssignedGM = Boolean(member.is_game_manager);
+                            }
+
+                            console.log(`Building badges for ${member.name}: hasGMRole=${hasGMRole}, isAssignedGM=${isAssignedGM}`);
+
+                            // Build GM badge if user has GM permissions
+                            if (hasGMRole || isAssignedGM) {
+                                let gmBadgeClass = 'role-badge gm';
+                                let gmContent = 'GM';
+
+                                // Add gold border if this is the assigned GM for THIS game
+                                if (isAssignedGM) {
+                                    gmBadgeClass += ' assigned';
+
+                                    // Add game icon if available
+                                    if (game.image_url) {
+                                        gmContent = '<img src="' + game.image_url + '" style="width: 16px; height: 16px; border-radius: 3px; object-fit: cover; margin-right: 0.35rem;"> GM';
+                                    }
+                                }
+
+                                badgesHTML += '<span class="' + gmBadgeClass + '" style="display: inline-flex; align-items: center;">' + gmContent + '</span>';
+                            }
+
+                            // Show other permission-based role badges
+                            if (member.roles && Array.isArray(member.roles)) {
+                                member.roles.forEach(function(role) {
+                                    if (role === 'Admin') {
+                                        badgesHTML += '<span class="role-badge admin">Admin</span>';
+                                    } else if (role === 'Player') {
+                                        badgesHTML += '<span class="role-badge player">Player</span>';
+                                    } else if (role === 'Member' && !hasGMRole && !isAssignedGM) {
+                                        // Only show "Member" badge if they have no other roles
+                                        if (member.roles.length === 1) {
+                                            badgesHTML += '<span class="role-badge member">Member</span>';
+                                        }
+                                    }
+                                });
+                            } else {
+                                // Fallback if roles not available
+                                if (!hasGMRole && !isAssignedGM) {
+                                    badgesHTML += '<span class="role-badge member">Member</span>';
+                                }
+                            }
+
+                        } catch (error) {
+                            console.error('Error building badges for member:', member, error);
+                            // Fallback badge if something breaks
+                            badgesHTML = '<span class="role-badge member">Member</span>';
+                        }
+
                         memberItem.innerHTML = `
                             ${profilePicHTML}
                             <div class="member-info">
                                 <div class="member-name">${member.name}</div>
                                 <div class="member-username">@${member.username}</div>
                             </div>
-                            <div class="member-role">${member.role}</div>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                ${badgesHTML}
+                            </div>
                         `;
                         membersList.appendChild(memberItem);
                     });
@@ -2766,18 +2899,53 @@ window.addEventListener('click', function(event) {
                     noMembers.style.display = 'block';
                 }
 
-                // Show appropriate button
+                // Update action buttons
                 const joinBtn = document.getElementById('gameDetailsJoinBtn');
                 const leaveBtn = document.getElementById('gameDetailsLeaveBtn');
 
                 if (game.is_member) {
-                    joinBtn.style.display = 'none';
-                    leaveBtn.style.display = 'inline-flex';
-                    leaveBtn.onclick = () => confirmLeaveGame(gameId, game.title);
+                    if (joinBtn) joinBtn.style.display = 'none';
+                    if (leaveBtn) {
+                        leaveBtn.style.display = 'inline-flex';
+                        leaveBtn.onclick = () => confirmLeaveGame(gameId, game.title);
+                    }
                 } else {
-                    joinBtn.style.display = 'inline-flex';
-                    leaveBtn.style.display = 'none';
-                    joinBtn.onclick = () => confirmJoinGame(gameId, game.title);
+                    if (leaveBtn) leaveBtn.style.display = 'none';
+                    if (joinBtn) {
+                        joinBtn.style.display = 'inline-flex';
+                        joinBtn.onclick = () => confirmJoinGame(gameId, game.title);
+                    }
+                }
+
+                // Add GM assignment button for admins IN HEADER
+                const gmButtonContainer = document.getElementById('gmButtonContainer');
+
+                // Check if user is admin (from session)
+                const isAdmin = {{ 'true' if user.is_admin else 'false' }};
+
+                console.log('Is Admin:', isAdmin);
+                console.log('Assigned GM ID:', game.assigned_gm_id);
+
+                if (isAdmin && gmButtonContainer) {
+                    gmButtonContainer.innerHTML = ''; // Clear existing
+
+                    if (game.assigned_gm_id) {
+                        // Show "Remove GM" button
+                        console.log('Showing REMOVE GM button');
+                        gmButtonContainer.innerHTML = `
+                            <button class="btn-header-action btn-remove-gm-header" onclick="removeGameManager(${gameId})" title="Remove Game Manager">
+                                <i class="fas fa-user-minus"></i>
+                            </button>
+                        `;
+                    } else {
+                        // Show "Assign GM" button
+                        console.log('Showing ASSIGN GM button');
+                        gmButtonContainer.innerHTML = `
+                            <button class="btn-header-action btn-assign-gm-header" onclick="openAssignGMModal(${gameId})" title="Assign Game Manager">
+                                <i class="fas fa-user-shield"></i>
+                            </button>
+                        `;
+                    }
                 }
 
                 // Show content, hide loading
@@ -2804,6 +2972,172 @@ window.addEventListener('click', function(event) {
         document.body.style.overflow = 'auto';
         currentGameId = null;
     }
+
+    /**
+     * Filter members in the game details modal
+     */
+    function filterMembers() {
+        const searchInput = document.getElementById('memberSearch');
+        const filter = searchInput.value.toLowerCase();
+        const memberItems = document.querySelectorAll('#gameMembersList .member-item');
+
+        memberItems.forEach(item => {
+            const username = item.getAttribute('data-username');
+            const name = item.getAttribute('data-name');
+
+            if (username.includes(filter) || name.includes(filter)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    // ===================================
+    // GM ASSIGNMENT FUNCTIONS
+    // ===================================
+
+    let currentGameIdForGM = null;
+
+    /**
+     * Open assign GM modal
+     */
+    async function openAssignGMModal(gameId) {
+        currentGameIdForGM = gameId;
+        const modal = document.getElementById('assignGMModal');
+        const loading = document.getElementById('gmListLoading');
+        const container = document.getElementById('gmListContainer');
+        const empty = document.getElementById('gmListEmpty');
+        const gmList = document.getElementById('gmList');
+
+        modal.style.display = 'block';
+        loading.style.display = 'block';
+        container.style.display = 'none';
+        empty.style.display = 'none';
+        document.body.style.overflow = 'hidden';
+
+        try {
+            const response = await fetch(`/api/game/${gameId}/available-gms`);
+            const data = await response.json();
+
+            if (data.success && data.game_managers.length > 0) {
+                gmList.innerHTML = '';
+
+                data.game_managers.forEach(gm => {
+                    const gmItem = document.createElement('div');
+                    gmItem.className = 'gm-selection-item';
+                    gmItem.onclick = () => confirmAssignGM(gameId, gm.id, gm.name);
+
+                    let profilePicHTML;
+                    if (gm.profile_picture) {
+                        profilePicHTML = `<img src="${gm.profile_picture}" alt="${gm.name}" class="member-avatar">`;
+                    } else {
+                        const initials = gm.name.split(' ').map(n => n[0]).join('');
+                        profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
+                    }
+
+                    gmItem.innerHTML = `
+                        ${profilePicHTML}
+                        <div class="member-info">
+                            <div class="member-name">${gm.name}</div>
+                            <div class="member-username">@${gm.username}</div>
+                        </div>
+                        <i class="fas fa-chevron-right" style="margin-left: auto; color: var(--text-secondary);"></i>
+                    `;
+
+                    gmList.appendChild(gmItem);
+                });
+
+                loading.style.display = 'none';
+                container.style.display = 'block';
+            } else {
+                loading.style.display = 'none';
+                empty.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error loading GMs:', error);
+            loading.innerHTML = '<p style="color: #ff5252;">Failed to load Game Managers</p>';
+        }
+    }
+
+    /**
+     * Close assign GM modal
+     */
+    function closeAssignGMModal() {
+        const modal = document.getElementById('assignGMModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        currentGameIdForGM = null;
+    }
+
+    /**
+     * Confirm GM assignment
+     */
+    async function confirmAssignGM(gameId, gmUserId, gmName) {
+        if (!confirm(`Assign ${gmName} as the Game Manager for this community?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/game/${gameId}/assign-gm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gm_user_id: gmUserId })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(data.message);
+                closeAssignGMModal();
+                // Refresh the game details modal
+                openGameDetailsModal(gameId);
+            } else {
+                alert('Error: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error assigning GM:', error);
+            alert('Failed to assign Game Manager');
+        }
+    }
+
+    /**
+     * Remove GM assignment
+     */
+    async function removeGameManager(gameId) {
+        if (!confirm('Remove the Game Manager assignment from this community?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/game/${gameId}/remove-gm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(data.message);
+                // Refresh the game details modal
+                openGameDetailsModal(gameId);
+            } else {
+                alert('Error: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error removing GM:', error);
+            alert('Failed to remove Game Manager');
+        }
+    }
+
+    // Close GM modal when clicking outside
+    window.addEventListener('click', function(event) {
+        const gmModal = document.getElementById('assignGMModal');
+        if (event.target === gmModal) {
+            closeAssignGMModal();
+        }
+    });
+
 
     /**
      * Confirm joining a game community

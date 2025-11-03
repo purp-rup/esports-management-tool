@@ -240,6 +240,17 @@
 .role-badge.gm {
     background-color: #2196F3;
     color: white;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.role-badge.gm img {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    object-fit: cover;
+    margin-right: 0;
 }
 
 .role-badge.player {

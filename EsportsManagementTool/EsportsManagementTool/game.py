@@ -125,7 +125,7 @@ def create_game():
         table_name = get_game_table_name(game_title)
         print(f"Creating table: {table_name}")
 
-        create_table_sql = f"CREATE TABLE IF NOT EXISTS `{table_name}` (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, game_id INT NOT NULL, joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY unique_member (user_id, game_id), INDEX idx_user (user_id), INDEX idx_game (game_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        create_table_sql = f"CREATE TABLE IF NOT EXISTS `{table_name}` (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, game_id INT NOT NULL, joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_game_manager BOOLEAN DEFAULT FALSE, UNIQUE KEY unique_member (user_id, game_id), INDEX idx_user (user_id), INDEX idx_game (game_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
 
         cursor.execute(create_table_sql)
         print(f"Table {table_name} created successfully")
@@ -316,37 +316,61 @@ def get_game_community_details(game_id):
                 member_count = 0
 
             formatted_members = []
+            assigned_gm_id = None
             try:
                 cursor.execute(
-                    f"SELECT u.id, u.firstname, u.lastname, u.username, u.profile_picture, p.is_admin, p.is_gm, p.is_player, gm.joined_at FROM `{table_name}` gm JOIN users u ON gm.user_id = u.id LEFT JOIN permissions p ON u.id = p.userid WHERE gm.game_id = %s ORDER BY p.is_admin DESC, p.is_gm DESC, gm.joined_at ASC",
+                    f"SELECT u.id, u.firstname, u.lastname, u.username, u.profile_picture, "
+                    f"p.is_admin, p.is_gm, p.is_player, gm.joined_at, gm.is_game_manager "
+                    f"FROM `{table_name}` gm "
+                    f"JOIN users u ON gm.user_id = u.id "
+                    f"LEFT JOIN permissions p ON u.id = p.userid "
+                    f"WHERE gm.game_id = %s "
+                    f"ORDER BY gm.is_game_manager DESC, p.is_admin DESC, p.is_gm DESC, gm.joined_at ASC",
                     (game_id,))
                 members = cursor.fetchall()
 
                 for m in members:
-                    role = 'Member'
+                    roles = []
                     if m['is_admin'] == 1:
-                        role = 'Admin'
-                    elif m['is_gm'] == 1:
-                        role = 'Game Manager'
-                    elif m['is_player'] == 1:
-                        role = 'Player'
+                        roles.append('Admin')
+                    if m['is_gm'] == 1:
+                        roles.append('Game Manager')
+                    if m['is_player'] == 1:
+                        roles.append('Player')
+
+                    if not roles:
+                        roles.append('Member')
 
                     profile_pic = None
                     if m['profile_picture']:
                         profile_pic = f"/static/uploads/avatars/{m['profile_picture']}"
 
-                    formatted_members.append(
-                        {'id': m['id'], 'name': f"{m['firstname']} {m['lastname']}", 'username': m['username'],
-                         'profile_picture': profile_pic, 'role': role,
-                         'joined_at': m['joined_at'].strftime('%B %d, %Y') if m['joined_at'] else None})
+                    is_assigned_gm = bool(m['is_game_manager'])
+
+                    if is_assigned_gm:
+                        assigned_gm_id = m['id']
+                        print(f"DEBUG: Found assigned GM - {m['firstname']} {m['lastname']} (ID: {m['id']})")
+
+                    formatted_members.append({
+                        'id': m['id'],
+                        'name': f"{m['firstname']} {m['lastname']}",
+                        'username': m['username'],
+                        'profile_picture': profile_pic,
+                        'roles': roles,
+                        'joined_at': m['joined_at'].strftime('%B %d, %Y') if m['joined_at'] else None,
+                        'is_game_manager': is_assigned_gm
+                    })
+
             except Exception as e:
                 print(f"Error fetching members: {e}")
+                import traceback
+                traceback.print_exc()
 
             return jsonify({'success': True,
                             'game': {'id': game['GameID'], 'title': game_title, 'description': game['Description'],
                                      'image_url': image_url, 'team_sizes': team_sizes, 'member_count': member_count,
-                                     'members': formatted_members, 'is_member': is_member, 'team_count': 0}}), 200
-
+                                     'members': formatted_members, 'is_member': is_member, 'team_count': 0,
+                                     'assigned_gm_id': assigned_gm_id}}), 200
         finally:
             cursor.close()
 
@@ -494,3 +518,147 @@ def get_user_communities():
     except Exception as e:
         print(f"Error getting user communities: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load communities'}), 500
+
+
+@app.route('/api/game/<int:game_id>/available-gms', methods=['GET'])
+@login_required
+def get_available_game_managers(game_id):
+    """Get all users with GM role for assignment"""
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            # Get all users with GM role
+            cursor.execute("""
+                SELECT u.id, u.firstname, u.lastname, u.username, u.profile_picture
+                FROM users u
+                JOIN permissions p ON u.id = p.userid
+                WHERE p.is_gm = 1
+                ORDER BY u.firstname, u.lastname
+            """)
+            gms = cursor.fetchall()
+
+            formatted_gms = []
+            for gm in gms:
+                profile_pic = None
+                if gm['profile_picture']:
+                    profile_pic = f"/static/uploads/avatars/{gm['profile_picture']}"
+
+                formatted_gms.append({
+                    'id': gm['id'],
+                    'name': f"{gm['firstname']} {gm['lastname']}",
+                    'username': gm['username'],
+                    'profile_picture': profile_pic
+                })
+
+            return jsonify({'success': True, 'game_managers': formatted_gms}), 200
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error getting available GMs: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to load game managers'}), 500
+
+
+@app.route('/api/game/<int:game_id>/assign-gm', methods=['POST'])
+@roles_required('admin')
+def assign_game_manager(game_id):
+    """Assign a game manager to a game"""
+    try:
+        data = request.get_json()
+        gm_user_id = data.get('gm_user_id')
+
+        if not gm_user_id:
+            return jsonify({'success': False, 'message': 'Game manager ID is required'}), 400
+
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            # Get game info
+            cursor.execute("SELECT GameTitle FROM games WHERE GameID = %s", (game_id,))
+            game = cursor.fetchone()
+
+            if not game:
+                return jsonify({'success': False, 'message': 'Game not found'}), 404
+
+            game_title = game['GameTitle']
+            table_name = get_game_table_name(game_title)
+
+            # Remove any existing GM assignment for this game
+            cursor.execute(f"UPDATE `{table_name}` SET is_game_manager = FALSE WHERE game_id = %s", (game_id,))
+
+            # Check if user is already a member
+            cursor.execute(f"SELECT id FROM `{table_name}` WHERE user_id = %s AND game_id = %s", (gm_user_id, game_id))
+            existing = cursor.fetchone()
+
+            if existing:
+                # Update existing membership to be GM
+                cursor.execute(f"UPDATE `{table_name}` SET is_game_manager = TRUE WHERE user_id = %s AND game_id = %s",
+                               (gm_user_id, game_id))
+            else:
+                # Add user as member and GM
+                cursor.execute(
+                    f"INSERT INTO `{table_name}` (game_id, user_id, joined_at, is_game_manager) VALUES (%s, %s, %s, TRUE)",
+                    (game_id, gm_user_id, datetime.now()))
+
+            mysql.connection.commit()
+
+            # Get GM name for response
+            cursor.execute("SELECT firstname, lastname FROM users WHERE id = %s", (gm_user_id,))
+            gm = cursor.fetchone()
+            gm_name = f"{gm['firstname']} {gm['lastname']}"
+
+            return jsonify({'success': True, 'message': f'{gm_name} has been assigned as Game Manager'}), 200
+
+        except Exception as e:
+            mysql.connection.rollback()
+            print(f"Database error: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to assign game manager'}), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error assigning GM: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+
+@app.route('/api/game/<int:game_id>/remove-gm', methods=['POST'])
+@roles_required('admin')
+def remove_game_manager(game_id):
+    """Remove game manager assignment from a game"""
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            # Get game info
+            cursor.execute("SELECT GameTitle FROM games WHERE GameID = %s", (game_id,))
+            game = cursor.fetchone()
+
+            if not game:
+                return jsonify({'success': False, 'message': 'Game not found'}), 404
+
+            game_title = game['GameTitle']
+            table_name = get_game_table_name(game_title)
+
+            # Remove GM assignment (but keep them as a member)
+            cursor.execute(
+                f"UPDATE `{table_name}` SET is_game_manager = FALSE WHERE game_id = %s AND is_game_manager = TRUE",
+                (game_id,))
+
+            mysql.connection.commit()
+
+            return jsonify({'success': True, 'message': 'Game Manager assignment removed'}), 200
+
+        except Exception as e:
+            mysql.connection.rollback()
+            print(f"Database error: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to remove game manager'}), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error removing GM: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500

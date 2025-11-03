@@ -265,13 +265,14 @@
     color: var(--text-primary);
 }
 
+/* Member list styling */
 .members-list {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
     max-height: 400px;
     overflow-y: auto;
-    padding-right: 0.5rem;
+    margin-top: 1rem;
 }
 
 .member-item {
@@ -279,40 +280,38 @@
     align-items: center;
     gap: 1rem;
     padding: 0.75rem;
-    background: var(--card-background);
+    background: var(--background-secondary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    transition: all 0.2s ease;
+    transition: background 0.2s;
 }
 
 .member-item:hover {
-    background: var(--hover-background);
-    transform: translateX(4px);
+    background: var(--hover-bg);
 }
 
-.member-avatar {
-    width: 48px;
-    height: 48px;
+.member-avatar,
+.member-avatar-initials {
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid var(--stockton-blue);
+    flex-shrink: 0;
 }
 
 .member-avatar-initials {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
-    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 1.125rem;
+    background: var(--stockton-blue);
+    color: white;
+    font-weight: 600;
+    font-size: 0.875rem;
 }
 
 .member-info {
     flex: 1;
+    min-width: 0;
 }
 
 .member-name {
@@ -326,24 +325,64 @@
     color: var(--text-secondary);
 }
 
-.member-role {
-    padding: 0.25rem 0.75rem;
+.member-item .role-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
     border-radius: 4px;
     font-size: 0.75rem;
     font-weight: 600;
-    background: var(--stockton-blue);
+    margin-left: auto;
+}
+
+.member-item .role-badge.admin {
+    background-color: #ff5252;
     color: white;
 }
 
+/* GM badge - base styling */
+.member-item .role-badge.gm {
+    background-color: #2196F3;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* GM badge when assigned to THIS game - gold border */
+.member-item .role-badge.gm.assigned {
+    border: 2px solid gold;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+/* Ensure images inside GM badges display correctly */
+.member-item .role-badge.gm img {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    object-fit: cover;
+    margin-right: 0;
+}
+
+.member-item .role-badge.player {
+    background-color: #e3d500;
+    color: white;
+}
+
+.member-item .role-badge.member {
+    background-color: #868e96;
+    color: white;
+}
+
+/* Empty state for no members */
 .empty-state-small {
     text-align: center;
-    padding: 2rem;
+    padding: 2rem 1rem;
     color: var(--text-secondary);
 }
 
 .empty-state-small i {
-    font-size: 3rem;
-    margin-bottom: 1rem;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
     opacity: 0.5;
 }
 
@@ -617,18 +656,124 @@
     transition: width 0.3s ease, padding 0.3s ease;
 }
 
-.member-role.admin {
-    background: #ff5252;
+/* GM Selection List */
+.gm-selection-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
 }
 
-.member-role.gm {
-    background: #2196F3;
+.gm-selection-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--background-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-.member-role.player {
-    background: #4CAF50;
+.gm-selection-item:hover {
+    background: var(--hover-bg);
+    border-color: var(--stockton-blue);
+    transform: translateX(4px);
 }
 
-.member-role.member {
-    background: #9e9e9e;
+.gm-selection-item.selected {
+    background: rgba(121, 189, 233, 0.1);
+    border-color: var(--stockton-blue);
+}
+
+/* Assigned GM Badge on Member Item */
+.member-item.assigned-gm {
+    background: rgba(33, 150, 243, 0.1);
+    border: 2px solid #2196F3;
+}
+
+.member-item .role-badge.gm.assigned {
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding-right: 0.65rem;
+}
+
+.member-item .role-badge.gm.assigned::before {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 3px;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+}
+
+/* GM Assignment Button */
+.btn-assign-gm {
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-assign-gm:hover {
+    background: linear-gradient(135deg, #1976D2, #1565C0);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+.btn-remove-gm {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    color: white;
+}
+
+.btn-remove-gm:hover {
+    background: linear-gradient(135deg, #f57c00, #e65100);
+}
+
+/* Header action buttons (for GM assign/remove in modal header) */
+.btn-header-action {
+    background: none;
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+}
+
+.btn-header-action:hover {
+    background: var(--hover-bg);
+    border-color: var(--stockton-blue);
+    color: var(--stockton-blue);
+}
+
+.btn-assign-gm-header:hover {
+    border-color: #2196F3;
+    color: #2196F3;
+    background: rgba(33, 150, 243, 0.1);
+}
+
+.btn-remove-gm-header:hover {
+    border-color: #ff9800;
+    color: #ff9800;
+    background: rgba(255, 152, 0, 0.1);
 }
