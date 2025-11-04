@@ -25,9 +25,9 @@ def create_team():
         callout = print("yay!")
         ##i have no idea what to do here for now. Working laptop only sucks.
 
-        cursor.execute('SELECT GameTitle FROM games')
-        games = cursor.fetchall()
-        return f"Here are the games: {games}"
+        cursor.execute('SELECT GameTitle FROM games WHERE user')
+        games
+        return f"You are a manager of these games: {games}"
 
     finally:
         cursor.close()

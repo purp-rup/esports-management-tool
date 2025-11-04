@@ -582,34 +582,54 @@ def assign_game_manager(game_id):
             if not game:
                 return jsonify({'success': False, 'message': 'Game not found'}), 404
 
+
             game_title = game['GameTitle']
-            table_name = get_game_table_name(game_title)
 
-            # Remove any existing GM assignment for this game
-            cursor.execute(f"UPDATE `{table_name}` SET is_game_manager = FALSE WHERE game_id = %s", (game_id,))
+            #checking if user is already a gm of said game
+            cursor.execute("SELECT gm_id FROM games WHERE gm_id = %s AND GameTitle = %s", (gm_user_id, game_title))
+            is_already_gm = cursor.fetchone()
 
-            # Check if user is already a member
-            cursor.execute(f"SELECT id FROM `{table_name}` WHERE user_id = %s AND game_id = %s", (gm_user_id, game_id))
-            existing = cursor.fetchone()
+            if is_already_gm:
+                return jsonify({'success': False, 'message': f'User is already GM for specified game.'}), 400
 
-            if existing:
-                # Update existing membership to be GM
-                cursor.execute(f"UPDATE `{table_name}` SET is_game_manager = TRUE WHERE user_id = %s AND game_id = %s",
-                               (gm_user_id, game_id))
-            else:
-                # Add user as member and GM
-                cursor.execute(
-                    f"INSERT INTO `{table_name}` (game_id, user_id, joined_at, is_game_manager) VALUES (%s, %s, %s, TRUE)",
-                    (game_id, gm_user_id, datetime.now()))
-
+            # Setting new gm_id for selected game.
+            cursor.execute("UPDATE games SET gm_id = %s WHERE GameTitle = %s", (gm_user_id, game_title))
             mysql.connection.commit()
+
 
             # Get GM name for response
             cursor.execute("SELECT firstname, lastname FROM users WHERE id = %s", (gm_user_id,))
             gm = cursor.fetchone()
             gm_name = f"{gm['firstname']} {gm['lastname']}"
-
             return jsonify({'success': True, 'message': f'{gm_name} has been assigned as Game Manager'}), 200
+
+
+
+            # # Remove any existing GM assignment for this game
+            # cursor.execute(f"UPDATE `{table_name}` SET is_game_manager = FALSE WHERE game_id = %s", (game_id,))
+            #
+            # # Check if user is already a member
+            # cursor.execute(f"SELECT id FROM `{table_name}` WHERE user_id = %s AND game_id = %s", (gm_user_id, game_id))
+            # existing = cursor.fetchone()
+            #
+            # if existing:
+            #     # Update existing membership to be GM
+            #     cursor.execute(f"UPDATE `{table_name}` SET is_game_manager = TRUE WHERE user_id = %s AND game_id = %s",
+            #                    (gm_user_id, game_id))
+            # else:
+            #     # Add user as member and GM
+            #     cursor.execute(
+            #         f"INSERT INTO `{table_name}` (game_id, user_id, joined_at, is_game_manager) VALUES (%s, %s, %s, TRUE)",
+            #         (game_id, gm_user_id, datetime.now()))
+            #
+            # mysql.connection.commit()
+            #
+            # # Get GM name for response
+            # cursor.execute("SELECT firstname, lastname FROM users WHERE id = %s", (gm_user_id,))
+            # gm = cursor.fetchone()
+            # gm_name = f"{gm['firstname']} {gm['lastname']}"
+            #
+            # return jsonify({'success': True, 'message': f'{gm_name} has been assigned as Game Manager'}), 200
 
         except Exception as e:
             mysql.connection.rollback()
