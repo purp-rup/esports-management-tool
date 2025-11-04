@@ -7,9 +7,6 @@ Needs doing: Suspend user function on Admin Panel
             Show team count on Game Rosters
             Show team count on Communities
 
-            Edit Profile button on profile page
-            change password button on profile page
-
             Add more filters to Events Tab
             Update time to account for daylight savings
             Update time on calendar to be 12Hr time (or choice of 12Hr/24Hr)
