@@ -181,6 +181,14 @@
         <div class="error-message">{{ msg }}</div>
         {% endif %}
 
+        <!-- DISCLAIMER: THIS SECTION OF CODE WAS WRITTEN BY CHATGPT-->
+        {% if request.args.get('message') %}
+        <div class="alert alert-info">
+            {{ request.args.get('message') }}
+        </div>
+        {% endif %}
+        <!-- DISCLAIMER: THIS SECTION OF CODE WAS WRITTEN BY CHATGPT-->
+
         <form method="POST" action="{{ url_for('login') }}">
             <div class="form-group">
                 <label for="username" class="form-label">Username</label>

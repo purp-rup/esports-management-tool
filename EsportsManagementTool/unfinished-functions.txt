@@ -2,10 +2,10 @@ Functionality notes:
 Needs doing: Suspend user function on Admin Panel
              GM badges: make same everywhere
 
+            View Details on Game Rosters page
+            Show member count on Game Rosters
+            Show team count on Game Rosters
             Show team count on Communities
-
-            Edit Profile button on profile page
-            change password button on profile page
 
             Add more filters to Events Tab
             Update time to account for daylight savings
