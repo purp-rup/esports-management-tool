@@ -22,6 +22,7 @@ app = Flask(__name__)
 # Module imports
 import EsportsManagementTool.exampleModule
 import EsportsManagementTool.EventNotificationManager
+import EsportsManagementTool.UpdateProfile
 
 # Change this to your secret key (can be anything, it's for extra protection)
 app.secret_key = 'your secret key'
