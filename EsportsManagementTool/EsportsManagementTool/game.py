@@ -397,7 +397,7 @@ def join_community(game_id):
             table_name = get_game_table_name(game_title)
 
             try:
-                cursor.execute(f"SELECT 1 FROM `{table_name}` WHERE game_id = %s AND user_id = %s",
+                cursor.execute(f"SELECT 1 FROM `in_communities` WHERE game_id = %s AND user_id = %s",
                                (game_id, session['id']))
 
                 if cursor.fetchone():
@@ -405,9 +405,7 @@ def join_community(game_id):
             except:
                 pass
 
-            cursor.execute(f"INSERT INTO `{table_name}` (game_id, user_id, joined_at) VALUES (%s, %s, %s)",
-                           (game_id, session['id'], datetime.now()))
-
+            cursor.execute('INSERT INTO in_communities (user_id, game_id, joined_at) VALUES (%s, %s, %s)', (session['id'], game_id, datetime.now()))
             mysql.connection.commit()
 
             return jsonify({'success': True, 'message': f'Successfully joined {game_title} community!'}), 200
@@ -442,14 +440,22 @@ def leave_community(game_id):
             game_title = game['GameTitle']
             table_name = get_game_table_name(game_title)
 
-            cursor.execute(f"SELECT 1 FROM `{table_name}` WHERE game_id = %s AND user_id = %s",
+            cursor.execute(f"SELECT 1 FROM `in_communities` WHERE game_id = %s AND user_id = %s",
                            (game_id, session['id']))
 
             if not cursor.fetchone():
                 return jsonify({'success': False, 'message': 'You are not a member of this community'}), 400
 
-            cursor.execute(f"DELETE FROM `{table_name}` WHERE game_id = %s AND user_id = %s", (game_id, session['id']))
+            cursor.execute('SELECT gm_id FROM games WHERE GameTitle = %s', (game_title,))
+            is_gm = cursor.fetchone()
+            gmUser = is_gm['gm_id']
 
+            if gmUser == session['id']:
+                cursor.execute('UPDATE games SET gm_id = NULL WHERE GameTitle = %s', (game_title,))
+                mysql.connection.commit()
+
+
+            cursor.execute(f"DELETE FROM `in_communities` WHERE game_id = %s AND user_id = %s", (game_id, session['id']))
             mysql.connection.commit()
 
             return jsonify({'success': True, 'message': f'Successfully left {game_title} community'}), 200
