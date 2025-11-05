@@ -278,7 +278,7 @@ def get_games_list():
 
 
 @app.route('/api/game/<int:game_id>/details', methods=['GET'])
-@login_required
+@login_required #NEEDS TO BE UPDATED
 def get_game_community_details(game_id):
     """Get detailed information about a game including members"""
     try:
@@ -474,7 +474,7 @@ def leave_community(game_id):
 
 
 @app.route('/api/user/communities', methods=['GET'])
-@login_required
+@login_required #NEEDS TO BE UPDATED
 def get_user_communities():
     """Get all communities the current user has joined"""
     try:
@@ -651,7 +651,7 @@ def assign_game_manager(game_id):
 
 
 @app.route('/api/game/<int:game_id>/remove-gm', methods=['POST'])
-@roles_required('admin')
+@roles_required('admin') #NEEDS TO BE UPDATED
 def remove_game_manager(game_id):
     """Remove game manager assignment from a game"""
     try:
