@@ -2,30 +2,8 @@ from EsportsManagementTool import app, login_required, roles_required, get_user_
 from flask import request, redirect, url_for, session, flash, jsonify, render_template
 import MySQLdb.cursors
 from datetime import datetime
-import re
 from flask import send_file
 from io import BytesIO
-
-
-def get_game_table_name(game_title):
-    """Convert game title to valid MySQL table name"""
-    if not game_title:
-        raise ValueError("Game title cannot be empty")
-
-    clean_name = re.sub(r'[^a-zA-Z0-9\s]', '', game_title)
-    clean_name = re.sub(r'\s+', ' ', clean_name).strip()
-    clean_name = clean_name.replace(' ', '_').lower()
-    clean_name = clean_name.strip('_')
-
-    if not clean_name:
-        raise ValueError(f"Game title '{game_title}' resulted in empty table name")
-
-    table_name = f"game_{clean_name}"
-
-    if len(table_name) > 64:
-        table_name = table_name[:64].rstrip('_')
-
-    return table_name
 
 
 @app.route('/games')
@@ -51,9 +29,8 @@ def view_games():
             else:
                 game_dict['ImageURL'] = None
 
-            table_name = get_game_table_name(game['GameTitle'])
             try:
-                cursor.execute(f"SELECT 1 FROM `{table_name}` WHERE user_id = %s AND game_id = %s LIMIT 1",
+                cursor.execute(f"SELECT 1 FROM in_communities WHERE user_id = %s AND game_id = %s LIMIT 1",
                                (session['id'], game['GameID']))
                 game_dict['is_member'] = cursor.fetchone() is not None
             except:
@@ -122,14 +99,6 @@ def create_game():
         game_id = cursor.lastrowid
         print(f"Game inserted with ID: {game_id}")
 
-        table_name = get_game_table_name(game_title)
-        print(f"Creating table: {table_name}")
-
-        create_table_sql = f"CREATE TABLE IF NOT EXISTS `{table_name}` (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, game_id INT NOT NULL, joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_game_manager BOOLEAN DEFAULT FALSE, UNIQUE KEY unique_member (user_id, game_id), INDEX idx_user (user_id), INDEX idx_game (game_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-
-        cursor.execute(create_table_sql)
-        print(f"Table {table_name} created successfully")
-
         mysql.connection.commit()
         print(f"Game {game_title} creation committed successfully")
 
@@ -150,7 +119,7 @@ def create_game():
 @app.route('/delete-game', methods=['POST'])
 @roles_required('admin')
 def delete_game():
-    """Delete a game and drop its member table"""
+    """Delete a game and drop its members from communities."""
     try:
         data = request.get_json()
         game_id = data.get('game_id')
@@ -168,7 +137,6 @@ def delete_game():
                 return jsonify({'success': False, 'message': 'Game not found'}), 404
 
             game_title = game['GameTitle']
-            table_name = get_game_table_name(game_title)
 
             cursor.execute("SELECT COUNT(*) as event_count FROM generalevents WHERE Game = %s", (game_title,))
             event_check = cursor.fetchone()
@@ -177,7 +145,7 @@ def delete_game():
                 return jsonify({'success': False,
                                 'message': f'Cannot delete game. {event_check["event_count"]} event(s) are associated with this game.'}), 400
 
-            cursor.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+            cursor.execute("DELETE FROM in_communities WHERE game_id = %s", (game_id,))
             cursor.execute("DELETE FROM games WHERE GameID = %s", (game_id,))
 
             mysql.connection.commit()
@@ -294,7 +262,6 @@ def get_game_community_details(game_id):
                 return jsonify({'success': False, 'message': 'Game not found'}), 404
 
             game_title = game['GameTitle']
-            table_name = get_game_table_name(game_title)
 
             team_sizes = []
             if game.get('TeamSizes'):
@@ -396,10 +363,9 @@ def join_community(game_id):
                 return jsonify({'success': False, 'message': 'Game not found'}), 404
 
             game_title = game['GameTitle']
-            table_name = get_game_table_name(game_title)
 
             try:
-                cursor.execute(f"SELECT 1 FROM `in_communities` WHERE game_id = %s AND user_id = %s",
+                cursor.execute(f"SELECT 1 FROM in_communities WHERE game_id = %s AND user_id = %s",
                                (game_id, session['id']))
 
                 if cursor.fetchone():
@@ -440,7 +406,6 @@ def leave_community(game_id):
                 return jsonify({'success': False, 'message': 'Game not found'}), 404
 
             game_title = game['GameTitle']
-            table_name = get_game_table_name(game_title)
 
             cursor.execute(f"SELECT 1 FROM `in_communities` WHERE game_id = %s AND user_id = %s",
                            (game_id, session['id']))
@@ -492,7 +457,6 @@ def get_user_communities():
             for game in all_games:
                 game_id = game['GameID']
                 game_title = game['GameTitle']
-                table_name = get_game_table_name(game_title)
 
                 try:
                     cursor.execute(f"SELECT joined_at FROM in_communities WHERE user_id = %s AND game_id = %s",
@@ -647,7 +611,6 @@ def remove_game_manager(game_id):
                 return jsonify({'success': False, 'message': 'Game not found'}), 404
 
             game_title = game['GameTitle']
-            table_name = get_game_table_name(game_title)
 
             # Remove GM assignment (but keep them as a member)
             cursor.execute(
