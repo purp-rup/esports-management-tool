@@ -1388,30 +1388,6 @@
         document.body.style.overflow = 'auto';
     }
 
-    // Close modals when clicking outside
-    window.onclick = function(event) {
-        if (event.target.classList.contains('modal')) {
-            const modals = {
-                'dayEventsModal': closeDayModal,
-                'eventDetailsModal': closeEventModal,
-                'createEventModal': closeCreateEventModal,
-                'createGameModal': closeCreateGameModal
-            };
-
-            const handler = modals[event.target.id];
-            if (handler) handler();
-        }
-    }
-
-    // Close modals with Escape key
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            closeDayModal();
-            closeEventModal();
-            closeCreateEventModal();
-            closeCreateGameModal();
-        }
-    });
 
     //Consolidating *most* DOMContentLoaded functions into one. This does not include the two for notifications.
     document.addEventListener('DOMContentLoaded', function() {
@@ -2629,13 +2605,8 @@ async function removeUser(userId, username, fullName) {
         document.body.style.overflow = 'auto';
     }
 
-    // Close modal when clicking outside
-    window.addEventListener('click', function(event) {
-        const gameModal = document.getElementById('createGameModal');
-        if (event.target === gameModal) {
-            closeCreateGameModal();
-        }
-    });
+
+
 
     //Create Team Modal
     function openCreateTeamModal() {
@@ -2654,13 +2625,7 @@ async function removeUser(userId, username, fullName) {
         document.body.style.overflow = 'auto';
     }
 
-    // Close modal when clicking outside
-    window.addEventListener('click', function(event) {
-        const gameModal = document.getElementById('createTeamModal');
-        if (event.target === gameModal) {
-            closeCreateTeamModal();
-        }
-    });
+
 </script>
 
 <!--Display games under roster tab functionality. -->
@@ -3122,7 +3087,63 @@ async function removeUser(userId, username, fullName) {
             }
         });
     });
+// ============================================
+// UNIVERSAL MODAL CLOSE HANDLER
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle click outside modal
+    window.addEventListener('click', function(event) {
+        if (event.target.classList.contains('modal')) {
+            const modalId = event.target.id;
+            
+            const modalCloseHandlers = {
+                'dayEventsModal': closeDayModal,
+                'eventDetailsModal': closeEventModal,
+                'createEventModal': closeCreateEventModal,
+                'createGameModal': closeCreateGameModal,
+                'createTeamModal': closeCreateTeamModal,
+                'gameDetailsModal': closeGameDetailsModal,
+                'assignGMModal': closeAssignGMModal,
+                'changeAvatarModal': closeAvatarModal,
+                'editProfileModal': closeEditProfileModal,
+                'changePasswordModal': closeChangePasswordModal,
+                'deleteEventConfirmModal': closeDeleteConfirmModal
+            };
+            
+            if (modalCloseHandlers[modalId]) {
+                modalCloseHandlers[modalId]();
+            }
+        }
+    });
 
+    // Handle Escape key for all modals
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const visibleModals = document.querySelectorAll('.modal[style*="display: block"], .modal.active');
+            
+            visibleModals.forEach(modal => {
+                const modalId = modal.id;
+                const modalCloseHandlers = {
+                    'dayEventsModal': closeDayModal,
+                    'eventDetailsModal': closeEventModal,
+                    'createEventModal': closeCreateEventModal,
+                    'createGameModal': closeCreateGameModal,
+                    'createTeamModal': closeCreateTeamModal,
+                    'gameDetailsModal': closeGameDetailsModal,
+                    'assignGMModal': closeAssignGMModal,
+                    'changeAvatarModal': closeAvatarModal,
+                    'editProfileModal': closeEditProfileModal,
+                    'changePasswordModal': closeChangePasswordModal,
+                    'deleteEventConfirmModal': closeDeleteConfirmModal
+                };
+                
+                if (modalCloseHandlers[modalId]) {
+                    modalCloseHandlers[modalId]();
+                }
+            });
+        }
+    });
+}); 
 </script>
 
 <script src="{{ url_for('static', filename='discord.js') }}"></script>
@@ -3271,13 +3292,7 @@ async function syncAvatarFromModal() {
     }
 }
 
-// Close modal when clicking outside
-window.addEventListener('click', function(event) {
-    const avatarModal = document.getElementById('changeAvatarModal');
-    if (event.target === avatarModal) {
-        closeAvatarModal();
-    }
-});
+
 </script>
 
 <!-- COMMUNITIES SCRIPTS -->
@@ -3770,13 +3785,6 @@ window.addEventListener('click', function(event) {
         }
     }
 
-    // Update window click handler to include game details modal
-    window.onclick = function(event) {
-        const gameDetailsModal = document.getElementById('gameDetailsModal');
-        if (event.target === gameDetailsModal) {
-            closeGameDetailsModal();
-        }
-    };
 
     // Load user's communities when profile tab is opened
     document.addEventListener('DOMContentLoaded', function() {
