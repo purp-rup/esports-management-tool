@@ -798,7 +798,11 @@
                 {% if user.is_gm %}
                 <p>Manage created teams</p>
                 {% else %}
-                <p>View joined teams</p>
+                    {%if user.is_admin or user.is_gm %}
+                        <button class="btn btn-primary" onclick="openCreateTeamModal()">
+                            <i class="fas fa-plus"></i> Create Team
+                        </button>
+                    {% endif %}
                 {% endif %}
             </div>
             <div class="empty-state">
@@ -1041,6 +1045,96 @@
 
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeCreateGameModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="submitGameBtnText">Create Game</span>
+                        <i id="submitGameBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create Team Modal -->
+<div id="createTeamModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <div class="modal-header">
+            <h2>Create New Team</h2>
+            <button class="modal-close" onclick="closeCreateTeamModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Add a new team to the roster</p>
+
+            <form id="createTeamForm" class="event-form-modal" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="gameTitle">Game Title</label>
+                    <input type="text" id="teamTitle" name="teamTitle" placeholder="Enter team title" required>
+                </div>
+
+                <!-- Image Upload Field -->
+                <div class="form-group">
+                    <label for="gameImage">Team Icon/Image</label>
+                    <input type="file"
+                           id="teamImage"
+                           name="teamImage"
+                           accept="image/png, image/jpeg, image/jpg, image/gif, image/webp">
+                    <div id="imagePreview" style="margin-top: 0.5rem; display: none;">
+                        <img id="previewImg" style="max-width: 100px; max-height: 100px; border-radius: 8px; border: 2px solid var(--border-color);">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="teamDescription">Description</label>
+                    <textarea id="teamDescription" name="teamDescription" placeholder="Enter team description" rows="4" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Team Size</label>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                        Select the applicable team size.
+                    </p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem;">
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="1">
+                            <span>1 Player</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="2">
+                            <span>2 Players</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="3">
+                            <span>3 Players</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="4">
+                            <span>4 Players</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="5">
+                            <span>5 Players</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="6">
+                            <span>6 Players</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="7">
+                            <span>7 Players</span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="8">
+                            <span>8 Players</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="teamFormMessage" class="form-message" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateTeamModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary">
                         <span id="submitGameBtnText">Create Game</span>
                         <i id="submitGameBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
@@ -2512,6 +2606,26 @@ async function removeUser(userId, username, fullName) {
     }
 
 
+
+
+    //Create Team Modal
+    function openCreateTeamModal() {
+        const modal = document.getElementById('createTeamModal');
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+
+        // Reset form
+        document.getElementById('createGameForm').reset();
+        document.getElementById('gameFormMessage').style.display = 'none';
+    }
+
+    function closeCreateTeamModal() {
+        const modal = document.getElementById('createTeamModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+
 </script>
 
 <!--Display games under roster tab functionality. -->
@@ -2987,6 +3101,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'eventDetailsModal': closeEventModal,
                 'createEventModal': closeCreateEventModal,
                 'createGameModal': closeCreateGameModal,
+                'createTeamModal': closeCreateTeamModal,
                 'gameDetailsModal': closeGameDetailsModal,
                 'assignGMModal': closeAssignGMModal,
                 'changeAvatarModal': closeAvatarModal,
@@ -3013,6 +3128,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'eventDetailsModal': closeEventModal,
                     'createEventModal': closeCreateEventModal,
                     'createGameModal': closeCreateGameModal,
+                    'createTeamModal': closeCreateTeamModal,
                     'gameDetailsModal': closeGameDetailsModal,
                     'assignGMModal': closeAssignGMModal,
                     'changeAvatarModal': closeAvatarModal,
