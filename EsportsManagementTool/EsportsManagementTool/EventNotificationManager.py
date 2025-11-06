@@ -13,13 +13,13 @@ import atexit
 mysql = MySQL()
 mail = Mail()
 
-"""DISCLAIMER: THIS CODE WAS GENERATED USING CLAUDE AI"""
+"""DISCLAIMER: THIS CODE WAS GENERATED USING CLAUDE AI AND CHATGPT"""
 
 
-# UC-13: ChooseEventNotice - User Notification Preferences
+# UC-13: ChooseEventNotice - User Notification Preferences (Enhanced with Event Type Filtering)
 @app.route('/eventnotificationsettings', methods=['GET', 'POST'])
 def notification_settings():
-    """Allow users to configure their event notification preferences"""
+    """Allow users to configure their event notification preferences including event types"""
     if 'loggedin' not in session:
         # Handle AJAX requests
         if request.method == 'POST' and (
@@ -34,6 +34,12 @@ def notification_settings():
         enable_notifications = request.form.get('enable_notifications') == 'on'
         advance_notice_days = int(request.form.get('advance_notice_days', 1))
         advance_notice_hours = int(request.form.get('advance_notice_hours', 0))
+
+        # NEW: Get event type preferences
+        notify_events = request.form.get('notify_events') == 'on'
+        notify_matches = request.form.get('notify_matches') == 'on'
+        notify_tournaments = request.form.get('notify_tournaments') == 'on'
+        notify_practices = request.form.get('notify_practices') == 'on'
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
@@ -53,19 +59,27 @@ def notification_settings():
                                SET enable_notifications = %s,
                                    advance_notice_days  = %s,
                                    advance_notice_hours = %s,
+                                   notify_events        = %s,
+                                   notify_matches       = %s,
+                                   notify_tournaments   = %s,
+                                   notify_practices     = %s,
                                    updated_at           = NOW()
                                WHERE user_id = %s
                                """, (enable_notifications, advance_notice_days,
-                                     advance_notice_hours, user_id))
+                                     advance_notice_hours, notify_events,
+                                     notify_matches, notify_tournaments,
+                                     notify_practices, user_id))
             else:
                 # Insert new preferences
                 cursor.execute("""
                                INSERT INTO notification_preferences
                                (user_id, enable_notifications, advance_notice_days,
-                                advance_notice_hours, created_at, updated_at)
-                               VALUES (%s, %s, %s, %s, NOW(), NOW())
+                                advance_notice_hours, notify_events, notify_matches,
+                                notify_tournaments, notify_practices, created_at, updated_at)
+                               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                                """, (user_id, enable_notifications, advance_notice_days,
-                                     advance_notice_hours))
+                                     advance_notice_hours, notify_events,
+                                     notify_matches, notify_tournaments, notify_practices))
 
             mysql.connection.commit()
 
@@ -106,7 +120,7 @@ def send_event_notification(user_email, user_name, event_type, event_details):
         Time: {event_details['StartTime'].strftime('%I:%M %p')}
         Location: {event_details['location']}
 
-        {'Match Details:' if event_type == 'Match' else 'Event Details:'}
+        Event Details:
         {event_details.get('description', 'No additional details')}
 
         We look forward to seeing you there!
@@ -126,118 +140,154 @@ def send_event_notification(user_email, user_name, event_type, event_details):
 
 def check_and_send_notifications():
     """
-    Background task to check for upcoming events and send notifications
-    to users who have subscribed to specific events.
+    Background task to check for upcoming events and send notifications.
 
-    Notifications are only sent to users who:
-    1. Have enable_notifications = 1 in their preferences
-    2. Have specifically subscribed to the event via event_subscriptions table
+    Mechanisms:
+    1. Event Subscriptions: Users subscribed to specific events always get notified.
+    2. General Reminders: Users who enabled notifications for event types get notified for matching events.
     """
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        # ========================================================================
-        # EVENT-SPECIFIC SUBSCRIPTIONS
-        # Send to users who subscribed to specific events
-        # ========================================================================
-
         current_time = datetime.now()
 
-        # Get all active subscriptions with event details and user notification preferences
+        # ============================
+        # 1️⃣ Event Subscriptions
+        # ============================
         cursor.execute("""
-                       SELECT es.user_id,
-                              es.event_id,
-                              ge.EventID,
-                              ge.EventName,
-                              ge.Date,
-                              ge.StartTime,
-                              ge.EndTime,
-                              ge.location,
-                              ge.description,
-                              ge.EventType,
-                              u.email,
-                              u.firstname,
-                              u.lastname,
-                              np.enable_notifications,
-                              np.advance_notice_days,
-                              np.advance_notice_hours
-                       FROM event_subscriptions es
-                                JOIN generalevents ge ON es.event_id = ge.EventID
-                                JOIN users u ON es.user_id = u.id
-                                LEFT JOIN notification_preferences np ON np.user_id = u.id
-                       WHERE np.enable_notifications = 1
-                         AND ge.Date >= DATE (DATE_SUB(UTC_TIMESTAMP()
-                           , INTERVAL 5 HOUR))
-                       ORDER BY ge.Date, ge.StartTime;
-                       """)
-
+            SELECT 
+                es.user_id,
+                ge.EventID,
+                ge.EventName,
+                ge.Date,
+                ge.StartTime,
+                ge.EndTime,
+                ge.Location,
+                ge.Description,
+                ge.EventType,
+                u.email,
+                u.firstname,
+                u.lastname
+            FROM event_subscriptions es
+            JOIN generalevents ge ON es.event_id = ge.EventID
+            JOIN users u ON es.user_id = u.id
+            JOIN notification_preferences np ON np.user_id = es.user_id
+            WHERE np.enable_notifications = 1
+              AND ge.Date >= CURDATE()
+        """)
         subscriptions = cursor.fetchall()
 
+        # ============================
+        # 2️⃣ General Reminders (by event type)
+        # ============================
+        cursor.execute("""
+            SELECT 
+                np.user_id,
+                ge.EventID,
+                ge.EventName,
+                ge.Date,
+                ge.StartTime,
+                ge.EndTime,
+                ge.Location,
+                ge.Description,
+                ge.EventType,
+                u.email,
+                u.firstname,
+                u.lastname,
+                np.notify_events,
+                np.notify_matches,
+                np.notify_tournaments,
+                np.notify_practices
+            FROM generalevents ge
+            JOIN users u ON u.id = u.id
+            JOIN notification_preferences np ON np.user_id = u.id
+            WHERE np.enable_notifications = 1
+              AND ge.Date >= CURDATE()
+        """)
+        general_reminders = cursor.fetchall()
+
+        # Combine subscriptions and general reminders into one list
+        all_notifications = []
+
+        # Subscriptions: Always notify
         for sub in subscriptions:
+            all_notifications.append((sub, True))  # True = ignore event type filtering
+
+        # General reminders: Only notify if preference matches event type
+        for gr in general_reminders:
+            event_type_lower = gr['EventType'].lower() if gr['EventType'] else 'event'
+            should_notify = False
+            if event_type_lower == 'event' and gr.get('notify_events', 0):
+                should_notify = True
+            elif event_type_lower == 'match' and gr.get('notify_matches', 0):
+                should_notify = True
+            elif event_type_lower == 'tournament' and gr.get('notify_tournaments', 0):
+                should_notify = True
+            elif event_type_lower == 'practice' and gr.get('notify_practices', 0):
+                should_notify = True
+
+            if should_notify:
+                all_notifications.append((gr, False))  # False = respect type filtering
+
+        # Process notifications
+        for sub, ignore_type in all_notifications:
+            # Compute event datetime
             event_date = sub['Date']
-            event_datetime = datetime.combine(event_date, datetime.min.time())
-
-            # Add start time if available
-            if sub['StartTime']:
-                if isinstance(sub['StartTime'], timedelta):
-                    total_seconds = int(sub['StartTime'].total_seconds())
-                    hours = total_seconds // 3600
-                    minutes = (total_seconds % 3600) // 60
-                    seconds = total_seconds % 60
-                    event_datetime = event_datetime.replace(hour=hours, minute=minutes, second=seconds)
-                    time_obj = datetime.min.time().replace(hour=hours, minute=minutes, second=seconds)
-                else:
-                    event_datetime = datetime.combine(event_date, sub['StartTime'])
-                    time_obj = sub['StartTime']
+            start_time = sub['StartTime']
+            if isinstance(start_time, timedelta):
+                total_seconds = int(start_time.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+                seconds = total_seconds % 60
+                event_datetime = datetime.combine(event_date, datetime.min.time()).replace(hour=hours, minute=minutes, second=seconds)
+                time_obj = datetime.min.time().replace(hour=hours, minute=minutes, second=seconds)
             else:
-                time_obj = None
+                event_datetime = datetime.combine(event_date, start_time)
+                time_obj = start_time
 
-            # Get user's advance notice preferences
-            advance_notice = timedelta(
-                days=sub.get('advance_notice_days', 1),
-                hours=sub.get('advance_notice_hours', 0)
-            )
+            # Use user's advance notice preferences
+            cursor.execute("""
+                SELECT advance_notice_days, advance_notice_hours
+                FROM notification_preferences
+                WHERE user_id = %s
+            """, (sub['user_id'],))
+            prefs = cursor.fetchone()
+            advance_notice = timedelta(days=prefs.get('advance_notice_days', 1),
+                                       hours=prefs.get('advance_notice_hours', 0))
 
-            # Calculate notification window (30-minute window centered on notification time)
             target_notification_time = event_datetime - advance_notice
             notification_start = target_notification_time - timedelta(minutes=15)
             notification_end = target_notification_time + timedelta(minutes=15)
 
-            # Check if current time falls within notification window
             if notification_start <= current_time <= notification_end:
-                # Check if notification already sent for this subscription
+                # Check if notification was already sent
                 cursor.execute("""
-                               SELECT sn.id
-                               FROM sent_notifications sn
-                               WHERE sn.user_id = %s
-                                 AND sn.event_id = %s
-                                 AND sn.sent_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
-                               """, (sub['user_id'], sub['EventID']))
+                    SELECT id
+                    FROM sent_notifications
+                    WHERE user_id = %s
+                      AND event_id = %s
+                      AND sent_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
+                """, (sub['user_id'], sub['EventID']))
+                if cursor.fetchone():
+                    continue  # Already sent
 
-                if not cursor.fetchone():
-                    # Prepare event details for email
-                    event_details = {
-                        'EventName': sub['EventName'],
-                        'date': sub['Date'],
-                        'StartTime': time_obj if time_obj else datetime.min.time(),
-                        'location': sub['location'] if sub['location'] else 'TBA',
-                        'description': sub['description'] if sub['description'] else 'No additional details'
-                    }
+                # Prepare event details for email
+                event_details = {
+                    'EventName': sub['EventName'],
+                    'date': sub['Date'],
+                    'StartTime': time_obj,
+                    'location': sub['Location'] or 'TBA',
+                    'description': sub['Description'] or 'No additional details'
+                }
+                user_email = sub['email']
+                user_name = f"{sub['firstname']} {sub['lastname']}"
+                event_type = sub['EventType'].capitalize() if sub['EventType'] else 'Event'
 
-                    user_email = sub['email']
-                    user_name = sub['firstname']
-                    event_type = sub['EventType'].capitalize() if sub['EventType'] else 'Event'
-
-                    # Send notification
-                    if send_event_notification(user_email, user_name, event_type, event_details):
-                        # Log sent notification (removed event_type)
-                        cursor.execute("""
-                                       INSERT INTO sent_notifications
-                                           (user_id, event_id, sent_at)
-                                       VALUES (%s, %s, NOW())
-                                       """, (sub['user_id'], sub['EventID']))
-
-                        print(f"Sent subscription notification to {user_email} for {sub['EventName']}")
+                if send_event_notification(user_email, user_name, event_type, event_details):
+                    cursor.execute("""
+                        INSERT INTO sent_notifications (user_id, event_id, sent_at)
+                        VALUES (%s, %s, NOW())
+                    """, (sub['user_id'], sub['EventID']))
+                    print(f"Sent notification to {user_email} for {sub['EventName']} ({event_type})")
 
         mysql.connection.commit()
         print(f"Notification check completed at {datetime.now()}")
@@ -248,6 +298,8 @@ def check_and_send_notifications():
         print(f"Error in notification scheduler: {str(e)}")
     finally:
         cursor.close()
+
+
 
 # ========================================================================
 # Initialize scheduler for background notifications (UC-14)
@@ -263,10 +315,11 @@ def scheduled_check_wrapper():
             traceback.print_exc()
             print(f"Error in notification scheduler: {str(e)}")
 
+
 # Initialize the background scheduler
 scheduler = BackgroundScheduler()
 
-# Add job to run every 5 minutes
+# Add job to run every minute
 scheduler.add_job(
     func=scheduled_check_wrapper,
     trigger="interval",
@@ -280,4 +333,4 @@ scheduler.start()
 
 # Ensure clean shutdown on app exit
 atexit.register(lambda: scheduler.shutdown(wait=False))
-"""DISCLAIMER: THIS CODE WAS GENERATED USING CLAUDE AI"""
+"""DISCLAIMER: THIS CODE WAS GENERATED USING CLAUDE AI AND CHATGPT"""
