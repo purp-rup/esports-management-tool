@@ -934,14 +934,17 @@
     </div>
 </div>
 
-<!-- Event Details Modal - Updated Header with Delete Button -->
+<!-- Event Details Modal -->
 <div id="eventDetailsModal" class="modal">
     <div class="modal-content modal-content-large">
         <div class="modal-header">
-            <h2 id="eventDetailsTitle"></h2>
+            <h2 id="eventDetailsTitle">Event Details</h2>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
                 {% if user.is_admin %}
-                <button id="deleteEventBtn" class="btn-delete-event" style="display: none;" onclick="deleteEvent()">
+                <button id="deleteEventBtn" 
+                        class="btn-delete-event" 
+                        style="display: none;" 
+                        onclick="deleteEvent()">
                     <i class="fas fa-trash"></i>
                 </button>
                 {% endif %}
@@ -1997,152 +2000,171 @@
     // Updated openEventModal function with notification integration
 
     //DISCLAIMER: CHATGPT WAS USED TO EDIT THE BELOW CODE. SOME OF IT WAS WRITTEN BY A PERSON, SOME BY AI
-    async function openEventModal(eventId) {
-        const modal = document.getElementById('eventDetailsModal');
-        const spinner = document.getElementById('eventLoadingSpinner');
-        const content = document.getElementById('eventDetailsContent');
-        const deleteBtn = document.getElementById('deleteEventBtn');
 
-        // Store current event ID globally
-        currentEventId = eventId;
+async function openEventModal(eventId) {
+    const modal = document.getElementById('eventDetailsModal');
+    const spinner = document.getElementById('eventLoadingSpinner');
+    const content = document.getElementById('eventDetailsContent');
+    const deleteBtn = document.getElementById('deleteEventBtn');
+    const titleElement = document.getElementById('eventDetailsTitle');
 
-        // Show modal with loading spinner
-        modal.style.display = 'block';
-        spinner.style.display = 'block';
-        content.style.display = 'none';
-        if (deleteBtn) deleteBtn.style.display = 'none';
-        document.body.style.overflow = 'hidden';
+    // Store current event ID globally
+    currentEventId = eventId;
 
-        try {
-            // Fetch event details
-            const response = await fetch(`/api/event/${eventId}`);
-            if (!response.ok) throw new Error('Failed to fetch event details');
-            const event = await response.json();
+    // Reset title to loading state immediately
+    if (titleElement) {
+        titleElement.textContent = 'Loading...';
+    }
 
-            // Build event details HTML
-            let detailsHTML = '<div class="event-detail-grid">';
+    // Show modal with loading spinner
+    modal.style.display = 'block';
+    spinner.style.display = 'block';
+    content.style.display = 'none';
+    if (deleteBtn) deleteBtn.style.display = 'none';
+    document.body.style.overflow = 'hidden';
 
-            // Date
+    try {
+        // Fetch event details
+        const response = await fetch(`/api/event/${eventId}`);
+        if (!response.ok) throw new Error('Failed to fetch event details');
+        const event = await response.json();
+
+        // Set modal title
+        if (titleElement) {
+            titleElement.textContent = event.name || 'Event Details';
+        }
+
+        // Build event details HTML
+        let detailsHTML = '<div class="event-detail-grid">';
+
+        // Date
+        detailsHTML += `
+            <div class="event-detail-section">
+                <div class="event-detail-icon"><i class="fas fa-calendar-alt"></i></div>
+                <div class="event-detail-content">
+                    <h3>Date</h3>
+                    <p>${event.date}</p>
+                </div>
+            </div>
+        `;
+
+        // Time
+        if (event.start_time) {
             detailsHTML += `
                 <div class="event-detail-section">
-                    <div class="event-detail-icon"><i class="fas fa-calendar-alt"></i></div>
+                    <div class="event-detail-icon"><i class="fas fa-clock"></i></div>
                     <div class="event-detail-content">
-                        <h3>Date</h3>
-                        <p>${event.date}</p>
+                        <h3>Time</h3>
+                        <p>${event.start_time}${event.end_time ? ' - ' + event.end_time : ''}</p>
                     </div>
                 </div>
             `;
-
-            // Time
-            if (event.start_time) {
-                detailsHTML += `
-                    <div class="event-detail-section">
-                        <div class="event-detail-icon"><i class="fas fa-clock"></i></div>
-                        <div class="event-detail-content">
-                            <h3>Time</h3>
-                            <p>${event.start_time}${event.end_time ? ' - ' + event.end_time : ''}</p>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Event Type
-            if (event.event_type) {
-                detailsHTML += `
-                    <div class="event-detail-section">
-                        <div class="event-detail-icon"><i class="fas fa-tag"></i></div>
-                        <div class="event-detail-content">
-                            <h3>Event Type</h3>
-                            <p>${event.event_type}</p>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Game
-            if (event.game) {
-                detailsHTML += `
-                    <div class="event-detail-section">
-                        <div class="event-detail-icon"><i class="fas fa-gamepad"></i></div>
-                        <div class="event-detail-content">
-                            <h3>Game</h3>
-                            <p>${event.game}</p>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Location
-            if (event.location) {
-                detailsHTML += `
-                    <div class="event-detail-section" style="grid-column: 1 / -1;">
-                        <div class="event-detail-icon"><i class="fas fa-map-marker-alt"></i></div>
-                        <div class="event-detail-content">
-                            <h3>Location</h3>
-                            <p>${event.location}</p>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Description - Full Width at bottom
-            detailsHTML += `
-                <div class="event-detail-section full-width">
-                    <div style="display: flex; gap: 0.75rem;">
-                        <div class="event-detail-icon"><i class="fas fa-info-circle"></i></div>
-                        <div class="event-detail-content">
-                            <h3>Description</h3>
-                            <p>${event.description}</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            // Notification section (render once, state will be updated dynamically)
-            detailsHTML += `
-                <div class="event-notification-section full-width" id="eventNotificationSection"
-                     style="grid-column: 1 / -1;">
-                    <div class="notification-opt-in" style="width: 100%; display: flex; justify-content: center;"">
-                        <div class="notification-icon">
-                            <i class="fas fa-bell" style="font-size: 1.5rem;"></i>
-                        </div>
-                        <div class="notification-text">
-                            <div class="title">Event Reminders</div>
-                            <div class="subtitle">Get notified about this event</div>
-                        </div>
-                        <button class="notification-btn" id="notificationBtn" onclick="toggleEventSubscription()">
-                            <span id="notificationBtnText">Loading...</span>
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            // Insert into DOM
-            content.innerHTML = detailsHTML;
-
-            // Show modal content
-            spinner.style.display = 'none';
-            content.style.display = 'block';
-
-            // Show delete button for admins
-            if (deleteBtn) deleteBtn.style.display = 'flex';
-
-            // Load notification state for the user
-            await loadNotificationSection(eventId);
-
-        } catch (error) {
-            console.error('Error loading event details:', error);
-            content.innerHTML = `
-                <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                    <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ff5252; margin-bottom: 1rem;"></i>
-                    <p>Failed to load event details. Please try again.</p>
-                    <button class="btn btn-primary" onclick="closeEventModal()" style="margin-top: 1rem;">Close</button>
-                </div>
-            `;
-            spinner.style.display = 'none';
-            content.style.display = 'block';
         }
+
+        // Event Type
+        if (event.event_type) {
+            detailsHTML += `
+                <div class="event-detail-section">
+                    <div class="event-detail-icon"><i class="fas fa-tag"></i></div>
+                    <div class="event-detail-content">
+                        <h3>Event Type</h3>
+                        <p>${event.event_type}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Game
+        if (event.game) {
+            detailsHTML += `
+                <div class="event-detail-section">
+                    <div class="event-detail-icon"><i class="fas fa-gamepad"></i></div>
+                    <div class="event-detail-content">
+                        <h3>Game</h3>
+                        <p>${event.game}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Location
+        if (event.location) {
+            detailsHTML += `
+                <div class="event-detail-section" style="grid-column: 1 / -1;">
+                    <div class="event-detail-icon"><i class="fas fa-map-marker-alt"></i></div>
+                    <div class="event-detail-content">
+                        <h3>Location</h3>
+                        <p>${event.location}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Description - Full Width at bottom
+        detailsHTML += `
+            <div class="event-detail-section full-width">
+                <div style="display: flex; gap: 0.75rem;">
+                    <div class="event-detail-icon"><i class="fas fa-info-circle"></i></div>
+                    <div class="event-detail-content">
+                        <h3>Description</h3>
+                        <p>${event.description}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Notification section
+        detailsHTML += `
+            <div class="event-notification-section full-width" id="eventNotificationSection"
+                 style="grid-column: 1 / -1;">
+                <div class="notification-opt-in" style="width: 100%; display: flex; justify-content: center;">
+                    <div class="notification-icon">
+                        <i class="fas fa-bell" style="font-size: 1.5rem;"></i>
+                    </div>
+                    <div class="notification-text">
+                        <div class="title">Event Reminders</div>
+                        <div class="subtitle">Get notified about this event</div>
+                    </div>
+                    <button class="notification-btn" id="notificationBtn" onclick="toggleEventSubscription()">
+                        <span id="notificationBtnText">Loading...</span>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        detailsHTML += '</div>';
+
+        // Insert into DOM
+        content.innerHTML = detailsHTML;
+
+        // Show modal content
+        spinner.style.display = 'none';
+        content.style.display = 'block';
+
+        // Show delete button for admins
+        if (deleteBtn) deleteBtn.style.display = 'flex';
+
+        // Load notification state for the user
+        await loadNotificationSection(eventId);
+
+    } catch (error) {
+        console.error('Error loading event details:', error);
+        
+        if (titleElement) {
+            titleElement.textContent = 'Error Loading Event';
+        }
+        
+        content.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ff5252; margin-bottom: 1rem;"></i>
+                <p>Failed to load event details. Please try again.</p>
+                <button class="btn btn-primary" onclick="closeEventModal()" style="margin-top: 1rem;">Close</button>
+            </div>
+        `;
+        spinner.style.display = 'none';
+        content.style.display = 'block';
     }
+}
 
     //DISCLAIMER: CHATGPT WAS USED TO EDIT THE ABOVE CODE
 
