@@ -278,7 +278,7 @@ def get_games_list():
 
 
 @app.route('/api/game/<int:game_id>/details', methods=['GET'])
-@login_required #NEEDS TO BE UPDATED
+@login_required
 def get_game_community_details(game_id):
     """Get detailed information about a game including members"""
     try:
@@ -303,14 +303,14 @@ def get_game_community_details(game_id):
             image_url = f'/game-image/{game["GameID"]}' if game.get('GameImage') else None
 
             try:
-                cursor.execute(f"SELECT 1 FROM `{table_name}` WHERE user_id = %s AND game_id = %s",
+                cursor.execute(f"SELECT 1 FROM in_communities WHERE user_id = %s AND game_id = %s",
                                (session['id'], game_id))
                 is_member = cursor.fetchone() is not None
             except:
                 is_member = False
 
             try:
-                cursor.execute(f"SELECT COUNT(*) as count FROM `{table_name}` WHERE game_id = %s", (game_id,))
+                cursor.execute(f"SELECT COUNT(*) as count FROM in_communities WHERE game_id = %s", (game_id,))
                 member_count = cursor.fetchone()['count']
             except:
                 member_count = 0
@@ -318,15 +318,17 @@ def get_game_community_details(game_id):
             formatted_members = []
             assigned_gm_id = None
             try:
-                cursor.execute(
-                    f"SELECT u.id, u.firstname, u.lastname, u.username, u.profile_picture, "
-                    f"p.is_admin, p.is_gm, p.is_player, gm.joined_at, gm.is_game_manager "
-                    f"FROM `{table_name}` gm "
-                    f"JOIN users u ON gm.user_id = u.id "
-                    f"LEFT JOIN permissions p ON u.id = p.userid "
-                    f"WHERE gm.game_id = %s "
-                    f"ORDER BY gm.is_game_manager DESC, p.is_admin DESC, p.is_gm DESC, gm.joined_at ASC",
-                    (game_id,))
+                cursor.execute("""
+                               SELECT u.id, u.firstname, u.lastname, u.username,
+                                      u.profile_picture, p.is_admin, p.is_gm,
+                                      p.is_player, c.joined_at, (u.id = gm.gm_id) as is_game_manager
+                               FROM in_communities c
+                               JOIN games gm ON c.game_id = gm.GameID
+                               JOIN users u ON c.user_id = u.id
+                               LEFT JOIN permissions p ON u.id = p.userid
+                               WHERE c.game_id = %s
+                               ORDER BY (u.id = gm.gm_id) DESC, p.is_admin DESC, p.is_gm DESC, c.joined_at ASC
+                               """, (game_id,))
                 members = cursor.fetchall()
 
                 for m in members:
@@ -474,7 +476,7 @@ def leave_community(game_id):
 
 
 @app.route('/api/user/communities', methods=['GET'])
-@login_required #NEEDS TO BE UPDATED
+@login_required
 def get_user_communities():
     """Get all communities the current user has joined"""
     try:
@@ -493,7 +495,7 @@ def get_user_communities():
                 table_name = get_game_table_name(game_title)
 
                 try:
-                    cursor.execute(f"SELECT joined_at FROM `{table_name}` WHERE user_id = %s AND game_id = %s",
+                    cursor.execute(f"SELECT joined_at FROM in_communities WHERE user_id = %s AND game_id = %s",
                                    (session['id'], game_id))
 
                     membership = cursor.fetchone()
@@ -501,7 +503,7 @@ def get_user_communities():
                     if membership:
                         joined_at = membership['joined_at']
 
-                        cursor.execute(f"SELECT COUNT(*) as count FROM `{table_name}` WHERE game_id = %s", (game_id,))
+                        cursor.execute(f"SELECT COUNT(*) as count FROM in_communities WHERE game_id = %s", (game_id,))
                         member_count = cursor.fetchone()['count']
 
                         joined_str = joined_at.strftime('%B %d, %Y') if joined_at else 'Recently'
@@ -599,43 +601,22 @@ def assign_game_manager(game_id):
                 return jsonify({'success': False, 'message': f'User is already GM for specified game.'}), 400
 
             # Setting new gm_id for selected game.
-            cursor.execute("UPDATE games SET gm_id = %s WHERE GameTitle = %s", (gm_user_id, game_title))
-            mysql.connection.commit()
+            cursor.execute("SELECT 1 FROM in_communities WHERE user_id = %s", (gm_user_id,))
+            existUser = cursor.fetchone()
 
+            if existUser:
+                cursor.execute("UPDATE games SET gm_id = %s WHERE GameTitle = %s", (gm_user_id, game_title))
+                mysql.connection.commit()
+            else: #Add as member and GM
+                cursor.execute("INSERT INTO in_communities (user_id, game_id, joined_at) VALUES (%s, %s, %s)", (gm_user_id, game_id, datetime.now()))
+                cursor.execute("UPDATE games SET gm_id = %s WHERE GameTitle = %s", (gm_user_id, game_title))
+                mysql.connection.commit()
 
             # Get GM name for response
             cursor.execute("SELECT firstname, lastname FROM users WHERE id = %s", (gm_user_id,))
             gm = cursor.fetchone()
             gm_name = f"{gm['firstname']} {gm['lastname']}"
             return jsonify({'success': True, 'message': f'{gm_name} has been assigned as Game Manager'}), 200
-
-
-
-            # # Remove any existing GM assignment for this game
-            # cursor.execute(f"UPDATE `{table_name}` SET is_game_manager = FALSE WHERE game_id = %s", (game_id,))
-            #
-            # # Check if user is already a member
-            # cursor.execute(f"SELECT id FROM `{table_name}` WHERE user_id = %s AND game_id = %s", (gm_user_id, game_id))
-            # existing = cursor.fetchone()
-            #
-            # if existing:
-            #     # Update existing membership to be GM
-            #     cursor.execute(f"UPDATE `{table_name}` SET is_game_manager = TRUE WHERE user_id = %s AND game_id = %s",
-            #                    (gm_user_id, game_id))
-            # else:
-            #     # Add user as member and GM
-            #     cursor.execute(
-            #         f"INSERT INTO `{table_name}` (game_id, user_id, joined_at, is_game_manager) VALUES (%s, %s, %s, TRUE)",
-            #         (game_id, gm_user_id, datetime.now()))
-            #
-            # mysql.connection.commit()
-            #
-            # # Get GM name for response
-            # cursor.execute("SELECT firstname, lastname FROM users WHERE id = %s", (gm_user_id,))
-            # gm = cursor.fetchone()
-            # gm_name = f"{gm['firstname']} {gm['lastname']}"
-            #
-            # return jsonify({'success': True, 'message': f'{gm_name} has been assigned as Game Manager'}), 200
 
         except Exception as e:
             mysql.connection.rollback()
@@ -651,7 +632,7 @@ def assign_game_manager(game_id):
 
 
 @app.route('/api/game/<int:game_id>/remove-gm', methods=['POST'])
-@roles_required('admin') #NEEDS TO BE UPDATED
+@roles_required('admin')
 def remove_game_manager(game_id):
     """Remove game manager assignment from a game"""
     try:
@@ -670,7 +651,7 @@ def remove_game_manager(game_id):
 
             # Remove GM assignment (but keep them as a member)
             cursor.execute(
-                f"UPDATE `{table_name}` SET is_game_manager = FALSE WHERE game_id = %s AND is_game_manager = TRUE",
+                f"UPDATE games SET gm_id = NULL WHERE gameID = %s",
                 (game_id,))
 
             mysql.connection.commit()
