@@ -230,6 +230,62 @@
                          class="notification-options"
                          style="{% if not preferences or not preferences.enable_notifications %}display: none;{% endif %}">
 
+                        <!-- NEW SECTION: Event Type Filters -->
+                        <div class="form-section">
+                            <h3>Event Types to Notify</h3>
+                            <p class="section-description">Choose which types of events you want to be notified about</p>
+
+                            <div class="event-type-checkboxes">
+                                <label class="checkbox-label">
+                                    <input type="checkbox"
+                                           name="notify_practices"
+                                           id="notifyPractices"
+                                           {% if not preferences or preferences.notify_practices %}checked{% endif %}>
+                                    <span class="checkbox-text">
+                                        <i class="fas fa-dumbbell"></i>
+                                        <strong>Practices</strong>
+                                        <small>Team practice sessions and training</small>
+                                    </span>
+                                </label>
+
+                                <label class="checkbox-label">
+                                    <input type="checkbox"
+                                           name="notify_matches"
+                                           id="notifyMatches"
+                                           {% if not preferences or preferences.notify_matches %}checked{% endif %}>
+                                    <span class="checkbox-text">
+                                        <i class="fas fa-gamepad"></i>
+                                        <strong>Matches</strong>
+                                        <small>Regular competitive matches</small>
+                                    </span>
+                                </label>
+
+                                <label class="checkbox-label">
+                                    <input type="checkbox"
+                                           name="notify_tournaments"
+                                           id="notifyTournaments"
+                                           {% if not preferences or preferences.notify_tournaments %}checked{% endif %}>
+                                    <span class="checkbox-text">
+                                        <i class="fas fa-trophy"></i>
+                                        <strong>Tournaments</strong>
+                                        <small>Tournament events and competitions</small>
+                                    </span>
+                                </label>
+
+                                <label class="checkbox-label">
+                                    <input type="checkbox"
+                                           name="notify_events"
+                                           id="notifyEvents"
+                                           {% if not preferences or preferences.notify_events %}checked{% endif %}>
+                                    <span class="checkbox-text">
+                                        <i class="fas fa-calendar-alt"></i>
+                                        <strong>General Events</strong>
+                                        <small>Team meetings, socials, and other events</small>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
                         <div class="form-section">
                             <h3>Advance Notice</h3>
                             <p class="section-description">How far in advance should we notify you?</p>
@@ -1480,6 +1536,8 @@
             });
         }
 
+        //DISCLAIMER: BELOW CODE WAS GENERATED USING CLAUDE AND CHATGPT
+
         // ===============================
         // NOTIFICATION SETTINGS
         // ===============================
@@ -1488,6 +1546,12 @@
         const daysInput = document.getElementById('adviceNoticeDays');
         const hoursInput = document.getElementById('adviceNoticeHours');
         const previewText = document.getElementById('previewTime');
+
+        // NEW: Event type checkboxes (all four types)
+        const notifyPractices = document.getElementById('notifyPractices');
+        const notifyMatches = document.getElementById('notifyMatches');
+        const notifyTournaments = document.getElementById('notifyTournaments');
+        const notifyEvents = document.getElementById('notifyEvents');
 
         // Toggle notification options visibility
         if (enableNotifToggle) {
@@ -1500,11 +1564,12 @@
             });
         }
 
-        // Update preview text
+        // NEW: Update preview text to include event types
         function updatePreview() {
             const days = parseInt(daysInput.value) || 0;
             const hours = parseInt(hoursInput.value) || 0;
 
+            // Build time preview
             let previewParts = [];
             if (days > 0) {
                 previewParts.push(`${days} day${days !== 1 ? 's' : ''}`);
@@ -1513,17 +1578,69 @@
                 previewParts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
             }
 
+            let timeText = '';
             if (previewParts.length === 0) {
-                previewText.textContent = 'at the time of the event';
+                timeText = 'at the time of the event';
             } else {
-                previewText.textContent = previewParts.join(' and ');
+                timeText = previewParts.join(' and ');
+            }
+
+            // Build event types preview
+            let eventTypes = [];
+            if (notifyPractices && notifyPractices.checked) {
+                eventTypes.push('practices');
+            }
+            if (notifyMatches && notifyMatches.checked) {
+                eventTypes.push('matches');
+            }
+            if (notifyTournaments && notifyTournaments.checked) {
+                eventTypes.push('tournaments');
+            }
+            if (notifyEvents && notifyEvents.checked) {
+                eventTypes.push('general events');
+            }
+
+            // Update preview text
+            if (eventTypes.length === 0) {
+                previewText.textContent = `${timeText} (no event types selected)`;
+            } else if (eventTypes.length === 4) {
+                previewText.textContent = `${timeText} for all event types`;
+            } else {
+                const lastType = eventTypes.pop();
+                const typeList = eventTypes.length > 0 ? eventTypes.join(', ') + ', and ' + lastType : lastType;
+                previewText.textContent = `${timeText} for ${typeList}`;
             }
         }
 
         if (daysInput && hoursInput) {
             daysInput.addEventListener('input', updatePreview);
             hoursInput.addEventListener('input', updatePreview);
+
+            // NEW: Add event listeners for all event type checkboxes
+            if (notifyPractices) {
+                notifyPractices.addEventListener('change', updatePreview);
+            }
+            if (notifyMatches) {
+                notifyMatches.addEventListener('change', updatePreview);
+            }
+            if (notifyTournaments) {
+                notifyTournaments.addEventListener('change', updatePreview);
+            }
+            if (notifyEvents) {
+                notifyEvents.addEventListener('change', updatePreview);
+            }
+
             updatePreview(); // Initial call
+        }
+
+        // NEW: Validation to ensure at least one event type is selected
+        function validateEventTypes() {
+            const practicesChecked = notifyPractices && notifyPractices.checked;
+            const matchesChecked = notifyMatches && notifyMatches.checked;
+            const tournamentsChecked = notifyTournaments && notifyTournaments.checked;
+            const eventsChecked = notifyEvents && notifyEvents.checked;
+
+            return practicesChecked || matchesChecked || tournamentsChecked || eventsChecked;
         }
 
         // ===============================
@@ -1538,6 +1655,20 @@
                 const submitBtnText = document.getElementById('saveNotifBtnText');
                 const submitBtnSpinner = document.getElementById('saveNotifBtnSpinner');
                 const formMessage = document.getElementById('notificationMessage');
+
+                // NEW: Validate that at least one event type is selected if notifications are enabled
+                if (enableNotifToggle && enableNotifToggle.checked && !validateEventTypes()) {
+                    formMessage.textContent = 'Please select at least one event type to receive notifications for.';
+                    formMessage.className = 'form-message error';
+                    formMessage.style.display = 'block';
+
+                    setTimeout(() => {
+                        formMessage.style.display = 'none';
+                    }, 5000);
+
+                    return;
+                }
+        //DISCLAIMER: ABOVE CODE WAS GENERATED USING CLAUDE AND CHATGPT
 
                 // Disable submit button
                 submitBtn.disabled = true;
