@@ -1,5 +1,5 @@
 from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, has_role, mysql
-from flask import request, redirect, url_for, session, flash, jsonify, render_template
+from flask import request, redirect, url_for, session, flash, jsonify
 import MySQLdb.cursors
 from datetime import datetime
 from flask import send_file
@@ -368,6 +368,7 @@ def get_game_community_details(game_id):
 
 """
 Route to allow users to join a community.
+@param - game_id is the id of the game the user is attempting to join.
 """
 @app.route('/api/game/<int:game_id>/join', methods=['POST'])
 @login_required
@@ -413,6 +414,7 @@ def join_community(game_id):
 
 """
 Route to allow users to leave a community via the view-details modal on the communities tab.
+@param - game_id is the game the user is attempting to leave.
 """
 @app.route('/api/game/<int:game_id>/leave', methods=['POST'])
 @login_required
@@ -521,7 +523,7 @@ Route to find all game managers when attempting to assign a new game manager to 
 """
 @app.route('/api/game/<int:game_id>/available-gms', methods=['GET'])
 @login_required
-def get_available_game_managers(game_id):
+def get_available_game_managers():
     """Get all users with GM role for assignment"""
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -561,6 +563,7 @@ def get_available_game_managers(game_id):
 
 """
 Route to assign a game manager to a community. Accessible only to admins.
+@param - game_id is the id of the game a game manager is being assigned to.
 """
 @app.route('/api/game/<int:game_id>/assign-gm', methods=['POST'])
 @roles_required('admin')
@@ -625,6 +628,7 @@ def assign_game_manager(game_id):
 
 """
 Route to allow admins to remove the current game manager from a game. Accessible via the view details page for a community.
+@param - game_id is the id of the game a manager is being removed from.
 """
 @app.route('/api/game/<int:game_id>/remove-gm', methods=['POST'])
 @roles_required('admin')

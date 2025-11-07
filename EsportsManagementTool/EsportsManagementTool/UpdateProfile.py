@@ -11,6 +11,9 @@ mysql = MySQL()
 
 #DISCLAIMER: BELOW CODE WAS GENERATED USING CLAUDE AI
 
+"""
+Route to allow users to update personal information within the profile tab.
+"""
 @app.route('/api/profile/update', methods=['POST'])
 def update_profile():
     """Update user profile information (excluding email)"""
@@ -55,7 +58,9 @@ def update_profile():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+"""
+Route to allow users to change their password within the profile tab.
+"""
 @app.route('/api/profile/change-password', methods=['POST'])
 def change_password():
     """Change user password with current password verification"""

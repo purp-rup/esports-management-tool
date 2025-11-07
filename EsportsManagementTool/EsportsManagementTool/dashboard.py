@@ -1,11 +1,7 @@
 from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, has_role
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from flask_mysqldb import MySQL
+from flask import render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mail import Mail, Message
 import MySQLdb.cursors
-import re
-import bcrypt
-import secrets
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timedelta
@@ -13,8 +9,6 @@ import calendar as cal
 from EsportsManagementTool import discord_integration
 
 from EsportsManagementTool import mysql
-
-from werkzeug.utils import secure_filename
 
 # Allowed file extensions for avatars
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
