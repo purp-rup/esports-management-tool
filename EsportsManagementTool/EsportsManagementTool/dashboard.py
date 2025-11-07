@@ -217,55 +217,6 @@ def dashboard(year=None, month=None):
     finally:
         cursor.close()
 
-
-"""
-Delete Events functionality. Includes deleting from table.
-"""
-@app.route('/delete-event', methods=['POST'])
-@roles_required('admin')  # Added security - Only admins can delete events
-def delete_event():
-    """
-    Delete an event from the generalevents table.
-    Only accessible to logged-in admin users.
-    """
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    try:
-        # Get the event ID from request JSON
-        data = request.get_json()
-        event_id = data.get('event_id')
-
-        if not event_id:
-            return jsonify({'success': False, 'message': 'Missing event ID'}), 400
-
-        # Verify event exists before attempting to delete
-        cursor.execute("SELECT EventID FROM generalevents WHERE EventID = %s", (event_id,))
-        event = cursor.fetchone()
-
-        if not event:
-            return jsonify({'success': False, 'message': 'Event not found'}), 404
-
-        # Delete the event from the database
-        cursor.execute("DELETE FROM generalevents WHERE EventID = %s", (event_id,))
-        mysql.connection.commit()
-
-        return jsonify({
-            'success': True,
-            'message': 'Event deleted successfully'
-        }), 200
-
-    except Exception as e:
-        # Log the error for debugging
-        print(f"Error deleting event: {str(e)}")
-        mysql.connection.rollback()
-        return jsonify({
-            'success': False,
-            'message': 'Database error occurred while deleting event'
-        }), 500
-
-    finally:
-        cursor.close()
-
 """
 Route to allow users to upload profile pictures via a button on the profile tab.
 """
@@ -954,7 +905,6 @@ def subscription_status(event_id):
         'subscribed': bool(subscription),
         'notifications_enabled': pref['enable_notifications'] if pref else False
     })
-
 
 # ------------------------------
 # Toggle event subscription
