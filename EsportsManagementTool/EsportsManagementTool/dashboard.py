@@ -20,12 +20,17 @@ from werkzeug.utils import secure_filename
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
+## =============================================
+## THE FOLLOWING WAS PRODUCED ALONGSIDE CLAUDEAI
+## =============================================
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
+"""
+Main route to allow all users to access the dashboard.
+"""
 @app.route('/dashboard')
 @app.route('/dashboard/<int:year>/<int:month>')
 @login_required  # Added security
@@ -219,7 +224,9 @@ def dashboard(year=None, month=None):
         cursor.close()
 
 
-# Delete Events functionality. Includes deleting from table.
+"""
+Delete Events functionality. Includes deleting from table.
+"""
 @app.route('/delete-event', methods=['POST'])
 @roles_required('admin')  # Added security - Only admins can delete events
 def delete_event():
@@ -265,7 +272,9 @@ def delete_event():
     finally:
         cursor.close()
 
-
+"""
+Route to allow users to upload profile pictures via a button on the profile tab.
+"""
 @app.route('/upload-avatar', methods=['POST'])
 def upload_avatar():
     """Handle custom avatar upload"""
@@ -331,8 +340,9 @@ def upload_avatar():
         return jsonify({'success': False, 'message': 'Failed to upload avatar'}), 500
 
 
-# Route meant to assign and remove roles.
-# unless that file gets nuked eventually.
+"""
+Route meant to assign and remove roles.
+"""
 @app.route('/admin/manage-role', methods=['POST'])
 @roles_required('admin')
 def manage_role():
@@ -427,7 +437,9 @@ def manage_role():
             'message': 'Server error occurred'
         }), 500
 
-
+"""
+Route meant to retrieve the games a user manages from the database.
+"""
 @app.route('/api/user/<int:user_id>/managed-game', methods=['GET'])
 @login_required
 def get_user_managed_game(user_id):
@@ -478,6 +490,9 @@ def get_user_managed_game(user_id):
         print(f"Error getting managed game: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to get managed game'}), 500
 
+"""
+Route allowing admins to remove user data from the site. This includes email, password, profile picture, etc.
+"""
 @app.route('/admin/remove-user', methods=['POST'])
 @roles_required('admin')
 def remove_user():
@@ -600,7 +615,6 @@ def remove_user():
 # ===================================
 # EVENTS TAB API ROUTES
 # ===================================
-
 @app.route('/api/events', methods=['GET'])
 @login_required
 def get_events():
@@ -839,7 +853,9 @@ def get_events():
             'message': 'Failed to fetch events'
         }), 500
 
-
+"""
+Route to delete events from the calendar. Accessible via the events tab.
+"""
 @app.route('/api/events/<int:event_id>', methods=['DELETE'])
 @login_required
 def delete_event_from_tab(event_id):

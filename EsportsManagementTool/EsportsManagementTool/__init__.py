@@ -70,8 +70,11 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 
 # ============================================
-# ROLE-BASED SECURITY SYSTEM
+# ROLE-BASED SECURITY SYSTEM (the following was developed in part with CLaudeAI)
 # ============================================
+"""
+Method to ensure users must login before accessing program.
+"""
 def login_required(f):
     """Require user to be logged in"""
 
@@ -89,6 +92,10 @@ def login_required(f):
 
     return decorated_function
 
+"""
+Method defining role hierarchy functionality.
+@param - required_roles is the necessary roles for the action attempting to be performed.
+"""
 def roles_required(*required_roles):
     """
     Flexible decorator that checks if user has ANY of the specified roles.
@@ -142,7 +149,10 @@ def roles_required(*required_roles):
 
     return decorator
 
-
+"""
+Method that retrieves all roles a user has from the database.
+@param - user_id is the id of the user being checked.
+"""
 def get_user_permissions(user_id):
     """Fetch user permissions from database"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -162,7 +172,10 @@ def get_user_permissions(user_id):
     finally:
         cursor.close()
 
-
+"""
+Method that checks if a user has a specific role for certain actions, including accessing admin panel, etc.
+@param - role_name is the title of the role being checked from the user.
+"""
 def has_role(role_name):
     """
     Check if current user has a specific role.
@@ -180,6 +193,10 @@ def has_role(role_name):
 
     return role_map.get(role_name, 0) == 1
 
+"""
+Method to show when a user was last seen active. Displays on Admin Panel.
+@param - user_id is the id of the user being changed.
+"""
 def update_user_last_seen(user_id):
     """
     Update user's last_seen timestamp
@@ -197,11 +214,15 @@ def update_user_last_seen(user_id):
     except Exception as e:
         print(f"Error updating last_seen: {str(e)}")
 
+"""
+Method to remove inactive users from the active users list in the database.
+"""
 def cleanup_inactive_users():
     """
     Mark users as inactive if they haven't been seen in 15 minutes
     This can be called periodically or before displaying the admin panel
     """
+    cleanup_old_invalidations()
     try:
         cursor = mysql.connection.cursor()
         cursor.execute("""
@@ -216,7 +237,7 @@ def cleanup_inactive_users():
         print(f"Error cleaning up inactive users: {str(e)}")
 
 # ============================================
-# ROUTES
+# ROUTES (The following was developed in part with ClaudeAI
 # ============================================
 
 # Home/Landing Page
@@ -224,7 +245,11 @@ def cleanup_inactive_users():
 def index():
     return render_template('index.html')
 
-
+"""
+Method to send a verification email to newly registered users.
+@param - email is the inputted email from the user
+@param - token is the email to be sent to the user.
+"""
 def send_verify_email(email, token):
     verify_url = url_for('verify_email', token=token, _external=True)
     msg = Message('Verify Your Stockton University Email Account', recipients=[email])
@@ -240,6 +265,83 @@ def send_verify_email(email, token):
     - 5 Brain Cells: SU Esports MGMT Tool Team.
     '''
     mail.send(msg)
+
+"""
+Method to determine whether a user session is valid (AKA: they are not suspended)
+"""
+def check_session_validity():
+    """
+    Check if current user's session has been invalidated.
+    This runs before every request to protected routes.
+    """
+    if 'loggedin' in session and 'id' in session:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            # Check if this user has been invalidated since they logged in
+            cursor.execute("""
+                SELECT kicked_id, reason 
+                FROM invalidated_sessions 
+                WHERE user_id = %s 
+                AND invalidated_at > %s
+                ORDER BY invalidated_at DESC 
+                LIMIT 1
+            """, (session['id'], session.get('login_time', datetime.now())))
+
+            invalidation = cursor.fetchone()
+
+            if invalidation:
+                # Session has been invalidated - clear it
+                reason = invalidation['reason']
+                user_id = session['id']
+
+                # Clear session
+                session.clear()
+
+                # Set flash message based on reason
+                if reason == 'suspension':
+                    flash('Your account has been suspended. You have been logged out.', 'error')
+                else:
+                    flash('Your session has been terminated by an administrator.', 'error')
+
+                # Delete the invalidation record so we don't keep showing the message
+                cursor.execute("DELETE FROM invalidated_sessions WHERE user_id = %s", (user_id,))
+                mysql.connection.commit()
+
+                return redirect(url_for('login'))
+        finally:
+            cursor.close()
+
+    return None
+
+"""
+Method meant to clean invalid sessions table every 24 hours to keep it from becoming congested.
+"""
+def cleanup_old_invalidations():
+    """Remove invalidation records older than 24 hours"""
+    try:
+        cursor = mysql.connection.cursor()
+        cursor.execute("""
+            DELETE FROM invalidated_sessions 
+            WHERE invalidated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        """)
+        mysql.connection.commit()
+        cursor.close()
+    except Exception as e:
+        print(f"Error cleaning up invalidations: {e}")
+
+"""
+Route designed to check session validity between pages. If a user is suspended, their next action will kick them.
+"""
+@app.before_request
+def before_request_check():
+    """Run session validity check before each request"""
+    # Skip session check for certain routes
+    excluded_routes = ['login', 'logout', 'register', 'static', 'verify_email']
+
+    if request.endpoint and request.endpoint not in excluded_routes:
+        result = check_session_validity()
+        if result:
+            return result
 
 #Function to check whether a user is suspended. If so, the user is denied the ability to log in.
 #@param - user_id is the ID of the user attempting to login.
@@ -286,7 +388,9 @@ def check_user_suspension(user_id):
         return False, None
 
 
-# API route to get event details for the Event Details Modal within dashboard.html
+"""
+API route to get event details for the Event Details Modal within dashboard.html
+"""
 @app.route('/api/event/<int:event_id>')
 @login_required  # Added security
 def api_event_details(event_id):
@@ -329,7 +433,9 @@ def api_event_details(event_id):
     finally:
         cursor.close()
 
-
+"""
+Route to let users successfully verify their email through the email sent to their inbox.
+"""
 @app.route('/verify/<token>')
 def verify_email(token):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -352,7 +458,9 @@ def verify_email(token):
     finally:
         cursor.close()
 
-
+"""
+Route to let users login on the login page.
+"""
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     msg = ''
@@ -409,6 +517,7 @@ def login():
                             session['loggedin'] = True
                             session['id'] = account['id']
                             session['username'] = account['username']
+                            session['login_time'] = datetime.now()
 
                             # Update user activity tracking
                             try:
@@ -433,7 +542,9 @@ def login():
 
     return render_template('login.html', msg=msg)
 
-
+"""
+Route to let users logout of their account whenever they please.
+"""
 @app.route('/logout', methods=['POST'])
 def logout():
     # Mark user as inactive before logging out
@@ -456,6 +567,9 @@ def logout():
     flash('Successfully logged out.')
     return redirect(url_for('login'))
 
+"""
+Route to allow users to register their account using email, password, and other fields.
+"""
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     msg = ''
@@ -526,7 +640,9 @@ def register():
     return render_template('register.html', msg=msg)
 
 
-# App route to get to event registration.
+"""
+App route to get to event registration.
+"""
 @app.route('/event-register', methods=['GET', 'POST'])
 @roles_required('admin', 'gm')  # Added security - GMs and Admins can create events
 def eventRegister():
@@ -577,74 +693,16 @@ def eventRegister():
     # Uses the event-register html file to render the page (only for direct GET requests)
     return render_template('event-register.html', msg=msg)
 
-@app.route('/admin/toggle-user-activity', methods=['POST'])
-@roles_required('admin')
-def toggle_user_activity():
-    """
-    Toggle user active/inactive status
-    """
-    try:
-        data = request.get_json()
-        user_id = data.get('user_id')
-        is_active = data.get('is_active')  # True or False
-
-        if user_id is None or is_active is None:
-            return jsonify({
-                'success': False,
-                'message': 'Missing required fields'
-            }), 400
-
-        # Prevent admin from deactivating themselves
-        if user_id == session['id']:
-            return jsonify({
-                'success': False,
-                'message': 'You cannot deactivate your own account'
-            }), 403
-
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        try:
-            # Get username
-            cursor.execute("SELECT username FROM users WHERE id = %s", (user_id,))
-            user = cursor.fetchone()
-
-            if not user:
-                return jsonify({
-                    'success': False,
-                    'message': 'User not found'
-                }), 404
-
-            # Update activity status
-            cursor.execute("""
-                UPDATE user_activity 
-                SET is_active = %s 
-                WHERE userid = %s
-            """, (1 if is_active else 0, user_id))
-            mysql.connection.commit()
-
-            status_text = 'activated' if is_active else 'deactivated'
-            return jsonify({
-                'success': True,
-                'message': f'User @{user["username"]} has been {status_text}'
-            }), 200
-
-        finally:
-            cursor.close()
-
-    except Exception as e:
-        print(f"Error toggling user activity: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': 'Server error occurred'
-        }), 500
-
 import EsportsManagementTool.dashboard
 from EsportsManagementTool import game
 from EsportsManagementTool import teamCreation
 
 # =======================
-# SUSPENSION ROUTES
+# SUSPENSION ROUTES (the following was produced in tandem with ClaudeAI)
 # ========================
+"""
+Route allowing admins to suspend users for a customizable amount of time.
+"""
 @app.route('/admin/suspend-user', methods=['POST'])
 @roles_required('admin')
 def suspend_user():
@@ -659,8 +717,15 @@ def suspend_user():
         if not user_id:
             return jsonify({'success': False, 'message': 'User ID is required'})
 
+        # CONVERT user_id to int for proper comparison
+        user_id = int(user_id)
+
         if duration_days == 0 and duration_hours == 0:
             return jsonify({'success': False, 'message': 'Duration must be greater than 0'})
+
+        # Prevent admins from suspending themselves
+        if user_id == session['id']:
+            return jsonify({'success': False, 'message': 'You cannot suspend yourself'})
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -671,11 +736,6 @@ def suspend_user():
         if not user:
             cursor.close()
             return jsonify({'success': False, 'message': 'User not found'})
-
-        # Prevent admins from suspending themselves
-        if user_id == session['id']:
-            cursor.close()
-            return jsonify({'success': False, 'message': 'You cannot suspend yourself'})
 
         # Calculate suspension end time
         total_hours = (duration_days * 24) + duration_hours
@@ -695,6 +755,19 @@ def suspend_user():
             VALUES (%s, %s, %s, %s, NOW(), TRUE)
         """, (user_id, suspended_until, reason, session['id']))
 
+        # **NEW: Invalidate user's session to force logout**
+        cursor.execute("""
+            INSERT INTO invalidated_sessions (user_id, reason)
+            VALUES (%s, 'suspension')
+        """, (user_id,))
+
+        # Mark user as inactive
+        cursor.execute("""
+            UPDATE user_activity 
+            SET is_active = 0
+            WHERE userid = %s
+        """, (user_id,))
+
         mysql.connection.commit()
         cursor.close()
 
@@ -713,9 +786,13 @@ def suspend_user():
 
     except Exception as e:
         print(f"Error suspending user: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
-
+"""
+Route allowing admins to lift suspensions for users.
+"""
 @app.route('/admin/lift-suspension', methods=['POST'])
 @roles_required('admin')
 def lift_suspension():
@@ -748,7 +825,9 @@ def lift_suspension():
         print(f"Error lifting suspension: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
-
+"""
+Route designed to find the suspension status when clicking on a user in the admin panel. Displays status if suspended.
+"""
 @app.route('/api/user/<int:user_id>/suspension-status')
 @roles_required('admin')
 def get_suspension_status(user_id):
