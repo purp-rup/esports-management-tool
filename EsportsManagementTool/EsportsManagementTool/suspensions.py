@@ -297,76 +297,35 @@ def get_suspension_status_route(mysql, user_id):
         traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
-
-def register_suspension_routes(app, mysql):
+"""
+Method to grant access to suspension routes only to certain user levels.
+@param - app is used to pass the function into init.py
+@param - mysql is used to access the database to grab permissions
+@param - roles_required_decorator is accepted from init.py to grant certain role privilege to the routes.
+"""
+def register_suspension_routes(app, mysql, roles_required_decorator):
     """
     Register all suspension-related routes with the Flask app
-    This function is called from __init__.py
+
+    Args:
+        app: Flask application instance
+        mysql: MySQL database connection
+        roles_required_decorator: The roles_required decorator from __init__.py
     """
-    from functools import wraps
-
-    # Import the roles_required decorator from the main app
-    # We'll need to define it here or import it
-    def roles_required(*required_roles):
-        """Flexible decorator that checks if user has ANY of the specified roles."""
-
-        def decorator(f):
-            @wraps(f)
-            def decorated_function(*args, **kwargs):
-                if 'loggedin' not in session:
-                    flash('Please log in to access this page.', 'error')
-                    return redirect(url_for('login'))
-
-                cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-                try:
-                    cursor.execute("""
-                        SELECT is_admin, is_gm, is_player 
-                        FROM permissions 
-                        WHERE userid = %s
-                    """, (session['id'],))
-                    permissions = cursor.fetchone()
-
-                    if not permissions:
-                        flash('User permissions not found.', 'error')
-                        return redirect(url_for('dashboard'))
-
-                    # Map role names to permission columns
-                    role_map = {
-                        'admin': permissions.get('is_admin', 0),
-                        'gm': permissions.get('is_gm', 0),
-                        'player': permissions.get('is_player', 0)
-                    }
-
-                    # Check if user has ANY of the required roles
-                    has_permission = any(role_map.get(role, 0) == 1 for role in required_roles)
-
-                    if not has_permission:
-                        flash('You do not have permission to access this page.', 'error')
-                        return redirect(url_for('dashboard'))
-
-                    return f(*args, **kwargs)
-
-                finally:
-                    cursor.close()
-
-            return decorated_function
-
-        return decorator
 
     # Register routes
     @app.route('/admin/suspend-user', methods=['POST'])
-    @roles_required('admin')
+    @roles_required_decorator('admin')
     def suspend_user():
         return suspend_user_route(mysql)
 
     @app.route('/admin/lift-suspension', methods=['POST'])
-    @roles_required('admin')
+    @roles_required_decorator('admin')
     def lift_suspension():
         return lift_suspension_route(mysql)
 
     @app.route('/api/user/<int:user_id>/suspension-status')
-    @roles_required('admin')
+    @roles_required_decorator('admin')
     def get_suspension_status(user_id):
         return get_suspension_status_route(mysql, user_id)
 

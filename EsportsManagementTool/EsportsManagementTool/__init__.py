@@ -240,7 +240,7 @@ def cleanup_inactive_users():
 # ================================
 # REGISTER SUSPENSION ROUTES
 # ==================================
-EsportsManagementTool.suspensions.register_suspension_routes(app, mysql)
+EsportsManagementTool.suspensions.register_suspension_routes(app, mysql, roles_required)
 
 # ============================================
 # ROUTES (The following was developed in part with ClaudeAI
