@@ -331,7 +331,7 @@ def upload_avatar():
         return jsonify({'success': False, 'message': 'Failed to upload avatar'}), 500
 
 
-# Route meant to assign and remove roles. Hopefully will move to adminPanel.py at some point
+# Route meant to assign and remove roles.
 # unless that file gets nuked eventually.
 @app.route('/admin/manage-role', methods=['POST'])
 @roles_required('admin')
