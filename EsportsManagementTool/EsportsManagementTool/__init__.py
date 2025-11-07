@@ -259,12 +259,14 @@ def api_event_details(event_id):
             'id': event['EventID'],
             'name': event['EventName'],
             'date': event['Date'].strftime('%B %d, %Y'),
+            'date_raw': event['Date'].strftime('%Y-%m-%d'),  # For date input field
             'start_time': None,
             'end_time': None,
             'description': event['Description'] if event['Description'] else 'No description provided',
             'event_type': event['EventType'] if event['EventType'] else 'General',
             'game': event['Game'] if event['Game'] else 'N/A',
-            'location': event['Location'] if event['Location'] else 'TBD'
+            'location': event['Location'] if event['Location'] else 'TBD',
+            'created_by': event['created_by'] if event.get('created_by') else None  # For permission checks
         }
 
         # Handle timedelta for StartTime
