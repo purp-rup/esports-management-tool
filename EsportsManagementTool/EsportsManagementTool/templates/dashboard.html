@@ -704,8 +704,8 @@
             </div>
 
             <!-- Events Loading State -->
-            <div id="eventsLoading" class="events-loading">
-                <i class="fas fa-spinner fa-spin"></i>
+            <div id="eventsLoading" style="text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
                 <p>Loading events...</p>
             </div>
 
@@ -850,21 +850,145 @@
     <div id="teams" class="tab-content">
         <div class="content-card">
             <div class="card-header">
-                <h2>Teams</h2>
-                {% if user.is_gm %}
-                <p>Manage created teams</p>
-                {% else %}
-                    {%if user.is_admin or user.is_gm %}
-                        <button class="btn btn-primary" onclick="openCreateTeamModal('{{ game.GameID }}', '{{ game.GameTitle }}', '{{ game.TeamSizes }}')">
-                            <i class="fas fa-plus"></i> Create Team
-                        </button>
-                    {% endif %}
-                {% endif %}
+                <div>
+                    <h2>Teams</h2>
+                    <p>Manage created teams</p>
+                </div>
             </div>
-            <div class="empty-state">
+
+            <!-- Loading State -->
+            <div id="teamsLoading" style="text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading teams...</p>
+            </div>
+
+            <!-- Teams Grid (populated through JS) -->
+            <div id="teamsGrid" class="rosters-grid" style="display: none;"></div>
+
+            <!-- Empty State -->
+            <div id="teamsEmpty" class="empty-state" style="display: none;">
                 <div class="empty-state-icon">🏆</div>
                 <h3>No Teams Available</h3>
                 <p>Teams will be listed here once created</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team Details Modal -->
+    <div id="teamDetailsModal" class="modal">
+        <div class="modal-content modal-content-large">
+            <div class="modal-header">
+                <h2 id="teamDetailsModalTitle">Team Details</h2>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button id="addTeamMembersBtn" class="btn btn-primary" onclick="openAddTeamMembersModal()" style="display: none;">
+                        <i class="fas fa-user-plus"></i> Add Members
+                    </button>
+
+                    <button class="modal-close" onclick="closeTeamDetailsModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <!-- Loading Spinner -->
+                <div id="teamDetailsLoading" class="loading-spinner" style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">Loading team details...</p>
+                </div>
+
+                <!-- Team Details Content -->
+                <div id="teamDetailsContent" style="display: none;">
+                    <div class="game-details-header">
+                        <div class="team-details-icon" id="teamDetailsIcon"></div>
+                        <div class="team-details-info">
+                            <h3 id="teamDetailsTitle"></h3>
+                            <p id="teamDetailsDescription"></p>
+                        </div>
+                    </div>
+
+                    <div class="game-stats-row">
+                        <div class="game-stat-card">
+                            <i class="fas fa-users"></i>
+                            <div class="game-stat-number" id="teamDetailsMemberCount">0</div>
+                            <div class="game-stat-label">Members</div>
+                        </div>
+                        <div class="game-stat-card">
+                            <i class="fas fa-trophy"></i>
+                            <div class="game-stat-number" id="teamDetailsMaxSize">0</div>
+                            <div class="game-stat-label">Max Size</div>
+                        </div>
+                    </div>
+
+                    <div class="team-members-section">
+                        <h3>Team Members</h3>
+
+                        <!-- Search input FIRST -->
+                        <input type="text"
+                               id="teamMemberSearch"
+                               placeholder="Search members..."
+                               onkeyup="filterTeamMembers()"
+                               style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px; background: var(--dark-bg); border: 1px solid var(--border-color); color: var(--text-primary);">
+
+                        <!-- Members list SECOND -->
+                        <div id="teamMembersList" class="members-list">
+                            <!-- Members will be populated here -->
+                        </div>
+
+                        <!-- Empty state -->
+                        <div id="teamNoMembers" class="empty-state-small" style="display: none;">
+                            <i class="fas fa-users-slash"></i>
+                            <p>No members yet. Be the first to join!</p>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Team Members Modal -->
+    <div id="addTeamMembersModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Members to Team</h2>
+                <button class="modal-close" onclick="closeAddTeamMembersModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-subtitle">Select members to add to <strong id="addMembersTeamName"></strong></p>
+
+                <!-- Search Input -->
+                <input type="text"
+                       id="addMemberSearch"
+                       placeholder="Search available members..."
+                       onkeyup="filterAvailableMembers()"
+                       style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px; background: var(--dark-bg); border: 1px solid var(--border-color); color: var(--text-primary);">
+
+                <!-- Loading State -->
+                <div id="availableMembersLoading" style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">Loading available members...</p>
+                </div>
+
+                <!-- Available Members List -->
+                <div id="availableMembersList" class="members-list" style="display: none; max-height: 400px; overflow-y: auto;">
+                    <!-- Members will be populated here with checkboxes -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="noAvailableMembers" class="empty-state-small" style="display: none;">
+                    <i class="fas fa-users-slash"></i>
+                    <p>No available members to add</p>
+                </div>
+
+                <div id="addMembersMessage" class="form-message" style="display: none; margin-top: 1rem;"></div>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeAddTeamMembersModal()">Cancel</button>
+                <button class="btn btn-success" onclick="addSelectedMembersToTeam()">
+                    <i class="fas fa-check"></i> Add Selected
+                </button>
             </div>
         </div>
     </div>
@@ -1227,6 +1351,12 @@
 
 {% block extra_js %}
 <script>
+
+    window.userPermissions = {
+        is_admin: {{ 'true' if user.is_admin else 'false' }},
+        is_gm: {{ 'true' if user.is_gm else 'false' }}
+    };
+
     /**
      * Build role badges for a user
      * @param {Object} options - Badge options
@@ -3104,8 +3234,6 @@ async function removeUser(userId, username, fullName) {
     }
 
 
-
-
     //Create Team Modal
     function openCreateTeamModal(gameID, gameTitle, teamSizes) {
         const modal = document.getElementById('createTeamModal');
@@ -3140,6 +3268,7 @@ async function removeUser(userId, username, fullName) {
         });
     }
 }
+
     function closeCreateTeamModal() {
         const modal = document.getElementById('createTeamModal');
         modal.style.display = 'none';
@@ -3678,6 +3807,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <script src="{{ url_for('static', filename='discord.js') }}"></script>
+<script src="{{ url_for('static', filename='teams.js') }}"></script>
 <script src="{{ url_for ('static', filename='profile-edit.js')}}"></script>
 <script src="{{ url_for('static', filename='suspensions.js') }}"></script>
 <script>
