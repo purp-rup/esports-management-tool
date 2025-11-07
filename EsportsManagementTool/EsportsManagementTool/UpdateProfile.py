@@ -47,10 +47,19 @@ def update_profile():
 
         mysql.connection.commit()
 
+        session['username'] = data['username']
+        session.modified = True
+
         return jsonify({
             'success': True,
-            'message': 'Profile updated successfully'
+            'message': 'Profile updated successfully',
+            'user': {
+                'firstname': data['firstname'],
+                'lastname': data['lastname'],
+                'username': data['username']
+            }
         }), 200
+
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

@@ -83,6 +83,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.querySelector('.profile-info .info-row:nth-child(2) .info-value').textContent =
                     data.username;
 
+                const navUsername = document.querySelector('.user-info');
+                if (navUsername) {
+                    navUsername.textContent = `Welcome back, ${data.username}`;
+                }
+
                 // Email remains displayed as-is
                 document.getElementById('editEmail').value =
                     document.querySelector('.profile-info .info-row:nth-child(3) .info-value').textContent.trim();
