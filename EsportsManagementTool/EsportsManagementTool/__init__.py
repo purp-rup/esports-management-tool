@@ -19,10 +19,14 @@ from functools import wraps
 
 app = Flask(__name__)
 
-# Module imports
+# =========================================
+# IMPORTS THAT DON'T RELY ON INITIALIZATION
+# =========================================
 import EsportsManagementTool.exampleModule
 import EsportsManagementTool.EventNotificationManager
 import EsportsManagementTool.UpdateProfile
+import EsportsManagementTool.suspensions
+import EsportsManagementTool.events
 
 # Change this to your secret key (can be anything, it's for extra protection)
 app.secret_key = 'your secret key'
@@ -70,8 +74,11 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 
 # ============================================
-# ROLE-BASED SECURITY SYSTEM
+# ROLE-BASED SECURITY SYSTEM (the following was developed in part with CLaudeAI)
 # ============================================
+"""
+Method to ensure users must login before accessing program.
+"""
 def login_required(f):
     """Require user to be logged in"""
 
@@ -89,6 +96,10 @@ def login_required(f):
 
     return decorated_function
 
+"""
+Method defining role hierarchy functionality.
+@param - required_roles is the necessary roles for the action attempting to be performed.
+"""
 def roles_required(*required_roles):
     """
     Flexible decorator that checks if user has ANY of the specified roles.
@@ -142,7 +153,10 @@ def roles_required(*required_roles):
 
     return decorator
 
-
+"""
+Method that retrieves all roles a user has from the database.
+@param - user_id is the id of the user being checked.
+"""
 def get_user_permissions(user_id):
     """Fetch user permissions from database"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -162,7 +176,10 @@ def get_user_permissions(user_id):
     finally:
         cursor.close()
 
-
+"""
+Method that checks if a user has a specific role for certain actions, including accessing admin panel, etc.
+@param - role_name is the title of the role being checked from the user.
+"""
 def has_role(role_name):
     """
     Check if current user has a specific role.
@@ -180,6 +197,10 @@ def has_role(role_name):
 
     return role_map.get(role_name, 0) == 1
 
+"""
+Method to show when a user was last seen active. Displays on Admin Panel.
+@param - user_id is the id of the user being changed.
+"""
 def update_user_last_seen(user_id):
     """
     Update user's last_seen timestamp
@@ -197,11 +218,15 @@ def update_user_last_seen(user_id):
     except Exception as e:
         print(f"Error updating last_seen: {str(e)}")
 
+"""
+Method to remove inactive users from the active users list in the database.
+"""
 def cleanup_inactive_users():
     """
     Mark users as inactive if they haven't been seen in 15 minutes
     This can be called periodically or before displaying the admin panel
     """
+    EsportsManagementTool.suspensions.cleanup_old_invalidations(mysql)
     try:
         cursor = mysql.connection.cursor()
         cursor.execute("""
@@ -215,8 +240,13 @@ def cleanup_inactive_users():
     except Exception as e:
         print(f"Error cleaning up inactive users: {str(e)}")
 
+# ================================
+# REGISTER SUSPENSION ROUTES
+# ==================================
+EsportsManagementTool.suspensions.register_suspension_routes(app, mysql, roles_required)
+
 # ============================================
-# ROUTES
+# ROUTES (The following was developed in part with ClaudeAI
 # ============================================
 
 # Home/Landing Page
@@ -224,7 +254,11 @@ def cleanup_inactive_users():
 def index():
     return render_template('index.html')
 
-
+"""
+Method to send a verification email to newly registered users.
+@param - email is the inputted email from the user
+@param - token is the email to be sent to the user.
+"""
 def send_verify_email(email, token):
     verify_url = url_for('verify_email', token=token, _external=True)
     msg = Message('Verify Your Stockton University Email Account', recipients=[email])
@@ -241,97 +275,9 @@ def send_verify_email(email, token):
     '''
     mail.send(msg)
 
-#Function to check whether a user is suspended. If so, the user is denied the ability to log in.
-#@param - user_id is the ID of the user attempting to login.
-def check_user_suspension(user_id):
-    """
-    Helper function to check if user is suspended
-    Returns (is_suspended, suspension_info)
-    """
-    try:
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        cursor.execute("""
-            SELECT 
-                sus_id,
-                suspended_until,
-                reason
-            FROM user_suspensions
-            WHERE user_id = %s 
-            AND is_active = TRUE 
-            AND suspended_until > NOW()
-            ORDER BY suspended_at DESC
-            LIMIT 1
-        """, (user_id,))
-
-        suspension = cursor.fetchone()
-        cursor.close()
-
-        if suspension:
-            remaining = suspension['suspended_until'] - datetime.now()
-            days = remaining.days
-            hours = remaining.seconds // 3600
-
-            return True, {
-                'reason': suspension['reason'],
-                'suspended_until': suspension['suspended_until'].strftime('%B %d, %Y at %I:%M %p'),
-                'remaining_days': days,
-                'remaining_hours': hours
-            }
-
-        return False, None
-
-    except Exception as e:
-        print(f"Error checking suspension: {e}")
-        return False, None
-
-
-# API route to get event details for the Event Details Modal within dashboard.html
-@app.route('/api/event/<int:event_id>')
-@login_required  # Added security
-def api_event_details(event_id):
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    try:
-        cursor.execute('SELECT * FROM generalevents WHERE EventID = %s', (event_id,))
-        event = cursor.fetchone()
-
-        if not event:
-            return jsonify({'error': 'Event not found'}), 404
-
-        # Format the event data
-        event_data = {
-            'id': event['EventID'],
-            'name': event['EventName'],
-            'date': event['Date'].strftime('%B %d, %Y'),
-            'date_raw': event['Date'].strftime('%Y-%m-%d'),  # For date input field
-            'start_time': None,
-            'end_time': None,
-            'description': event['Description'] if event['Description'] else 'No description provided',
-            'event_type': event['EventType'] if event['EventType'] else 'General',
-            'game': event['Game'] if event['Game'] else 'N/A',
-            'location': event['Location'] if event['Location'] else 'TBD',
-            'created_by': event['created_by'] if event.get('created_by') else None  # For permission checks
-        }
-
-        # Handle timedelta for StartTime
-        if event['StartTime']:
-            total_seconds = int(event['StartTime'].total_seconds())
-            hours = total_seconds // 3600
-            minutes = (total_seconds % 3600) // 60
-            event_data['start_time'] = f"{hours:02d}:{minutes:02d}"
-
-        # Handle timedelta for EndTime
-        if event['EndTime']:
-            total_seconds = int(event['EndTime'].total_seconds())
-            hours = total_seconds // 3600
-            minutes = (total_seconds % 3600) // 60
-            event_data['end_time'] = f"{hours:02d}:{minutes:02d}"
-
-        return jsonify(event_data)
-    finally:
-        cursor.close()
-
-
+"""
+Route to let users successfully verify their email through the email sent to their inbox.
+"""
 @app.route('/verify/<token>')
 def verify_email(token):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -354,7 +300,9 @@ def verify_email(token):
     finally:
         cursor.close()
 
-
+"""
+Route to let users login on the login page.
+"""
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     msg = ''
@@ -392,7 +340,7 @@ def login():
                         # ============================================
                         # CHECK FOR SUSPENSION BEFORE ALLOWING LOGIN
                         # ============================================
-                        is_suspended, suspension_info = check_user_suspension(account['id'])
+                        is_suspended, suspension_info = EsportsManagementTool.suspensions.check_user_suspension(mysql, account['id'])
 
                         if is_suspended:
                             # Format remaining time
@@ -411,6 +359,7 @@ def login():
                             session['loggedin'] = True
                             session['id'] = account['id']
                             session['username'] = account['username']
+                            session['login_time'] = datetime.now()
 
                             # Update user activity tracking
                             try:
@@ -435,7 +384,9 @@ def login():
 
     return render_template('login.html', msg=msg)
 
-
+"""
+Route to let users logout of their account whenever they please.
+"""
 @app.route('/logout', methods=['POST'])
 def logout():
     # Mark user as inactive before logging out
@@ -458,6 +409,9 @@ def logout():
     flash('Successfully logged out.')
     return redirect(url_for('login'))
 
+"""
+Route to allow users to register their account using email, password, and other fields.
+"""
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     msg = ''
@@ -527,285 +481,17 @@ def register():
 
     return render_template('register.html', msg=msg)
 
-
-# App route to get to event registration.
-@app.route('/event-register', methods=['GET', 'POST'])
-@roles_required('admin', 'gm')  # Added security - GMs and Admins can create events
-def eventRegister():
-    msg = ''
-    if request.method == 'POST':
-        # Receives a user response for all of eventName, eventDate, eventTime, and eventDescription
-        eventName = request.form.get('eventName', '').strip()
-        eventDate = request.form.get('eventDate', '').strip()
-        eventType = request.form.get('eventType', '').strip()
-        game = request.form.get('game', '').strip()
-        startTime = request.form.get('startTime', '').strip()
-        endTime = request.form.get('endTime', '').strip()
-        eventDescription = request.form.get('eventDescription', '').strip()
-        location = request.form.get('eventLocation', '').strip()
-
-        # Does what needs to be done if the fields are filled out.
-        if eventName and eventDate and eventType and startTime and endTime and eventDescription:
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-            try:
-                cursor.execute(
-                    'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Game, Location, created_by) '
-                    'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                    (eventName, eventDate, startTime, endTime, eventDescription, eventType, game, location,
-                     session['id']))
-                # Confirms that the event is registered.
-                mysql.connection.commit()
-                msg = 'Event Registered!'
-
-                # Check if it's an AJAX request
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
-                    return jsonify({'success': True, 'message': msg}), 200
-
-            except Exception as e:
-                msg = f'Error: {str(e)}'
-                # Return error as JSON for AJAX
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
-                    return jsonify({'success': False, 'message': msg}), 400
-            finally:
-                cursor.close()
-
-        # Prompts user to fill out all fields if they leave any/all blank.
-        else:
-            msg = 'Please fill out all fields!'
-            # Return error as JSON for AJAX
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
-                return jsonify({'success': False, 'message': msg}), 400
-
-    # Uses the event-register html file to render the page (only for direct GET requests)
-    return render_template('event-register.html', msg=msg)
-
-@app.route('/admin/toggle-user-activity', methods=['POST'])
-@roles_required('admin')
-def toggle_user_activity():
-    """
-    Toggle user active/inactive status
-    """
-    try:
-        data = request.get_json()
-        user_id = data.get('user_id')
-        is_active = data.get('is_active')  # True or False
-
-        if user_id is None or is_active is None:
-            return jsonify({
-                'success': False,
-                'message': 'Missing required fields'
-            }), 400
-
-        # Prevent admin from deactivating themselves
-        if user_id == session['id']:
-            return jsonify({
-                'success': False,
-                'message': 'You cannot deactivate your own account'
-            }), 403
-
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        try:
-            # Get username
-            cursor.execute("SELECT username FROM users WHERE id = %s", (user_id,))
-            user = cursor.fetchone()
-
-            if not user:
-                return jsonify({
-                    'success': False,
-                    'message': 'User not found'
-                }), 404
-
-            # Update activity status
-            cursor.execute("""
-                UPDATE user_activity 
-                SET is_active = %s 
-                WHERE userid = %s
-            """, (1 if is_active else 0, user_id))
-            mysql.connection.commit()
-
-            status_text = 'activated' if is_active else 'deactivated'
-            return jsonify({
-                'success': True,
-                'message': f'User @{user["username"]} has been {status_text}'
-            }), 200
-
-        finally:
-            cursor.close()
-
-    except Exception as e:
-        print(f"Error toggling user activity: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': 'Server error occurred'
-        }), 500
-
+# =======================================
+# IMPORTS THAT RELY ON INITIALIZATION
+# =======================================
 import EsportsManagementTool.dashboard
 from EsportsManagementTool import game
 from EsportsManagementTool import teamCreation
 
-# =======================
-# SUSPENSION ROUTES
-# ========================
-@app.route('/admin/suspend-user', methods=['POST'])
-@roles_required('admin')
-def suspend_user():
-    """Suspend a user for a specified duration"""
-    try:
-        data = request.get_json()
-        user_id = data.get('user_id')
-        duration_days = int(data.get('duration_days', 0))
-        duration_hours = int(data.get('duration_hours', 0))
-        reason = data.get('reason', 'No reason provided')
-
-        if not user_id:
-            return jsonify({'success': False, 'message': 'User ID is required'})
-
-        if duration_days == 0 and duration_hours == 0:
-            return jsonify({'success': False, 'message': 'Duration must be greater than 0'})
-
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        # Check if user exists
-        cursor.execute("SELECT id, username FROM users WHERE id = %s", (user_id,))
-        user = cursor.fetchone()
-
-        if not user:
-            cursor.close()
-            return jsonify({'success': False, 'message': 'User not found'})
-
-        # Prevent admins from suspending themselves
-        if user_id == session['id']:
-            cursor.close()
-            return jsonify({'success': False, 'message': 'You cannot suspend yourself'})
-
-        # Calculate suspension end time
-        total_hours = (duration_days * 24) + duration_hours
-        suspended_until = datetime.now() + timedelta(hours=total_hours)
-
-        # Deactivate any existing active suspensions for this user
-        cursor.execute("""
-            UPDATE user_suspensions 
-            SET is_active = FALSE 
-            WHERE user_id = %s AND is_active = TRUE
-        """, (user_id,))
-
-        # Create new suspension (sus_id will auto-increment)
-        cursor.execute("""
-            INSERT INTO user_suspensions 
-            (user_id, suspended_until, reason, suspended_by, suspended_at, is_active) 
-            VALUES (%s, %s, %s, %s, NOW(), TRUE)
-        """, (user_id, suspended_until, reason, session['id']))
-
-        mysql.connection.commit()
-        cursor.close()
-
-        # Format duration for message
-        if duration_days > 0 and duration_hours > 0:
-            duration_text = f"{duration_days} day(s) and {duration_hours} hour(s)"
-        elif duration_days > 0:
-            duration_text = f"{duration_days} day(s)"
-        else:
-            duration_text = f"{duration_hours} hour(s)"
-
-        return jsonify({
-            'success': True,
-            'message': f'User @{user["username"]} has been suspended for {duration_text}'
-        })
-
-    except Exception as e:
-        print(f"Error suspending user: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-
-@app.route('/admin/lift-suspension', methods=['POST'])
-@roles_required('admin')
-def lift_suspension():
-    """Lift an active suspension for a user"""
-    try:
-        data = request.get_json()
-        user_id = data.get('user_id')
-
-        if not user_id:
-            return jsonify({'success': False, 'message': 'User ID is required'})
-
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        # Deactivate all active suspensions
-        cursor.execute("""
-            UPDATE user_suspensions 
-            SET is_active = FALSE 
-            WHERE user_id = %s AND is_active = TRUE
-        """, (user_id,))
-
-        mysql.connection.commit()
-        cursor.close()
-
-        return jsonify({
-            'success': True,
-            'message': 'Suspension has been lifted successfully'
-        })
-
-    except Exception as e:
-        print(f"Error lifting suspension: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-
-@app.route('/api/user/<int:user_id>/suspension-status')
-@roles_required('admin')
-def get_suspension_status(user_id):
-    """Get suspension status for a user"""
-    try:
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        # Get active suspension
-        cursor.execute("""
-            SELECT 
-                s.sus_id,
-                s.suspended_until,
-                s.reason,
-                s.suspended_at,
-                CONCAT(u.firstname, ' ', u.lastname) as suspended_by_name
-            FROM user_suspensions s
-            LEFT JOIN users u ON s.suspended_by = u.id
-            WHERE s.user_id = %s 
-            AND s.is_active = TRUE 
-            AND s.suspended_until > NOW()
-            ORDER BY s.suspended_at DESC
-            LIMIT 1
-        """, (user_id,))
-
-        suspension = cursor.fetchone()
-        cursor.close()
-
-        if suspension:
-            # Calculate remaining time
-            remaining = suspension['suspended_until'] - datetime.now()
-            days = remaining.days
-            hours = remaining.seconds // 3600
-
-            return jsonify({
-                'success': True,
-                'is_suspended': True,
-                'suspension': {
-                    'sus_id': suspension['sus_id'],
-                    'reason': suspension['reason'],
-                    'suspended_until': suspension['suspended_until'].strftime('%B %d, %Y at %I:%M %p'),
-                    'suspended_at': suspension['suspended_at'].strftime('%B %d, %Y at %I:%M %p'),
-                    'suspended_by': suspension['suspended_by_name'],
-                    'remaining_days': days,
-                    'remaining_hours': hours
-                }
-            })
-        else:
-            return jsonify({
-                'success': True,
-                'is_suspended': False
-            })
-
-    except Exception as e:
-        print(f"Error getting suspension status: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+# =====================================
+# PULLS EVENT METHODS
+# =====================================
+events.register_event_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
 # This is used for debugging, It will show the app routes that are registered.
 if __name__ != '__main__':

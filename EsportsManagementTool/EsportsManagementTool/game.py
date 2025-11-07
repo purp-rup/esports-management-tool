@@ -1,11 +1,16 @@
 from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, has_role, mysql
-from flask import request, redirect, url_for, session, flash, jsonify, render_template
+from flask import request, redirect, url_for, session, flash, jsonify
 import MySQLdb.cursors
 from datetime import datetime
 from flask import send_file
 from io import BytesIO
 
-
+## ==============================================
+## THE FOLLOWING WAS PRODUCED ALONGSIDE CLAUDEAI
+## ===============================================
+"""
+Route designed to allow users to view all games available in the communities tab.
+"""
 @app.route('/games')
 @login_required
 def view_games():
@@ -50,7 +55,9 @@ def view_games():
     finally:
         cursor.close()
 
-
+"""
+Route that allows admins to create new games. Accessible via button that opens a modal.
+"""
 @app.route('/create-game', methods=['POST'])
 @roles_required('admin')
 def create_game():
@@ -115,7 +122,9 @@ def create_game():
         cursor.close()
         return jsonify({'success': False, 'message': f'Database error: {str(e)}'}), 500
 
-
+"""
+Route to allow admins to delete games from the communities tab. Accessible via communities tab on game cards.
+"""
 @app.route('/delete-game', methods=['POST'])
 @roles_required('admin')
 def delete_game():
@@ -165,7 +174,9 @@ def delete_game():
         print(f"Error in delete_game: {str(e)}")
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
-
+"""
+Route designed to retrieve all game details for each game.
+"""
 @app.route('/api/game/<int:game_id>')
 @login_required
 def get_game_details(game_id):
@@ -200,7 +211,9 @@ def get_game_details(game_id):
     finally:
         cursor.close()
 
-
+"""
+Route to retrieve the game image for all games from database.
+"""
 @app.route('/game-image/<int:game_id>')
 def game_image(game_id):
     """Serve the game image from the database"""
@@ -223,7 +236,9 @@ def game_image(game_id):
     finally:
         cursor.close()
 
-
+"""
+Route designed to retrieve the complete game list from the database.
+"""
 @app.route('/api/games-list', methods=['GET'])
 @login_required
 def get_games_list():
@@ -245,6 +260,9 @@ def get_games_list():
         return jsonify({'success': False, 'message': 'Failed to fetch games'}), 500
 
 
+"""
+Route to grab all game details for the community tab.
+"""
 @app.route('/api/game/<int:game_id>/details', methods=['GET'])
 @login_required
 def get_game_community_details(game_id):
@@ -353,6 +371,10 @@ def get_game_community_details(game_id):
         return jsonify({'success': False, 'message': 'Failed to load game details'}), 500
 
 
+"""
+Route to allow users to join a community.
+@param - game_id is the id of the game the user is attempting to join.
+"""
 @app.route('/api/game/<int:game_id>/join', methods=['POST'])
 @login_required
 def join_community(game_id):
@@ -395,7 +417,10 @@ def join_community(game_id):
         print(f"Error joining community: {str(e)}")
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
-
+"""
+Route to allow users to leave a community via the view-details modal on the communities tab.
+@param - game_id is the game the user is attempting to leave.
+"""
 @app.route('/api/game/<int:game_id>/leave', methods=['POST'])
 @login_required
 def leave_community(game_id):
@@ -444,7 +469,9 @@ def leave_community(game_id):
         print(f"Error leaving community: {str(e)}")
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
-
+"""
+Route to allow users to view all joined communities on the profile tab.
+"""
 @app.route('/api/user/communities', methods=['GET'])
 @login_required
 def get_user_communities():
@@ -496,10 +523,12 @@ def get_user_communities():
         print(f"Error getting user communities: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load communities'}), 500
 
-
+"""
+Route to find all game managers when attempting to assign a new game manager to a community.
+"""
 @app.route('/api/game/<int:game_id>/available-gms', methods=['GET'])
 @login_required
-def get_available_game_managers(game_id):
+def get_available_game_managers():
     """Get all users with GM role for assignment"""
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -537,7 +566,10 @@ def get_available_game_managers(game_id):
         print(f"Error getting available GMs: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load game managers'}), 500
 
-
+"""
+Route to assign a game manager to a community. Accessible only to admins.
+@param - game_id is the id of the game a game manager is being assigned to.
+"""
 @app.route('/api/game/<int:game_id>/assign-gm', methods=['POST'])
 @roles_required('admin')
 def assign_game_manager(game_id):
@@ -599,7 +631,10 @@ def assign_game_manager(game_id):
         print(f"Error assigning GM: {str(e)}")
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
-
+"""
+Route to allow admins to remove the current game manager from a game. Accessible via the view details page for a community.
+@param - game_id is the id of the game a manager is being removed from.
+"""
 @app.route('/api/game/<int:game_id>/remove-gm', methods=['POST'])
 @roles_required('admin')
 def remove_game_manager(game_id):
@@ -637,3 +672,7 @@ def remove_game_manager(game_id):
     except Exception as e:
         print(f"Error removing GM: {str(e)}")
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+## =================================================
+## THE ABOVE WAS PRODUCED IN TANDEM WITH CLAUDEAI
+## =================================================

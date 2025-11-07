@@ -1,31 +1,30 @@
 from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, has_role
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from flask_mysqldb import MySQL
+from flask import render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mail import Mail, Message
 import MySQLdb.cursors
-import re
-import bcrypt
-import secrets
 from dotenv import load_dotenv
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import calendar as cal
 from EsportsManagementTool import discord_integration
 
 from EsportsManagementTool import mysql
 
-from werkzeug.utils import secure_filename
-
 # Allowed file extensions for avatars
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
+## =============================================
+## THE FOLLOWING WAS PRODUCED ALONGSIDE CLAUDEAI
+## =============================================
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
+"""
+Main route to allow all users to access the dashboard.
+"""
 @app.route('/dashboard')
 @app.route('/dashboard/<int:year>/<int:month>')
 @login_required  # Added security
@@ -218,54 +217,9 @@ def dashboard(year=None, month=None):
     finally:
         cursor.close()
 
-
-# Delete Events functionality. Includes deleting from table.
-@app.route('/delete-event', methods=['POST'])
-@roles_required('admin')  # Added security - Only admins can delete events
-def delete_event():
-    """
-    Delete an event from the generalevents table.
-    Only accessible to logged-in admin users.
-    """
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    try:
-        # Get the event ID from request JSON
-        data = request.get_json()
-        event_id = data.get('event_id')
-
-        if not event_id:
-            return jsonify({'success': False, 'message': 'Missing event ID'}), 400
-
-        # Verify event exists before attempting to delete
-        cursor.execute("SELECT EventID FROM generalevents WHERE EventID = %s", (event_id,))
-        event = cursor.fetchone()
-
-        if not event:
-            return jsonify({'success': False, 'message': 'Event not found'}), 404
-
-        # Delete the event from the database
-        cursor.execute("DELETE FROM generalevents WHERE EventID = %s", (event_id,))
-        mysql.connection.commit()
-
-        return jsonify({
-            'success': True,
-            'message': 'Event deleted successfully'
-        }), 200
-
-    except Exception as e:
-        # Log the error for debugging
-        print(f"Error deleting event: {str(e)}")
-        mysql.connection.rollback()
-        return jsonify({
-            'success': False,
-            'message': 'Database error occurred while deleting event'
-        }), 500
-
-    finally:
-        cursor.close()
-
-
+"""
+Route to allow users to upload profile pictures via a button on the profile tab.
+"""
 @app.route('/upload-avatar', methods=['POST'])
 def upload_avatar():
     """Handle custom avatar upload"""
@@ -331,8 +285,9 @@ def upload_avatar():
         return jsonify({'success': False, 'message': 'Failed to upload avatar'}), 500
 
 
-# Route meant to assign and remove roles. Hopefully will move to adminPanel.py at some point
-# unless that file gets nuked eventually.
+"""
+Route meant to assign and remove roles.
+"""
 @app.route('/admin/manage-role', methods=['POST'])
 @roles_required('admin')
 def manage_role():
@@ -427,7 +382,9 @@ def manage_role():
             'message': 'Server error occurred'
         }), 500
 
-
+"""
+Route meant to retrieve the games a user manages from the database.
+"""
 @app.route('/api/user/<int:user_id>/managed-game', methods=['GET'])
 @login_required
 def get_user_managed_game(user_id):
@@ -478,7 +435,9 @@ def get_user_managed_game(user_id):
         print(f"Error getting managed game: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to get managed game'}), 500
 
-
+"""
+Route allowing admins to remove user data from the site. This includes email, password, profile picture, etc.
+"""
 @app.route('/admin/remove-user', methods=['POST'])
 @roles_required('admin')
 def remove_user():
@@ -595,517 +554,4 @@ def remove_user():
         return jsonify({
             'success': False,
             'message': 'Server error occurred'
-        }), 500
-
-
-# ===================================
-# EVENTS TAB API ROUTES
-# ===================================
-
-@app.route('/api/events', methods=['GET'])
-@login_required
-def get_events():
-    """
-    Get events based on user role:
-    - Admins: See all events (or upcoming based on filter)
-    - Game Managers: See events they created (or upcoming based on filter)
-    - Regular Users: See events they're subscribed to (or upcoming based on filter)
-    """
-    try:
-        user_id = session['id']
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        # Get user permissions
-        permissions = get_user_permissions(user_id)
-        is_admin = permissions['is_admin']
-        is_gm = permissions['is_gm']
-
-        # Get filter parameter from request (default to 'all')
-        event_filter = request.args.get('filter', 'all')
-
-        # Get current date and time
-        now = datetime.now()
-        current_date = now.date()
-        current_time = now.time()
-
-        # Determine date filter based on filter type
-        if event_filter == 'upcoming':
-            # Show events in next 7 days
-            end_date = current_date + timedelta(days=7)
-            date_condition = "Date >= %s AND Date <= %s"
-            date_params = (current_date, end_date)
-        else:  # 'all'
-            # Show all events (no date filter)
-            date_condition = "1=1"  # Always true
-            date_params = ()
-
-        # Build query based on user role
-        if is_admin:
-            # Admins see all events (based on filter)
-            if event_filter == 'upcoming':
-                cursor.execute(f"""
-                    SELECT 
-                        EventID,
-                        EventName,
-                        Date,
-                        StartTime,
-                        EndTime,
-                        EventType,
-                        Game,
-                        Location,
-                        Description,
-                        created_by
-                    FROM generalevents
-                    WHERE {date_condition}
-                    ORDER BY Date ASC, StartTime ASC
-                """, date_params)
-            else:
-                cursor.execute("""
-                    SELECT 
-                        EventID,
-                        EventName,
-                        Date,
-                        StartTime,
-                        EndTime,
-                        EventType,
-                        Game,
-                        Location,
-                        Description,
-                        created_by
-                    FROM generalevents
-                    ORDER BY Date DESC, StartTime DESC
-                """)
-
-        elif is_gm:
-            # Game Managers see only events they created (based on filter)
-            if event_filter == 'upcoming':
-                cursor.execute(f"""
-                    SELECT 
-                        EventID,
-                        EventName,
-                        Date,
-                        StartTime,
-                        EndTime,
-                        EventType,
-                        Game,
-                        Location,
-                        Description,
-                        created_by
-                    FROM generalevents
-                    WHERE {date_condition} AND created_by = %s
-                    ORDER BY Date ASC, StartTime ASC
-                """, (*date_params, user_id))
-            else:
-                cursor.execute("""
-                    SELECT 
-                        EventID,
-                        EventName,
-                        Date,
-                        StartTime,
-                        EndTime,
-                        EventType,
-                        Game,
-                        Location,
-                        Description,
-                        created_by
-                    FROM generalevents
-                    WHERE created_by = %s
-                    ORDER BY Date DESC, StartTime DESC
-                """, (user_id,))
-
-        else:
-            # Regular users see events they're subscribed to (based on filter)
-            if event_filter == 'upcoming':
-                cursor.execute(f"""
-                    SELECT 
-                        ge.EventID,
-                        ge.EventName,
-                        ge.Date,
-                        ge.StartTime,
-                        ge.EndTime,
-                        ge.EventType,
-                        ge.Game,
-                        ge.Location,
-                        ge.Description,
-                        ge.created_by
-                    FROM generalevents ge
-                    INNER JOIN event_subscriptions es ON ge.EventID = es.event_id
-                    WHERE {date_condition} AND es.user_id = %s
-                    ORDER BY ge.Date ASC, ge.StartTime ASC
-                """, (*date_params, user_id))
-            else:
-                cursor.execute("""
-                    SELECT 
-                        ge.EventID,
-                        ge.EventName,
-                        ge.Date,
-                        ge.StartTime,
-                        ge.EndTime,
-                        ge.EventType,
-                        ge.Game,
-                        ge.Location,
-                        ge.Description,
-                        ge.created_by
-                    FROM generalevents ge
-                    INNER JOIN event_subscriptions es ON ge.EventID = es.event_id
-                    WHERE es.user_id = %s
-                    ORDER BY ge.Date DESC, ge.StartTime DESC
-                """, (user_id,))
-
-        events = cursor.fetchall()
-        cursor.close()
-
-        # Process events to format time and check if ongoing
-        events_list = []
-        for event in events:
-            # Convert timedelta to time string
-            start_time_str = None
-            end_time_str = None
-
-            if event['StartTime']:
-                if isinstance(event['StartTime'], timedelta):
-                    total_seconds = int(event['StartTime'].total_seconds())
-                    hours = total_seconds // 3600
-                    minutes = (total_seconds % 3600) // 60
-                    start_time_str = f"{hours:02d}:{minutes:02d}"
-                else:
-                    start_time_str = event['StartTime'].strftime('%H:%M')
-
-            if event['EndTime']:
-                if isinstance(event['EndTime'], timedelta):
-                    total_seconds = int(event['EndTime'].total_seconds())
-                    hours = total_seconds // 3600
-                    minutes = (total_seconds % 3600) // 60
-                    end_time_str = f"{hours:02d}:{minutes:02d}"
-                else:
-                    end_time_str = event['EndTime'].strftime('%H:%M')
-
-            # Check if event is ongoing
-            is_ongoing = False
-            event_date = event['Date']
-
-            if event_date == current_date and start_time_str and end_time_str:
-                # Parse times for comparison
-                try:
-                    start_hour, start_min = map(int, start_time_str.split(':'))
-                    end_hour, end_min = map(int, end_time_str.split(':'))
-
-                    # Create time objects for comparison
-                    from datetime import time as dt_time
-                    start_time = dt_time(start_hour, start_min)
-                    end_time = dt_time(end_hour, end_min)
-
-                    # Compare with current time
-                    if start_time <= current_time <= end_time:
-                        is_ongoing = True
-                        print(
-                            f"Event {event['EventName']} is ongoing! Current: {current_time}, Start: {start_time}, End: {end_time}")
-                except Exception as e:
-                    print(f"Error checking if event is ongoing: {str(e)}")
-                    pass
-
-            # Format date for display
-            date_str = event_date.strftime('%B %d, %Y')
-
-            event_data = {
-                'id': event['EventID'],
-                'name': event['EventName'],
-                'date': date_str,
-                'date_raw': event_date.strftime('%Y-%m-%d'),
-                'start_time': start_time_str,
-                'end_time': end_time_str,
-                'event_type': event['EventType'] or 'Event',
-                'game': event['Game'] or 'N/A',
-                'location': event['Location'] or 'TBD',
-                'description': event['Description'] or 'No description provided',
-                'is_ongoing': is_ongoing,
-                'created_by': event['created_by']
-            }
-
-            events_list.append(event_data)
-
-        return jsonify({
-            'success': True,
-            'events': events_list,
-            'is_admin': is_admin,
-            'is_gm': is_gm
-        }), 200
-
-    except Exception as e:
-        print(f"Error fetching events: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'message': 'Failed to fetch events'
-        }), 500
-
-
-@app.route('/api/events/<int:event_id>', methods=['DELETE'])
-@login_required
-def delete_event_from_tab(event_id):
-    """
-    Delete an event from the Events tab
-    - Admins can delete any event
-    - Game Managers can only delete events they created
-    """
-    try:
-        user_id = session['id']
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        # Get user permissions
-        permissions = get_user_permissions(user_id)
-        is_admin = permissions['is_admin']
-        is_gm = permissions['is_gm']
-
-        # Get event details
-        cursor.execute("""
-            SELECT EventID, EventName, created_by
-            FROM generalevents
-            WHERE EventID = %s
-        """, (event_id,))
-
-        event = cursor.fetchone()
-
-        if not event:
-            cursor.close()
-            return jsonify({
-                'success': False,
-                'message': 'Event not found'
-            }), 404
-
-        # Check permissions
-        if is_admin:
-            # Admins can delete any event
-            can_delete = True
-        elif is_gm and event['created_by'] == user_id:
-            # Game Managers can only delete their own events
-            can_delete = True
-        else:
-            can_delete = False
-
-        if not can_delete:
-            cursor.close()
-            return jsonify({
-                'success': False,
-                'message': 'You do not have permission to delete this event'
-            }), 403
-
-        # Delete the event
-        cursor.execute("DELETE FROM generalevents WHERE EventID = %s", (event_id,))
-        mysql.connection.commit()
-        cursor.close()
-
-        return jsonify({
-            'success': True,
-            'message': f'Event "{event["EventName"]}" deleted successfully'
-        }), 200
-
-    except Exception as e:
-        print(f"Error deleting event: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        mysql.connection.rollback()
-        return jsonify({
-            'success': False,
-            'message': 'Failed to delete event'
-        }), 500
-
-
-# DISCLAIMER: THIS CODE WAS GENERATED BY CHATGPT#
-
-# ------------------------------
-# Check subscription for current user & event
-# ------------------------------
-@app.route('/api/event/<int:event_id>/subscription-status')
-def subscription_status(event_id):
-    user_id = session['id']
-    if not user_id:
-        return jsonify({'error': 'User not logged in'}), 401
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    # Check if user subscribed to this event
-    cursor.execute("""
-        SELECT * FROM event_subscriptions
-        WHERE user_id=%s AND event_id=%s
-    """, (user_id, event_id))
-    subscription = cursor.fetchone()
-
-    # Check global notification preference
-    cursor.execute("""
-        SELECT enable_notifications FROM notification_preferences
-        WHERE user_id=%s
-    """, (user_id,))
-    pref = cursor.fetchone()
-
-    cursor.close()
-
-    return jsonify({
-        'subscribed': bool(subscription),
-        'notifications_enabled': pref['enable_notifications'] if pref else False
-    })
-
-
-# ------------------------------
-# Toggle event subscription
-# ------------------------------
-@app.route('/api/event/<int:event_id>/toggle-subscription', methods=['POST'])
-def toggle_subscription(event_id):
-    user_id = session.get('id')
-    if not user_id:
-        return jsonify({'error': 'User not logged in'}), 401
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    try:
-        # Check global notification preference
-        cursor.execute("""
-            SELECT enable_notifications
-            FROM notification_preferences
-            WHERE user_id=%s
-        """, (user_id,))
-        pref = cursor.fetchone()
-        notifications_enabled = pref and pref['enable_notifications'] == 1
-
-        if not notifications_enabled:
-            return jsonify({
-                'error': 'Global notifications are disabled. Enable them first in your preferences.'
-            }), 403
-
-        # Check if already subscribed
-        cursor.execute("""
-            SELECT * FROM event_subscriptions
-            WHERE user_id=%s AND event_id=%s
-        """, (user_id, event_id))
-        subscription = cursor.fetchone()
-
-        if subscription:
-            # Unsubscribe
-            cursor.execute("""
-                DELETE FROM event_subscriptions
-                WHERE user_id=%s AND event_id=%s
-            """, (user_id, event_id))
-            status = 'unsubscribed'
-        else:
-            # Subscribe
-            cursor.execute("""
-                INSERT INTO event_subscriptions (user_id, event_id, subscribed_at)
-                VALUES (%s, %s, %s)
-            """, (user_id, event_id, datetime.now()))
-            status = 'subscribed'
-
-        mysql.connection.commit()
-        return jsonify({'status': status})
-    except Exception as e:
-        print("Error in toggle_subscription:", e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        cursor.close()
-
-
-# DISCLAIMER: THIS CODE WAS GENERATED BY CHATGPT#
-# Edit Event Route
-@app.route('/api/event/edit', methods=['POST'])
-@login_required
-def edit_event():
-    """
-    Edit an existing event.
-    - Admins can edit any event
-    - Game Managers can only edit events they created
-    """
-    try:
-        user_id = session['id']
-        data = request.get_json()
-
-        # Validate required fields
-        required_fields = ['event_id', 'event_name', 'event_type', 'event_date',
-                           'start_time', 'end_time', 'location', 'description']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({
-                    'success': False,
-                    'message': f'Missing required field: {field}'
-                }), 400
-
-        event_id = data['event_id']
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        # Get user permissions
-        permissions = get_user_permissions(user_id)
-        is_admin = permissions['is_admin']
-        is_gm = permissions['is_gm']
-
-        # Get the event to check permissions
-        cursor.execute("""
-            SELECT EventID, EventName, created_by
-            FROM generalevents
-            WHERE EventID = %s
-        """, (event_id,))
-
-        event = cursor.fetchone()
-
-        if not event:
-            cursor.close()
-            return jsonify({
-                'success': False,
-                'message': 'Event not found'
-            }), 404
-
-        # Check permissions
-        if is_admin:
-            # Admins can edit any event
-            can_edit = True
-        elif is_gm and event['created_by'] == user_id:
-            # Game Managers can only edit their own events
-            can_edit = True
-        else:
-            can_edit = False
-
-        if not can_edit:
-            cursor.close()
-            return jsonify({
-                'success': False,
-                'message': 'You do not have permission to edit this event'
-            }), 403
-
-        # Update the event
-        cursor.execute("""
-            UPDATE generalevents
-            SET EventName = %s,
-                EventType = %s,
-                Game = %s,
-                Date = %s,
-                StartTime = %s,
-                EndTime = %s,
-                Location = %s,
-                Description = %s
-            WHERE EventID = %s
-        """, (
-            data['event_name'],
-            data['event_type'],
-            data['game'] if data['game'] else None,
-            data['event_date'],
-            data['start_time'],
-            data['end_time'],
-            data['location'],
-            data['description'],
-            event_id
-        ))
-
-        mysql.connection.commit()
-        cursor.close()
-
-        return jsonify({
-            'success': True,
-            'message': f'Event "{data["event_name"]}" updated successfully'
-        }), 200
-
-    except Exception as e:
-        print(f"Error editing event: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        mysql.connection.rollback()
-        return jsonify({
-            'success': False,
-            'message': 'Failed to update event'
         }), 500
