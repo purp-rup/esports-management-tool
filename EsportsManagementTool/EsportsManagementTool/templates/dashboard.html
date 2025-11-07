@@ -230,6 +230,62 @@
                          class="notification-options"
                          style="{% if not preferences or not preferences.enable_notifications %}display: none;{% endif %}">
 
+                        <!-- NEW SECTION: Event Type Filters -->
+                        <div class="form-section">
+                            <h3>Event Types to Notify</h3>
+                            <p class="section-description">Choose which types of events you want to be notified about</p>
+
+                            <div class="event-type-checkboxes">
+                                <label class="checkbox-label">
+                                    <input type="checkbox"
+                                           name="notify_practices"
+                                           id="notifyPractices"
+                                           {% if not preferences or preferences.notify_practices %}checked{% endif %}>
+                                    <span class="checkbox-text">
+                                        <i class="fas fa-dumbbell"></i>
+                                        <strong>Practices</strong>
+                                        <small>Team practice sessions and training</small>
+                                    </span>
+                                </label>
+
+                                <label class="checkbox-label">
+                                    <input type="checkbox"
+                                           name="notify_matches"
+                                           id="notifyMatches"
+                                           {% if not preferences or preferences.notify_matches %}checked{% endif %}>
+                                    <span class="checkbox-text">
+                                        <i class="fas fa-gamepad"></i>
+                                        <strong>Matches</strong>
+                                        <small>Regular competitive matches</small>
+                                    </span>
+                                </label>
+
+                                <label class="checkbox-label">
+                                    <input type="checkbox"
+                                           name="notify_tournaments"
+                                           id="notifyTournaments"
+                                           {% if not preferences or preferences.notify_tournaments %}checked{% endif %}>
+                                    <span class="checkbox-text">
+                                        <i class="fas fa-trophy"></i>
+                                        <strong>Tournaments</strong>
+                                        <small>Tournament events and competitions</small>
+                                    </span>
+                                </label>
+
+                                <label class="checkbox-label">
+                                    <input type="checkbox"
+                                           name="notify_events"
+                                           id="notifyEvents"
+                                           {% if not preferences or preferences.notify_events %}checked{% endif %}>
+                                    <span class="checkbox-text">
+                                        <i class="fas fa-calendar-alt"></i>
+                                        <strong>General Events</strong>
+                                        <small>Team meetings, socials, and other events</small>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
                         <div class="form-section">
                             <h3>Advance Notice</h3>
                             <p class="section-description">How far in advance should we notify you?</p>
@@ -940,10 +996,16 @@
         <div class="modal-header">
             <h2 id="eventDetailsTitle">Event Details</h2>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button id="editEventBtn"
+                        class="btn-edit-event"
+                        style="display: none;"
+                        onclick="toggleEditMode()">
+                    <i class="fas fa-edit"></i>
+                </button>
                 {% if user.is_admin %}
-                <button id="deleteEventBtn" 
-                        class="btn-delete-event" 
-                        style="display: none;" 
+                <button id="deleteEventBtn"
+                        class="btn-delete-event"
+                        style="display: none;"
                         onclick="deleteEvent()">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -955,6 +1017,8 @@
         </div>
         <div class="modal-body" id="eventDetailsBody">
             <!-- Loading spinner -->
+            <!-- Edit form will be populated here -->
+            <div id="eventEditForm" style="display: none;"></div>
             <div id="eventLoadingSpinner" class="loading-spinner">
                 <i class="fas fa-spinner fa-spin"></i>
                 <p>Loading event details...</p>
@@ -1388,30 +1452,6 @@
         document.body.style.overflow = 'auto';
     }
 
-    // Close modals when clicking outside
-    window.onclick = function(event) {
-        if (event.target.classList.contains('modal')) {
-            const modals = {
-                'dayEventsModal': closeDayModal,
-                'eventDetailsModal': closeEventModal,
-                'createEventModal': closeCreateEventModal,
-                'createGameModal': closeCreateGameModal
-            };
-
-            const handler = modals[event.target.id];
-            if (handler) handler();
-        }
-    }
-
-    // Close modals with Escape key
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            closeDayModal();
-            closeEventModal();
-            closeCreateEventModal();
-            closeCreateGameModal();
-        }
-    });
 
     //Consolidating *most* DOMContentLoaded functions into one. This does not include the two for notifications.
     document.addEventListener('DOMContentLoaded', function() {
@@ -1574,6 +1614,8 @@
             });
         }
 
+        //DISCLAIMER: BELOW CODE WAS GENERATED USING CLAUDE AND CHATGPT
+
         // ===============================
         // NOTIFICATION SETTINGS
         // ===============================
@@ -1582,6 +1624,12 @@
         const daysInput = document.getElementById('adviceNoticeDays');
         const hoursInput = document.getElementById('adviceNoticeHours');
         const previewText = document.getElementById('previewTime');
+
+        // NEW: Event type checkboxes (all four types)
+        const notifyPractices = document.getElementById('notifyPractices');
+        const notifyMatches = document.getElementById('notifyMatches');
+        const notifyTournaments = document.getElementById('notifyTournaments');
+        const notifyEvents = document.getElementById('notifyEvents');
 
         // Toggle notification options visibility
         if (enableNotifToggle) {
@@ -1594,11 +1642,12 @@
             });
         }
 
-        // Update preview text
+        // NEW: Update preview text to include event types
         function updatePreview() {
             const days = parseInt(daysInput.value) || 0;
             const hours = parseInt(hoursInput.value) || 0;
 
+            // Build time preview
             let previewParts = [];
             if (days > 0) {
                 previewParts.push(`${days} day${days !== 1 ? 's' : ''}`);
@@ -1607,17 +1656,69 @@
                 previewParts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
             }
 
+            let timeText = '';
             if (previewParts.length === 0) {
-                previewText.textContent = 'at the time of the event';
+                timeText = 'at the time of the event';
             } else {
-                previewText.textContent = previewParts.join(' and ');
+                timeText = previewParts.join(' and ');
+            }
+
+            // Build event types preview
+            let eventTypes = [];
+            if (notifyPractices && notifyPractices.checked) {
+                eventTypes.push('practices');
+            }
+            if (notifyMatches && notifyMatches.checked) {
+                eventTypes.push('matches');
+            }
+            if (notifyTournaments && notifyTournaments.checked) {
+                eventTypes.push('tournaments');
+            }
+            if (notifyEvents && notifyEvents.checked) {
+                eventTypes.push('general events');
+            }
+
+            // Update preview text
+            if (eventTypes.length === 0) {
+                previewText.textContent = `${timeText} (no event types selected)`;
+            } else if (eventTypes.length === 4) {
+                previewText.textContent = `${timeText} for all event types`;
+            } else {
+                const lastType = eventTypes.pop();
+                const typeList = eventTypes.length > 0 ? eventTypes.join(', ') + ', and ' + lastType : lastType;
+                previewText.textContent = `${timeText} for ${typeList}`;
             }
         }
 
         if (daysInput && hoursInput) {
             daysInput.addEventListener('input', updatePreview);
             hoursInput.addEventListener('input', updatePreview);
+
+            // NEW: Add event listeners for all event type checkboxes
+            if (notifyPractices) {
+                notifyPractices.addEventListener('change', updatePreview);
+            }
+            if (notifyMatches) {
+                notifyMatches.addEventListener('change', updatePreview);
+            }
+            if (notifyTournaments) {
+                notifyTournaments.addEventListener('change', updatePreview);
+            }
+            if (notifyEvents) {
+                notifyEvents.addEventListener('change', updatePreview);
+            }
+
             updatePreview(); // Initial call
+        }
+
+        // NEW: Validation to ensure at least one event type is selected
+        function validateEventTypes() {
+            const practicesChecked = notifyPractices && notifyPractices.checked;
+            const matchesChecked = notifyMatches && notifyMatches.checked;
+            const tournamentsChecked = notifyTournaments && notifyTournaments.checked;
+            const eventsChecked = notifyEvents && notifyEvents.checked;
+
+            return practicesChecked || matchesChecked || tournamentsChecked || eventsChecked;
         }
 
         // ===============================
@@ -1632,6 +1733,20 @@
                 const submitBtnText = document.getElementById('saveNotifBtnText');
                 const submitBtnSpinner = document.getElementById('saveNotifBtnSpinner');
                 const formMessage = document.getElementById('notificationMessage');
+
+                // NEW: Validate that at least one event type is selected if notifications are enabled
+                if (enableNotifToggle && enableNotifToggle.checked && !validateEventTypes()) {
+                    formMessage.textContent = 'Please select at least one event type to receive notifications for.';
+                    formMessage.className = 'form-message error';
+                    formMessage.style.display = 'block';
+
+                    setTimeout(() => {
+                        formMessage.style.display = 'none';
+                    }, 5000);
+
+                    return;
+                }
+        //DISCLAIMER: ABOVE CODE WAS GENERATED USING CLAUDE AND CHATGPT
 
                 // Disable submit button
                 submitBtn.disabled = true;
@@ -1884,7 +1999,9 @@
                         <div id="roleStatusMessage" style="display: none; margin-top: 1rem; padding: 0.75rem; border-radius: 4px;"></div>
 
                         <div class="action-buttons">
-                            <button class="btn btn-secondary">Suspend User</button>
+                            <button class="btn btn-secondary" onclick="openSuspendModal(${userid}, '${username}', '${firstname} ${lastname}')">
+                                <i class="fas fa-user-clock"></i> Suspend User
+                            </button>
                             <button class="btn btn-danger" onclick="confirmRemoveUser(${userid}, '${username}', '${firstname} ${lastname}')">
                                 <i class="fas fa-user-times"></i> Remove User
                             </button>
@@ -1899,6 +2016,7 @@
                 goBtn.addEventListener('click', function() {
                     handleRoleChange(username);
                 });
+                await updateUserDetailsWithSuspension(userid);
             });
         });
 
@@ -1996,6 +2114,7 @@
     //Delete Button functionality
     // Store current event ID for delete functionality
     let currentEventId = null;
+    let currentEventData = null; // Store full event data for editing
 
     // Updated openEventModal function with notification integration
 
@@ -2028,6 +2147,9 @@ async function openEventModal(eventId) {
         const response = await fetch(`/api/event/${eventId}`);
         if (!response.ok) throw new Error('Failed to fetch event details');
         const event = await response.json();
+
+        // Store event data globally for editing
+        currentEventData = event;
 
         // Set modal title
         if (titleElement) {
@@ -2144,16 +2266,31 @@ async function openEventModal(eventId) {
         // Show delete button for admins
         if (deleteBtn) deleteBtn.style.display = 'flex';
 
+        // Show edit button with permission checks
+        const editBtn = document.getElementById("editEventBtn");
+        const isAdmin = {{ "true" if user.is_admin else "false" }};
+        const isGM = {{ "true" if user.is_gm else "false" }};
+        const currentUserId = {{ session.id }};
+
+        if (editBtn) {
+            // Admins can edit all events, GMs can only edit their own
+            if (isAdmin || (isGM && event.created_by === currentUserId)) {
+                editBtn.style.display = "flex";
+            } else {
+                editBtn.style.display = "none";
+            }
+        }
+
         // Load notification state for the user
         await loadNotificationSection(eventId);
 
     } catch (error) {
         console.error('Error loading event details:', error);
-        
+
         if (titleElement) {
             titleElement.textContent = 'Error Loading Event';
         }
-        
+
         content.innerHTML = `
             <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
                 <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ff5252; margin-bottom: 1rem;"></i>
@@ -2338,13 +2475,333 @@ async function openEventModal(eventId) {
     // Close modal and reset
     function closeEventModal() {
         const modal = document.getElementById('eventDetailsModal');
-        const deleteBtn = document.getElementById('deleteEventBtn');
+        const deleteBtn = document.getElementById("deleteEventBtn");
+        const editBtn = document.getElementById("editEventBtn");
+        const content = document.getElementById("eventDetailsContent");
+        const editForm = document.getElementById("eventEditForm");
 
-        modal.style.display = 'none';
-        if (deleteBtn) deleteBtn.style.display = 'none';
+        modal.style.display = "none";
+        if (deleteBtn) deleteBtn.style.display = "none";
+        if (editBtn) editBtn.style.display = "none";
+
+        // Reset to view mode
+        if (content) content.style.display = "none";
+        if (editForm) editForm.style.display = "none";
+
+        document.body.style.overflow = "auto";
+        currentEventId = null; // Reset the event ID
+        currentEventData = null; // Reset the event data
         document.body.style.overflow = 'auto';
         currentEventId = null; // Reset the event ID
     }
+
+    // Event Edit Functions
+    function toggleEditMode() {
+        const content = document.getElementById('eventDetailsContent');
+        const editForm = document.getElementById('eventEditForm');
+        const editBtn = document.getElementById('editEventBtn');
+        const deleteBtn = document.getElementById('deleteEventBtn');
+        const titleElement = document.getElementById('eventDetailsTitle');
+
+        // Hide view content, show edit form
+        content.style.display = 'none';
+        editForm.style.display = 'block';
+        if (editBtn) editBtn.style.display = 'none';
+        if (deleteBtn) deleteBtn.style.display = 'none';
+
+        // Update title
+        if (titleElement) {
+            titleElement.textContent = 'Edit Event';
+        }
+
+        // Generate and populate edit form
+        createEditForm();
+    }
+
+    function createEditForm() {
+        const editForm = document.getElementById('eventEditForm');
+        if (!currentEventData) return;
+
+        const event = currentEventData;
+
+        editForm.innerHTML = `
+            <form id="editEventFormData" class="event-form-modal">
+                <div class="form-group">
+                    <label for="editEventName">Event Name</label>
+                    <input type="text" id="editEventName" name="eventName"
+                           value="${event.name}" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editEventType">Event Type</label>
+                        <select id="editEventType" name="eventType" required>
+                            <option value="Event" ${event.event_type === 'Event' ? 'selected' : ''}>Event</option>
+                            <option value="Match" ${event.event_type === 'Match' ? 'selected' : ''}>Match</option>
+                            <option value="Practice" ${event.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
+                            <option value="Tournament" ${event.event_type === 'Tournament' ? 'selected' : ''}>Tournament</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editGame">Game (Optional)</label>
+                        <select id="editGame" name="game">
+                            <option value="">Select game</option>
+                        </select>
+                        <div id="editGameLoadingIndicator" style="display: none; font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            <i class="fas fa-spinner fa-spin"></i> Loading games...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editDate">Date</label>
+                        <input type="date" id="editDate" name="eventDate"
+                               value="${event.date_raw}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editStartTime">Start Time</label>
+                        <input type="time" id="editStartTime" name="startTime"
+                               value="${event.start_time}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editEndTime">End Time</label>
+                        <input type="time" id="editEndTime" name="endTime"
+                               value="${event.end_time}" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="editLocation">Location</label>
+                    <select id="editLocation" name="eventLocation" required>
+                        <option value="">Select location</option>
+                        <option value="Campus Center">Campus Center</option>
+                        <option value="Campus Center Coffee House">Campus Center Coffee House</option>
+                        <option value="Campus Center Event Room">Campus Center Event Room</option>
+                        <option value="D-108">D-108</option>
+                        <option value="Esports Lab (Commons Building 80)">Esports Lab (Commons Building 80)</option>
+                        <option value="Lakeside Lodge">Lakeside Lodge</option>
+                        <option value="Online">Online</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="editCustomLocationGroup" style="display: none;">
+                    <label for="editCustomLocation">Custom Location</label>
+                    <input type="text" id="editCustomLocation" name="customLocation" placeholder="Enter custom location">
+                </div>
+
+                <div class="form-group">
+                    <label for="editDescription">Description</label>
+                    <textarea id="editDescription" name="eventDescription"
+                              required>${event.description}</textarea>
+                </div>
+
+                <div id="editFormMessage" class="form-message" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="cancelEdit()">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="submitEventEdit()">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        `;
+
+        // Load games for the dropdown
+        loadGamesForEditDropdown();
+
+        // Handle location dropdown - check if current location is in preset list
+        const presetLocations = [
+            'Campus Center',
+            'Campus Center Coffee House',
+            'Campus Center Event Room',
+            'D-108',
+            'Esports Lab (Commons Building 80)',
+            'Lakeside Lodge',
+            'Online'
+        ];
+
+        const locationSelect = document.getElementById('editLocation');
+        const customLocationGroup = document.getElementById('editCustomLocationGroup');
+        const customLocationInput = document.getElementById('editCustomLocation');
+
+        if (presetLocations.includes(event.location)) {
+            // Location is in preset list, select it
+            locationSelect.value = event.location;
+        } else {
+            // Location is custom, select "other" and show custom input
+            locationSelect.value = 'other';
+            customLocationGroup.style.display = 'block';
+            customLocationInput.value = event.location;
+            customLocationInput.required = true;
+        }
+
+        // Add event listener for location dropdown changes
+        locationSelect.addEventListener('change', function() {
+            if (this.value === 'other') {
+                customLocationGroup.style.display = 'block';
+                customLocationInput.required = true;
+            } else {
+                customLocationGroup.style.display = 'none';
+                customLocationInput.required = false;
+                customLocationInput.value = '';
+            }
+        });
+    }
+
+    async function loadGamesForEditDropdown() {
+        const gameSelect = document.getElementById('editGame');
+        const loadingIndicator = document.getElementById('editGameLoadingIndicator');
+
+        if (!gameSelect) return;
+
+        loadingIndicator.style.display = 'block';
+        gameSelect.disabled = true;
+
+        try {
+            const response = await fetch('/api/games-list');
+            const data = await response.json();
+
+            if (data.success && data.games) {
+                gameSelect.innerHTML = '<option value="">Select game</option>';
+
+                data.games.forEach(game => {
+                    const option = document.createElement('option');
+                    option.value = game.GameTitle;
+                    option.textContent = game.GameTitle;
+
+                    // Pre-select if matches current event's game
+                    if (currentEventData && game.GameTitle === currentEventData.game) {
+                        option.selected = true;
+                    }
+
+                    gameSelect.appendChild(option);
+                });
+
+                if (data.games.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = "";
+                    option.textContent = "No games available";
+                    option.disabled = true;
+                    gameSelect.appendChild(option);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching games:', error);
+            gameSelect.innerHTML = '<option value="">Error loading games</option>';
+        } finally {
+            loadingIndicator.style.display = 'none';
+            gameSelect.disabled = false;
+        }
+    }
+
+    function cancelEdit() {
+        const content = document.getElementById('eventDetailsContent');
+        const editForm = document.getElementById('eventEditForm');
+        const editBtn = document.getElementById('editEventBtn');
+        const deleteBtn = document.getElementById('deleteEventBtn');
+        const titleElement = document.getElementById('eventDetailsTitle');
+
+        // Show view content, hide edit form
+        content.style.display = 'block';
+        editForm.style.display = 'none';
+
+        // Restore edit/delete buttons based on permissions
+        const isAdmin = {{ "true" if user.is_admin else "false" }};
+        const isGM = {{ "true" if user.is_gm else "false" }};
+        const currentUserId = {{ session.id }};
+
+        if (editBtn && currentEventData) {
+            if (isAdmin || (isGM && currentEventData.created_by === currentUserId)) {
+                editBtn.style.display = 'flex';
+            }
+        }
+
+        if (deleteBtn && isAdmin) {
+            deleteBtn.style.display = 'flex';
+        }
+
+        // Restore title
+        if (titleElement && currentEventData) {
+            titleElement.textContent = currentEventData.name;
+        }
+    }
+
+    async function submitEventEdit() {
+        const formMessage = document.getElementById('editFormMessage');
+        const submitBtn = event.target || document.querySelector('#editEventFormData .btn-primary');
+
+        // Disable button during submission
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        // Get form data
+        const locationSelect = document.getElementById('editLocation');
+        const customLocationInput = document.getElementById('editCustomLocation');
+        const locationValue = locationSelect.value === 'other' ? customLocationInput.value : locationSelect.value;
+
+        const formData = {
+            event_id: currentEventId,
+            event_name: document.getElementById('editEventName').value,
+            event_type: document.getElementById('editEventType').value,
+            game: document.getElementById('editGame').value,
+            event_date: document.getElementById('editDate').value,
+            start_time: document.getElementById('editStartTime').value,
+            end_time: document.getElementById('editEndTime').value,
+            location: locationValue,
+            description: document.getElementById('editDescription').value
+        };
+
+        try {
+            const response = await fetch('/api/event/edit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Show success message
+                formMessage.textContent = data.message;
+                formMessage.className = 'form-message success';
+                formMessage.style.display = 'block';
+
+                // Wait a moment then close modal and reload
+                setTimeout(() => {
+                    closeEventModal();
+                    window.location.reload();
+                }, 1500);
+            } else {
+                // Show error message
+                formMessage.textContent = data.message || 'Failed to update event';
+                formMessage.className = 'form-message error';
+                formMessage.style.display = 'block';
+
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+            }
+        } catch (error) {
+            console.error('Error updating event:', error);
+            formMessage.textContent = 'An error occurred while updating the event';
+            formMessage.className = 'form-message error';
+            formMessage.style.display = 'block';
+
+            // Re-enable button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+        }
+    }
+
 
 <!--User search system. -->
 function filterUsers() {
@@ -2629,13 +3086,8 @@ async function removeUser(userId, username, fullName) {
         document.body.style.overflow = 'auto';
     }
 
-    // Close modal when clicking outside
-    window.addEventListener('click', function(event) {
-        const gameModal = document.getElementById('createGameModal');
-        if (event.target === gameModal) {
-            closeCreateGameModal();
-        }
-    });
+
+
 
     //Create Team Modal
     function openCreateTeamModal() {
@@ -2654,13 +3106,7 @@ async function removeUser(userId, username, fullName) {
         document.body.style.overflow = 'auto';
     }
 
-    // Close modal when clicking outside
-    window.addEventListener('click', function(event) {
-        const gameModal = document.getElementById('createTeamModal');
-        if (event.target === gameModal) {
-            closeCreateTeamModal();
-        }
-    });
+
 </script>
 
 <!--Display games under roster tab functionality. -->
@@ -3122,11 +3568,68 @@ async function removeUser(userId, username, fullName) {
             }
         });
     });
+// ============================================
+// UNIVERSAL MODAL CLOSE HANDLER
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle click outside modal
+    window.addEventListener('click', function(event) {
+        if (event.target.classList.contains('modal')) {
+            const modalId = event.target.id;
 
+            const modalCloseHandlers = {
+                'dayEventsModal': closeDayModal,
+                'eventDetailsModal': closeEventModal,
+                'createEventModal': closeCreateEventModal,
+                'createGameModal': closeCreateGameModal,
+                'createTeamModal': closeCreateTeamModal,
+                'gameDetailsModal': closeGameDetailsModal,
+                'assignGMModal': closeAssignGMModal,
+                'changeAvatarModal': closeAvatarModal,
+                'editProfileModal': closeEditProfileModal,
+                'changePasswordModal': closeChangePasswordModal,
+                'deleteEventConfirmModal': closeDeleteConfirmModal
+            };
+
+            if (modalCloseHandlers[modalId]) {
+                modalCloseHandlers[modalId]();
+            }
+        }
+    });
+
+    // Handle Escape key for all modals
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const visibleModals = document.querySelectorAll('.modal[style*="display: block"], .modal.active');
+
+            visibleModals.forEach(modal => {
+                const modalId = modal.id;
+                const modalCloseHandlers = {
+                    'dayEventsModal': closeDayModal,
+                    'eventDetailsModal': closeEventModal,
+                    'createEventModal': closeCreateEventModal,
+                    'createGameModal': closeCreateGameModal,
+                    'createTeamModal': closeCreateTeamModal,
+                    'gameDetailsModal': closeGameDetailsModal,
+                    'assignGMModal': closeAssignGMModal,
+                    'changeAvatarModal': closeAvatarModal,
+                    'editProfileModal': closeEditProfileModal,
+                    'changePasswordModal': closeChangePasswordModal,
+                    'deleteEventConfirmModal': closeDeleteConfirmModal
+                };
+
+                if (modalCloseHandlers[modalId]) {
+                    modalCloseHandlers[modalId]();
+                }
+            });
+        }
+    });
+});
 </script>
 
 <script src="{{ url_for('static', filename='discord.js') }}"></script>
 <script src="{{ url_for ('static', filename='profile-edit.js')}}"></script>
+<script src="{{ url_for('static', filename='suspensions.js') }}"></script>
 <script>
 // Avatar Upload Modal Functions
 function openAvatarModal() {
@@ -3271,13 +3774,7 @@ async function syncAvatarFromModal() {
     }
 }
 
-// Close modal when clicking outside
-window.addEventListener('click', function(event) {
-    const avatarModal = document.getElementById('changeAvatarModal');
-    if (event.target === avatarModal) {
-        closeAvatarModal();
-    }
-});
+
 </script>
 
 <!-- COMMUNITIES SCRIPTS -->
@@ -3770,13 +4267,6 @@ window.addEventListener('click', function(event) {
         }
     }
 
-    // Update window click handler to include game details modal
-    window.onclick = function(event) {
-        const gameDetailsModal = document.getElementById('gameDetailsModal');
-        if (event.target === gameDetailsModal) {
-            closeGameDetailsModal();
-        }
-    };
 
     // Load user's communities when profile tab is opened
     document.addEventListener('DOMContentLoaded', function() {

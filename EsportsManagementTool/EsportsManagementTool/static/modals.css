@@ -1,4 +1,4 @@
- /* Modal Styles */
+/* Modal Styles */
 .modal {
     display: none;
     position: fixed;
@@ -380,6 +380,33 @@
 .btn-delete-event i {
     font-size: 0.875rem;
 }
+
+/* Edit Button Styling - Matches Delete Button */
+.btn-edit-event {
+    background: transparent;
+    border: 1px solid var(--stockton-blue);
+    color: var(--stockton-blue);
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.btn-edit-event:hover {
+    background: var(--stockton-blue);
+    color: var(--stockton-black);
+}
+
+.btn-edit-event i {
+    font-size: 0.875rem;
+}
+
 
 .form-actions {
     display: flex;
