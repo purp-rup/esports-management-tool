@@ -855,7 +855,7 @@
                 <p>Manage created teams</p>
                 {% else %}
                     {%if user.is_admin or user.is_gm %}
-                        <button class="btn btn-primary" onclick="openCreateTeamModal()">
+                        <button class="btn btn-primary" onclick="openCreateTeamModal('{{ game.GameID }}', '{{ game.GameTitle }}', '{{ game.TeamSizes }}')">
                             <i class="fas fa-plus"></i> Create Team
                         </button>
                     {% endif %}
@@ -1123,7 +1123,7 @@
 <div id="createTeamModal" class="modal">
     <div class="modal-content modal-content-large">
         <div class="modal-header">
-            <h2>Create New Team</h2>
+            <h2>Create New Team for <span id="teamModalGameTitle"></span></h2>
             <button class="modal-close" onclick="closeCreateTeamModal()">
                 <i class="fas fa-times"></i>
             </button>
@@ -1132,26 +1132,11 @@
             <p class="modal-subtitle">Add a new team to the roster</p>
 
             <form id="createTeamForm" class="event-form-modal" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label for="gameTitle">Game Title</label>
-                    <input type="text" id="teamTitle" name="teamTitle" placeholder="Enter team title" required>
-                </div>
-
-                <!-- Image Upload Field -->
-                <div class="form-group">
-                    <label for="gameImage">Team Icon/Image</label>
-                    <input type="file"
-                           id="teamImage"
-                           name="teamImage"
-                           accept="image/png, image/jpeg, image/jpg, image/gif, image/webp">
-                    <div id="imagePreview" style="margin-top: 0.5rem; display: none;">
-                        <img id="previewImg" style="max-width: 100px; max-height: 100px; border-radius: 8px; border: 2px solid var(--border-color);">
-                    </div>
-                </div>
+                <input type="hidden" id="gameIDField" name="game_id">
 
                 <div class="form-group">
-                    <label for="teamDescription">Description</label>
-                    <textarea id="teamDescription" name="teamDescription" placeholder="Enter team description" rows="4" required></textarea>
+                    <label for="teamTitle">Team Title</label>
+                    <input type="text" id="teamTitle" name="team_title" placeholder="Enter team title" required>
                 </div>
 
                 <div class="form-group">
@@ -1159,39 +1144,8 @@
                     <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
                         Select the applicable team size.
                     </p>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem;">
-                        <label class="team-size-checkbox">
-                            <input type="checkbox" name="teamSize" value="1">
-                            <span>1 Player</span>
-                        </label>
-                        <label class="team-size-checkbox">
-                            <input type="checkbox" name="teamSize" value="2">
-                            <span>2 Players</span>
-                        </label>
-                        <label class="team-size-checkbox">
-                            <input type="checkbox" name="teamSize" value="3">
-                            <span>3 Players</span>
-                        </label>
-                        <label class="team-size-checkbox">
-                            <input type="checkbox" name="teamSize" value="4">
-                            <span>4 Players</span>
-                        </label>
-                        <label class="team-size-checkbox">
-                            <input type="checkbox" name="teamSize" value="5">
-                            <span>5 Players</span>
-                        </label>
-                        <label class="team-size-checkbox">
-                            <input type="checkbox" name="teamSize" value="6">
-                            <span>6 Players</span>
-                        </label>
-                        <label class="team-size-checkbox">
-                            <input type="checkbox" name="teamSize" value="7">
-                            <span>7 Players</span>
-                        </label>
-                        <label class="team-size-checkbox">
-                            <input type="checkbox" name="teamSize" value="8">
-                            <span>8 Players</span>
-                        </label>
+                    <div id="teamSizesContainer" style="display: grid; gid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem">
+                        <!-- Radio buttons will be inserted here dynamically -->
                     </div>
                 </div>
 
@@ -1200,8 +1154,8 @@
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeCreateTeamModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary">
-                        <span id="submitGameBtnText">Create Game</span>
-                        <i id="submitGameBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                        <span id="submitTeamBtnText">Create Team</span>
+                        <i id="submitTeamBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
                     </button>
                 </div>
             </form>
@@ -1915,6 +1869,67 @@
         }
 
         // ========================================
+        // CREATE TEAM FORM SUBMISSION
+        // ========================================
+        const createTeamForm = document.getElementById('createTeamForm');
+        if (createTeamForm) {
+            createTeamForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const submitBtn = createTeamForm.querySelector('button[type="submit"]');
+                const submitBtnText = document.getElementById('submitTeamBtnText');
+                const submitBtnSpinner = document.getElementById('submitTeamBtnSpinner');
+                const formMessage = document.getElementById('teamFormMessage');
+
+                submitBtn.disabled = true;
+                submitBtnText.style.display = 'none';
+                submitBtnSpinner.style.display = 'inline-block';
+
+                const formData = new FormData(createTeamForm);
+                const gameID = document.getElementById('gameIDField').value;
+
+                const selectedSize = document.querySelector('input[name="team_sizes"]:checked');
+                if (!selectedSize) {
+                    formMessage.textContent = 'Please select a team size.';
+                    formMessage.className = 'form-message error';
+                    formMessage.style.display = 'block';
+
+                    submitBtn.disabled = false;
+                    submitBtnText.style.display = 'inline';
+                    submitBtnSpinner.style.display = 'none';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/create-team/${gameID}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        formMessage.textContent = data.message || 'Team created successfully! Refreshing...';
+                        formMessage.className = 'form-message success';
+                        formMessage.style.display = 'block';
+
+                        setTimeout(() => { window.location.reload(); }, 1500);
+                    } else {
+                        throw new Error(data.message || 'Failed to create team');
+                    }
+                } catch (error) {
+                    formMessage.textContent = error.message || 'Failed to create team. Please try again.';
+                    formMessage.className = 'form-message error';
+                    formMessage.style.display = 'block';
+
+                    submitBtn.disabled = false;
+                    submitBtnText.style.display = 'inline';
+                    submitBtnSpinner.style.display = 'none';
+                }
+            });
+        }
+
+        // ========================================
         // ADMIN USER MANAGEMENT
         // ========================================
         const userItems = document.querySelectorAll('.user-item');
@@ -2048,6 +2063,8 @@
         document.getElementById('createEventForm').reset();
         document.getElementById('customLocationGroup').style.display = 'none';
         document.getElementById('formMessage').style.display = 'none';
+
+
 
         // Load games into dropdown
         loadGamesForDropdown();
@@ -3090,16 +3107,39 @@ async function removeUser(userId, username, fullName) {
 
 
     //Create Team Modal
-    function openCreateTeamModal() {
+    function openCreateTeamModal(gameID, gameTitle, teamSizes) {
         const modal = document.getElementById('createTeamModal');
         modal.style.display = 'block';
         document.body.style.overflow = 'hidden';
 
-        // Reset form
-        document.getElementById('createGameForm').reset();
-        document.getElementById('gameFormMessage').style.display = 'none';
-    }
+        // Reset the correct form and message area
+        const teamForm = document.getElementById('createTeamForm');
+        teamForm.reset();
+        document.getElementById('teamFormMessage').style.display = 'none';
 
+        // Store the current game ID in a hidden field for form submission
+        document.getElementById('gameIDField').value = gameID;
+
+        // Optional: dynamically show game info or team size options
+        const modalTitle = document.getElementById('teamModalGameTitle');
+        if (modalTitle) modalTitle.textContent = gameTitle;
+
+        // Optional: populate team size radio buttons dynamically
+        const sizeContainer = document.getElementById('teamSizesContainer');
+        if (sizeContainer) {
+            sizeContainer.innerHTML = '';
+            const sizes = teamSizes.split(',').map(s => s.trim());
+            sizes.forEach(size => {
+                const label = document.createElement('label');
+                label.className = 'team-size-final';
+                label.innerHTML = `
+                    <input type="radio" name="team_sizes" value="${size}" required>
+                    <span>${size} Player${size != 1 ? 's' : ''}</span>
+                `;
+            sizeContainer.appendChild(label);
+        });
+    }
+}
     function closeCreateTeamModal() {
         const modal = document.getElementById('createTeamModal');
         modal.style.display = 'none';
@@ -3155,19 +3195,20 @@ async function removeUser(userId, username, fullName) {
 
             // Fetch member count from API
             let memberCount = 0;
+            let teamCount = 0;  // Change from const teams = 0
             let isMember = false;
             try {
                 const response = await fetch(`/api/game/${game.GameID}/details`);
                 const data = await response.json();
                 if (data.success) {
                     memberCount = data.game.member_count;
+                    teamCount = data.game.team_count;
                     isMember = data.game.is_member;
                 }
             } catch (error) {
                 console.error('Error fetching member count:', error);
             }
 
-            const teams = 0; // Placeholder
 
             // Determine if we have an image or use icon
             let iconHTML;
@@ -3200,6 +3241,14 @@ async function removeUser(userId, username, fullName) {
                 </button>
             `;
 
+            const isGM = {{ 'true' if user.is_gm else 'false' }};
+
+            const createTeamButtonHTML = isGM ? `
+                <button class="btn btn-primary" onclick="openCreateTeamModal(${game.GameID}, '${game.GameTitle.replace(/'/g, "\\'")}', '${game.TeamSizes}')">
+                    <i class="fas fa-plus"></i> Create Team
+                </button>
+            ` : '';
+
             const memberBadge = isMember ? `
                 <span class="member-badge">
                     <i class="fas fa-check-circle"></i> Joined
@@ -3229,7 +3278,7 @@ async function removeUser(userId, username, fullName) {
                     </div>
                     <div class="roster-stat">
                         <i class="fas fa-shield-alt roster-stat-icon"></i>
-                        <div class="roster-stat-number">${teams}</div>
+                        <div class="roster-stat-number">${teamCount}</div>
                         <div class="roster-stat-label">Teams</div>
                     </div>
                 </div>
@@ -3239,6 +3288,7 @@ async function removeUser(userId, username, fullName) {
                         <i class="fas fa-eye"></i> View Details
                     </button>
                     ${joinButtonHTML}
+                    ${createTeamButtonHTML}
                 </div>
             `;
             gridDiv.appendChild(card);
