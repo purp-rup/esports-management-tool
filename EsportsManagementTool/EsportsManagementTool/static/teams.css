@@ -38,3 +38,47 @@
     background: rgba(121, 189, 233, 0.1);
     border-color: var(--stockton-blue);
 }
+
+.team-size-final {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.team-size-final:hover {
+    background: var(--hover-bg);
+    border-color: var(--stockton-blue);
+}
+
+.team-size-final input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--stockton-blue);
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+.team-size-final span {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.team-size-final input[type="radio"]:checked + span {
+    color: var(--stockton-blue);
+    font-weight: 600;
+}
+
+.team-size-final:has(input[type="radio"]:checked) {
+    background: rgba(121, 189, 233, 0.1);
+    border-color: var(--stockton-blue);
+}
