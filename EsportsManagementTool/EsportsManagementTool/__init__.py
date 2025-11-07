@@ -19,11 +19,14 @@ from functools import wraps
 
 app = Flask(__name__)
 
-# Module imports
+# =========================================
+# IMPORTS THAT DON'T RELY ON INITIALIZATION
+# =========================================
 import EsportsManagementTool.exampleModule
 import EsportsManagementTool.EventNotificationManager
 import EsportsManagementTool.UpdateProfile
 import EsportsManagementTool.suspensions
+import EsportsManagementTool.events
 
 # Change this to your secret key (can be anything, it's for extra protection)
 app.secret_key = 'your secret key'
@@ -273,53 +276,6 @@ def send_verify_email(email, token):
     mail.send(msg)
 
 """
-API route to get event details for the Event Details Modal within dashboard.html
-"""
-@app.route('/api/event/<int:event_id>')
-@login_required  # Added security
-def api_event_details(event_id):
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    try:
-        cursor.execute('SELECT * FROM generalevents WHERE EventID = %s', (event_id,))
-        event = cursor.fetchone()
-
-        if not event:
-            return jsonify({'error': 'Event not found'}), 404
-
-        # Format the event data
-        event_data = {
-            'id': event['EventID'],
-            'name': event['EventName'],
-            'date': event['Date'].strftime('%B %d, %Y'),
-            'date_raw': event['Date'].strftime('%Y-%m-%d'),  # For date input field
-            'start_time': None,
-            'end_time': None,
-            'description': event['Description'] if event['Description'] else 'No description provided',
-            'event_type': event['EventType'] if event['EventType'] else 'General',
-            'game': event['Game'] if event['Game'] else 'N/A',
-            'location': event['Location'] if event['Location'] else 'TBD',
-            'created_by': event['created_by'] if event.get('created_by') else None  # For permission checks
-        }
-
-        # Handle timedelta for StartTime
-        if event['StartTime']:
-            total_seconds = int(event['StartTime'].total_seconds())
-            hours = total_seconds // 3600
-            minutes = (total_seconds % 3600) // 60
-            event_data['start_time'] = f"{hours:02d}:{minutes:02d}"
-
-        # Handle timedelta for EndTime
-        if event['EndTime']:
-            total_seconds = int(event['EndTime'].total_seconds())
-            hours = total_seconds // 3600
-            minutes = (total_seconds % 3600) // 60
-            event_data['end_time'] = f"{hours:02d}:{minutes:02d}"
-
-        return jsonify(event_data)
-    finally:
-        cursor.close()
-
-"""
 Route to let users successfully verify their email through the email sent to their inbox.
 """
 @app.route('/verify/<token>')
@@ -525,60 +481,17 @@ def register():
 
     return render_template('register.html', msg=msg)
 
-
-"""
-App route to get to event registration.
-"""
-@app.route('/event-register', methods=['GET', 'POST'])
-@roles_required('admin', 'gm')  # Added security - GMs and Admins can create events
-def eventRegister():
-    msg = ''
-    if request.method == 'POST':
-        # Receives a user response for all of eventName, eventDate, eventTime, and eventDescription
-        eventName = request.form.get('eventName', '').strip()
-        eventDate = request.form.get('eventDate', '').strip()
-        eventType = request.form.get('eventType', '').strip()
-        game = request.form.get('game', '').strip()
-        startTime = request.form.get('startTime', '').strip()
-        endTime = request.form.get('endTime', '').strip()
-        eventDescription = request.form.get('eventDescription', '').strip()
-        location = request.form.get('eventLocation', '').strip()
-
-        # Does what needs to be done if the fields are filled out.
-        if eventName and eventDate and eventType and startTime and endTime and eventDescription:
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-            try:
-                cursor.execute(
-                    'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Game, Location, created_by) '
-                    'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                    (eventName, eventDate, startTime, endTime, eventDescription, eventType, game, location,
-                     session['id']))
-                # Confirms that the event is registered.
-                mysql.connection.commit()
-                msg = 'Event Registered!'
-
-                # Check if it's an AJAX request
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
-                    return jsonify({'success': True, 'message': msg}), 200
-
-            except Exception as e:
-                msg = f'Error: {str(e)}'
-                # Return error as JSON for AJAX
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
-                    return jsonify({'success': False, 'message': msg}), 400
-            finally:
-                cursor.close()
-
-        # Prompts user to fill out all fields if they leave any/all blank.
-        else:
-            msg = 'Please fill out all fields!'
-            # Return error as JSON for AJAX
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
-                return jsonify({'success': False, 'message': msg}), 400
-
+# =======================================
+# IMPORTS THAT RELY ON INITIALIZATION
+# =======================================
 import EsportsManagementTool.dashboard
 from EsportsManagementTool import game
 from EsportsManagementTool import teamCreation
+
+# =====================================
+# PULLS EVENT METHODS
+# =====================================
+events.register_event_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
 # This is used for debugging, It will show the app routes that are registered.
 if __name__ != '__main__':
