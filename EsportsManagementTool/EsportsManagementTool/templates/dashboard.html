@@ -1991,7 +1991,9 @@
                         <div id="roleStatusMessage" style="display: none; margin-top: 1rem; padding: 0.75rem; border-radius: 4px;"></div>
 
                         <div class="action-buttons">
-                            <button class="btn btn-secondary">Suspend User</button>
+                            <button class="btn btn-secondary" onclick="openSuspendModal(${userid}, '${username}', '${firstname} ${lastname}')">
+                                <i class="fas fa-user-clock"></i> Suspend User
+                            </button>
                             <button class="btn btn-danger" onclick="confirmRemoveUser(${userid}, '${username}', '${firstname} ${lastname}')">
                                 <i class="fas fa-user-times"></i> Remove User
                             </button>
@@ -2006,6 +2008,7 @@
                 goBtn.addEventListener('click', function() {
                     handleRoleChange(username);
                 });
+                await updateUserDetailsWithSuspension(userid);
             });
         });
 
@@ -3279,6 +3282,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script src="{{ url_for('static', filename='discord.js') }}"></script>
 <script src="{{ url_for ('static', filename='profile-edit.js')}}"></script>
+<script src="{{ url_for('static', filename='suspensions.js') }}"></script>
 <script>
 // Avatar Upload Modal Functions
 function openAvatarModal() {
