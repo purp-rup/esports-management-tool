@@ -297,6 +297,11 @@ def get_game_community_details(game_id):
             try:
                 cursor.execute(f"SELECT COUNT(*) as count FROM in_communities WHERE game_id = %s", (game_id,))
                 member_count = cursor.fetchone()['count']
+
+                cursor.execute('SELECT COUNT(*) as count FROM teams WHERE gameID = %s', (game_id,))
+                team_result = cursor.fetchone()
+                team_count = team_result['count'] if team_result else 0
+
             except:
                 member_count = 0
 
@@ -356,7 +361,7 @@ def get_game_community_details(game_id):
             return jsonify({'success': True,
                             'game': {'id': game['GameID'], 'title': game_title, 'description': game['Description'],
                                      'image_url': image_url, 'team_sizes': team_sizes, 'member_count': member_count,
-                                     'members': formatted_members, 'is_member': is_member, 'team_count': 0,
+                                     'members': formatted_members, 'is_member': is_member, 'team_count': team_count,
                                      'assigned_gm_id': assigned_gm_id}}), 200
         finally:
             cursor.close()
