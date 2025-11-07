@@ -54,6 +54,51 @@ def create_team(game_id):
         cursor.close()
 
 
+@app.route('/teams')
+@login_required
+def view_teams():
+    """View all available games"""
+    if 'loggedin' not in session:
+        flash('Please log in to view games', 'error')
+        return redirect(url_for('login'))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        cursor.execute("SELECT TeamID, teamName, teamMaxSize, gameID FROM teams ORDER BY TeamID ASC")
+        teams = cursor.fetchall()
+
+        teams_with_details = []
+        for team in teams:
+            team_dict = dict(team)
+
+            try:
+                cursor.execute(f"SELECT 1 FROM team_members WHERE user_id = %s AND team_id = %s LIMIT 1",
+                               (session['id'], team['TeamID']))
+                team_dict['is_member'] = cursor.fetchone() is not None
+            except:
+                team_dict['is_member'] = False
+
+            try:
+                cursor.execute("SELECT COUNT(*) as member_count FROM team_members WHERE team_id = %s",
+                               (team['TeamID'],))
+                count_result = cursor.fetchone()
+                team_dict['member_count'] = count_result['member_count'] if count_result else 0
+            except:
+                team_dict['member_count'] = 0
+
+
+            teams_with_details.append(team_dict)
+
+        return jsonify({'success': True, 'teams': teams_with_details})
+
+    except Exception as e:
+        print(f"Error fetching teams: {str(e)}")
+        return jsonify({'success': True, 'teams': []})
+
+    finally:
+        cursor.close()
+
 # @app.route('/delete-team', methods=['POST'])
 # @roles_required('admin', 'gm')
 # def delete_team():

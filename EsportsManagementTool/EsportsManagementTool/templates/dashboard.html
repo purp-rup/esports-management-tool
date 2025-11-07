@@ -704,8 +704,8 @@
             </div>
 
             <!-- Events Loading State -->
-            <div id="eventsLoading" class="events-loading">
-                <i class="fas fa-spinner fa-spin"></i>
+            <div id="eventsLoading" style="text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
                 <p>Loading events...</p>
             </div>
 
@@ -850,18 +850,23 @@
     <div id="teams" class="tab-content">
         <div class="content-card">
             <div class="card-header">
-                <h2>Teams</h2>
-                {% if user.is_gm %}
-                <p>Manage created teams</p>
-                {% else %}
-                    {%if user.is_admin or user.is_gm %}
-                        <button class="btn btn-primary" onclick="openCreateTeamModal('{{ game.GameID }}', '{{ game.GameTitle }}', '{{ game.TeamSizes }}')">
-                            <i class="fas fa-plus"></i> Create Team
-                        </button>
-                    {% endif %}
-                {% endif %}
+                <div>
+                    <h2>Teams</h2>
+                    <p>Manage created teams</p>
+                </div>
             </div>
-            <div class="empty-state">
+
+            <!-- Loading State -->
+            <div id="teamsLoading" style="text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading teams...</p>
+            </div>
+
+            <!-- Teams Grid (populated through JS) -->
+            <div id="teamsGrid" class="rosters-grid" style="display: none;"></div>
+
+            <!-- Empty State -->
+            <div id="teamsEmpty" class="empty-state" style="display: none;">
                 <div class="empty-state-icon">🏆</div>
                 <h3>No Teams Available</h3>
                 <p>Teams will be listed here once created</p>
@@ -2051,6 +2056,23 @@
                 }
             });
         }
+
+        // ========================================
+        // LOAD TEAMS FOR TEAMS TAB
+        // ========================================
+        const teamsTab = document.querySelector('[data-tab="teams"]');
+        if (teamsTab) {
+            teamsTab.addEventListener('click', loadTeams);
+        }
+
+        const tabDropdownForTeams = document.getElementById('tabDropdown');
+        if (tabDropdownForTeams) {
+            tabDropdownForTeams.addEventListener('change', function(e) {
+                if (e.target.value === 'teams') {
+                    loadTeams();
+                }
+            });
+        }
     });
 
     // Create Event Modal Functions
@@ -3104,8 +3126,6 @@ async function removeUser(userId, username, fullName) {
     }
 
 
-
-
     //Create Team Modal
     function openCreateTeamModal(gameID, gameTitle, teamSizes) {
         const modal = document.getElementById('createTeamModal');
@@ -3140,6 +3160,7 @@ async function removeUser(userId, username, fullName) {
         });
     }
 }
+
     function closeCreateTeamModal() {
         const modal = document.getElementById('createTeamModal');
         modal.style.display = 'none';
@@ -3289,6 +3310,118 @@ async function removeUser(userId, username, fullName) {
                     </button>
                     ${joinButtonHTML}
                     ${createTeamButtonHTML}
+                </div>
+            `;
+            gridDiv.appendChild(card);
+        }
+    }
+
+    async function loadTeams() {
+        const loadingDiv = document.getElementById('teamsLoading');
+        const gridDiv = document.getElementById('teamsGrid');
+        const emptyDiv = document.getElementById('teamsEmpty');
+
+        // Show loading state
+        loadingDiv.style.display = 'block';
+        gridDiv.style.display = 'none';
+        emptyDiv.style.display = 'none';
+
+        try {
+            const response = await fetch('/teams');
+            const data = await response.json();
+
+            if (data.success && data.teams && data.teams.length > 0) {
+                // Display teams
+                displayTeams(data.teams);
+                loadingDiv.style.display = 'none';
+                gridDiv.style.display = 'block';
+            } else {
+                // Show empty state
+                loadingDiv.style.display = 'none';
+                emptyDiv.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error loading teams:', error);
+            loadingDiv.style.display = 'none';
+            emptyDiv.style.display = 'block';
+        }
+    }
+
+    async function displayTeams(teams) {
+        const gridDiv = document.getElementById('teamsGrid');
+        gridDiv.className = 'rosters-grid';
+        gridDiv.innerHTML = '';
+
+        // Check if current user is admin
+        const isAdmin = {{ 'true' if user.is_admin else 'false' }};
+        const isGM = {{ 'true' if user.is_gm else 'false' }};
+
+        for (const team of teams) {
+            // Fetch member count from API
+            const memberCount = team.member_count || 0;
+            const isMember = team.is_member;
+
+            const iconHTML = `<i class="fas fa-shield-alt"></i>`
+
+            // Delete button for admins
+            const deleteButtonHTML = (isAdmin || isGM) ? `
+                <button class="game-delete-btn"
+                        onclick="confirmDeleteTeam(${team.TeamID}, '${team.teamName.replace(/'/g, "\\'")}')"
+                        title="Delete team">
+                    <i class="fas fa-trash"></i>
+                </button>
+            ` : '';
+
+            // Join/Leave button
+            const joinButtonHTML = isMember ? `
+                <button class="btn btn-secondary" onclick="confirmLeaveTeam(${team.TeamID}, '${team.teamName.replace(/'/g, "\\'")}')">
+                    <i class="fas fa-sign-out-alt"></i> Leave Team
+                </button>
+            ` : `
+                <button class="btn btn-success" onclick="confirmJoinTeam(${team.TeamID}, '${team.teamName.replace(/'/g, "\\'")}')">
+                    <i class="fas fa-user-plus"></i> Join Team
+                </button>
+            `;
+
+            const memberBadge = isMember ? `
+                <span class="member-badge">
+                    <i class="fas fa-check-circle"></i> Joined
+                </span>
+            ` : '';
+
+            const card = document.createElement('div');
+            card.className = 'roster-card';
+            card.innerHTML = `
+                ${deleteButtonHTML}
+                <div class="roster-card-header">
+                    <div class="roster-icon">
+                        ${iconHTML}
+                    </div>
+                    <h3 class="roster-card-title">
+                        ${team.teamName}
+                        ${memberBadge}
+                    </h3>
+                </div>
+                <p class="roster-card-description">Team for Game ID: ${team.gameID}</p>
+
+                <div class="roster-card-meta">
+                    <div class="roster-stat">
+                        <i class="fas fa-users roster-stat-icon"></i>
+                        <div class="roster-stat-number">${memberCount}</div>
+                        <div class="roster-stat-label">Members</div>
+                    </div>
+                    <div class="roster-stat">
+                        <i class="fas fa-trophy roster-stat-icon"></i>
+                        <div class="roster-stat-number">${team.teamMaxSize}</div>
+                        <div class="roster-stat-label">Max Size</div>
+                    </div>
+                </div>
+
+                <div class="roster-card-actions">
+                    <button class="btn btn-primary" onclick="openTeamDetailsModal(${team.TeamID})">
+                        <i class="fas fa-eye"></i> View Details
+                    </button>
+                    ${joinButtonHTML}
                 </div>
             `;
             gridDiv.appendChild(card);
@@ -3675,6 +3808,120 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+</script>
+
+<script>
+    async function loadTeams() {
+        const loadingDiv = document.getElementById('teamsLoading');
+        const gridDiv = document.getElementById('teamsGrid');
+        const emptyDiv = document.getElementById('teamsEmpty');
+
+        // Show loading state
+        loadingDiv.style.display = 'block';
+        gridDiv.style.display = 'none';
+        emptyDiv.style.display = 'none';
+
+        try {
+            const response = await fetch('/teams');
+            const data = await response.json();
+
+            if (data.success && data.teams && data.teams.length > 0) {
+                // Display teams
+                displayTeams(data.teams);
+                loadingDiv.style.display = 'none';
+                gridDiv.style.display = 'block';
+            } else {
+                // Show empty state
+                loadingDiv.style.display = 'none';
+                emptyDiv.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error loading teams:', error);
+            loadingDiv.style.display = 'none';
+            emptyDiv.style.display = 'block';
+        }
+    }
+
+    async function displayTeams(teams) {
+        const gridDiv = document.getElementById('teamsGrid');
+        gridDiv.className = 'rosters-grid';
+        gridDiv.innerHTML = '';
+
+        // Check if current user is admin
+        const isAdmin = {{ 'true' if user.is_admin else 'false' }};
+        const isGM = {{ 'true' if user.is_gm else 'false' }};
+
+        for (const team of teams) {
+            // Fetch member count from API
+            const memberCount = team.member_count || 0;
+            const isMember = team.is_member;
+
+            const iconHTML = `<i class="fas fa-shield-alt"></i>`
+
+            // Delete button for admins
+            const deleteButtonHTML = (isAdmin || isGM) ? `
+                <button class="game-delete-btn"
+                        onclick="confirmDeleteTeam(${team.TeamID}, '${team.teamName.replace(/'/g, "\\'")}')"
+                        title="Delete team">
+                    <i class="fas fa-trash"></i>
+                </button>
+            ` : '';
+
+            // Join/Leave button
+            const joinButtonHTML = isMember ? `
+                <button class="btn btn-secondary" onclick="confirmLeaveTeam(${team.TeamID}, '${team.teamName.replace(/'/g, "\\'")}')">
+                    <i class="fas fa-sign-out-alt"></i> Leave Team
+                </button>
+            ` : `
+                <button class="btn btn-success" onclick="confirmJoinTeam(${team.TeamID}, '${team.teamName.replace(/'/g, "\\'")}')">
+                    <i class="fas fa-user-plus"></i> Join Team
+                </button>
+            `;
+
+            const memberBadge = isMember ? `
+                <span class="member-badge">
+                    <i class="fas fa-check-circle"></i> Joined
+                </span>
+            ` : '';
+
+            const card = document.createElement('div');
+            card.className = 'roster-card';
+            card.innerHTML = `
+                ${deleteButtonHTML}
+                <div class="roster-card-header">
+                    <div class="roster-icon">
+                        ${iconHTML}
+                    </div>
+                    <h3 class="roster-card-title">
+                        ${team.teamName}
+                        ${memberBadge}
+                    </h3>
+                </div>
+                <p class="roster-card-description">Team for Game ID: ${team.gameID}</p>
+
+                <div class="roster-card-meta">
+                    <div class="roster-stat">
+                        <i class="fas fa-users roster-stat-icon"></i>
+                        <div class="roster-stat-number">${memberCount}</div>
+                        <div class="roster-stat-label">Members</div>
+                    </div>
+                    <div class="roster-stat">
+                        <i class="fas fa-trophy roster-stat-icon"></i>
+                        <div class="roster-stat-number">${team.teamMaxSize}</div>
+                        <div class="roster-stat-label">Max Size</div>
+                    </div>
+                </div>
+
+                <div class="roster-card-actions">
+                    <button class="btn btn-primary" onclick="openTeamDetailsModal(${team.TeamID})">
+                        <i class="fas fa-eye"></i> View Details
+                    </button>
+                    ${joinButtonHTML}
+                </div>
+            `;
+            gridDiv.appendChild(card);
+        }
+    }
 </script>
 
 <script src="{{ url_for('static', filename='discord.js') }}"></script>

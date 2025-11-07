@@ -442,11 +442,11 @@ def get_user_managed_game(user_id):
 
             # Check each game table to see if this user is the GM
             for game in all_games:
-                table_name = get_game_table_name(game['GameTitle'])
+                current_game = game['GameTitle']
 
                 try:
                     cursor.execute(
-                        f"SELECT 1 FROM `{table_name}` WHERE user_id = %s AND is_game_manager = 1",
+                        f"SELECT 1 FROM '{current_game}' WHERE user_id = gm_id = %s",
                         (user_id,)
                     )
 

@@ -39,6 +39,7 @@
     border-color: var(--stockton-blue);
 }
 
+/* Team Size Final Radio Styling */
 .team-size-final {
     display: flex;
     align-items: center;
