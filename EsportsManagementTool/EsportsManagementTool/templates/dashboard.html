@@ -1356,7 +1356,7 @@
 <script src="{{ url_for('static', filename='suspensions.js') }}"></script>
 <script src="{{ url_for('static', filename='events.js') }}"></script>
 <script src="{{ url_for('static', filename='admin-panel.js') }}"></script>
-
+<script src="{{ url_for('static', filename='notifications.js') }}"></script>
 <script>
     window.userPermissions = {
         is_admin: {{ 'true' if user.is_admin else 'false' }},
@@ -1578,181 +1578,181 @@
         // ===============================
         // NOTIFICATION SETTINGS
         // ===============================
-        const enableNotifToggle = document.getElementById('enableNotifications');
-        const notificationOptions = document.getElementById('notificationOptions');
-        const daysInput = document.getElementById('adviceNoticeDays');
-        const hoursInput = document.getElementById('adviceNoticeHours');
-        const previewText = document.getElementById('previewTime');
+<!--        const enableNotifToggle = document.getElementById('enableNotifications');-->
+<!--        const notificationOptions = document.getElementById('notificationOptions');-->
+<!--        const daysInput = document.getElementById('adviceNoticeDays');-->
+<!--        const hoursInput = document.getElementById('adviceNoticeHours');-->
+<!--        const previewText = document.getElementById('previewTime');-->
 
-        // NEW: Event type checkboxes (all four types)
-        const notifyPractices = document.getElementById('notifyPractices');
-        const notifyMatches = document.getElementById('notifyMatches');
-        const notifyTournaments = document.getElementById('notifyTournaments');
-        const notifyEvents = document.getElementById('notifyEvents');
+<!--        // NEW: Event type checkboxes (all four types)-->
+<!--        const notifyPractices = document.getElementById('notifyPractices');-->
+<!--        const notifyMatches = document.getElementById('notifyMatches');-->
+<!--        const notifyTournaments = document.getElementById('notifyTournaments');-->
+<!--        const notifyEvents = document.getElementById('notifyEvents');-->
 
-        // Toggle notification options visibility
-        if (enableNotifToggle) {
-            enableNotifToggle.addEventListener('change', function() {
-                if (this.checked) {
-                    notificationOptions.style.display = 'block';
-                } else {
-                    notificationOptions.style.display = 'none';
-                }
-            });
-        }
+<!--        // Toggle notification options visibility-->
+<!--        if (enableNotifToggle) {-->
+<!--            enableNotifToggle.addEventListener('change', function() {-->
+<!--                if (this.checked) {-->
+<!--                    notificationOptions.style.display = 'block';-->
+<!--                } else {-->
+<!--                    notificationOptions.style.display = 'none';-->
+<!--                }-->
+<!--            });-->
+<!--        }-->
 
-        // Update preview text to include event types
-        function updatePreview() {
-            const days = parseInt(daysInput.value) || 0;
-            const hours = parseInt(hoursInput.value) || 0;
+<!--        // Update preview text to include event types-->
+<!--        function updatePreview() {-->
+<!--            const days = parseInt(daysInput.value) || 0;-->
+<!--            const hours = parseInt(hoursInput.value) || 0;-->
 
-            // Build time preview
-            let previewParts = [];
-            if (days > 0) {
-                previewParts.push(`${days} day${days !== 1 ? 's' : ''}`);
-            }
-            if (hours > 0) {
-                previewParts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
-            }
+<!--            // Build time preview-->
+<!--            let previewParts = [];-->
+<!--            if (days > 0) {-->
+<!--                previewParts.push(`${days} day${days !== 1 ? 's' : ''}`);-->
+<!--            }-->
+<!--            if (hours > 0) {-->
+<!--                previewParts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);-->
+<!--            }-->
 
-            let timeText = '';
-            if (previewParts.length === 0) {
-                timeText = 'at the time of the event';
-            } else {
-                timeText = previewParts.join(' and ');
-            }
+<!--            let timeText = '';-->
+<!--            if (previewParts.length === 0) {-->
+<!--                timeText = 'at the time of the event';-->
+<!--            } else {-->
+<!--                timeText = previewParts.join(' and ');-->
+<!--            }-->
 
-            // Build event types preview
-            let eventTypes = [];
-            if (notifyPractices && notifyPractices.checked) {
-                eventTypes.push('practices');
-            }
-            if (notifyMatches && notifyMatches.checked) {
-                eventTypes.push('matches');
-            }
-            if (notifyTournaments && notifyTournaments.checked) {
-                eventTypes.push('tournaments');
-            }
-            if (notifyEvents && notifyEvents.checked) {
-                eventTypes.push('general events');
-            }
+<!--            // Build event types preview-->
+<!--            let eventTypes = [];-->
+<!--            if (notifyPractices && notifyPractices.checked) {-->
+<!--                eventTypes.push('practices');-->
+<!--            }-->
+<!--            if (notifyMatches && notifyMatches.checked) {-->
+<!--                eventTypes.push('matches');-->
+<!--            }-->
+<!--            if (notifyTournaments && notifyTournaments.checked) {-->
+<!--                eventTypes.push('tournaments');-->
+<!--            }-->
+<!--            if (notifyEvents && notifyEvents.checked) {-->
+<!--                eventTypes.push('general events');-->
+<!--            }-->
 
-            // Update preview text
-            if (eventTypes.length === 0) {
-                previewText.textContent = `${timeText} (no event types selected)`;
-            } else if (eventTypes.length === 4) {
-                previewText.textContent = `${timeText} for all event types`;
-            } else {
-                const lastType = eventTypes.pop();
-                const typeList = eventTypes.length > 0 ? eventTypes.join(', ') + ', and ' + lastType : lastType;
-                previewText.textContent = `${timeText} for ${typeList}`;
-            }
-        }
+<!--            // Update preview text-->
+<!--            if (eventTypes.length === 0) {-->
+<!--                previewText.textContent = `${timeText} (no event types selected)`;-->
+<!--            } else if (eventTypes.length === 4) {-->
+<!--                previewText.textContent = `${timeText} for all event types`;-->
+<!--            } else {-->
+<!--                const lastType = eventTypes.pop();-->
+<!--                const typeList = eventTypes.length > 0 ? eventTypes.join(', ') + ', and ' + lastType : lastType;-->
+<!--                previewText.textContent = `${timeText} for ${typeList}`;-->
+<!--            }-->
+<!--        }-->
 
-        if (daysInput && hoursInput) {
-            daysInput.addEventListener('input', updatePreview);
-            hoursInput.addEventListener('input', updatePreview);
+<!--        if (daysInput && hoursInput) {-->
+<!--            daysInput.addEventListener('input', updatePreview);-->
+<!--            hoursInput.addEventListener('input', updatePreview);-->
 
-            // NEW: Add event listeners for all event type checkboxes
-            if (notifyPractices) {
-                notifyPractices.addEventListener('change', updatePreview);
-            }
-            if (notifyMatches) {
-                notifyMatches.addEventListener('change', updatePreview);
-            }
-            if (notifyTournaments) {
-                notifyTournaments.addEventListener('change', updatePreview);
-            }
-            if (notifyEvents) {
-                notifyEvents.addEventListener('change', updatePreview);
-            }
+<!--            // NEW: Add event listeners for all event type checkboxes-->
+<!--            if (notifyPractices) {-->
+<!--                notifyPractices.addEventListener('change', updatePreview);-->
+<!--            }-->
+<!--            if (notifyMatches) {-->
+<!--                notifyMatches.addEventListener('change', updatePreview);-->
+<!--            }-->
+<!--            if (notifyTournaments) {-->
+<!--                notifyTournaments.addEventListener('change', updatePreview);-->
+<!--            }-->
+<!--            if (notifyEvents) {-->
+<!--                notifyEvents.addEventListener('change', updatePreview);-->
+<!--            }-->
 
-            updatePreview(); // Initial call
-        }
+<!--            updatePreview(); // Initial call-->
+<!--        }-->
 
-        // Validation to ensure at least one event type is selected
-        function validateEventTypes() {
-            const practicesChecked = notifyPractices && notifyPractices.checked;
-            const matchesChecked = notifyMatches && notifyMatches.checked;
-            const tournamentsChecked = notifyTournaments && notifyTournaments.checked;
-            const eventsChecked = notifyEvents && notifyEvents.checked;
+<!--        // Validation to ensure at least one event type is selected-->
+<!--        function validateEventTypes() {-->
+<!--            const practicesChecked = notifyPractices && notifyPractices.checked;-->
+<!--            const matchesChecked = notifyMatches && notifyMatches.checked;-->
+<!--            const tournamentsChecked = notifyTournaments && notifyTournaments.checked;-->
+<!--            const eventsChecked = notifyEvents && notifyEvents.checked;-->
 
-            return practicesChecked || matchesChecked || tournamentsChecked || eventsChecked;
-        }
+<!--            return practicesChecked || matchesChecked || tournamentsChecked || eventsChecked;-->
+<!--        }-->
 
-        // ===============================
-        // NOTIFICATION FORM SUBMISSION
-        // ===============================
-        const notifForm = document.getElementById('notificationSettingsForm');
-        if (notifForm) {
-            notifForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
+<!--        // ===============================-->
+<!--        // NOTIFICATION FORM SUBMISSION-->
+<!--        // ===============================-->
+<!--        const notifForm = document.getElementById('notificationSettingsForm');-->
+<!--        if (notifForm) {-->
+<!--            notifForm.addEventListener('submit', async function(e) {-->
+<!--                e.preventDefault();-->
 
-                const submitBtn = notifForm.querySelector('button[type="submit"]');
-                const submitBtnText = document.getElementById('saveNotifBtnText');
-                const submitBtnSpinner = document.getElementById('saveNotifBtnSpinner');
-                const formMessage = document.getElementById('notificationMessage');
+<!--                const submitBtn = notifForm.querySelector('button[type="submit"]');-->
+<!--                const submitBtnText = document.getElementById('saveNotifBtnText');-->
+<!--                const submitBtnSpinner = document.getElementById('saveNotifBtnSpinner');-->
+<!--                const formMessage = document.getElementById('notificationMessage');-->
 
-                // NEW: Validate that at least one event type is selected if notifications are enabled
-                if (enableNotifToggle && enableNotifToggle.checked && !validateEventTypes()) {
-                    formMessage.textContent = 'Please select at least one event type to receive notifications for.';
-                    formMessage.className = 'form-message error';
-                    formMessage.style.display = 'block';
+<!--                // NEW: Validate that at least one event type is selected if notifications are enabled-->
+<!--                if (enableNotifToggle && enableNotifToggle.checked && !validateEventTypes()) {-->
+<!--                    formMessage.textContent = 'Please select at least one event type to receive notifications for.';-->
+<!--                    formMessage.className = 'form-message error';-->
+<!--                    formMessage.style.display = 'block';-->
 
-                    setTimeout(() => {
-                        formMessage.style.display = 'none';
-                    }, 5000);
+<!--                    setTimeout(() => {-->
+<!--                        formMessage.style.display = 'none';-->
+<!--                    }, 5000);-->
 
-                    return;
-                }
-        //DISCLAIMER: ABOVE CODE WAS GENERATED USING CLAUDE AND CHATGPT
+<!--                    return;-->
+<!--                }-->
+<!--        //DISCLAIMER: ABOVE CODE WAS GENERATED USING CLAUDE AND CHATGPT-->
 
-                // Disable submit button
-                submitBtn.disabled = true;
-                submitBtnText.style.display = 'none';
-                submitBtnSpinner.style.display = 'inline-block';
+<!--                // Disable submit button-->
+<!--                submitBtn.disabled = true;-->
+<!--                submitBtnText.style.display = 'none';-->
+<!--                submitBtnSpinner.style.display = 'inline-block';-->
 
-                // Get form data
-                const formData = new FormData(notifForm);
+<!--                // Get form data-->
+<!--                const formData = new FormData(notifForm);-->
 
-                try {
-                    const response = await fetch('/eventnotificationsettings', {
-                        method: 'POST',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: formData
-                    });
+<!--                try {-->
+<!--                    const response = await fetch('/eventnotificationsettings', {-->
+<!--                        method: 'POST',-->
+<!--                        headers: {-->
+<!--                            'X-Requested-With': 'XMLHttpRequest'-->
+<!--                        },-->
+<!--                        body: formData-->
+<!--                    });-->
 
-                    const data = await response.json();
+<!--                    const data = await response.json();-->
 
-                    if (response.ok && data.success) {
-                        // Show success message
-                        formMessage.textContent = data.message || 'Notification settings saved successfully!';
-                        formMessage.className = 'form-message success';
-                        formMessage.style.display = 'block';
+<!--                    if (response.ok && data.success) {-->
+<!--                        // Show success message-->
+<!--                        formMessage.textContent = data.message || 'Notification settings saved successfully!';-->
+<!--                        formMessage.className = 'form-message success';-->
+<!--                        formMessage.style.display = 'block';-->
 
-                        // Hide message after 3 seconds
-                        setTimeout(() => {
-                            formMessage.style.display = 'none';
-                        }, 3000);
-                    } else {
-                        throw new Error(data.message || 'Failed to save settings');
-                    }
-                } catch (error) {
-                    // Show error message
-                    formMessage.textContent = error.message || 'Failed to save notification settings. Please try again.';
-                    formMessage.className = 'form-message error';
-                    formMessage.style.display = 'block';
+<!--                        // Hide message after 3 seconds-->
+<!--                        setTimeout(() => {-->
+<!--                            formMessage.style.display = 'none';-->
+<!--                        }, 3000);-->
+<!--                    } else {-->
+<!--                        throw new Error(data.message || 'Failed to save settings');-->
+<!--                    }-->
+<!--                } catch (error) {-->
+<!--                    // Show error message-->
+<!--                    formMessage.textContent = error.message || 'Failed to save notification settings. Please try again.';-->
+<!--                    formMessage.className = 'form-message error';-->
+<!--                    formMessage.style.display = 'block';-->
 
-                } finally {
-                    // Re-enable submit button
-                    submitBtn.disabled = false;
-                    submitBtnText.style.display = 'inline';
-                    submitBtnSpinner.style.display = 'none';
-                }
-            });
-        }
+<!--                } finally {-->
+<!--                    // Re-enable submit button-->
+<!--                    submitBtn.disabled = false;-->
+<!--                    submitBtnText.style.display = 'inline';-->
+<!--                    submitBtnSpinner.style.display = 'none';-->
+<!--                }-->
+<!--            });-->
+<!--        }-->
 
         // ========================================
         // CREATE TEAM FORM SUBMISSION
@@ -1893,37 +1893,37 @@
         }
     }
 
-    function showNotificationDisabledMessage() {
-        const modalContent = document.getElementById('eventDetailsContent');
-        const section = document.getElementById('eventNotificationSection');
+<!--    function showNotificationDisabledMessage() {-->
+<!--        const modalContent = document.getElementById('eventDetailsContent');-->
+<!--        const section = document.getElementById('eventNotificationSection');-->
 
-        if (!section) return;
+<!--        if (!section) return;-->
 
-        section.innerHTML = `
-            <div class="notification-disabled">
-                <div class="notification-icon"><i class="fas fa-bell-slash"></i></div>
-                <h4>Notifications Disabled</h4>
-                <p>You’ve turned off event notifications in your settings.</p>
-                <button class="notification-btn settings" onclick="window.location.href='/eventnotificationsettings'">
-                    Go to Settings
-                </button>
-            </div>
-        `;
-    }
+<!--        section.innerHTML = `-->
+<!--            <div class="notification-disabled">-->
+<!--                <div class="notification-icon"><i class="fas fa-bell-slash"></i></div>-->
+<!--                <h4>Notifications Disabled</h4>-->
+<!--                <p>You’ve turned off event notifications in your settings.</p>-->
+<!--                <button class="notification-btn settings" onclick="window.location.href='/eventnotificationsettings'">-->
+<!--                    Go to Settings-->
+<!--                </button>-->
+<!--            </div>-->
+<!--        `;-->
+<!--    }-->
 
-    async function subscribeToEvent(eventId) {
-        const res = await fetch(`/api/subscribe-event/${eventId}`, { method: 'POST' });
-        const data = await res.json();
-        alert(data.message || 'Subscribed!');
-        await loadNotificationSection(eventId);
-    }
+<!--    async function subscribeToEvent(eventId) {-->
+<!--        const res = await fetch(`/api/subscribe-event/${eventId}`, { method: 'POST' });-->
+<!--        const data = await res.json();-->
+<!--        alert(data.message || 'Subscribed!');-->
+<!--        await loadNotificationSection(eventId);-->
+<!--    }-->
 
-    async function unsubscribeFromEvent(eventId) {
-        const res = await fetch(`/api/unsubscribe-event/${eventId}`, { method: 'POST' });
-        const data = await res.json();
-        alert(data.message || 'Unsubscribed!');
-        await loadNotificationSection(eventId);
-    }
+<!--    async function unsubscribeFromEvent(eventId) {-->
+<!--        const res = await fetch(`/api/unsubscribe-event/${eventId}`, { method: 'POST' });-->
+<!--        const data = await res.json();-->
+<!--        alert(data.message || 'Unsubscribed!');-->
+<!--        await loadNotificationSection(eventId);-->
+<!--    }-->
 
     //DISCLAIMER: CHATGPT WAS USED TO GENERATE THE ABOVE CODE
 
