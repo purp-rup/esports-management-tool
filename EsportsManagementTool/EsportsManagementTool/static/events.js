@@ -179,7 +179,7 @@ function createEventCard(event, isAdmin, isGm) {
         '<div class="event-ongoing-indicator" title="Event is currently ongoing"></div>' : '';
 
     const deleteButton = canDelete ? `
-        <button class="btn btn-secondary btn-delete" onclick="openDeleteConfirmModal(${event.id}, '${event.name.replace(/'/g, "\\'")}')">
+        <button class="btn btn-secondary btn-delete" onclick="event.stopPropagation(); openDeleteConfirmModal(${event.id}, '${event.name.replace(/'/g, "\\'")}')">
             <i class="fas fa-trash"></i>
         </button>
     ` : '';
