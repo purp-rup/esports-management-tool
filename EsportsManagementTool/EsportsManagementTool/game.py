@@ -528,7 +528,7 @@ Route to find all game managers when attempting to assign a new game manager to 
 """
 @app.route('/api/game/<int:game_id>/available-gms', methods=['GET'])
 @login_required
-def get_available_game_managers():
+def get_available_game_managers(game_id):
     """Get all users with GM role for assignment"""
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)

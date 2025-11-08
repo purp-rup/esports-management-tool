@@ -12,6 +12,10 @@ def idgen(text, existing_ids):
 
     return f"{prefix}{counter}"
 
+"""
+Method to allow an admin or a game manager to create a game.
+@param - game_id is the id of the game a team is being made for.
+"""
 @app.route('/api/create-team/<int:game_id>', methods=['POST'])
 @roles_required('admin', 'gm')
 def create_team(game_id):
@@ -53,7 +57,9 @@ def create_team(game_id):
     finally:
         cursor.close()
 
-
+"""
+Method to view all teams for all games.
+"""
 @app.route('/teams')
 @login_required
 def view_teams():
@@ -105,6 +111,10 @@ def view_teams():
         cursor.close()
 
 # DEVELOPED FULLY BY CLAUDE.AI
+"""
+Method to gather all users who are in a game's community and not currently part of the team.
+@param - team_id is the team in which the list is being gathered for.
+"""
 @app.route('/api/teams/<team_id>/available-members')
 @login_required
 @roles_required('admin', 'gm')
@@ -172,6 +182,10 @@ def get_available_team_members(team_id):
         cursor.close()
 
 # DEVELOPED FULLY BY CLAUDE.AI
+"""
+Method to add a player to a team.
+@param - team_id is the team in which a player is being added.
+"""
 @app.route('/api/teams/<team_id>/add-members', methods=['POST'])
 @login_required
 @roles_required('admin', 'gm')
@@ -255,6 +269,10 @@ def add_members_to_team(team_id):
 
 
 # DEVELOPED FULLY BY CLAUDE.AI
+"""
+Method to remove a player from a team.
+@param - team_id is the team in which a player is being removed.
+"""
 @app.route('/api/teams/<team_id>/remove-member', methods=['POST'])
 @login_required
 @roles_required('admin', 'gm')
@@ -307,6 +325,10 @@ def remove_member_from_team(team_id):
     finally:
         cursor.close()
 
+"""
+Method to retrieve details for a specific team to be displayed to the user.
+@param - team_id is the team whose details are being retrieved.
+"""
 @app.route('/api/teams/<team_id>/details')
 @login_required
 def team_details(team_id):
@@ -396,6 +418,9 @@ def team_details(team_id):
         print(f"Error getting game details: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load game details'}), 500
 
+"""
+Method to delete a shell team for a game.
+"""
 @app.route('/delete-team', methods=['POST'])
 @login_required
 def delete_team():

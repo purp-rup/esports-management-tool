@@ -491,7 +491,7 @@ from EsportsManagementTool import teamCreation
 # =====================================
 # PULLS EVENT METHODS
 # =====================================
-events.register_event_routes(app, mysql, login_required, roles_required, get_user_permissions)
+EsportsManagementTool.events.register_event_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
 # This is used for debugging, It will show the app routes that are registered.
 if __name__ != '__main__':
