@@ -1346,7 +1346,6 @@
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
@@ -1358,6 +1357,9 @@
 <script src="{{ url_for('static', filename='admin-panel.js') }}"></script>
 <script src="{{ url_for('static', filename='notifications.js') }}"></script>
 <script src="{{ url_for('static', filename='game.js') }}"></script>
+<script src="{{ url_for('static', filename='modals.js') }}"></script>
+<!-- Must load last -->
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 
 <script>
     window.userPermissions = {
@@ -1365,6 +1367,14 @@
         is_gm: {{ 'true' if user.is_gm else 'false' }}
     };
 
+    // Set global user context for events module
+    window.currentUserId = {{ session.id }};
+
+    // Events data for calendar
+    const eventsDataFromServer = {{ events_by_date | tojson }};
+</script>
+
+<script>
     /**
      * Build role badges for a user
      * @param {Object} options - Badge options
@@ -1424,51 +1434,54 @@
 
         return badgesHTML;
     }
+</script>
 
-    //Consolidating *most* DOMContentLoaded functions into one. This does not include the two for notifications.
-    document.addEventListener('DOMContentLoaded', function() {
-        // ========================================
-        // INITIALIZE EVENTS MODULE
-        // ========================================
-        const eventsDataFromServer = {{ events_by_date | tojson }};
-        initializeEventsModule(eventsDataFromServer);
+<!-- Can be removed once verified 100% working. -->
+<script>
+<!--    //Consolidating *most* DOMContentLoaded functions into one. This does not include the two for notifications.-->
+<!--    document.addEventListener('DOMContentLoaded', function() {-->
+<!--        // ========================================-->
+<!--        // INITIALIZE EVENTS MODULE-->
+<!--        // ========================================-->
+<!--        const eventsDataFromServer = {{ events_by_date | tojson }};-->
+<!--        initializeEventsModule(eventsDataFromServer);-->
 
-        // Set global user context for events module
-        window.currentUserId = {{ session.id }};
+<!--        // Set global user context for events module-->
+<!--        window.currentUserId = {{ session.id }};-->
 
-        // ========================================
-        // TAB SWITCHING
-        // ========================================
-        const tabButtons = document.querySelectorAll('.tab-button');
-        const tabContents = document.querySelectorAll('.tab-content');
-        const tabDropdown = document.getElementById('tabDropdown');
+<!--        // ========================================-->
+<!--        // TAB SWITCHING-->
+<!--        // ========================================-->
+<!--        const tabButtons = document.querySelectorAll('.tab-button');-->
+<!--        const tabContents = document.querySelectorAll('.tab-content');-->
+<!--        const tabDropdown = document.getElementById('tabDropdown');-->
 
-        // Check if there's a tab hash in URL (for returning to profile after avatar sync)
-        const urlHash = window.location.hash.substring(1); // Remove the '#'
-        if (urlHash && document.getElementById(urlHash)) {
-            switchTab(urlHash);
-        }
+<!--        // Check if there's a tab hash in URL (for returning to profile after avatar sync)-->
+<!--        const urlHash = window.location.hash.substring(1); // Remove the '#'-->
+<!--        if (urlHash && document.getElementById(urlHash)) {-->
+<!--            switchTab(urlHash);-->
+<!--        }-->
 
-        function switchTab(targetTab) {
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
+<!--        function switchTab(targetTab) {-->
+<!--            tabButtons.forEach(btn => btn.classList.remove('active'));-->
+<!--            tabContents.forEach(content => content.classList.remove('active'));-->
 
-            const activeButton = document.querySelector(`[data-tab="${targetTab}"]`);
-            if (activeButton) activeButton.classList.add('active');
+<!--            const activeButton = document.querySelector(`[data-tab="${targetTab}"]`);-->
+<!--            if (activeButton) activeButton.classList.add('active');-->
 
-            document.getElementById(targetTab).classList.add('active');
-            tabDropdown.value = targetTab;
-        }
+<!--            document.getElementById(targetTab).classList.add('active');-->
+<!--            tabDropdown.value = targetTab;-->
+<!--        }-->
 
-        tabButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                switchTab(this.getAttribute('data-tab'));
-            });
-        });
+<!--        tabButtons.forEach(button => {-->
+<!--            button.addEventListener('click', function() {-->
+<!--                switchTab(this.getAttribute('data-tab'));-->
+<!--            });-->
+<!--        });-->
 
-        tabDropdown.addEventListener('change', function() {
-            switchTab(this.value);
-        });
+<!--        tabDropdown.addEventListener('change', function() {-->
+<!--            switchTab(this.value);-->
+<!--        });-->
 
         //DISCLAIMER: BELOW CODE WAS GENERATED USING CLAUDE AND CHATGPT
 
@@ -1651,14 +1664,14 @@
 <!--            });-->
 <!--        }-->
 
-        // ========================================
-        // INITIALIZE ADMIN PANEL (if admin tab exists)
-        // ========================================
-        const adminTab = document.querySelector('[data-tab="admin"]');
-        if (adminTab) {
-            initializeAdminPanel();
-        }
-    });
+<!--        // ========================================-->
+<!--        // INITIALIZE ADMIN PANEL (if admin tab exists)-->
+<!--        // ========================================-->
+<!--        const adminTab = document.querySelector('[data-tab="admin"]');-->
+<!--        if (adminTab) {-->
+<!--            initializeAdminPanel();-->
+<!--        }-->
+<!--    });-->
 
 <!--    function showNotificationDisabledMessage() {-->
 <!--        const modalContent = document.getElementById('eventDetailsContent');-->
@@ -1695,63 +1708,4 @@
     //DISCLAIMER: CHATGPT WAS USED TO GENERATE THE ABOVE CODE
 </script>
 
-<script>
-// ============================================
-// UNIVERSAL MODAL CLOSE HANDLER
-// ============================================
-document.addEventListener('DOMContentLoaded', function() {
-    // Handle click outside modal
-    window.addEventListener('click', function(event) {
-        if (event.target.classList.contains('modal')) {
-            const modalId = event.target.id;
-
-            const modalCloseHandlers = {
-                'dayEventsModal': closeDayModal,
-                'eventDetailsModal': closeEventModal,
-                'createEventModal': closeCreateEventModal,
-                'createGameModal': closeCreateGameModal,
-                'createTeamModal': closeCreateTeamModal,
-                'gameDetailsModal': closeGameDetailsModal,
-                'assignGMModal': closeAssignGMModal,
-                'changeAvatarModal': closeAvatarModal,
-                'editProfileModal': closeEditProfileModal,
-                'changePasswordModal': closeChangePasswordModal,
-                'deleteEventConfirmModal': closeDeleteConfirmModal
-            };
-
-            if (modalCloseHandlers[modalId]) {
-                modalCloseHandlers[modalId]();
-            }
-        }
-    });
-
-    // Handle Escape key for all modals
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            const visibleModals = document.querySelectorAll('.modal[style*="display: block"], .modal.active');
-
-            visibleModals.forEach(modal => {
-                const modalId = modal.id;
-                const modalCloseHandlers = {
-                    'dayEventsModal': closeDayModal,
-                    'eventDetailsModal': closeEventModal,
-                    'createEventModal': closeCreateEventModal,
-                    'createGameModal': closeCreateGameModal,
-                    'createTeamModal': closeCreateTeamModal,
-                    'gameDetailsModal': closeGameDetailsModal,
-                    'assignGMModal': closeAssignGMModal,
-                    'changeAvatarModal': closeAvatarModal,
-                    'editProfileModal': closeEditProfileModal,
-                    'changePasswordModal': closeChangePasswordModal,
-                    'deleteEventConfirmModal': closeDeleteConfirmModal
-                };
-
-                if (modalCloseHandlers[modalId]) {
-                    modalCloseHandlers[modalId]();
-                }
-            });
-        }
-    });
-});
-</script>
 {% endblock %}

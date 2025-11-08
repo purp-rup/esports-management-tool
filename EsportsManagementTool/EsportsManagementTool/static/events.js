@@ -1,3 +1,5 @@
+// DISCLAIMER: CODE REWRITTEN AND ORGANIZED BY CLAUDE
+
 /**
  * events.js
  * Handles all event-related functionality for the dashboard

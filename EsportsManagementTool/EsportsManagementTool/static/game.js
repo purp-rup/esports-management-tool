@@ -1,3 +1,5 @@
+// DISCLAIMER: CODE REWRITTEN AND ORGANIZED BY CLAUDE
+
 // ============================================
 // GAMES MODULE
 // Handles all game community functionality

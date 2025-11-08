@@ -1,3 +1,5 @@
+// DISCLAIMER: CODE ORGANIZED BY CLAUDE
+
 /**
  * Notification Settings Management
  * Handles notification preferences and event type filters
