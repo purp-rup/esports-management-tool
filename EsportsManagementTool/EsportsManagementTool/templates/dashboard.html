@@ -857,148 +857,205 @@
         {% endif %}
     </div>
 
-    <!-- Teams Tab -->
+    <!-- Teams Tab - NEW DESIGN -->
     <div id="teams" class="tab-content">
-        <div class="content-card">
-            <div class="card-header">
-                <div>
+        <div class="teams-layout">
+            <!-- LEFT SIDEBAR: Team List -->
+            <aside class="teams-sidebar">
+                <div class="teams-sidebar-header">
                     <h2>Teams</h2>
-                    <p>Manage created teams</p>
+                    <p class="teams-subtitle">Select a team to view details</p>
                 </div>
-            </div>
 
-            <!-- Loading State -->
-            <div id="teamsLoading" style="text-align: center; padding: 2rem;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
-                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading teams...</p>
-            </div>
-
-            <!-- Teams Grid (populated through JS) -->
-            <div id="teamsGrid" class="rosters-grid" style="display: none;"></div>
-
-            <!-- Empty State -->
-            <div id="teamsEmpty" class="empty-state" style="display: none;">
-                <div class="empty-state-icon">🏆</div>
-                <h3>No Teams Available</h3>
-                <p>Teams will be listed here once created</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Team Details Modal -->
-    <div id="teamDetailsModal" class="modal">
-        <div class="modal-content modal-content-large">
-            <div class="modal-header">
-                <h2 id="teamDetailsModalTitle">Team Details</h2>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <button id="addTeamMembersBtn" class="btn btn-primary" onclick="openAddTeamMembersModal()" style="display: none;">
-                        <i class="fas fa-user-plus"></i> Add Members
-                    </button>
-
-                    <button class="modal-close" onclick="closeTeamDetailsModal()">
-                        <i class="fas fa-times"></i>
-                    </button>
+                <!-- Loading State -->
+                <div id="teamsSidebarLoading" class="sidebar-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading teams...</p>
                 </div>
-            </div>
-            <div class="modal-body">
-                <!-- Loading Spinner -->
-                <div id="teamDetailsLoading" class="loading-spinner" style="text-align: center; padding: 2rem;">
-                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
-                    <p style="color: var(--text-secondary); margin-top: 1rem;">Loading team details...</p>
+
+                <!-- Team List -->
+                <div id="teamsSidebarList" class="teams-list" style="display: none;">
+                    <!-- Teams will be populated here by JavaScript -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="teamsSidebarEmpty" class="sidebar-empty" style="display: none;">
+                    <i class="fas fa-shield-alt"></i>
+                    <p>No teams available</p>
+                </div>
+            </aside>
+
+            <!-- RIGHT CONTENT: Team Details -->
+            <main class="teams-main-content">
+                <!-- Welcome State (No team selected) -->
+                <div id="teamsWelcomeState" class="teams-welcome">
+                    <div class="welcome-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h2>Team Management</h2>
+                    <p>Manage teams, players, and performance data</p>
+                    <p class="welcome-hint">Select a team from the sidebar to view details</p>
                 </div>
 
                 <!-- Team Details Content -->
-                <div id="teamDetailsContent" style="display: none;">
-                    <div class="game-details-header">
-                        <div class="team-details-icon" id="teamDetailsIcon"></div>
-                        <div class="team-details-info">
-                            <h3 id="teamDetailsTitle"></h3>
-                            <p id="teamDetailsDescription"></p>
+                <div id="teamsDetailContent" class="teams-detail" style="display: none;">
+                    <!-- Team Header -->
+                    <div class="team-detail-header">
+                        <div class="team-header-left">
+                            <div class="team-icon-large">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div class="team-header-info">
+                                <h1 id="teamDetailTitle">Team Name</h1>
+                                <p id="teamDetailGame">Game: Mario Kart</p>
+                            </div>
+                        </div>
+                        <div class="team-header-actions">
+                            <button id="addPlayerBtn" class="btn btn-primary" onclick="openAddTeamMembersModal()" style="display: none;">
+                                <i class="fas fa-user-plus"></i> Add Player
+                            </button>
+                            <button id="deleteTeamBtn" class="btn btn-secondary" onclick="confirmDeleteSelectedTeam()" style="display: none;">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </div>
                     </div>
 
-                    <div class="game-stats-row">
-                        <div class="game-stat-card">
+                    <!-- Team Stats Summary -->
+                    <div class="team-stats-summary">
+                        <div class="stat-box">
                             <i class="fas fa-users"></i>
-                            <div class="game-stat-number" id="teamDetailsMemberCount">0</div>
-                            <div class="game-stat-label">Members</div>
+                            <div class="stat-value" id="teamStatMembers">0</div>
+                            <div class="stat-label">Members</div>
                         </div>
-                        <div class="game-stat-card">
+                        <div class="stat-box">
                             <i class="fas fa-trophy"></i>
-                            <div class="game-stat-number" id="teamDetailsMaxSize">0</div>
-                            <div class="game-stat-label">Max Size</div>
+                            <div class="stat-value" id="teamStatMaxSize">0</div>
+                            <div class="stat-label">Max Size</div>
+                        </div>
+                        <div class="stat-box">
+                            <i class="fas fa-chart-line"></i>
+                            <div class="stat-value">--</div>
+                            <div class="stat-label">Win Rate</div>
+                        </div>
+                        <div class="stat-box">
+                            <i class="fas fa-star"></i>
+                            <div class="stat-value">--</div>
+                            <div class="stat-label">Ranking</div>
                         </div>
                     </div>
 
-                    <div class="team-members-section">
-                        <h3>Team Members</h3>
-
-                        <!-- Search input FIRST -->
-                        <input type="text"
-                               id="teamMemberSearch"
-                               placeholder="Search members..."
-                               onkeyup="filterTeamMembers()"
-                               style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px; background: var(--dark-bg); border: 1px solid var(--border-color); color: var(--text-primary);">
-
-                        <!-- Members list SECOND -->
-                        <div id="teamMembersList" class="members-list">
-                            <!-- Members will be populated here -->
-                        </div>
-
-                        <!-- Empty state -->
-                        <div id="teamNoMembers" class="empty-state-small" style="display: none;">
-                            <i class="fas fa-users-slash"></i>
-                            <p>No members yet. Be the first to join!</p>
-                        </div>
+                    <!-- Tab Navigation -->
+                    <div class="team-tabs">
+                        <button class="team-tab active" data-team-tab="roster">
+                            <i class="fas fa-users"></i> Roster
+                        </button>
+                        <button class="team-tab" data-team-tab="stats">
+                            <i class="fas fa-chart-bar"></i> Stats
+                        </button>
+                        <button class="team-tab" data-team-tab="vods">
+                            <i class="fas fa-video"></i> VODs
+                        </button>
+                        <button class="team-tab" data-team-tab="comments">
+                            <i class="fas fa-comments"></i> Comments
+                        </button>
                     </div>
+
+                    <!-- Tab Content -->
+                    <div class="team-tab-content">
+                        <!-- Roster Tab -->
+                        <div id="rosterTabContent" class="team-tab-panel active">
+                            <div class="roster-search">
+                                <input type="text"
+                                       id="rosterSearchInput"
+                                       placeholder="Search members..."
+                                       onkeyup="filterRosterMembers()">
+                            </div>
+                            <div id="rosterMembersList" class="roster-members-grid">
+                                <!-- Members will be populated here -->
+                            </div>
+                            <div id="rosterEmpty" class="tab-empty-state" style="display: none;">
+                                <i class="fas fa-users-slash"></i>
+                                <p>No members on this team yet</p>
+                            </div>
+                        </div>
+
+                        <!-- Stats Tab -->
+                        <div id="statsTabContent" class="team-tab-panel">
+                            <div class="tab-coming-soon">
+                                <i class="fas fa-chart-line"></i>
+                                <h3>Stats Coming Soon</h3>
+                                <p>Team statistics and performance metrics will be available here</p>
+                            </div>
+                        </div>
+
+                        <!-- VODs Tab -->
+                        <div id="vodsTabContent" class="team-tab-panel">
+                            <div class="tab-coming-soon">
+                                <i class="fas fa-video"></i>
+                                <h3>VODs Coming Soon</h3>
+                                <p>Match recordings and highlights will be available here</p>
+                            </div>
+                        </div>
+
+                        <!-- Comments Tab -->
+                        <div id="commentsTabContent" class="team-tab-panel">
+                            <div class="tab-coming-soon">
+                                <i class="fas fa-comments"></i>
+                                <h3>Comments Coming Soon</h3>
+                                <p>Team discussion and announcements will be available here</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     </div>
 
     <!-- Add Team Members Modal -->
-    <div id="addTeamMembersModal" class="modal">
-        <div class="modal-content">
+    <div id="addTeamMembersModal" class="modal" style="display: none;">
+        <div class="modal-content modal-content-large">
             <div class="modal-header">
-                <h2>Add Members to Team</h2>
+                <h2>Add Members to <span id="addMembersTeamName"></span></h2>
                 <button class="modal-close" onclick="closeAddTeamMembersModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
+
             <div class="modal-body">
-                <p class="modal-subtitle">Select members to add to <strong id="addMembersTeamName"></strong></p>
+                <p class="modal-subtitle">Select members to add to this team</p>
 
                 <!-- Search Input -->
-                <input type="text"
-                       id="addMemberSearch"
-                       placeholder="Search available members..."
-                       onkeyup="filterAvailableMembers()"
-                       style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px; background: var(--dark-bg); border: 1px solid var(--border-color); color: var(--text-primary);">
+                <div class="roster-search" style="margin-bottom: 1rem;">
+                    <input type="text"
+                           id="addMemberSearch"
+                           placeholder="Search members..."
+                           oninput="filterAvailableMembers()">
+                </div>
 
                 <!-- Loading State -->
-                <div id="availableMembersLoading" style="text-align: center; padding: 2rem;">
+                <div id="availableMembersLoading" class="sidebar-loading" style="text-align: center; padding: 2rem;">
                     <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
                     <p style="color: var(--text-secondary); margin-top: 1rem;">Loading available members...</p>
                 </div>
 
-                <!-- Available Members List -->
-                <div id="availableMembersList" class="members-list" style="display: none; max-height: 400px; overflow-y: auto;">
-                    <!-- Members will be populated here with checkboxes -->
+                <!-- Members List -->
+                <div id="availableMembersList" style="display: none; max-height: 400px; overflow-y: auto;">
+                    <!-- Members will be populated here by JavaScript -->
                 </div>
 
                 <!-- Empty State -->
-                <div id="noAvailableMembers" class="empty-state-small" style="display: none;">
-                    <i class="fas fa-users-slash"></i>
-                    <p>No available members to add</p>
+                <div id="noAvailableMembers" class="sidebar-empty" style="display: none; text-align: center; padding: 2rem;">
+                    <i class="fas fa-users-slash" style="font-size: 2rem; color: var(--text-secondary); margin-bottom: 0.5rem;"></i>
+                    <p style="color: var(--text-secondary);">No available members to add</p>
                 </div>
 
                 <div id="addMembersMessage" class="form-message" style="display: none; margin-top: 1rem;"></div>
             </div>
-            <div class="form-actions">
+
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1.5rem; border-top: 1px solid var(--border-color);">
                 <button class="btn btn-secondary" onclick="closeAddTeamMembersModal()">Cancel</button>
-                <button class="btn btn-success" onclick="addSelectedMembersToTeam()">
-                    <i class="fas fa-check"></i> Add Selected
+                <button class="btn btn-primary" onclick="addSelectedMembersToTeam()">
+                    <i class="fas fa-user-plus"></i> Add Selected
                 </button>
             </div>
         </div>

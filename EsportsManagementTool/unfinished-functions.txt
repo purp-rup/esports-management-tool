@@ -1,12 +1,11 @@
 Functionality notes:
-Needs doing: Suspend user function on Admin Panel
+Needs doing:
              GM badges: make same everywhere
 
-            View Details on Game Rosters page
-            Show member count on Game Rosters
-            Show team count on Game Rosters
-            Show team count on Communities
-
             Add more filters to Events Tab
-            Update time to account for daylight savings
             Update time on calendar to be 12Hr time (or choice of 12Hr/24Hr)
+
+            Wrong error message when creating a team for a game you don't manage.
+            Fix Teams tab layout.
+            Add Player button not functioning on teams tab.
+            Reformat team tab to look more like figma (big)

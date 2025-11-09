@@ -15,18 +15,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 'createEventModal': closeCreateEventModal,
                 'createGameModal': closeCreateGameModal,
                 'createTeamModal': closeCreateTeamModal,
-                'teamDetailsModal': closeTeamDetailsModal,
                 'gameDetailsModal': closeGameDetailsModal,
                 'assignGMModal': closeAssignGMModal,
                 'changeAvatarModal': closeAvatarModal,
                 'editProfileModal': closeEditProfileModal,
                 'changePasswordModal': closeChangePasswordModal,
-                'deleteEventConfirmModal': closeDeleteConfirmModal
+                'deleteEventConfirmModal': closeDeleteConfirmModal,
+                'addTeamMembersModal': closeAddTeamMembersModal
             };
 
             if (modalCloseHandlers[modalId]) {
                 modalCloseHandlers[modalId]();
             }
+
+            // Always reset scroll as backup
+            document.body.style.overflow = 'auto';
         }
     });
 
@@ -48,13 +51,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     'changeAvatarModal': closeAvatarModal,
                     'editProfileModal': closeEditProfileModal,
                     'changePasswordModal': closeChangePasswordModal,
-                    'deleteEventConfirmModal': closeDeleteConfirmModal
+                    'deleteEventConfirmModal': closeDeleteConfirmModal,
+                    'addTeamMembersModal': closeAddTeamMembersModal
                 };
 
                 if (modalCloseHandlers[modalId]) {
                     modalCloseHandlers[modalId]();
                 }
             });
+
+            // Always reset scroll as backup
+            document.body.style.overflow = 'auto';
         }
     });
 });

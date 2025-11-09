@@ -1,115 +1,494 @@
-/* Team Size Checkbox Styling */
-.team-size-checkbox {
+/* ============================================
+   TEAMS TAB - NEW LAYOUT
+   Two-column layout with sidebar and main content
+   Using Flexbox for better compatibility
+   ============================================ */
+
+/* Ensure the Teams tab content takes full width */
+#teams.tab-content {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.teams-layout {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 1.5rem !important;
+    height: calc(100vh - 500px) !important;
+    min-height: 675px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-bottom: 2rem !important;
+}
+
+/* ============================================
+   LEFT SIDEBAR - Team List
+   ============================================ */
+
+.teams-sidebar {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    overflow-y: auto;
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background: var(--dark-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    user-select: none;
-}
-
-.team-size-checkbox:hover {
-    background: var(--hover-bg);
-    border-color: var(--stockton-blue);
-}
-
-.team-size-checkbox input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-    accent-color: var(--stockton-blue);
-}
-
-.team-size-checkbox span {
-    font-size: 0.8rem;
-    color: var(--text-primary);
-    font-weight: 500;
-}
-
-.team-size-checkbox input[type="checkbox"]:checked {
-    background: var(--stockton-blue);
-}
-
-.team-size-checkbox:has(input[type="checkbox"]:checked) {
-    background: rgba(121, 189, 233, 0.1);
-    border-color: var(--stockton-blue);
-}
-
-/* Team Size Final Radio Styling */
-.team-size-final {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background: var(--dark-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    user-select: none;
-}
-
-.team-size-final:hover {
-    background: var(--hover-bg);
-    border-color: var(--stockton-blue);
-}
-
-.team-size-final input[type="radio"] {
-    width: 18px;
-    height: 18px;
-    margin: 0;
-    cursor: pointer;
-    accent-color: var(--stockton-blue);
+    flex-direction: column;
+    width: 300px;
     flex-shrink: 0;
-    vertical-align: middle;
 }
 
-.team-size-final span {
-    font-size: 0.9rem;
+.teams-sidebar-header {
+    margin-bottom: 1.5rem;
+}
+
+.teams-sidebar-header h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
     color: var(--text-primary);
-    font-weight: 500;
 }
 
-.team-size-final input[type="radio"]:checked + span {
+.teams-subtitle {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.sidebar-loading,
+.sidebar-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--text-secondary);
+}
+
+.sidebar-loading i,
+.sidebar-empty i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
     color: var(--stockton-blue);
-    font-weight: 600;
 }
 
-.team-size-final:has(input[type="radio"]:checked) {
+.teams-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.team-sidebar-item {
+    padding: 1rem;
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.team-sidebar-item:hover {
+    background: var(--hover-bg);
+    border-color: var(--stockton-blue);
+    transform: translateX(4px);
+}
+
+.team-sidebar-item.active {
     background: rgba(121, 189, 233, 0.1);
     border-color: var(--stockton-blue);
+    border-left-width: 4px;
 }
 
-.btn-icon-danger {
-    background: var(--dark-bg);
-    border: 2px solid rgba(255, 82, 82, 0.3);
-    color: #ff5252;
-    cursor: pointer;
-    padding: 0.6rem;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    display: inline-flex;
+.team-sidebar-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    font-size: 0.9375rem;
+}
+
+.team-sidebar-game {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.team-sidebar-meta {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.team-sidebar-meta span {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* ============================================
+   RIGHT CONTENT - Team Details
+   ============================================ */
+
+.teams-main-content {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    max-height: 100%;
+}
+
+/* Welcome State */
+.teams-welcome {
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    margin-left: auto;
+    height: 100%;
+    text-align: center;
+    color: var(--text-secondary);
 }
 
-.btn-icon-danger:hover {
-    background: rgba(255, 82, 82, 0.15);
-    border-color: #ff5252;
-    transform: scale(1.05);
+.welcome-icon {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
 }
 
-.btn-icon-danger:active {
-    transform: scale(0.98);
+.welcome-icon i {
+    font-size: 3rem;
+    color: white;
 }
 
-.btn-icon-danger i {
+.teams-welcome h2 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-size: 1.75rem;
+}
+
+.teams-welcome p {
+    margin: 0.5rem 0;
     font-size: 1rem;
+}
+
+.welcome-hint {
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Team Detail Header */
+.team-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+
+.team-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-left: 1rem;
+}
+
+.team-icon-large {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2.5rem;
+}
+
+.team-header-info h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.75rem;
+    color: var(--text-primary);
+}
+
+.team-header-info p {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+}
+
+.team-header-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* Team Stats Summary */
+.team-stats-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-box {
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.stat-box i {
+    font-size: 1.25rem;
+    color: var(--stockton-blue);
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0.5rem 0;
+}
+
+.stat-label {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Team Tabs */
+.team-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+
+.team-tab {
+    background: none;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+}
+
+.team-tab:hover {
+    color: var(--text-primary);
+    background: var(--hover-bg);
+}
+
+.team-tab.active {
+    color: var(--stockton-blue);
+    border-bottom-color: var(--stockton-blue);
+}
+
+/* Tab Panels */
+.team-tab-panel {
+    display: none;
+}
+
+.team-tab-panel.active {
+    display: block;
+}
+
+/* Roster Tab */
+.roster-search {
+    margin-bottom: 1rem;
+}
+
+.roster-search input {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+}
+
+.roster-search input:focus {
+    outline: none;
+    border-color: var(--stockton-blue);
+    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+}
+
+.roster-members-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.roster-member-card {
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.2s;
+}
+
+.roster-member-card:hover {
+    border-color: var(--stockton-blue);
+    transform: translateY(-2px);
+}
+
+.roster-member-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.roster-member-initials {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--stockton-blue);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.roster-member-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.roster-member-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.roster-member-username {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.roster-member-badges {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.roster-member-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Coming Soon States */
+.tab-coming-soon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.tab-coming-soon i {
+    font-size: 4rem;
+    color: var(--stockton-blue);
+    opacity: 0.3;
+    margin-bottom: 1rem;
+}
+
+.tab-coming-soon h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+}
+
+.tab-coming-soon p {
+    margin: 0;
+    max-width: 500px;
+}
+
+.tab-empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-secondary);
+}
+
+.tab-empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .teams-layout {
+        gap: 1rem !important;
+    }
+
+    .teams-sidebar {
+        width: 250px;
+    }
+
+    .team-stats-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .teams-layout {
+        flex-direction: column !important;
+        height: auto !important;
+    }
+
+    .teams-sidebar {
+        width: 100%;
+        max-height: 300px;
+    }
+
+    .team-detail-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .team-header-actions {
+        width: 100%;
+    }
+
+    .team-header-actions button {
+        flex: 1;
+    }
+
+    .team-stats-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .team-tabs {
+        overflow-x: auto;
+    }
+
+    .roster-members-grid {
+        grid-template-columns: 1fr;
+    }
 }

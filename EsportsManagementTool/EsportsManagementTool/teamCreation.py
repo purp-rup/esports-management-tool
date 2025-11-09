@@ -123,7 +123,7 @@ def get_available_team_members(team_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-        # Get all users who are NOT in this team
+        # Get all users who are NOT in this team (should be users in community AND not in team!!!)
         cursor.execute("""
                        SELECT u.id,
                               u.firstname,
@@ -326,6 +326,67 @@ def remove_member_from_team(team_id):
         cursor.close()
 
 """
+Method to filter teams based on user role (Admin sees all, GM sees only their created teams)
+"""
+@app.route('/api/teams/sidebar')
+@login_required
+def get_teams_sidebar():
+    """Get teams for sidebar - filtered by role"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Get user permissions
+        permissions = get_user_permissions(session['id'])
+        is_admin = permissions['is_admin']
+        is_gm = permissions['is_gm']
+
+        if is_admin:
+            # Admins see ALL teams
+            cursor.execute("""
+                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                       (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
+                FROM teams t
+                LEFT JOIN games g ON t.gameID = g.GameID
+                ORDER BY t.teamName ASC
+            """)
+        elif is_gm:
+            # GMs see only teams from games they manage
+            cursor.execute("""
+                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                       (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
+                FROM teams t
+                LEFT JOIN games g ON t.gameID = g.GameID
+                WHERE g.gm_id = %s
+                ORDER BY t.teamName ASC
+            """, (session['id'],))
+        else:
+            # Regular users see no teams in sidebar (they use Communities tab)
+            return jsonify({'success': True, 'teams': []})
+
+        teams = cursor.fetchall()
+
+        # Format teams
+        teams_list = []
+        for team in teams:
+            teams_list.append({
+                'TeamID': team['TeamID'],
+                'teamName': team['teamName'],
+                'teamMaxSize': team['teamMaxSize'],
+                'gameID': team['gameID'],
+                'GameTitle': team['GameTitle'],
+                'member_count': team['member_count']
+            })
+
+        return jsonify({'success': True, 'teams': teams_list})
+
+    except Exception as e:
+        print(f"Error fetching teams sidebar: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    finally:
+        cursor.close()
+
+"""
 Method to retrieve details for a specific team to be displayed to the user.
 @param - team_id is the team whose details are being retrieved.
 """
@@ -407,10 +468,15 @@ def team_details(team_id):
                 import traceback
                 traceback.print_exc()
 
+            cursor.execute('SELECT GameTitle FROM games WHERE GameID = %s', (team['gameID'],))
+            game_info = cursor.fetchone()
+            game_title = game_info['GameTitle'] if game_info else 'Unknown Game'
+
             return jsonify({'success': True,
                             'team': {'id': team['TeamID'], 'title': team_name,
                                      'team_max_size': team_max, 'member_count': member_count,
-                                     'members': formatted_members, 'is_member': is_member}}), 200
+                                     'members': formatted_members, 'is_member': is_member,
+                                     'game_title': game_title}}), 200
         finally:
             cursor.close()
 
