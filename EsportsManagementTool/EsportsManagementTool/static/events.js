@@ -744,6 +744,7 @@ window.closeDeleteConfirmModal = closeDeleteConfirmModal;
 window.confirmDeleteEvent = confirmDeleteEvent;
 window.toggleEventSubscription = toggleEventSubscription;
 window.loadGamesForDropdown = loadGamesForDropdown;
+window.toggleAllDayEvent = toggleAllDayEvent;
 
     const isGM = window.userPermissions ? window.userPermissions.is_gm : false;
     const currentUserId = window.currentUserId || 0;
@@ -976,6 +977,59 @@ function handleLocationChange(e) {
         customLocationGroup.style.display = 'none';
         customLocationInput.required = false;
         customLocationInput.value = '';
+    }
+}
+
+/**
+ * Toggle all-day event button
+ * When clicked, switches between blue "All Day?" and green "All Day"
+ * Disables/enables time inputs accordingly
+ */
+function toggleAllDayEvent() {
+    const allDayCheckbox = document.getElementById('allDayEvent');
+    const allDayButton = document.getElementById('allDayButton');
+    const startTimeInput = document.getElementById('startTime');
+    const endTimeInput = document.getElementById('endTime');
+
+    // Toggle the hidden checkbox state
+    allDayCheckbox.checked = !allDayCheckbox.checked;
+
+    if (allDayCheckbox.checked) {
+        // Change to active state (green)
+        allDayButton.textContent = 'ALL DAY';
+        allDayButton.classList.add('active');
+
+        // Set to all-day times
+        startTimeInput.value = '00:00';
+        endTimeInput.value = '23:59';
+
+        // Disable inputs visually
+        startTimeInput.disabled = true;
+        endTimeInput.disabled = true;
+        startTimeInput.style.opacity = '0.5';
+        endTimeInput.style.opacity = '0.5';
+
+        // Remove required attribute
+        startTimeInput.removeAttribute('required');
+        endTimeInput.removeAttribute('required');
+    } else {
+        // Change to inactive state (blue)
+        allDayButton.textContent = 'ALL DAY?';
+        allDayButton.classList.remove('active');
+
+        // Clear time values
+        startTimeInput.value = '';
+        endTimeInput.value = '';
+
+        // Enable inputs
+        startTimeInput.disabled = false;
+        endTimeInput.disabled = false;
+        startTimeInput.style.opacity = '1';
+        endTimeInput.style.opacity = '1';
+
+        // Add back required attribute
+        startTimeInput.setAttribute('required', 'required');
+        endTimeInput.setAttribute('required', 'required');
     }
 }
 

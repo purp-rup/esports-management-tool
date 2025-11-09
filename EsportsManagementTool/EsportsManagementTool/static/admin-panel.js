@@ -557,7 +557,6 @@ async function deleteGame(gameId, gameTitle) {
 // Make functions available globally for onclick handlers
 window.initializeAdminPanel = initializeAdminPanel;
 window.filterUsers = filterUsers;
-window.toggleUserActivity = toggleUserActivity;
 window.handleRoleChange = handleRoleChange;
 window.confirmRemoveUser = confirmRemoveUser;
 window.closeRemoveUserModal = closeRemoveUserModal;

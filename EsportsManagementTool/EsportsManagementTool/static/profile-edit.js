@@ -144,6 +144,8 @@ async function syncAvatarFromModal() {
                 closeAvatarModal();
                 window.location.href = window.location.pathname + '#profile';
                 window.location.reload();
+                // Clear the hash after switching to prevent it from persisting
+                history.replaceState(null, null, window.location.pathname);
             }, 1500);
         } else {
             throw new Error(data.message || 'Failed to sync avatar');
