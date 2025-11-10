@@ -18,6 +18,9 @@ let selectedUserId = null;
 function initializeAdminPanel() {
     console.log('Admin panel module initialized');
     attachAdminEventListeners();
+
+    // Refresh user list badges after GM mappings load
+    refreshUserListBadges();
 }
 
 /**
@@ -61,6 +64,51 @@ function filterUsers() {
     }
 }
 
+/**
+ * Build role badges for a user from their data attributes
+ */
+function buildBadgesFromUserItem(item) {
+    const userid = parseInt(item.dataset.userid);
+    const isAdmin = item.dataset.isAdmin === '1';
+    const isGm = item.dataset.isGm === '1';
+    const isPlayer = item.dataset.isPlayer === '1';
+
+    // Build roles array
+    const roles = [];
+    if (isAdmin) roles.push('Admin');
+    if (isGm) roles.push('Game Manager');
+    if (isPlayer) roles.push('Player');
+
+    // Generate badges with icons
+    return buildUniversalRoleBadges({
+        userId: userid,
+        roles: roles,
+        contextGameId: null
+    });
+}
+
+/**
+ * Refresh badges in the user list after GM mappings are loaded
+ */
+async function refreshUserListBadges() {
+    // Wait for GM mappings to load
+    if (typeof loadGMGameMappings === 'function' && !gmMappingsLoaded) {
+        await loadGMGameMappings();
+    }
+
+    // Update each user item's badges
+    const userItems = document.querySelectorAll('.user-item');
+    userItems.forEach(item => {
+        const badgesHTML = buildBadgesFromUserItem(item);
+
+        // Find the badge container in this user item
+        const badgeContainer = item.querySelector('[style*="margin-top: 0.25rem"]');
+        if (badgeContainer) {
+            badgeContainer.innerHTML = badgesHTML;
+        }
+    });
+}
+
 // ============================================
 // USER DETAILS PANEL
 // ============================================
@@ -77,39 +125,16 @@ async function handleUserItemClick(item) {
     const date = item.dataset.date;
     const isActive = item.dataset.active === 'true';
     const lastSeen = item.dataset.lastSeen;
-    const isAdmin = item.dataset.isAdmin === '1';
-    const isGm = item.dataset.isGm === '1';
-    const isPlayer = item.dataset.isPlayer === '1';
 
     selectedUserId = userid;
 
-    // Build roles array
-    const roles = [];
-    if (isAdmin) roles.push('Admin');
-    if (isGm) roles.push('Game Manager');
-    if (isPlayer) roles.push('Player');
-
-    // Fetch managed game info if user is a GM
-    let managedGameIcon = null;
-    if (isGm) {
-        try {
-            const response = await fetch(`/api/user/${userid}/managed-game`);
-            const data = await response.json();
-
-            if (data.success && data.manages_game) {
-                managedGameIcon = data.game_icon;
-            }
-        } catch (error) {
-            console.error('Error fetching managed game:', error);
-        }
+    // Ensure GM mappings are loaded
+    if (typeof loadGMGameMappings === 'function' && !gmMappingsLoaded) {
+        await loadGMGameMappings();
     }
 
-    // Use shared badge builder with game icon (buildRoleBadges should be available globally from dashboard.html)
-    const roleBadges = buildRoleBadges({
-        roles: roles,
-        isAssignedGM: false,
-        gameIconUrl: managedGameIcon
-    });
+    // Use the shared badge builder function
+    const roleBadges = buildBadgesFromUserItem(item);
 
     const detailsPanel = document.getElementById('userDetailsPanel');
     detailsPanel.innerHTML = `
@@ -565,3 +590,4 @@ window.openCreateGameModal = openCreateGameModal;
 window.closeCreateGameModal = closeCreateGameModal;
 window.confirmDeleteGame = confirmDeleteGame;
 window.deleteGame = deleteGame;
+window.refreshUserListBadges = refreshUserListBadges;

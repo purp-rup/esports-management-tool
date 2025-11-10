@@ -147,7 +147,7 @@ async function loadTeamDetails(teamId) {
 }
 
 /**
- * Load roster tab with members
+ * Load roster tab with members - UPDATED WITH UNIVERSAL BADGES
  */
 function loadRosterTab(members) {
     const rosterList = document.getElementById('rosterMembersList');
@@ -178,9 +178,16 @@ function loadRosterTab(members) {
             avatarHTML = `<div class="roster-member-initials">${initials}</div>`;
         }
 
-        // Build role badges
+        // Build role badges using UNIVERSAL badge system
         let badgesHTML = '';
-        if (typeof buildRoleBadges === 'function') {
+        if (typeof buildUniversalRoleBadges === 'function') {
+            badgesHTML = buildUniversalRoleBadges({
+                userId: member.id,
+                roles: member.roles || [],
+                contextGameId: null // No specific game context in teams view
+            });
+        } else if (typeof buildRoleBadges === 'function') {
+            // Fallback to legacy function
             badgesHTML = buildRoleBadges({
                 roles: member.roles || [],
                 isAssignedGM: false,
@@ -212,6 +219,61 @@ function loadRosterTab(members) {
         `;
 
         rosterList.appendChild(memberCard);
+    });
+}
+
+/**
+ * Display available members - UPDATED WITH UNIVERSAL BADGES
+ */
+function displayAvailableMembersNew(members) {
+    const list = document.getElementById('availableMembersList');
+    list.innerHTML = '';
+
+    members.forEach(member => {
+        const memberItem = document.createElement('div');
+        memberItem.className = 'member-item';
+        memberItem.setAttribute('data-username', member.username.toLowerCase());
+        memberItem.setAttribute('data-name', member.name.toLowerCase());
+
+        let profilePicHTML;
+        if (member.profile_picture) {
+            profilePicHTML = `<img src="${member.profile_picture}" alt="${member.name}" class="member-avatar">`;
+        } else {
+            const initials = member.name.split(' ').map(n => n[0]).join('');
+            profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
+        }
+
+        // Build role badges using UNIVERSAL badge system
+        let badgesHTML = '';
+        if (typeof buildUniversalRoleBadges === 'function') {
+            badgesHTML = buildUniversalRoleBadges({
+                userId: member.id,
+                roles: member.roles || [],
+                contextGameId: null
+            });
+        } else if (typeof buildRoleBadges === 'function') {
+            badgesHTML = buildRoleBadges({
+                roles: member.roles || [],
+                isAssignedGM: false,
+                gameIconUrl: null
+            });
+        }
+
+        memberItem.innerHTML = `
+            <input type="checkbox"
+                   id="member_${member.id}"
+                   value="${member.id}"
+                   style="margin-right: 1rem;">
+            ${profilePicHTML}
+            <div class="member-info">
+                <div class="member-name">${member.name}</div>
+                <div class="member-username">@${member.username}</div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                ${badgesHTML}
+            </div>
+        `;
+        list.appendChild(memberItem);
     });
 }
 

@@ -347,10 +347,10 @@ async function openGameDetailsModal(gameId) {
                     }
 
                     // Build role badges using shared function
-                    const badgesHTML = buildRoleBadges({
+                    const badgesHTML = buildUniversalRoleBadges({
+                        userId: member.id,
                         roles: member.roles || [],
-                        isAssignedGM: member.is_game_manager,
-                        gameIconUrl: game.image_url
+                        contextGameId: gameId  // Pass the game ID for context highlighting
                     });
 
                     memberItem.innerHTML = `
@@ -561,6 +561,7 @@ async function confirmAssignGM(gameId, gmUserId, gmName) {
         console.error('Error assigning GM:', error);
         alert('Failed to assign Game Manager');
     }
+    await refreshGMGameMappings();
 }
 
 /**
@@ -590,6 +591,7 @@ async function removeGameManager(gameId) {
         console.error('Error removing GM:', error);
         alert('Failed to remove Game Manager');
     }
+    await refreshGMGameMappings();
 }
 
 // ============================================
