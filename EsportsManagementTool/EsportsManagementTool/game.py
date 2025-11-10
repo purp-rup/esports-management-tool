@@ -272,7 +272,7 @@ def get_game_community_details(game_id):
 
         try:
             cursor.execute(
-                "SELECT GameID, GameTitle, Description, GameImage, ImageMimeType, TeamSizes FROM games WHERE GameID = %s",
+                "SELECT GameID, GameTitle, Description, GameImage, ImageMimeType, TeamSizes, gm_id FROM games WHERE GameID = %s",
                 (game_id,))
             game = cursor.fetchone()
 
@@ -280,6 +280,9 @@ def get_game_community_details(game_id):
                 return jsonify({'success': False, 'message': 'Game not found'}), 404
 
             game_title = game['GameTitle']
+
+            # Check if current user is the GM for this game
+            is_game_manager = (game['gm_id'] == session['id'])
 
             team_sizes = []
             if game.get('TeamSizes'):
@@ -304,6 +307,7 @@ def get_game_community_details(game_id):
 
             except:
                 member_count = 0
+                team_count = 0
 
             formatted_members = []
             assigned_gm_id = None
@@ -341,7 +345,6 @@ def get_game_community_details(game_id):
 
                     if is_assigned_gm:
                         assigned_gm_id = m['id']
-                        print(f"DEBUG: Found assigned GM - {m['firstname']} {m['lastname']} (ID: {m['id']})")
 
                     formatted_members.append({
                         'id': m['id'],
@@ -359,17 +362,23 @@ def get_game_community_details(game_id):
                 traceback.print_exc()
 
             return jsonify({'success': True,
-                            'game': {'id': game['GameID'], 'title': game_title, 'description': game['Description'],
-                                     'image_url': image_url, 'team_sizes': team_sizes, 'member_count': member_count,
-                                     'members': formatted_members, 'is_member': is_member, 'team_count': team_count,
-                                     'assigned_gm_id': assigned_gm_id}}), 200
+                            'game': {'id': game['GameID'],
+                                     'title': game_title,
+                                     'description': game['Description'],
+                                     'image_url': image_url,
+                                     'team_sizes': team_sizes,
+                                     'member_count': member_count,
+                                     'members': formatted_members,
+                                     'is_member': is_member,
+                                     'team_count': team_count,
+                                     'assigned_gm_id': assigned_gm_id,
+                                     'is_game_manager': is_game_manager}}), 200
         finally:
             cursor.close()
 
     except Exception as e:
         print(f"Error getting game details: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load game details'}), 500
-
 
 """
 Route to allow users to join a community.

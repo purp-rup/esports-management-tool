@@ -1,11 +1,8 @@
 Functionality notes:
 Needs doing:
-             GM badges: make same everywhere
+            Badges: make same everywhere
 
             Add more filters to Events Tab
             Update time on calendar to be 12Hr time (or choice of 12Hr/24Hr)
 
             Wrong error message when creating a team for a game you don't manage.
-            Fix Teams tab layout.
-            Add Player button not functioning on teams tab.
-            Reformat team tab to look more like figma (big)

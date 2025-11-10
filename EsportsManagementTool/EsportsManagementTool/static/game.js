@@ -109,15 +109,15 @@ async function displayGames(games) {
 
     // Check if current user is admin
     const isAdmin = window.userPermissions?.is_admin || false;
-    const isGM = window.userPermissions?.is_gm || false;
 
     for (const game of games) {
         const teamSizes = game.TeamSizes ? game.TeamSizes.split(',').map(s => s.trim()) : [];
 
-        // Fetch member count from API
+        // Fetch member count and GM status from API
         let memberCount = 0;
         let teamCount = 0;
         let isMember = false;
+        let isGameManager = false;
         try {
             const response = await fetch(`/api/game/${game.GameID}/details`);
             const data = await response.json();
@@ -125,6 +125,7 @@ async function displayGames(games) {
                 memberCount = data.game.member_count;
                 teamCount = data.game.team_count;
                 isMember = data.game.is_member;
+                isGameManager = data.game.is_game_manager; // Get GM status
             }
         } catch (error) {
             console.error('Error fetching member count:', error);
@@ -161,7 +162,8 @@ async function displayGames(games) {
             </button>
         `;
 
-        const createTeamButtonHTML = isGM ? `
+        // Create Team button - ONLY show if user is the GM for THIS specific game
+        const createTeamButtonHTML = isGameManager ? `
             <button class="btn btn-primary" onclick="openCreateTeamModal(${game.GameID}, '${game.GameTitle.replace(/'/g, "\\'")}', '${game.TeamSizes}')">
                 <i class="fas fa-plus"></i> Create Team
             </button>

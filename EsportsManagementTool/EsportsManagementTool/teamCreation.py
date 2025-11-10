@@ -119,27 +119,44 @@ Method to gather all users who are in a game's community and not currently part 
 @login_required
 @roles_required('admin', 'gm')
 def get_available_team_members(team_id):
-    """Get list of users who are NOT already in this team"""
+    """Get list of users who are in the game's community but NOT already in this team"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-        # Get all users who are NOT in this team (should be users in community AND not in team!!!)
+        # First, get the game ID for this team
         cursor.execute("""
-                       SELECT u.id,
-                              u.firstname,
-                              u.lastname,
-                              u.username,
-                              u.profile_picture,
-                              p.is_admin,
-                              p.is_gm,
-                              p.is_player
-                       FROM users u
-                                LEFT JOIN permissions p ON u.id = p.userid
-                       WHERE u.id NOT IN (SELECT user_id
-                                          FROM team_members
-                                          WHERE team_id = %s)
-                       ORDER BY u.firstname, u.lastname
-                       """, (team_id,))
+            SELECT gameID FROM teams WHERE TeamID = %s
+        """, (team_id,))
+
+        team_info = cursor.fetchone()
+        if not team_info:
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        game_id = team_info['gameID']
+
+        # Get all users who are:
+        # 1. Members of this game's community (in in_communities table)
+        # 2. NOT already in this specific team
+        cursor.execute("""
+            SELECT u.id,
+                   u.firstname,
+                   u.lastname,
+                   u.username,
+                   u.profile_picture,
+                   p.is_admin,
+                   p.is_gm,
+                   p.is_player
+            FROM users u
+            LEFT JOIN permissions p ON u.id = p.userid
+            INNER JOIN in_communities ic ON u.id = ic.user_id
+            WHERE ic.game_id = %s
+              AND u.id NOT IN (
+                  SELECT user_id 
+                  FROM team_members 
+                  WHERE team_id = %s
+              )
+            ORDER BY u.firstname, u.lastname
+        """, (game_id, team_id))
 
         users = cursor.fetchall()
 
@@ -407,7 +424,7 @@ def team_details(team_id):
 
             team_name = team['teamName']
             team_max = team['teamMaxSize']
-
+            game_id = team['gameID']
 
             try:
                 cursor.execute(f"SELECT 1 FROM team_members WHERE user_id = %s AND team_id = %s",
@@ -419,7 +436,6 @@ def team_details(team_id):
             try:
                 cursor.execute(f"SELECT COUNT(*) as count FROM team_members WHERE team_id = %s", (team_id,))
                 member_count = cursor.fetchone()['count']
-
             except:
                 member_count = 0
 
@@ -453,7 +469,6 @@ def team_details(team_id):
                     if m['profile_picture']:
                         profile_pic = f"/static/uploads/avatars/{m['profile_picture']}"
 
-
                     formatted_members.append({
                         'id': m['id'],
                         'name': f"{m['firstname']} {m['lastname']}",
@@ -468,15 +483,25 @@ def team_details(team_id):
                 import traceback
                 traceback.print_exc()
 
-            cursor.execute('SELECT GameTitle FROM games WHERE GameID = %s', (team['gameID'],))
+            # Get game info including icon
+            cursor.execute('SELECT GameTitle, GameImage FROM games WHERE GameID = %s', (game_id,))
             game_info = cursor.fetchone()
             game_title = game_info['GameTitle'] if game_info else 'Unknown Game'
 
+            # Generate game icon URL
+            game_icon_url = None
+            if game_info and game_info['GameImage']:
+                game_icon_url = f'/game-image/{game_id}'
+
             return jsonify({'success': True,
-                            'team': {'id': team['TeamID'], 'title': team_name,
-                                     'team_max_size': team_max, 'member_count': member_count,
-                                     'members': formatted_members, 'is_member': is_member,
-                                     'game_title': game_title}}), 200
+                            'team': {'id': team['TeamID'],
+                                     'title': team_name,
+                                     'team_max_size': team_max,
+                                     'member_count': member_count,
+                                     'members': formatted_members,
+                                     'is_member': is_member,
+                                     'game_title': game_title,
+                                     'game_icon_url': game_icon_url}}), 200
         finally:
             cursor.close()
 

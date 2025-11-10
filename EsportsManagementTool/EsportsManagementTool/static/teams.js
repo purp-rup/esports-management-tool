@@ -102,6 +102,21 @@ async function loadTeamDetails(teamId) {
             document.getElementById('teamDetailTitle').textContent = team.title;
             document.getElementById('teamDetailGame').textContent = `Game: ${team.game_title || 'Unknown'}`;
 
+            // Update team icon with game image
+            const teamIconLarge = document.querySelector('.team-icon-large');
+            if (teamIconLarge) {
+                if (team.game_icon_url) {
+                    // Use game icon/image
+                    teamIconLarge.innerHTML = `<img src="${team.game_icon_url}"
+                                                     alt="${team.game_title}"
+                                                     style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;"
+                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fas fa-shield-alt\\'></i>';">`;
+                } else {
+                    // Fallback to shield icon
+                    teamIconLarge.innerHTML = '<i class="fas fa-shield-alt"></i>';
+                }
+            }
+
             // Update stats
             document.getElementById('teamStatMembers').textContent = team.member_count || 0;
             document.getElementById('teamStatMaxSize').textContent = team.team_max_size || 0;
