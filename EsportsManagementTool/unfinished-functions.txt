@@ -1,12 +1,6 @@
 Functionality notes:
-Needs doing: Suspend user function on Admin Panel
-             GM badges: make same everywhere
-
-            View Details on Game Rosters page
-            Show member count on Game Rosters
-            Show team count on Game Rosters
-            Show team count on Communities
-
+Needs doing:
             Add more filters to Events Tab
-            Update time to account for daylight savings
             Update time on calendar to be 12Hr time (or choice of 12Hr/24Hr)
+
+            Assigning a GM not in a community does NOT automatically make them a community member/GM

@@ -12,6 +12,10 @@ def idgen(text, existing_ids):
 
     return f"{prefix}{counter}"
 
+"""
+Method to allow an admin or a game manager to create a game.
+@param - game_id is the id of the game a team is being made for.
+"""
 @app.route('/api/create-team/<int:game_id>', methods=['POST'])
 @roles_required('admin', 'gm')
 def create_team(game_id):
@@ -53,7 +57,9 @@ def create_team(game_id):
     finally:
         cursor.close()
 
-
+"""
+Method to view all teams for all games.
+"""
 @app.route('/teams')
 @login_required
 def view_teams():
@@ -105,31 +111,52 @@ def view_teams():
         cursor.close()
 
 # DEVELOPED FULLY BY CLAUDE.AI
+"""
+Method to gather all users who are in a game's community and not currently part of the team.
+@param - team_id is the team in which the list is being gathered for.
+"""
 @app.route('/api/teams/<team_id>/available-members')
 @login_required
 @roles_required('admin', 'gm')
 def get_available_team_members(team_id):
-    """Get list of users who are NOT already in this team"""
+    """Get list of users who are in the game's community but NOT already in this team"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-        # Get all users who are NOT in this team
+        # First, get the game ID for this team
         cursor.execute("""
-                       SELECT u.id,
-                              u.firstname,
-                              u.lastname,
-                              u.username,
-                              u.profile_picture,
-                              p.is_admin,
-                              p.is_gm,
-                              p.is_player
-                       FROM users u
-                                LEFT JOIN permissions p ON u.id = p.userid
-                       WHERE u.id NOT IN (SELECT user_id
-                                          FROM team_members
-                                          WHERE team_id = %s)
-                       ORDER BY u.firstname, u.lastname
-                       """, (team_id,))
+            SELECT gameID FROM teams WHERE TeamID = %s
+        """, (team_id,))
+
+        team_info = cursor.fetchone()
+        if not team_info:
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        game_id = team_info['gameID']
+
+        # Get all users who are:
+        # 1. Members of this game's community (in in_communities table)
+        # 2. NOT already in this specific team
+        cursor.execute("""
+            SELECT u.id,
+                   u.firstname,
+                   u.lastname,
+                   u.username,
+                   u.profile_picture,
+                   p.is_admin,
+                   p.is_gm,
+                   p.is_player
+            FROM users u
+            LEFT JOIN permissions p ON u.id = p.userid
+            INNER JOIN in_communities ic ON u.id = ic.user_id
+            WHERE ic.game_id = %s
+              AND u.id NOT IN (
+                  SELECT user_id 
+                  FROM team_members 
+                  WHERE team_id = %s
+              )
+            ORDER BY u.firstname, u.lastname
+        """, (game_id, team_id))
 
         users = cursor.fetchall()
 
@@ -172,6 +199,10 @@ def get_available_team_members(team_id):
         cursor.close()
 
 # DEVELOPED FULLY BY CLAUDE.AI
+"""
+Method to add a player to a team.
+@param - team_id is the team in which a player is being added.
+"""
 @app.route('/api/teams/<team_id>/add-members', methods=['POST'])
 @login_required
 @roles_required('admin', 'gm')
@@ -255,6 +286,10 @@ def add_members_to_team(team_id):
 
 
 # DEVELOPED FULLY BY CLAUDE.AI
+"""
+Method to remove a player from a team.
+@param - team_id is the team in which a player is being removed.
+"""
 @app.route('/api/teams/<team_id>/remove-member', methods=['POST'])
 @login_required
 @roles_required('admin', 'gm')
@@ -307,6 +342,71 @@ def remove_member_from_team(team_id):
     finally:
         cursor.close()
 
+"""
+Method to filter teams based on user role (Admin sees all, GM sees only their created teams)
+"""
+@app.route('/api/teams/sidebar')
+@login_required
+def get_teams_sidebar():
+    """Get teams for sidebar - filtered by role"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Get user permissions
+        permissions = get_user_permissions(session['id'])
+        is_admin = permissions['is_admin']
+        is_gm = permissions['is_gm']
+
+        if is_admin:
+            # Admins see ALL teams
+            cursor.execute("""
+                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                       (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
+                FROM teams t
+                LEFT JOIN games g ON t.gameID = g.GameID
+                ORDER BY t.teamName ASC
+            """)
+        elif is_gm:
+            # GMs see only teams from games they manage
+            cursor.execute("""
+                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                       (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
+                FROM teams t
+                LEFT JOIN games g ON t.gameID = g.GameID
+                WHERE g.gm_id = %s
+                ORDER BY t.teamName ASC
+            """, (session['id'],))
+        else:
+            # Regular users see no teams in sidebar (they use Communities tab)
+            return jsonify({'success': True, 'teams': []})
+
+        teams = cursor.fetchall()
+
+        # Format teams
+        teams_list = []
+        for team in teams:
+            teams_list.append({
+                'TeamID': team['TeamID'],
+                'teamName': team['teamName'],
+                'teamMaxSize': team['teamMaxSize'],
+                'gameID': team['gameID'],
+                'GameTitle': team['GameTitle'],
+                'member_count': team['member_count']
+            })
+
+        return jsonify({'success': True, 'teams': teams_list})
+
+    except Exception as e:
+        print(f"Error fetching teams sidebar: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    finally:
+        cursor.close()
+
+"""
+Method to retrieve details for a specific team to be displayed to the user.
+@param - team_id is the team whose details are being retrieved.
+"""
 @app.route('/api/teams/<team_id>/details')
 @login_required
 def team_details(team_id):
@@ -324,7 +424,7 @@ def team_details(team_id):
 
             team_name = team['teamName']
             team_max = team['teamMaxSize']
-
+            game_id = team['gameID']
 
             try:
                 cursor.execute(f"SELECT 1 FROM team_members WHERE user_id = %s AND team_id = %s",
@@ -336,7 +436,6 @@ def team_details(team_id):
             try:
                 cursor.execute(f"SELECT COUNT(*) as count FROM team_members WHERE team_id = %s", (team_id,))
                 member_count = cursor.fetchone()['count']
-
             except:
                 member_count = 0
 
@@ -370,7 +469,6 @@ def team_details(team_id):
                     if m['profile_picture']:
                         profile_pic = f"/static/uploads/avatars/{m['profile_picture']}"
 
-
                     formatted_members.append({
                         'id': m['id'],
                         'name': f"{m['firstname']} {m['lastname']}",
@@ -385,10 +483,25 @@ def team_details(team_id):
                 import traceback
                 traceback.print_exc()
 
+            # Get game info including icon
+            cursor.execute('SELECT GameTitle, GameImage FROM games WHERE GameID = %s', (game_id,))
+            game_info = cursor.fetchone()
+            game_title = game_info['GameTitle'] if game_info else 'Unknown Game'
+
+            # Generate game icon URL
+            game_icon_url = None
+            if game_info and game_info['GameImage']:
+                game_icon_url = f'/game-image/{game_id}'
+
             return jsonify({'success': True,
-                            'team': {'id': team['TeamID'], 'title': team_name,
-                                     'team_max_size': team_max, 'member_count': member_count,
-                                     'members': formatted_members, 'is_member': is_member}}), 200
+                            'team': {'id': team['TeamID'],
+                                     'title': team_name,
+                                     'team_max_size': team_max,
+                                     'member_count': member_count,
+                                     'members': formatted_members,
+                                     'is_member': is_member,
+                                     'game_title': game_title,
+                                     'game_icon_url': game_icon_url}}), 200
         finally:
             cursor.close()
 
@@ -396,6 +509,9 @@ def team_details(team_id):
         print(f"Error getting game details: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load game details'}), 500
 
+"""
+Method to delete a shell team for a game.
+"""
 @app.route('/delete-team', methods=['POST'])
 @login_required
 def delete_team():

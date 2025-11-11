@@ -272,7 +272,7 @@ def get_game_community_details(game_id):
 
         try:
             cursor.execute(
-                "SELECT GameID, GameTitle, Description, GameImage, ImageMimeType, TeamSizes FROM games WHERE GameID = %s",
+                "SELECT GameID, GameTitle, Description, GameImage, ImageMimeType, TeamSizes, gm_id FROM games WHERE GameID = %s",
                 (game_id,))
             game = cursor.fetchone()
 
@@ -280,6 +280,9 @@ def get_game_community_details(game_id):
                 return jsonify({'success': False, 'message': 'Game not found'}), 404
 
             game_title = game['GameTitle']
+
+            # Check if current user is the GM for this game
+            is_game_manager = (game['gm_id'] == session['id'])
 
             team_sizes = []
             if game.get('TeamSizes'):
@@ -304,6 +307,7 @@ def get_game_community_details(game_id):
 
             except:
                 member_count = 0
+                team_count = 0
 
             formatted_members = []
             assigned_gm_id = None
@@ -341,7 +345,6 @@ def get_game_community_details(game_id):
 
                     if is_assigned_gm:
                         assigned_gm_id = m['id']
-                        print(f"DEBUG: Found assigned GM - {m['firstname']} {m['lastname']} (ID: {m['id']})")
 
                     formatted_members.append({
                         'id': m['id'],
@@ -359,17 +362,23 @@ def get_game_community_details(game_id):
                 traceback.print_exc()
 
             return jsonify({'success': True,
-                            'game': {'id': game['GameID'], 'title': game_title, 'description': game['Description'],
-                                     'image_url': image_url, 'team_sizes': team_sizes, 'member_count': member_count,
-                                     'members': formatted_members, 'is_member': is_member, 'team_count': team_count,
-                                     'assigned_gm_id': assigned_gm_id}}), 200
+                            'game': {'id': game['GameID'],
+                                     'title': game_title,
+                                     'description': game['Description'],
+                                     'image_url': image_url,
+                                     'team_sizes': team_sizes,
+                                     'member_count': member_count,
+                                     'members': formatted_members,
+                                     'is_member': is_member,
+                                     'team_count': team_count,
+                                     'assigned_gm_id': assigned_gm_id,
+                                     'is_game_manager': is_game_manager}}), 200
         finally:
             cursor.close()
 
     except Exception as e:
         print(f"Error getting game details: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load game details'}), 500
-
 
 """
 Route to allow users to join a community.
@@ -528,7 +537,7 @@ Route to find all game managers when attempting to assign a new game manager to 
 """
 @app.route('/api/game/<int:game_id>/available-gms', methods=['GET'])
 @login_required
-def get_available_game_managers():
+def get_available_game_managers(game_id):
     """Get all users with GM role for assignment"""
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -673,6 +682,67 @@ def remove_game_manager(game_id):
         print(f"Error removing GM: {str(e)}")
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
+
+"""
+Route to get all GM-to-game assignments for badge display
+Returns a mapping of user IDs to their assigned games
+"""
+@app.route('/api/gm-game-mappings', methods=['GET'])
+@login_required
+def get_gm_game_mappings():
+    """Get all GM assignments for universal badge display"""
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            # Get all games with assigned GMs
+            cursor.execute("""
+                SELECT g.GameID, g.GameTitle, g.gm_id, g.GameImage
+                FROM games g
+                WHERE g.gm_id IS NOT NULL
+                ORDER BY g.GameTitle ASC
+            """)
+
+            games = cursor.fetchall()
+
+            # Build mappings: { user_id: [game_info, ...] }
+            mappings = {}
+
+            for game in games:
+                gm_id = game['gm_id']
+                game_id = game['GameID']
+                game_title = game['GameTitle']
+
+                # Generate game icon URL
+                game_icon_url = None
+                if game['GameImage']:
+                    game_icon_url = f'/game-image/{game_id}'
+
+                # Add to mappings
+                if gm_id not in mappings:
+                    mappings[gm_id] = []
+
+                mappings[gm_id].append({
+                    'game_id': game_id,
+                    'game_title': game_title,
+                    'game_icon_url': game_icon_url
+                })
+
+            return jsonify({
+                'success': True,
+                'mappings': mappings
+            }), 200
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error getting GM-game mappings: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to load GM mappings',
+            'mappings': {}
+        }), 500
 ## =================================================
 ## THE ABOVE WAS PRODUCED IN TANDEM WITH CLAUDEAI
 ## =================================================

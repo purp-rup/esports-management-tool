@@ -376,6 +376,71 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             return jsonify({'success': False, 'message': 'Failed to delete event'}), 500
 
     # ===================================
+    # EVENT DELETION (MODAL)
+    # ===================================
+    @app.route('/delete-event', methods=['POST'])
+    @login_required
+    def delete_event_modal():
+        """
+        Delete an event from the modal view
+        - Admins can delete any event
+        - Game Managers can only delete events they created
+        """
+        try:
+            user_id = session['id']
+            data = request.get_json()
+            event_id = data.get('event_id')
+
+            if not event_id:
+                return jsonify({'success': False, 'message': 'Event ID is required'}), 400
+
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+            # Get user permissions
+            permissions = get_user_permissions(user_id)
+            is_admin = permissions['is_admin']
+            is_gm = permissions['is_gm']
+
+            # Get event details
+            cursor.execute("""
+                SELECT EventID, EventName, created_by
+                FROM generalevents
+                WHERE EventID = %s
+            """, (event_id,))
+            event = cursor.fetchone()
+
+            if not event:
+                cursor.close()
+                return jsonify({'success': False, 'message': 'Event not found'}), 404
+
+            # Check permissions
+            if is_admin:
+                can_delete = True
+            elif is_gm and event['created_by'] == user_id:
+                can_delete = True
+            else:
+                can_delete = False
+
+            if not can_delete:
+                cursor.close()
+                return jsonify(
+                    {'success': False, 'message': 'You do not have permission to delete this event'}), 403
+
+            # Delete the event
+            cursor.execute("DELETE FROM generalevents WHERE EventID = %s", (event_id,))
+            mysql.connection.commit()
+            cursor.close()
+
+            return jsonify({'success': True, 'message': f'Event "{event["EventName"]}" deleted successfully'}), 200
+
+        except Exception as e:
+            print(f"Error deleting event from modal: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            mysql.connection.rollback()
+            return jsonify({'success': False, 'message': 'Failed to delete event'}), 500
+
+    # ===================================
     # EVENT SUBSCRIPTIONS
     # ===================================
     @app.route('/api/event/<int:event_id>/subscription-status')

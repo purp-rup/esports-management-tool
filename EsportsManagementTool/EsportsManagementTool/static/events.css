@@ -456,3 +456,33 @@
     flex: 1;
     font-size: 0.875rem;
 }
+
+/* All Day Event Button Styling */
+.all-day-toggle-btn {
+    padding: 0.5rem 1rem;
+    background-color: var(--stockton-blue);
+    color: black;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 750;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    min-width: 90px;
+}
+
+.all-day-toggle-btn:hover {
+    opacity: 0.9;
+    box-shadow: 0 0 8px rgba(0, 122, 204, 0.3);
+}
+
+/* Active state (green) */
+.all-day-toggle-btn.active {
+    background-color: #4caf50;
+}
+
+.all-day-toggle-btn.active:hover {
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
+}
+}
