@@ -4,6 +4,33 @@
    Using Flexbox for better compatibility
    ============================================ */
 
+/* Global scrollbar styling for all elements in teams tab */
+#teams ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+#teams ::-webkit-scrollbar-track {
+    background: var(--dark-bg);
+    border-radius: 4px;
+}
+
+#teams ::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+#teams ::-webkit-scrollbar-thumb:hover {
+    background: var(--stockton-blue);
+}
+
+/* Firefox scrollbar styling */
+#teams * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--dark-bg);
+}
+
 /* Ensure the Teams tab content takes full width */
 #teams.tab-content {
     width: 100% !important;
@@ -331,6 +358,9 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
 }
 
 .roster-member-card {

@@ -65,10 +65,9 @@ function buildUniversalRoleBadges(options) {
                         // GM badge with game icon
                         badgesHTML += `
                             <span class="${gmBadgeClass}"
-                                  title="Game Manager: ${game.game_title}"
-                                  style="display: inline-flex; align-items: center;">
+                                  title="Game Manager: ${game.game_title}">
                                 <img src="${game.game_icon_url}"
-                                     style="width: 16px; height: 16px; border-radius: 3px; object-fit: cover; margin-right: 0.35rem;"
+                                     alt="${game.game_title}"
                                      onerror="this.style.display='none'">
                                 GM
                             </span>`;
