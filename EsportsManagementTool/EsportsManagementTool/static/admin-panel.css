@@ -83,20 +83,36 @@
 }
 
 .role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
   font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
   font-weight: 600;
+  margin-right: 0.25rem;
+  vertical-align: middle;
 }
 
 .role-badge.admin {
-  background: #ff4d4d20;
-  color: #ff4d4d;
+  background: #ff5252;
+  color: white;
 }
 
 .role-badge.gm {
-  background: #4444ff20;
-  color: #4444ff;
+  background-color: #2196F3;
+  color: white;
+  gap: 0.25rem;
+}
+
+.role-badge.admin + .role-badge.gm {
+  margin-left: -0.25rem;
+}
+
+.role-badge.gm img {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  object-fit: cover;
 }
 
 /* Status badges with online indicator */
@@ -221,36 +237,6 @@
 .user-item.active {
     background: rgba(121, 189, 233, 0.1);
     border-color: var(--stockton-blue);
-}
-
-.role-badge {
-    display: inline-block;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    margin-right: 0.25rem;
-}
-
-.role-badge.admin {
-    background-color: #ff5252;
-    color: white;
-}
-
-.role-badge.gm {
-    background-color: #2196F3;
-    color: white;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-.role-badge.gm img {
-    width: 16px;
-    height: 16px;
-    border-radius: 3px;
-    object-fit: cover;
-    margin-right: 0;
 }
 
 .role-badge.player {

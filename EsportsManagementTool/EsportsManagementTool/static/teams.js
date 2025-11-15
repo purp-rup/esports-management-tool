@@ -1,20 +1,124 @@
 /**
- * Teams Management JavaScript - REDESIGNED
- * New sidebar layout with tab navigation
+ * Teams Management JavaScript
+ * Supports role-based view switching with persistence
  */
 
 let currentSelectedTeamId = null;
 let allTeamsData = [];
+let availableViews = [];
+let currentView = null;
+
+// Session storage key for view persistence
+const VIEW_STORAGE_KEY = 'teams_selected_view';
 
 /**
- * Load teams based on user role
- * - Admins see all teams
- * - GMs see only teams they created
+ * Initialize view switcher on page load
+ */
+async function initializeViewSwitcher() {
+    try {
+        const response = await fetch('/api/teams/available-views');
+        const data = await response.json();
+
+        if (data.success && data.views && data.views.length > 0) {
+            availableViews = data.views;
+
+            // Get stored view preference or use first (highest priority) view
+            const storedView = sessionStorage.getItem(VIEW_STORAGE_KEY);
+            const validStoredView = availableViews.find(v => v.value === storedView);
+            currentView = validStoredView ? storedView : availableViews[0].value;
+
+            // Show switcher only if user has multiple views
+            if (data.has_multiple) {
+                renderViewSwitcher();
+            } else {
+                hideViewSwitcher();
+            }
+        } else {
+            hideViewSwitcher();
+        }
+    } catch (error) {
+        console.error('Error initializing view switcher:', error);
+        hideViewSwitcher();
+    }
+}
+
+/**
+ * Render the view switcher dropdown
+ */
+function renderViewSwitcher() {
+    const viewSwitcher = document.getElementById('teamViewSwitcher');
+    const viewSelect = document.getElementById('teamViewSelect');
+
+    if (!viewSwitcher || !viewSelect) {
+        console.error('View switcher elements not found');
+        return;
+    }
+
+    // Clear existing options
+    viewSelect.innerHTML = '';
+
+    // Add options
+    availableViews.forEach(view => {
+        const option = document.createElement('option');
+        option.value = view.value;
+        option.textContent = view.label;
+        if (view.value === currentView) {
+            option.selected = true;
+        }
+        viewSelect.appendChild(option);
+    });
+
+    // Show the switcher
+    viewSwitcher.classList.remove('hidden');
+
+    // Attach change event
+    viewSelect.onchange = handleViewChange;
+}
+
+/**
+ * Hide the view switcher
+ */
+function hideViewSwitcher() {
+    const viewSwitcher = document.getElementById('teamViewSwitcher');
+    if (viewSwitcher) {
+        viewSwitcher.classList.add('hidden');
+    }
+}
+
+/**
+ * Handle view change from dropdown
+ */
+function handleViewChange(event) {
+    const newView = event.target.value;
+    if (newView !== currentView) {
+        currentView = newView;
+
+        // Persist the selection
+        sessionStorage.setItem(VIEW_STORAGE_KEY, newView);
+
+        // Reset selected team and reload
+        currentSelectedTeamId = null;
+        document.getElementById('teamsWelcomeState').style.display = 'flex';
+        document.getElementById('teamsDetailContent').style.display = 'none';
+
+        // Reload teams with new view
+        loadTeams();
+    }
+}
+
+/**
+ * Load teams based on user role and selected view
  */
 async function loadTeams() {
     const sidebarLoading = document.getElementById('teamsSidebarLoading');
     const sidebarList = document.getElementById('teamsSidebarList');
     const sidebarEmpty = document.getElementById('teamsSidebarEmpty');
+    const sidebarSubtitle = document.querySelector('.teams-subtitle');
+
+    // Initialize view switcher if not already done
+    if (availableViews.length === 0) {
+        await initializeViewSwitcher();
+    }
 
     // Show loading
     sidebarLoading.style.display = 'block';
@@ -22,15 +126,39 @@ async function loadTeams() {
     sidebarEmpty.style.display = 'none';
 
     try {
-        const response = await fetch('/api/teams/sidebar');
+        // Build URL with view parameter if we have a current view
+        const url = currentView
+            ? `/api/teams/sidebar?view=${currentView}`
+            : '/api/teams/sidebar';
+
+        const response = await fetch(url);
         const data = await response.json();
 
         if (data.success && data.teams && data.teams.length > 0) {
             allTeamsData = data.teams;
+
+            // Update subtitle based on current view with team count
+            if (sidebarSubtitle) {
+                const viewLabel = getSubtitleForView(currentView, data.teams.length);
+                sidebarSubtitle.textContent = viewLabel;
+            }
+
             renderTeamsSidebar(data.teams);
             sidebarLoading.style.display = 'none';
             sidebarList.style.display = 'flex';
         } else {
+            // Update subtitle to show zero count
+            if (sidebarSubtitle) {
+                const viewLabel = getSubtitleForView(currentView, 0);
+                sidebarSubtitle.textContent = viewLabel;
+            }
+
+            // Update empty state message based on view
+            if (sidebarEmpty) {
+                const emptyMessage = getEmptyMessageForView(currentView);
+                sidebarEmpty.innerHTML = `<i class="fas fa-users"></i><p>${emptyMessage}</p>`;
+            }
+
             sidebarLoading.style.display = 'none';
             sidebarEmpty.style.display = 'block';
         }
@@ -38,6 +166,51 @@ async function loadTeams() {
         console.error('Error loading teams:', error);
         sidebarLoading.style.display = 'none';
         sidebarEmpty.style.display = 'block';
+    }
+}
+
+/**
+ * Get subtitle text based on current view
+ * @param {string} view - Current view mode
+ * @param {number} count - Number of teams in current view
+ */
+function getSubtitleForView(view, count = 0) {
+    const viewObj = availableViews.find(v => v.value === view);
+    let label = '';
+
+    if (viewObj) {
+        label = viewObj.label;
+    } else {
+        // Fallback based on user permissions
+        const isAdmin = window.userPermissions?.is_admin || false;
+        const isGM = window.userPermissions?.is_gm || false;
+
+        if (isAdmin) {
+            label = 'All Teams';
+        } else if (isGM) {
+            label = 'Teams I Manage';
+        } else {
+            label = 'Your Teams';
+        }
+    }
+
+    // Add count to label
+    return `${label} (${count})`;
+}
+
+/**
+ * Get empty state message based on current view
+ */
+function getEmptyMessageForView(view) {
+    switch (view) {
+        case 'all':
+            return 'No teams have been created yet.';
+        case 'manage':
+            return 'You are not managing any teams yet.';
+        case 'play':
+            return 'You are not a member of any teams yet.';
+        default:
+            return 'No teams available.';
     }
 }
 
@@ -106,13 +279,11 @@ async function loadTeamDetails(teamId) {
             const teamIconLarge = document.querySelector('.team-icon-large');
             if (teamIconLarge) {
                 if (team.game_icon_url) {
-                    // Use game icon/image
                     teamIconLarge.innerHTML = `<img src="${team.game_icon_url}"
                                                      alt="${team.game_title}"
                                                      style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;"
                                                      onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fas fa-shield-alt\\'></i>';">`;
                 } else {
-                    // Fallback to shield icon
                     teamIconLarge.innerHTML = '<i class="fas fa-shield-alt"></i>';
                 }
             }
@@ -130,7 +301,6 @@ async function loadTeamDetails(teamId) {
 
             if (addPlayerBtn) {
                 addPlayerBtn.style.display = (isAdmin || isGM) ? 'inline-flex' : 'none';
-                // Make sure the onclick is properly attached
                 addPlayerBtn.onclick = openAddTeamMembersModal;
             }
 
@@ -147,7 +317,7 @@ async function loadTeamDetails(teamId) {
 }
 
 /**
- * Load roster tab with members - UPDATED WITH UNIVERSAL BADGES
+ * Load roster tab with members
  */
 function loadRosterTab(members) {
     const rosterList = document.getElementById('rosterMembersList');
@@ -163,13 +333,16 @@ function loadRosterTab(members) {
     rosterEmpty.style.display = 'none';
     rosterList.innerHTML = '';
 
+    const isAdmin = window.userPermissions?.is_admin || false;
+    const isGM = window.userPermissions?.is_gm || false;
+    const canManage = isAdmin || isGM;
+
     members.forEach(member => {
         const memberCard = document.createElement('div');
         memberCard.className = 'roster-member-card';
         memberCard.setAttribute('data-member-name', member.name.toLowerCase());
         memberCard.setAttribute('data-member-username', member.username.toLowerCase());
 
-        // Avatar
         let avatarHTML;
         if (member.profile_picture) {
             avatarHTML = `<img src="${member.profile_picture}" alt="${member.name}" class="roster-member-avatar">`;
@@ -178,16 +351,15 @@ function loadRosterTab(members) {
             avatarHTML = `<div class="roster-member-initials">${initials}</div>`;
         }
 
-        // Build role badges using UNIVERSAL badge system
         let badgesHTML = '';
         if (typeof buildUniversalRoleBadges === 'function') {
             badgesHTML = buildUniversalRoleBadges({
                 userId: member.id,
                 roles: member.roles || [],
-                contextGameId: null // No specific game context in teams view
+                contextGameId: null,
+                excludeRoles: ['Player']
             });
         } else if (typeof buildRoleBadges === 'function') {
-            // Fallback to legacy function
             badgesHTML = buildRoleBadges({
                 roles: member.roles || [],
                 isAssignedGM: false,
@@ -195,10 +367,7 @@ function loadRosterTab(members) {
             });
         }
 
-        // Remove button (only for admins/GMs)
-        const isAdmin = window.userPermissions?.is_admin || false;
-        const isGM = window.userPermissions?.is_gm || false;
-        const removeBtn = (isAdmin || isGM) ? `
+        const removeBtn = canManage ? `
             <button class="btn-icon-danger"
                     onclick="event.stopPropagation(); confirmRemoveMemberNew('${member.id}', '${member.name.replace(/'/g, "\\'")}')"
                     title="Remove member">
@@ -219,61 +388,6 @@ function loadRosterTab(members) {
         `;
 
         rosterList.appendChild(memberCard);
-    });
-}
-
-/**
- * Display available members - UPDATED WITH UNIVERSAL BADGES
- */
-function displayAvailableMembersNew(members) {
-    const list = document.getElementById('availableMembersList');
-    list.innerHTML = '';
-
-    members.forEach(member => {
-        const memberItem = document.createElement('div');
-        memberItem.className = 'member-item';
-        memberItem.setAttribute('data-username', member.username.toLowerCase());
-        memberItem.setAttribute('data-name', member.name.toLowerCase());
-
-        let profilePicHTML;
-        if (member.profile_picture) {
-            profilePicHTML = `<img src="${member.profile_picture}" alt="${member.name}" class="member-avatar">`;
-        } else {
-            const initials = member.name.split(' ').map(n => n[0]).join('');
-            profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
-        }
-
-        // Build role badges using UNIVERSAL badge system
-        let badgesHTML = '';
-        if (typeof buildUniversalRoleBadges === 'function') {
-            badgesHTML = buildUniversalRoleBadges({
-                userId: member.id,
-                roles: member.roles || [],
-                contextGameId: null
-            });
-        } else if (typeof buildRoleBadges === 'function') {
-            badgesHTML = buildRoleBadges({
-                roles: member.roles || [],
-                isAssignedGM: false,
-                gameIconUrl: null
-            });
-        }
-
-        memberItem.innerHTML = `
-            <input type="checkbox"
-                   id="member_${member.id}"
-                   value="${member.id}"
-                   style="margin-right: 1rem;">
-            ${profilePicHTML}
-            <div class="member-info">
-                <div class="member-name">${member.name}</div>
-                <div class="member-username">@${member.username}</div>
-            </div>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                ${badgesHTML}
-            </div>
-        `;
-        list.appendChild(memberItem);
     });
 }
 
@@ -306,11 +420,9 @@ document.addEventListener('DOMContentLoaded', function() {
         tab.addEventListener('click', function() {
             const targetTab = this.getAttribute('data-team-tab');
 
-            // Update active tab
             document.querySelectorAll('.team-tab').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
 
-            // Update active panel
             document.querySelectorAll('.team-tab-panel').forEach(panel => panel.classList.remove('active'));
             document.getElementById(`${targetTab}TabContent`)?.classList.add('active');
         });
@@ -350,7 +462,6 @@ async function deleteTeamNew(teamId) {
 
         if (data.success) {
             alert(data.message);
-            // Reload teams and reset view
             currentSelectedTeamId = null;
             document.getElementById('teamsWelcomeState').style.display = 'flex';
             document.getElementById('teamsDetailContent').style.display = 'none';
@@ -388,7 +499,7 @@ async function removeMemberNew(memberId, memberName) {
 
         if (data.success) {
             alert(`"${memberName}" removed successfully`);
-            selectTeam(currentSelectedTeamId); // Reload current team
+            selectTeam(currentSelectedTeamId);
         } else {
             alert(`Error: ${data.message}`);
         }
@@ -402,17 +513,14 @@ async function removeMemberNew(memberId, memberName) {
  * Open add team members modal
  */
 function openAddTeamMembersModal() {
-    console.log('Opening add members modal for team:', currentSelectedTeamId);
-
     if (!currentSelectedTeamId) {
-        console.error('No team selected');
         alert('Please select a team first');
         return;
     }
 
     const modal = document.getElementById('addTeamMembersModal');
     if (!modal) {
-        console.error('Add team members modal not found in DOM');
+        console.error('Add team members modal not found');
         return;
     }
 
@@ -465,6 +573,18 @@ function displayAvailableMembersNew(members) {
         memberItem.setAttribute('data-username', member.username.toLowerCase());
         memberItem.setAttribute('data-name', member.name.toLowerCase());
 
+        // Make the whole item clickable to toggle checkbox
+        memberItem.onclick = function(e) {
+            // Don't toggle if clicking the checkbox itself or badges
+            if (e.target.type === 'checkbox' || e.target.closest('.role-badge')) {
+                return;
+            }
+            const checkbox = this.querySelector('input[type="checkbox"]');
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+            }
+        };
+
         let profilePicHTML;
         if (member.profile_picture) {
             profilePicHTML = `<img src="${member.profile_picture}" alt="${member.name}" class="member-avatar">`;
@@ -474,7 +594,14 @@ function displayAvailableMembersNew(members) {
         }
 
         let badgesHTML = '';
-        if (typeof buildRoleBadges === 'function') {
+        if (typeof buildUniversalRoleBadges === 'function') {
+            badgesHTML = buildUniversalRoleBadges({
+                userId: member.id,
+                roles: member.roles || [],
+                contextGameId: null,
+                excludeRoles: ['Player']
+            });
+        } else if (typeof buildRoleBadges === 'function') {
             badgesHTML = buildRoleBadges({
                 roles: member.roles || [],
                 isAssignedGM: false,
@@ -485,8 +612,7 @@ function displayAvailableMembersNew(members) {
         memberItem.innerHTML = `
             <input type="checkbox"
                    id="member_${member.id}"
-                   value="${member.id}"
-                   style="margin-right: 1rem;">
+                   value="${member.id}">
             ${profilePicHTML}
             <div class="member-info">
                 <div class="member-name">${member.name}</div>
@@ -524,7 +650,7 @@ async function addSelectedMembersToTeam() {
         if (data.success) {
             alert(data.message);
             closeAddTeamMembersModal();
-            selectTeam(currentSelectedTeamId); // Reload team
+            selectTeam(currentSelectedTeamId);
         } else {
             alert(`Error: ${data.message}`);
         }

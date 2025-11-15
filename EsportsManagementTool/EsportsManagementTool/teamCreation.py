@@ -343,12 +343,16 @@ def remove_member_from_team(team_id):
         cursor.close()
 
 """
-Method to filter teams based on user role (Admin sees all, GM sees only their created teams)
+Method to filter teams based on user role AND selected view
+- Supports view switching for multi-role users
+- Admin: can view all teams, teams they manage, or teams they play for
+- GM: can view teams they manage or teams they play for
+- Player: can only view teams they play for
 """
 @app.route('/api/teams/sidebar')
 @login_required
 def get_teams_sidebar():
-    """Get teams for sidebar - filtered by role"""
+    """Get teams for sidebar - filtered by role and view preference"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
@@ -356,9 +360,14 @@ def get_teams_sidebar():
         permissions = get_user_permissions(session['id'])
         is_admin = permissions['is_admin']
         is_gm = permissions['is_gm']
+        is_player = permissions['is_player']
 
-        if is_admin:
-            # Admins see ALL teams
+        # Get the view preference from query parameters (default to highest priority)
+        view_mode = request.args.get('view', None)
+
+        # Determine which query to run based on view_mode
+        if view_mode == 'all' and is_admin:
+            # Admin viewing ALL teams
             cursor.execute("""
                 SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
                        (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
@@ -366,8 +375,9 @@ def get_teams_sidebar():
                 LEFT JOIN games g ON t.gameID = g.GameID
                 ORDER BY t.teamName ASC
             """)
-        elif is_gm:
-            # GMs see only teams from games they manage
+
+        elif view_mode == 'manage' and (is_admin or is_gm):
+            # Admin or GM viewing teams they manage
             cursor.execute("""
                 SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
                        (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
@@ -376,9 +386,54 @@ def get_teams_sidebar():
                 WHERE g.gm_id = %s
                 ORDER BY t.teamName ASC
             """, (session['id'],))
+
+        elif view_mode == 'play' and is_player:
+            # Any role viewing teams they play for
+            cursor.execute("""
+                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                       (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
+                FROM teams t
+                LEFT JOIN games g ON t.gameID = g.GameID
+                INNER JOIN team_members tm ON t.TeamID = tm.team_id
+                WHERE tm.user_id = %s
+                ORDER BY t.teamName ASC
+            """, (session['id'],))
+
         else:
-            # Regular users see no teams in sidebar (they use Communities tab)
-            return jsonify({'success': True, 'teams': []})
+            # Default behavior based on highest priority role (no view_mode specified)
+            if is_admin:
+                # Admins see ALL teams by default
+                cursor.execute("""
+                    SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                           (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
+                    FROM teams t
+                    LEFT JOIN games g ON t.gameID = g.GameID
+                    ORDER BY t.teamName ASC
+                """)
+            elif is_gm:
+                # GMs see only teams from games they manage
+                cursor.execute("""
+                    SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                           (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
+                    FROM teams t
+                    LEFT JOIN games g ON t.gameID = g.GameID
+                    WHERE g.gm_id = %s
+                    ORDER BY t.teamName ASC
+                """, (session['id'],))
+            elif is_player:
+                # Players see only teams they are members of
+                cursor.execute("""
+                    SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                           (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
+                    FROM teams t
+                    LEFT JOIN games g ON t.gameID = g.GameID
+                    INNER JOIN team_members tm ON t.TeamID = tm.team_id
+                    WHERE tm.user_id = %s
+                    ORDER BY t.teamName ASC
+                """, (session['id'],))
+            else:
+                # Users with no specific role see no teams
+                return jsonify({'success': True, 'teams': []})
 
         teams = cursor.fetchall()
 
@@ -398,6 +453,83 @@ def get_teams_sidebar():
 
     except Exception as e:
         print(f"Error fetching teams sidebar: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    finally:
+        cursor.close()
+
+
+"""
+Method to get available view options for the current user
+"""
+@app.route('/api/teams/available-views')
+@login_required
+def get_available_team_views():
+    """Get list of available view options based on user's roles"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Get user permissions
+        permissions = get_user_permissions(session['id'])
+        is_admin = permissions['is_admin']
+        is_gm = permissions['is_gm']
+        is_player = permissions['is_player']
+
+        views = []
+
+        # Admin can see all teams
+        if is_admin:
+            views.append({
+                'value': 'all',
+                'label': 'All Teams',
+                'priority': 1
+            })
+
+        # Admin or GM can see teams they manage
+        if is_admin or is_gm:
+            # Check if they actually manage any games
+            cursor.execute("""
+                SELECT COUNT(*) as count 
+                FROM games 
+                WHERE gm_id = %s
+            """, (session['id'],))
+            result = cursor.fetchone()
+
+            if result and result['count'] > 0:
+                views.append({
+                    'value': 'manage',
+                    'label': 'Teams I Manage',
+                    'priority': 2
+                })
+
+        # Anyone who is a player can see teams they play for
+        if is_player:
+            # Check if they're actually in any teams
+            cursor.execute("""
+                SELECT COUNT(*) as count 
+                FROM team_members 
+                WHERE user_id = %s
+            """, (session['id'],))
+            result = cursor.fetchone()
+
+            if result and result['count'] > 0:
+                views.append({
+                    'value': 'play',
+                    'label': 'Teams I Play For',
+                    'priority': 3
+                })
+
+        # Sort by priority (just in case)
+        views.sort(key=lambda x: x['priority'])
+
+        return jsonify({
+            'success': True,
+            'views': views,
+            'has_multiple': len(views) > 1
+        })
+
+    except Exception as e:
+        print(f"Error fetching available views: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
     finally:
