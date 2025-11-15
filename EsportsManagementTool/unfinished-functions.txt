@@ -6,8 +6,6 @@ Needs doing:
             Assigning a GM not in a community does NOT automatically make them a community member/GM
 
             Player view for teams tab.
-            Badges off center in admin panel
-            New styling for sliders
             Visual bug in teams tab right side stemming below bottom of page
-            Adjust member view for teams tab (new description)
-            Adjust description in join/leave community modal.
+
+            Color Code different event types?

@@ -35,10 +35,11 @@ async function loadGMGameMappings() {
  * @param {number} options.userId - User ID
  * @param {Array} options.roles - Array of role strings ['Admin', 'Game Manager', 'Player']
  * @param {number} options.contextGameId - Optional: Game ID for context (highlights assigned GM)
+ * @param {Array} options.excludeRoles - Optional: Array of role names to exclude from display
  * @returns {string} HTML string of badges
  */
 function buildUniversalRoleBadges(options) {
-    const { userId, roles = [], contextGameId = null } = options;
+    const { userId, roles = [], contextGameId = null, excludeRoles = [] } = options;
     let badgesHTML = '';
 
     try {
@@ -46,13 +47,13 @@ function buildUniversalRoleBadges(options) {
         const hasAdminRole = roles.includes('Admin');
         const hasPlayerRole = roles.includes('Player');
 
-        // Build Admin badge
-        if (hasAdminRole) {
+        // Build Admin badge (if not excluded)
+        if (hasAdminRole && !excludeRoles.includes('Admin')) {
             badgesHTML += '<span class="role-badge admin">Admin</span>';
         }
 
-        // Build GM badges with game icons
-        if (hasGMRole) {
+        // Build GM badges with game icons (if not excluded)
+        if (hasGMRole && !excludeRoles.includes('Game Manager')) {
             const userGames = gmGameMappings[userId] || [];
 
             if (userGames.length > 0) {
@@ -82,13 +83,14 @@ function buildUniversalRoleBadges(options) {
             }
         }
 
-        // Build Player badge
-        if (hasPlayerRole) {
+        // Build Player badge (if not excluded)
+        if (hasPlayerRole && !excludeRoles.includes('Player')) {
             badgesHTML += '<span class="role-badge player">Player</span>';
         }
 
-        // If no roles at all, show Member
-        if (!hasAdminRole && !hasGMRole && !hasPlayerRole) {
+        // If no visible roles, leave empty (user has roles, just not showing them)
+        if (badgesHTML === '' && !hasAdminRole && !hasGMRole && !hasPlayerRole) {
+            // Only show Member badge if they truly have no roles
             badgesHTML += '<span class="role-badge member">Member</span>';
         }
 
@@ -116,5 +118,4 @@ document.addEventListener('DOMContentLoaded', function() {
 // Export functions
 window.loadGMGameMappings = loadGMGameMappings;
 window.buildUniversalRoleBadges = buildUniversalRoleBadges;
-window.buildRoleBadges = buildRoleBadges;
 window.refreshGMGameMappings = refreshGMGameMappings;
