@@ -486,3 +486,145 @@
     box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
 }
 }
+
+/* ============================================
+   EVENT TYPE COLOR SYSTEM
+   ============================================ */
+
+/* Color Variables for Event Types */
+:root {
+    --event-tournament: #8b5cf6;  /* Purple */
+    --event-tournament-light: rgba(139, 92, 246, 0.1);
+    --event-tournament-hover: #7c3aed;
+
+    --event-match: #ef4444;        /* Red */
+    --event-match-light: rgba(239, 68, 68, 0.1);
+    --event-match-hover: #dc2626;
+
+    --event-practice: #22c55e;     /* Green */
+    --event-practice-light: rgba(34, 197, 94, 0.1);
+    --event-practice-hover: #16a34a;
+
+    --event-event: #79bde9;        /* Stockton Blue (default) */
+    --event-event-light: rgba(121, 189, 233, 0.1);
+    --event-event-hover: #5aabdd;
+}
+
+/* ============================================
+   EVENTS PAGE - Event Cards
+   ============================================ */
+
+/* Base badge styling */
+.event-type-badge {
+    display: inline-block;
+    padding: 0.35rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: transparent !important;
+}
+
+/* Tournament - Purple Border */
+.event-type-badge[data-type="tournament"],
+.event-type-badge.tournament {
+    border: 1px solid rgba(167, 139, 250, 1) !important;
+    color: rgba(167, 139, 250, 1) !important;
+}
+
+/* Match - Red Border */
+.event-type-badge[data-type="match"],
+.event-type-badge.match {
+    border: 1px solid rgba(255, 28, 47, 1) !important;
+    color: rgba(255, 28, 47, 1) !important;
+}
+
+/* Practice - Green Border */
+.event-type-badge[data-type="practice"],
+.event-type-badge.practice {
+    border: 1px solid rgba(134, 239, 172, 1) !important;
+    color: rgba(134, 239, 172, 1) !important;
+}
+
+/* Event - Blue Border */
+.event-type-badge[data-type="event"],
+.event-type-badge.event {
+    border: 1px solid rgba(147, 197, 253, 1) !important;
+    color: rgba(147, 197, 253, 1) !important;
+}
+
+/* Event Card Icon Colors */
+.event-card[data-event-type="tournament"] .event-detail-icon,
+.event-card.tournament .event-detail-icon {
+    background: var(--event-tournament-light);
+    color: var(--event-tournament);
+}
+
+.event-card[data-event-type="match"] .event-detail-icon,
+.event-card.match .event-detail-icon {
+    background: var(--event-match-light);
+    color: var(--event-match);
+}
+
+.event-card[data-event-type="practice"] .event-detail-icon,
+.event-card.practice .event-detail-icon {
+    background: var(--event-practice-light);
+    color: var(--event-practice);
+}
+
+.event-card[data-event-type="event"] .event-detail-icon,
+.event-card.event .event-detail-icon {
+    background: var(--event-event-light);
+    color: var(--event-event);
+}
+
+/* Event Card Border Colors on Hover */
+.event-card[data-event-type="tournament"]:hover,
+.event-card.tournament:hover {
+    border-color: var(--event-tournament);
+}
+
+.event-card[data-event-type="match"]:hover,
+.event-card.match:hover {
+    border-color: var(--event-match);
+}
+
+.event-card[data-event-type="practice"]:hover,
+.event-card.practice:hover {
+    border-color: var(--event-practice);
+}
+
+.event-card[data-event-type="event"]:hover,
+.event-card.event:hover {
+    border-color: var(--event-event);
+}
+
+/* ============================================
+   MODAL - Event Details Icons
+   ============================================ */
+
+/* Event Detail Modal Icon Colors */
+.modal-content[data-event-type="tournament"] .event-detail-icon,
+#eventDetailsModal[data-event-type="tournament"] .event-detail-icon {
+    background: var(--event-tournament-light);
+    color: var(--event-tournament);
+}
+
+.modal-content[data-event-type="match"] .event-detail-icon,
+#eventDetailsModal[data-event-type="match"] .event-detail-icon {
+    background: var(--event-match-light);
+    color: var(--event-match);
+}
+
+.modal-content[data-event-type="practice"] .event-detail-icon,
+#eventDetailsModal[data-event-type="practice"] .event-detail-icon {
+    background: var(--event-practice-light);
+    color: var(--event-practice);
+}
+
+.modal-content[data-event-type="event"] .event-detail-icon,
+#eventDetailsModal[data-event-type="event"] .event-detail-icon {
+    background: var(--event-event-light);
+    color: var(--event-event);
+}

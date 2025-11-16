@@ -171,6 +171,11 @@ function updateEmptyStateMessage() {
     }
 }
 
+//Method to get the event type for a created event.
+function getEventTypeClass(eventType) {
+    return (eventType || 'event').toLowerCase();
+}
+
 /**
  * Create an event card HTML
  */
@@ -188,8 +193,12 @@ function createEventCard(event, isAdmin, isGm) {
 
     const gameDisplay = event.game && event.game !== 'N/A' ? event.game : 'None';
 
+    // Normalize event type to lowercase for data attribute ONLY
+    const eventTypeClass = (event.event_type || 'event').toLowerCase();
+
+    // REMOVED CLASS FROM event-card DIV - ONLY USE DATA-EVENT-TYPE
     return `
-        <div class="event-card" onclick="openEventModal(${event.id})">
+        <div class="event-card" data-event-type="${eventTypeClass}" onclick="openEventModal(${event.id})">
             ${ongoingIndicator}
             <div class="event-card-header">
                 <h3 class="event-card-title">${event.name}</h3>
@@ -220,7 +229,7 @@ function createEventCard(event, isAdmin, isGm) {
                     </div>
                     <span class="event-detail-label">Type:</span>
                     <span class="event-detail-value">
-                        <span class="event-type-badge">${event.event_type}</span>
+                        <span class="event-type-badge" data-type="${eventTypeClass}">${event.event_type}</span>
                     </span>
                 </div>
 
@@ -297,6 +306,10 @@ async function openEventModal(eventId) {
         const event = await response.json();
 
         currentEventData = event;
+
+        // Add event type as data attribute to modal for color styling
+        const eventTypeClass = (event.event_type || 'event').toLowerCase();
+        modal.setAttribute('data-event-type', eventTypeClass);
 
         if (titleElement) {
             titleElement.textContent = event.name || 'Event Details';

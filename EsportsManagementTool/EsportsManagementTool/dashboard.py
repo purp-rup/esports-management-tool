@@ -118,7 +118,8 @@ def dashboard(year=None, month=None):
                 'id': event['EventID'],
                 'time': time_str,
                 'title': event['EventName'],
-                'description': event['Description'] if event['Description'] else ''
+                'description': event['Description'] if event['Description'] else '',
+                'event_type': event['EventType'] if event.get('EventType') else 'Event'
             }
 
             if date_str not in events_by_date:
