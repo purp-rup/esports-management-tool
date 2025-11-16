@@ -613,8 +613,13 @@ function confirmJoinGame(gameId, gameTitle) {
             </div>
             <div class="modal-body">
                 <p>Would you like to join the <strong>${gameTitle}</strong> community?</p>
+                <ul style="margin: 1rem 0; padding-left: 1.5rem; color: var(--text-primary); line-height: 1.6;">
+                    <li>You can be assigned to a team</li>
+                    <li>You can view this game's schedule</li>
+                    <li>You can view exclusive events</li>
+                </ul>
                 <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 1rem;">
-                    You'll be able to participate in events, join teams, and connect with other players.
+                    You can always leave later if you change your mind.
                 </p>
             </div>
             <div class="form-actions">
@@ -647,8 +652,13 @@ function confirmLeaveGame(gameId, gameTitle) {
             </div>
             <div class="modal-body">
                 <p>Are you sure you want to leave the <strong>${gameTitle}</strong> community?</p>
+                <ul style="margin: 1rem 0; padding-left: 1.5rem; color: var(--text-primary); line-height: 1.6;">
+                    <li>You'll no longer be able to join a team</li>
+                    <li>You won't see this game's schedule</li>
+                    <li>You won't see this game's exclusive events</li>
+                </ul>
                 <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 1rem;">
-                    You can always rejoin later if you change your mind.
+                    You can always rejoin if you change your mind
                 </p>
             </div>
             <div class="form-actions">

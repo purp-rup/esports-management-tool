@@ -663,6 +663,8 @@
     gap: 0.75rem;
     max-height: 400px;
     overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.25rem;
 }
 
 .gm-selection-item {
@@ -686,6 +688,32 @@
 .gm-selection-item.selected {
     background: rgba(121, 189, 233, 0.1);
     border-color: var(--stockton-blue);
+}
+
+/* Custom scrollbar for GM selection list */
+.gm-selection-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.gm-selection-list::-webkit-scrollbar-track {
+    background: var(--dark-bg);
+    border-radius: 4px;
+}
+
+.gm-selection-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.gm-selection-list::-webkit-scrollbar-thumb:hover {
+    background: var(--stockton-blue);
+}
+
+/* Firefox scrollbar styling */
+.gm-selection-list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--dark-bg);
 }
 
 /* Assigned GM Badge on Member Item */

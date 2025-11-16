@@ -1,8 +1,35 @@
 /* ============================================
-   TEAMS TAB - NEW LAYOUT
+   TEAMS TAB
    Two-column layout with sidebar and main content
    Using Flexbox for better compatibility
    ============================================ */
+
+/* Global scrollbar styling for all elements in teams tab */
+#teams ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+#teams ::-webkit-scrollbar-track {
+    background: var(--dark-bg);
+    border-radius: 4px;
+}
+
+#teams ::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+#teams ::-webkit-scrollbar-thumb:hover {
+    background: var(--stockton-blue);
+}
+
+/* Firefox scrollbar styling */
+#teams * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--dark-bg);
+}
 
 /* Ensure the Teams tab content takes full width */
 #teams.tab-content {
@@ -41,10 +68,62 @@
     margin-bottom: 1.5rem;
 }
 
-.teams-sidebar-header h2 {
-    margin: 0 0 0.5rem 0;
+.sidebar-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    gap: 1rem;
+}
+
+.sidebar-header-top h2 {
+    margin: 0;
     font-size: 1.5rem;
     color: var(--text-primary);
+    flex-shrink: 0;
+}
+
+.view-switcher {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.view-switcher-select {
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    max-width: 180px;
+    outline: none;
+}
+
+.view-switcher-select:hover {
+    border-color: var(--stockton-blue);
+    background: var(--hover-bg);
+}
+
+.view-switcher-select:focus {
+    border-color: var(--stockton-blue);
+    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+}
+
+.view-switcher-select option {
+    background: var(--dark-bg);
+    color: var(--text-primary);
+    padding: 0.5rem;
+}
+
+.view-switcher.hidden {
+    display: none;
 }
 
 .teams-subtitle {
@@ -226,6 +305,7 @@
 .team-header-actions {
     display: flex;
     gap: 0.75rem;
+    margin-right: 1rem;
 }
 
 /* Team Stats Summary */
@@ -309,6 +389,8 @@
 /* Roster Tab */
 .roster-search {
     margin-bottom: 1rem;
+    position: relative;
+    z-index: 10;
 }
 
 .roster-search input {
@@ -329,8 +411,11 @@
 
 .roster-members-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 0 0.5rem 0.5rem 0.5rem;
 }
 
 .roster-member-card {
@@ -342,11 +427,14 @@
     align-items: center;
     gap: 1rem;
     transition: all 0.2s;
+    position: relative;
+    z-index: 1;
 }
 
 .roster-member-card:hover {
     border-color: var(--stockton-blue);
-    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(121, 189, 233, 0.2);
+    z-index: 5;
 }
 
 .roster-member-avatar {
@@ -399,6 +487,38 @@
     gap: 0.5rem;
 }
 
+/* Remove Player Button Styling */
+.btn-icon-danger {
+    background: transparent;
+    border: 2px solid #ff5252;
+    color: #ff5252;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.7rem;
+    padding: 0;
+}
+
+.btn-icon-danger:hover {
+    background: #ff5252;
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(255, 82, 82, 0.3);
+}
+
+.btn-icon-danger:active {
+    transform: scale(0.95);
+}
+
+.btn-icon-danger i {
+    pointer-events: none;
+}
+
 /* Coming Soon States */
 .tab-coming-soon {
     display: flex;
@@ -440,7 +560,225 @@
     opacity: 0.5;
 }
 
-/* Responsive Design */
+/* ============================================
+   ADD TEAM MEMBERS MODAL
+   ============================================ */
+
+#addTeamMembersModal .modal-content {
+    max-width: 700px;
+}
+
+#addTeamMembersModal .modal-body {
+    max-height: none;
+    overflow: visible;
+    padding: 1.5rem 2rem 1rem;
+}
+
+/* Search bar styling */
+.member-search {
+    margin-bottom: 1rem;
+}
+
+.member-search input {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    transition: all 0.2s;
+}
+
+.member-search input:focus {
+    outline: none;
+    border-color: var(--stockton-blue);
+    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+}
+
+.member-search input::placeholder {
+    color: var(--text-secondary);
+}
+
+/* Members list container - scrollable area */
+.members-list-container {
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Custom scrollbar for members list */
+.members-list-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.members-list-container::-webkit-scrollbar-track {
+    background: var(--dark-bg);
+    border-radius: 4px;
+}
+
+.members-list-container::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.members-list-container::-webkit-scrollbar-thumb:hover {
+    background: var(--stockton-blue);
+}
+
+/* Member item styling */
+.member-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.member-item:hover {
+    background: var(--hover-bg);
+    border-color: var(--stockton-blue);
+}
+
+.member-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Custom checkbox styling */
+.member-item input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--dark-bg);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.member-item input[type="checkbox"]:hover {
+    border-color: var(--stockton-blue);
+}
+
+.member-item input[type="checkbox"]:checked {
+    background: var(--stockton-blue);
+    border-color: var(--stockton-blue);
+}
+
+.member-item input[type="checkbox"]:checked::after {
+    content: '\2713';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.member-item input[type="checkbox"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.2);
+}
+
+/* Member avatar */
+.member-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.member-avatar-initials {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--stockton-blue);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+/* Member info */
+.member-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.member-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    font-size: 0.9375rem;
+}
+
+.member-username {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+/* Loading and empty states */
+.members-loading,
+.members-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-secondary);
+}
+
+.members-loading i,
+.members-empty i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--stockton-blue);
+    opacity: 0.5;
+}
+
+.members-loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Modal footer with action buttons */
+.modal-footer {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem 2rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.modal-footer .btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
 @media (max-width: 1024px) {
     .teams-layout {
         gap: 1rem !important;
@@ -464,6 +802,19 @@
     .teams-sidebar {
         width: 100%;
         max-height: 300px;
+    }
+
+    .sidebar-header-top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .view-switcher {
+        width: 100%;
+    }
+
+    .view-switcher-select {
+        max-width: 100%;
     }
 
     .team-detail-header {
@@ -490,5 +841,24 @@
 
     .roster-members-grid {
         grid-template-columns: 1fr;
+    }
+
+    /* Modal responsive */
+    #addTeamMembersModal .modal-content {
+        width: 95%;
+        margin: 5% auto;
+    }
+
+    .members-list-container {
+        max-height: 300px;
+    }
+
+    .member-item {
+        gap: 0.75rem;
+        padding: 0.875rem;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem 1.5rem;
     }
 }

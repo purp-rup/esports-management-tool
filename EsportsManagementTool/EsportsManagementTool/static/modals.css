@@ -74,6 +74,7 @@
     padding: 1.5rem 2rem 2rem;
     max-height: 60vh;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .modal-event-item {

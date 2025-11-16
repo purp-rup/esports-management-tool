@@ -4,3 +4,8 @@ Needs doing:
             Update time on calendar to be 12Hr time (or choice of 12Hr/24Hr)
 
             Assigning a GM not in a community does NOT automatically make them a community member/GM
+
+            Player view for teams tab.
+            Visual bug in teams tab right side stemming below bottom of page
+
+            Color Code different event types?
