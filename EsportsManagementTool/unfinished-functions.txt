@@ -1,10 +1,14 @@
 Functionality notes:
 Needs doing:
-            Add more filters to Events Tab
-            Update time on calendar to be 12Hr time (or choice of 12Hr/24Hr)
+            Archive Old events (30+ days old) (delete old practices/matches, keep old tournaments/events)
+            Filter specific to admins to show archived events/tournaments
+            Filter specific to admins to show ALL events (all current + archived)?
 
             Assigning a GM not in a community does NOT automatically make them a community member/GM
 
             Visual bug in teams tab right side stemming below bottom of page
+
+            Remember Me button on login
+            Forgot password button on login
 
 
