@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='updateProfile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='scheduled-events.css') }}">
 
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
@@ -1014,16 +1015,36 @@
                             </div>
                         </div>
                         <div class="team-header-actions">
-                            <button id="addPlayerBtn" class="btn btn-primary" onclick="openAddTeamMembersModal()" style="display: none;">
-                                <i class="fas fa-user-plus"></i> Add Player
-                            </button>
-                            <button id="deleteTeamBtn" class="btn btn-secondary" onclick="confirmDeleteSelectedTeam()" style="display: none;">
+                            <!-- Stack for Add Player and Schedule buttons -->
+                            <div class="team-action-buttons-stack">
+                                <!-- Add Player button FIRST -->
+                                <button id="addPlayerBtn"
+                                        class="btn btn-primary"
+                                        onclick="openAddTeamMembersModal()"
+                                        style="display: none;">
+                                    <i class="fas fa-user-plus"></i> Add Player
+                                </button>
+
+                                <!-- Schedule button SECOND -->
+                                <button id="createScheduleBtn"
+                                        class="btn btn-create-schedule"
+                                        onclick="openCreateScheduledEventModal()"
+                                        style="display: none;">
+                                    <i class="fas fa-calendar-plus"></i> Schedule Event
+                                </button>
+                            </div>
+
+                            <!-- Delete button - vertically centered between the two buttons -->
+                            <button id="deleteTeamBtn"
+                                    class="btn btn-secondary"
+                                    onclick="confirmDeleteSelectedTeam()"
+                                    style="display: none;">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Team Stats Summary -->
+                    <!-- Team Stats Summary with Next Scheduled Event -->
                     <div class="team-stats-summary">
                         <div class="stat-box">
                             <i class="fas fa-users"></i>
@@ -1035,15 +1056,10 @@
                             <div class="stat-value" id="teamStatMaxSize">0</div>
                             <div class="stat-label">Max Size</div>
                         </div>
-                        <div class="stat-box">
-                            <i class="fas fa-chart-line"></i>
-                            <div class="stat-value">--</div>
-                            <div class="stat-label">Win Rate</div>
-                        </div>
-                        <div class="stat-box">
-                            <i class="fas fa-star"></i>
-                            <div class="stat-value">--</div>
-                            <div class="stat-label">Ranking</div>
+
+                        <!-- Next Scheduled Event Container (spans 2 columns) -->
+                        <div id="nextScheduledEventContainer" style="grid-column: span 2;">
+                            <!-- Next scheduled event will be dynamically loaded here -->
                         </div>
                     </div>
 
@@ -1051,6 +1067,9 @@
                     <div class="team-tabs">
                         <button class="team-tab active" data-team-tab="roster">
                             <i class="fas fa-users"></i> Roster
+                        </button>
+                        <button class="team-tab" data-team-tab="schedule">
+                            <i class="fas fa-calendar-alt"></i> Schedule
                         </button>
                         <button class="team-tab" data-team-tab="stats">
                             <i class="fas fa-chart-bar"></i> Stats
@@ -1079,6 +1098,14 @@
                             <div id="rosterEmpty" class="tab-empty-state" style="display: none;">
                                 <i class="fas fa-users-slash"></i>
                                 <p>No members on this team yet</p>
+                            </div>
+                        </div>
+
+                        <!-- Schedule Tab -->
+                        <div id="scheduleTabContent" class="team-tab-panel">
+                            <div class="schedule-loading">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading schedule...</p>
                             </div>
                         </div>
 
@@ -1152,19 +1179,6 @@
                 <!-- Members List Container (scrollable) -->
                 <div id="availableMembersList" class="members-list-container" style="display: none;">
                     <!-- Member items will be populated here by JavaScript -->
-                    <!-- Example structure:
-                    <div class="member-item">
-                        <input type="checkbox" id="member_123" value="123">
-                        <img src="/path/to/avatar.jpg" alt="User Name" class="member-avatar">
-                        <div class="member-info">
-                            <div class="member-name">User Name</div>
-                            <div class="member-username">@username</div>
-                        </div>
-                        <div style="display: flex; gap: 0.5rem;">
-                            [Role badges]
-                        </div>
-                    </div>
-                    -->
                 </div>
             </div>
 
@@ -1178,6 +1192,130 @@
                     <i class="fas fa-user-plus"></i>
                     Add Selected
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scheduled Event modal -->
+    <div id="createScheduledEventModal" class="modal">
+        <div class="modal-content modal-content-large">
+            <div class="modal-header">
+                <h2>Create Scheduled Event</h2>
+                <button class="modal-close" onclick="closeCreateScheduledEventModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-subtitle">Set up a recurring event for this team</p>
+
+                <form id="createScheduledEventForm" class="event-form-modal">
+                    <div class="form-group">
+                        <label for="scheduledEventName">Event Name *</label>
+                        <input type="text"
+                               id="scheduledEventName"
+                               name="event_name"
+                               placeholder="e.g., Weekly Practice Session"
+                               required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="scheduledEventType">Event Type *</label>
+                            <select id="scheduledEventType" name="event_type" required>
+                                <option value="">Select type</option>
+                                <option value="Match">Match</option>
+                                <option value="Practice">Practice</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="scheduledFrequency">Frequency *</label>
+                            <select id="scheduledFrequency" name="frequency" required>
+                                <option value="">Select frequency</option>
+                                <option value="Weekly">Weekly</option>
+                                <option value="Biweekly">Biweekly</option>
+                                <option value="Monthly">Monthly</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="scheduledDayOfWeek">Day of Week *</label>
+                        <select id="scheduledDayOfWeek" name="day_of_week" required>
+                            <option value="">Select day</option>
+                            <option value="0">Sunday</option>
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="scheduledStartTime">Start Time *</label>
+                            <input type="time"
+                                   id="scheduledStartTime"
+                                   name="start_time"
+                                   required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="scheduledEndTime">End Time *</label>
+                            <input type="time"
+                                   id="scheduledEndTime"
+                                   name="end_time"
+                                   required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="scheduledVisibility">Visibility *</label>
+                        <select id="scheduledVisibility" name="visibility" required>
+                            <option value="">Who can see this?</option>
+                            <option value="team">Team Only</option>
+                            <option value="game_players">Players (for this game)</option>
+                            <option value="game_community">Community Members (for this game)</option>
+                            <option value="all_members">All Users</option>
+                        </select>
+                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                            Events will be automatically created on the calendar based on this schedule
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="scheduledEndDate">Schedule End Date *</label>
+                        <input type="date"
+                               id="scheduledEndDate"
+                               name="end_date"
+                               required>
+                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                            Events will stop being generated after this date
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="scheduledDescription">Description</label>
+                        <textarea id="scheduledDescription"
+                                  name="description"
+                                  placeholder="Event description (optional)"
+                                  rows="3"></textarea>
+                    </div>
+
+                    <div id="scheduledEventMessage" class="form-message" style="display: none;"></div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeCreateScheduledEventModal()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-text">Create Schedule</span>
+                            <i class="btn-spinner fas fa-spinner fa-spin" style="display: none;"></i>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -1556,6 +1694,7 @@
 <script src="{{ url_for('static', filename='notifications.js') }}"></script>
 <script src="{{ url_for('static', filename='game.js') }}"></script>
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
+<script src="{{ url_for('static', filename='scheduled-events.js') }}"></script>
 <!-- Must load last -->
 <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 

@@ -419,6 +419,8 @@ def manage_role():
 """
 Route meant to retrieve the games a user manages from the database.
 """
+
+
 @app.route('/api/user/<int:user_id>/managed-game', methods=['GET'])
 @login_required
 def get_user_managed_game(user_id):
@@ -427,36 +429,39 @@ def get_user_managed_game(user_id):
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         try:
-            # Get all games
-            cursor.execute("SELECT GameID, GameTitle, GameImage FROM games")
-            all_games = cursor.fetchall()
+            # Check if this user is a GM
+            cursor.execute("SELECT is_gm FROM permissions WHERE userid = %s", (user_id,))
+            perm = cursor.fetchone()
 
-            # Check each game table to see if this user is the GM
-            for game in all_games:
-                current_game = game['GameTitle']
+            if not perm or perm['is_gm'] != 1:
+                return jsonify({
+                    'success': True,
+                    'manages_game': False
+                })
 
-                try:
-                    cursor.execute(
-                        f"SELECT 1 FROM '{current_game}' WHERE user_id = gm_id = %s",
-                        (user_id,)
-                    )
+            # Find which game this user manages by checking gm_id in games table
+            cursor.execute("""
+                SELECT GameID, GameTitle, GameImage 
+                FROM games 
+                WHERE gm_id = %s
+                LIMIT 1
+            """, (user_id,))
 
-                    if cursor.fetchone():
-                        # This user manages this game
-                        image_url = f'/game-image/{game["GameID"]}' if game.get('GameImage') else None
+            game = cursor.fetchone()
 
-                        return jsonify({
-                            'success': True,
-                            'manages_game': True,
-                            'game_id': game['GameID'],
-                            'game_title': game['GameTitle'],
-                            'game_icon': image_url
-                        })
-                except Exception as e:
-                    # Table might not exist, continue
-                    continue
+            if game:
+                # This user manages this game
+                image_url = f'/game-image/{game["GameID"]}' if game.get('GameImage') else None
 
-            # User doesn't manage any game
+                return jsonify({
+                    'success': True,
+                    'manages_game': True,
+                    'game_id': game['GameID'],
+                    'game_title': game['GameTitle'],
+                    'game_icon': image_url
+                })
+
+            # User is a GM but doesn't manage any game yet
             return jsonify({
                 'success': True,
                 'manages_game': False

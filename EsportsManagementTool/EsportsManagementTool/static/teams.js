@@ -308,6 +308,10 @@ async function loadTeamDetails(teamId) {
                 deleteTeamBtn.style.display = (isAdmin || isGM) ? 'inline-flex' : 'none';
             }
 
+            if (typeof initScheduleButton === 'function') {
+                await initScheduleButton(teamId, team.game_id);
+            }
+
             // Load roster (default tab)
             loadRosterTab(team.members || []);
         }

@@ -52,7 +52,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     'editProfileModal': closeEditProfileModal,
                     'changePasswordModal': closeChangePasswordModal,
                     'deleteEventConfirmModal': closeDeleteConfirmModal,
-                    'addTeamMembersModal': closeAddTeamMembersModal
+                    'addTeamMembersModal': closeAddTeamMembersModal,
+                    'createScheduledEventModal': closeCreateScheduledEventModal
                 };
 
                 if (modalCloseHandlers[modalId]) {
