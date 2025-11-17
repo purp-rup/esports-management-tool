@@ -105,21 +105,45 @@ def dashboard(year=None, month=None):
         for event in events:
             date_str = event['Date'].strftime('%Y-%m-%d')
 
-            # Handle timedelta for StartTime
+            # Replace the existing time conversion section in dashboard.py (around lines 116-124)
+            # with this updated version:
+
+            # Handle timedelta for StartTime and convert to 12-hour format
+            # In dashboard.py, find the section where you process events (around lines 116-130)
+            # Replace with this updated version:
+
+            # Handle timedelta for StartTime and convert to 12-hour format
             if event['StartTime']:
                 total_seconds = int(event['StartTime'].total_seconds())
                 hours = total_seconds // 3600
                 minutes = (total_seconds % 3600) // 60
-                time_str = f"{hours:02d}:{minutes:02d}"
+
+                # Check if this is an all-day event (00:00 to 23:59)
+                end_total_seconds = int(event['EndTime'].total_seconds()) if event['EndTime'] else 0
+                end_hours = end_total_seconds // 3600
+                end_minutes = (end_total_seconds % 3600) // 60
+
+                is_all_day = (hours == 0 and minutes == 0 and end_hours == 23 and end_minutes == 59)
+
+                # Convert to 12-hour format
+                period = 'AM' if hours < 12 else 'PM'
+                display_hours = hours if hours == 0 else (hours if hours <= 12 else hours - 12)
+                if display_hours == 0:
+                    display_hours = 12  # Handle midnight (0:00 -> 12:00 AM)
+
+                # Only show time if NOT all-day
+                time_str = None if is_all_day else f"{display_hours}:{minutes:02d} {period}"
             else:
                 time_str = None
+                is_all_day = False
 
             event_data = {
                 'id': event['EventID'],
-                'time': time_str,
+                'time': time_str,  # Will be None for all-day events
                 'title': event['EventName'],
                 'description': event['Description'] if event['Description'] else '',
-                'event_type': event['EventType'] if event.get('EventType') else 'Event'
+                'event_type': event['EventType'] if event.get('EventType') else 'Event',
+                'is_all_day': is_all_day  # Add flag for template
             }
 
             if date_str not in events_by_date:
@@ -127,7 +151,7 @@ def dashboard(year=None, month=None):
             events_by_date[date_str].append(event_data)
 
         # --- Admin Panel Stats ---
-        total_users = active_users = admins = gms = 0
+        total_users = active_users = admins = gms = players = 0
 
         if user['is_admin'] == 1:
             try:
@@ -156,6 +180,14 @@ def dashboard(year=None, month=None):
                 # Count game managers
                 cursor.execute("SELECT COUNT(*) AS gms FROM permissions WHERE is_gm = 1")
                 gms = cursor.fetchone()['gms']
+
+                # **NEW: Count unique players (users who are on at least one team)**
+                cursor.execute("""
+                    SELECT COUNT(DISTINCT user_id) AS players
+                    FROM team_members
+                """)
+                players = cursor.fetchone()['players']
+
             except Exception as e:
                 print("Admin stats error:", e)
 
@@ -212,6 +244,7 @@ def dashboard(year=None, month=None):
             active_users=active_users,
             admins=admins,
             gms=gms,
+            players=players,
             user_list=user_list
         )
 
@@ -386,6 +419,8 @@ def manage_role():
 """
 Route meant to retrieve the games a user manages from the database.
 """
+
+
 @app.route('/api/user/<int:user_id>/managed-game', methods=['GET'])
 @login_required
 def get_user_managed_game(user_id):
@@ -394,36 +429,39 @@ def get_user_managed_game(user_id):
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         try:
-            # Get all games
-            cursor.execute("SELECT GameID, GameTitle, GameImage FROM games")
-            all_games = cursor.fetchall()
+            # Check if this user is a GM
+            cursor.execute("SELECT is_gm FROM permissions WHERE userid = %s", (user_id,))
+            perm = cursor.fetchone()
 
-            # Check each game table to see if this user is the GM
-            for game in all_games:
-                current_game = game['GameTitle']
+            if not perm or perm['is_gm'] != 1:
+                return jsonify({
+                    'success': True,
+                    'manages_game': False
+                })
 
-                try:
-                    cursor.execute(
-                        f"SELECT 1 FROM '{current_game}' WHERE user_id = gm_id = %s",
-                        (user_id,)
-                    )
+            # Find which game this user manages by checking gm_id in games table
+            cursor.execute("""
+                SELECT GameID, GameTitle, GameImage 
+                FROM games 
+                WHERE gm_id = %s
+                LIMIT 1
+            """, (user_id,))
 
-                    if cursor.fetchone():
-                        # This user manages this game
-                        image_url = f'/game-image/{game["GameID"]}' if game.get('GameImage') else None
+            game = cursor.fetchone()
 
-                        return jsonify({
-                            'success': True,
-                            'manages_game': True,
-                            'game_id': game['GameID'],
-                            'game_title': game['GameTitle'],
-                            'game_icon': image_url
-                        })
-                except Exception as e:
-                    # Table might not exist, continue
-                    continue
+            if game:
+                # This user manages this game
+                image_url = f'/game-image/{game["GameID"]}' if game.get('GameImage') else None
 
-            # User doesn't manage any game
+                return jsonify({
+                    'success': True,
+                    'manages_game': True,
+                    'game_id': game['GameID'],
+                    'game_title': game['GameTitle'],
+                    'game_icon': image_url
+                })
+
+            # User is a GM but doesn't manage any game yet
             return jsonify({
                 'success': True,
                 'manages_game': False

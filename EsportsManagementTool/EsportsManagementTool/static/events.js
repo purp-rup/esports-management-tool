@@ -14,7 +14,8 @@ let currentEventData = null;
 let currentDeleteEventId = null;
 let currentDeleteEventName = '';
 let currentUserPermissions = { is_admin: false, is_gm: false };
-let gamesCache = null;
+//let gamesCache = null;
+let gamesListCache = null;
 
 // Store events data for day modal access
 let eventsData = {};
@@ -91,8 +92,25 @@ function loadEvents() {
     const filterSelect = document.getElementById('eventFilter');
     const filterValue = filterSelect ? filterSelect.value : 'all';
 
-    // Fetch events with filter parameter
-    fetch(`/api/events?filter=${filterValue}`)
+    // Get event type filter if applicable
+    const typeFilterSelect = document.getElementById('eventTypeFilter');
+    const eventType = (filterValue === 'type' && typeFilterSelect) ? typeFilterSelect.value : '';
+
+    // Get game filter if applicable
+    const gameFilterSelect = document.getElementById('gameFilter');
+    const gameFilter = (filterValue === 'game' && gameFilterSelect) ? gameFilterSelect.value : '';
+
+    // Build query parameters
+    let queryParams = `filter=${filterValue}`;
+    if (eventType) {
+        queryParams += `&event_type=${eventType}`;
+    }
+    if (gameFilter) {
+        queryParams += `&game=${encodeURIComponent(gameFilter)}`;
+    }
+
+    // Fetch events with filter parameters
+    fetch(`/api/events?${queryParams}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -117,10 +135,157 @@ function loadEvents() {
 }
 
 /**
+ * Load games from API (only once, then cached)
+ */
+async function loadGamesList() {
+    if (gamesListCache) {
+        return gamesListCache; // Return cached data
+    }
+
+    try {
+        const response = await fetch('/api/games-list');
+        const data = await response.json();
+
+        if (data.success && data.games) {
+            gamesListCache = data.games;
+            return gamesListCache;
+        } else {
+            console.error('Failed to load games list');
+            return [];
+        }
+    } catch (error) {
+        console.error('Error fetching games list:', error);
+        return [];
+    }
+}
+
+/**
+ * Populate any game dropdown with the cached games list
+ * @param {string} selectId - ID of the select element to populate
+ * @param {string} loadingIndicatorId - ID of loading indicator (optional)
+ * @param {string} selectedGame - Game to pre-select (optional)
+ */
+async function populateGameDropdown(selectId, loadingIndicatorId = null, selectedGame = null) {
+    const selectElement = document.getElementById(selectId);
+    if (!selectElement) return;
+
+    const loadingIndicator = loadingIndicatorId ? document.getElementById(loadingIndicatorId) : null;
+
+    // Show loading indicator
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'block';
+    }
+    selectElement.disabled = true;
+
+    try {
+        // Load games (uses cache if available)
+        const games = await loadGamesList();
+
+        // Clear existing options
+        selectElement.innerHTML = '<option value="">Select game</option>';
+
+        if (games.length === 0) {
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "No games available";
+            option.disabled = true;
+            selectElement.appendChild(option);
+            return;
+        }
+
+        // Populate dropdown
+        games.forEach(game => {
+            const option = document.createElement('option');
+            option.value = game.GameTitle;
+            option.textContent = game.GameTitle;
+
+            // Pre-select if specified
+            if (selectedGame && game.GameTitle === selectedGame) {
+                option.selected = true;
+            }
+
+            selectElement.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error('Error populating game dropdown:', error);
+        selectElement.innerHTML = '<option value="">Error loading games</option>';
+    } finally {
+        // Hide loading indicator
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+        }
+        selectElement.disabled = false;
+    }
+}
+
+/**
+ * Clear the games cache (useful if games are added/updated)
+ */
+function clearGamesCache() {
+    gamesListCache = null;
+}
+
+/**
  * Filter events based on dropdown selection
  */
 function filterEvents() {
-    loadEvents();
+    const filterSelect = document.getElementById('eventFilter');
+    const filterValue = filterSelect ? filterSelect.value : 'all';
+    const typeFilterContainer = document.getElementById('eventTypeFilterContainer');
+    const typeFilterSelect = document.getElementById('eventTypeFilter');
+    const gameFilterContainer = document.getElementById('gameFilterContainer');
+    const gameFilterSelect = document.getElementById('gameFilter');
+
+    // Hide all secondary filters first
+    typeFilterContainer.style.display = 'none';
+    gameFilterContainer.style.display = 'none';
+
+    // Show appropriate secondary filter based on selection
+    if (filterValue === 'type') {
+        typeFilterContainer.style.display = 'flex';
+        typeFilterSelect.value = ''; // Reset type filter
+        gameFilterSelect.value = ''; // Reset game filter
+        // Don't load events yet - wait for type selection
+        if (typeFilterSelect.value === '') {
+            return;
+        }
+    } else if (filterValue === 'game') {
+        gameFilterContainer.style.display = 'flex';
+        typeFilterSelect.value = ''; // Reset type filter
+        gameFilterSelect.value = ''; // Reset game filter
+        loadGamesForFilter(); // Load games into dropdown
+        // Don't load events yet - wait for game selection
+        return;
+    } else {
+        typeFilterSelect.value = ''; // Reset type filter
+        gameFilterSelect.value = ''; // Reset game filter
+        loadEvents(); // Load events with the main filter
+    }
+}
+
+/**
+ * Filter events by type
+ */
+function filterEventsByType() {
+    const typeFilterSelect = document.getElementById('eventTypeFilter');
+    const selectedType = typeFilterSelect.value;
+
+    if (selectedType) {
+        loadEvents(); // Load events with type filter
+    }
+}
+
+/**
+ * Filter events by game
+ */
+function filterEventsByGame() {
+    const gameFilterSelect = document.getElementById('gameFilter');
+    const selectedGame = gameFilterSelect.value;
+
+    if (selectedGame) {
+        loadEvents(); // Load events with game filter
+    }
 }
 
 /**
@@ -153,16 +318,37 @@ function updateEmptyStateMessage() {
     const emptyStateDiv = document.getElementById('eventsEmptyState');
     const filterSelect = document.getElementById('eventFilter');
     const filterValue = filterSelect ? filterSelect.value : 'all';
+    const typeFilterSelect = document.getElementById('eventTypeFilter');
+    const gameFilterSelect = document.getElementById('gameFilter');
 
     const emptyStateTitle = emptyStateDiv.querySelector('h3');
     const emptyStateText = emptyStateDiv.querySelector('p');
 
-    if (filterValue === 'upcoming') {
+    if (filterValue === 'subscribed') {
+        emptyStateTitle.textContent = 'No Subscribed Events';
+        emptyStateText.textContent = 'You haven\'t subscribed to any events yet. Browse "All Events" and subscribe to events you\'re interested in.';
+    } else if (filterValue === 'upcoming') {
         emptyStateTitle.textContent = 'No Upcoming Events';
         emptyStateText.textContent = 'No events scheduled for the next 7 days. Check "All Events" to see all events.';
+    } else if (filterValue === 'upcoming14') {
+        emptyStateTitle.textContent = 'No Upcoming Events';
+        emptyStateText.textContent = 'No events scheduled for the next 14 days. Check "All Events" to see all events.';
+    } else if (filterValue === 'past30') {
+        emptyStateTitle.textContent = 'No Past Events';
+        emptyStateText.textContent = 'No events found in the last 30 days. Check "All Events" to see all events.';
+    } else if (filterValue === 'created_by_me') {
+        emptyStateTitle.textContent = 'No Events Created';
+        emptyStateText.textContent = 'You haven\'t created any events yet. Click "Create Event" to add your first event.';
+    } else if (filterValue === 'type' && typeFilterSelect && typeFilterSelect.value) {
+        const typeName = typeFilterSelect.options[typeFilterSelect.selectedIndex].text;
+        emptyStateTitle.textContent = `No ${typeName} Events`;
+        emptyStateText.textContent = `No ${typeName.toLowerCase()} events found. Try a different filter.`;
+    } else if (filterValue === 'game' && gameFilterSelect && gameFilterSelect.value) {
+        const gameName = gameFilterSelect.options[gameFilterSelect.selectedIndex].text;
+        emptyStateTitle.textContent = `No ${gameName} Events`;
+        emptyStateText.textContent = `No events found for ${gameName}. Try a different filter.`;
     } else {
         emptyStateTitle.textContent = 'No Events Found';
-        // This will need to be set based on user permissions passed from server
         if (window.userPermissions && (window.userPermissions.is_admin || window.userPermissions.is_gm)) {
             emptyStateText.textContent = 'Click "Create Event" to add your first event';
         } else {
@@ -626,112 +812,25 @@ async function deleteEvent() {
 // ============================================
 
 /**
- * Load games for dropdown
+ * Load games for create event modal dropdown
  */
 async function loadGamesForDropdown() {
-    const gameSelect = document.getElementById('game');
-    const loadingIndicator = document.getElementById('gameLoadingIndicator');
-
-    if (!gameSelect) return;
-
-    if (gamesCache) {
-        populateGameDropdown(gamesCache);
-        return;
-    }
-
-    loadingIndicator.style.display = 'block';
-    gameSelect.disabled = true;
-
-    try {
-        const response = await fetch('/api/games-list');
-        const data = await response.json();
-
-        if (data.success && data.games) {
-            gamesCache = data.games;
-            populateGameDropdown(data.games);
-        } else {
-            gameSelect.innerHTML = '<option value="">Error loading games</option>';
-        }
-    } catch (error) {
-        console.error('Error fetching games:', error);
-        gameSelect.innerHTML = '<option value="">Error loading games</option>';
-    } finally {
-        loadingIndicator.style.display = 'none';
-        gameSelect.disabled = false;
-    }
+    await populateGameDropdown('game', 'gameLoadingIndicator');
 }
 
 /**
- * Populate game dropdown
- */
-function populateGameDropdown(games) {
-    const gameSelect = document.getElementById('game');
-
-    gameSelect.innerHTML = '<option value="">Select game</option>';
-
-    if (games.length === 0) {
-        const option = document.createElement('option');
-        option.value = "";
-        option.textContent = "No games available";
-        option.disabled = true;
-        gameSelect.appendChild(option);
-        return;
-    }
-
-    games.forEach(game => {
-        const option = document.createElement('option');
-        option.value = game.GameTitle;
-        option.textContent = game.GameTitle;
-        gameSelect.appendChild(option);
-    });
-}
-
-/**
- * Load games for edit dropdown
+ * Load games for edit event modal dropdown
  */
 async function loadGamesForEditDropdown() {
-    const gameSelect = document.getElementById('editGame');
-    const loadingIndicator = document.getElementById('editGameLoadingIndicator');
+    const currentGame = currentEventData ? currentEventData.game : null;
+    await populateGameDropdown('editGame', 'editGameLoadingIndicator', currentGame);
+}
 
-    if (!gameSelect) return;
-
-    loadingIndicator.style.display = 'block';
-    gameSelect.disabled = true;
-
-    try {
-        const response = await fetch('/api/games-list');
-        const data = await response.json();
-
-        if (data.success && data.games) {
-            gameSelect.innerHTML = '<option value="">Select game</option>';
-
-            data.games.forEach(game => {
-                const option = document.createElement('option');
-                option.value = game.GameTitle;
-                option.textContent = game.GameTitle;
-
-                if (currentEventData && game.GameTitle === currentEventData.game) {
-                    option.selected = true;
-                }
-
-                gameSelect.appendChild(option);
-            });
-
-            if (data.games.length === 0) {
-                const option = document.createElement('option');
-                option.value = "";
-                option.textContent = "No games available";
-                option.disabled = true;
-                gameSelect.appendChild(option);
-            }
-        }
-    } catch (error) {
-        console.error('Error fetching games:', error);
-        gameSelect.innerHTML = '<option value="">Error loading games</option>';
-    } finally {
-        loadingIndicator.style.display = 'none';
-        gameSelect.disabled = false;
-    }
+/**
+ * Load games for the game filter dropdown
+ */
+async function loadGamesForFilter() {
+    await populateGameDropdown('gameFilter', 'gameFilterLoadingIndicator');
 }
 
 // ============================================
@@ -758,6 +857,9 @@ window.confirmDeleteEvent = confirmDeleteEvent;
 window.toggleEventSubscription = toggleEventSubscription;
 window.loadGamesForDropdown = loadGamesForDropdown;
 window.toggleAllDayEvent = toggleAllDayEvent;
+window.filterEventsByGame = filterEventsByGame;
+window.loadGamesForFilter = loadGamesForFilter;
+window.clearGamesCache = clearGamesCache;
 
     const isGM = window.userPermissions ? window.userPermissions.is_gm : false;
     const currentUserId = window.currentUserId || 0;
@@ -1017,8 +1119,8 @@ function toggleAllDayEvent() {
         endTimeInput.value = '23:59';
 
         // Disable inputs visually
-        startTimeInput.disabled = true;
-        endTimeInput.disabled = true;
+        startTimeInput.readOnly = true;
+        endTimeInput.readOnly = true;
         startTimeInput.style.opacity = '0.5';
         endTimeInput.style.opacity = '0.5';
 

@@ -632,6 +632,7 @@ def team_details(team_id):
                                      'member_count': member_count,
                                      'members': formatted_members,
                                      'is_member': is_member,
+                                     'game_id': game_id,  # FIX: Include game_id in response
                                      'game_title': game_title,
                                      'game_icon_url': game_icon_url}}), 200
         finally:

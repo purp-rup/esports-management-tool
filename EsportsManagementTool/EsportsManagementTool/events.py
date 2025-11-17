@@ -77,10 +77,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
     @login_required
     def get_events():
         """
-        Get events based on user role:
-        - Admins: See all events (or upcoming based on filter)
-        - Game Managers: See events they created (or upcoming based on filter)
-        - Regular Users: See events they're subscribed to (or upcoming based on filter)
+        Get events based on user role and filters
         """
         try:
             user_id = session['id']
@@ -91,84 +88,109 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             is_admin = permissions['is_admin']
             is_gm = permissions['is_gm']
 
-            # Get filter parameter
+            # Get filter parameters
             event_filter = request.args.get('filter', 'all')
+            event_type_filter = request.args.get('event_type', '').lower()
+            game_filter = request.args.get('game', '')
 
             # Get current date and time
             now = datetime.now()
             current_date = now.date()
             current_time = now.time()
 
-            # Determine date filter
+            # Build base conditions
+            conditions = []
+            params = []
+
+            # Date filter
             if event_filter == 'upcoming':
                 end_date = current_date + timedelta(days=7)
-                date_condition = "Date >= %s AND Date <= %s"
-                date_params = (current_date, end_date)
-            else:
-                date_condition = "1=1"
-                date_params = ()
+                conditions.append("Date >= %s AND Date <= %s")
+                params.extend([current_date, end_date])
+            elif event_filter == 'upcoming14':
+                end_date = current_date + timedelta(days=14)
+                conditions.append("Date >= %s AND Date <= %s")
+                params.extend([current_date, end_date])
+            elif event_filter == 'past30':
+                start_date = current_date - timedelta(days=30)
+                conditions.append("Date >= %s AND Date < %s")
+                params.extend([start_date, current_date])
+            elif event_filter == 'created_by_me':
+                # Only allow this filter for admins and GMs
+                if not (is_admin or is_gm):
+                    return jsonify({'success': False, 'message': 'Unauthorized filter'}), 403
+                conditions.append("created_by = %s")
+                params.append(user_id)
+            elif event_filter == 'type' and event_type_filter:
+                conditions.append("LOWER(EventType) = %s")
+                params.append(event_type_filter)
+            elif event_filter == 'game' and game_filter:
+                conditions.append("Game = %s")
+                params.append(game_filter)
+
+            # Build WHERE clause
+            where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+            # Determine sort order (upcoming filters should sort ascending, others descending)
+            is_upcoming_filter = event_filter in ['upcoming', 'upcoming14']
+
+            # Handle "subscribed" filter - applies to all users
+            if event_filter == 'subscribed':
+                query = f"""
+                    SELECT 
+                        ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
+                        ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by
+                    FROM generalevents ge
+                    INNER JOIN event_subscriptions es ON ge.EventID = es.event_id
+                    WHERE {where_clause} AND es.user_id = %s
+                    ORDER BY ge.Date DESC, ge.StartTime DESC
+                """
+                params.append(user_id)
+                cursor.execute(query, tuple(params))
 
             # Build query based on user role
-            if is_admin:
-                if event_filter == 'upcoming':
-                    cursor.execute(f"""
-                        SELECT 
-                            EventID, EventName, Date, StartTime, EndTime,
-                            EventType, Game, Location, Description, created_by
-                        FROM generalevents
-                        WHERE {date_condition}
-                        ORDER BY Date ASC, StartTime ASC
-                    """, date_params)
-                else:
-                    cursor.execute("""
-                        SELECT 
-                            EventID, EventName, Date, StartTime, EndTime,
-                            EventType, Game, Location, Description, created_by
-                        FROM generalevents
-                        ORDER BY Date DESC, StartTime DESC
-                    """)
+            elif is_admin:
+                query = f"""
+                    SELECT 
+                        EventID, EventName, Date, StartTime, EndTime,
+                        EventType, Game, Location, Description, created_by
+                    FROM generalevents
+                    WHERE {where_clause}
+                    ORDER BY Date {'ASC' if is_upcoming_filter else 'DESC'}, 
+                             StartTime {'ASC' if is_upcoming_filter else 'DESC'}
+                """
+                cursor.execute(query, tuple(params))
 
             elif is_gm:
-                if event_filter == 'upcoming':
-                    cursor.execute(f"""
-                        SELECT 
-                            EventID, EventName, Date, StartTime, EndTime,
-                            EventType, Game, Location, Description, created_by
-                        FROM generalevents
-                        WHERE {date_condition} AND created_by = %s
-                        ORDER BY Date ASC, StartTime ASC
-                    """, (*date_params, user_id))
-                else:
-                    cursor.execute("""
-                        SELECT 
-                            EventID, EventName, Date, StartTime, EndTime,
-                            EventType, Game, Location, Description, created_by
-                        FROM generalevents
-                        WHERE created_by = %s
-                        ORDER BY Date DESC, StartTime DESC
-                    """, (user_id,))
+                # For GMs, if not using "created_by_me" filter, still only show their events
+                if event_filter != 'created_by_me':
+                    conditions.append("created_by = %s")
+                    params.append(user_id)
+                    where_clause = " AND ".join(conditions) if conditions else "created_by = %s"
+
+                query = f"""
+                    SELECT 
+                        EventID, EventName, Date, StartTime, EndTime,
+                        EventType, Game, Location, Description, created_by
+                    FROM generalevents
+                    WHERE {where_clause}
+                    ORDER BY Date {'ASC' if is_upcoming_filter else 'DESC'}, 
+                             StartTime {'ASC' if is_upcoming_filter else 'DESC'}
+                """
+                cursor.execute(query, tuple(params))
 
             else:
-                if event_filter == 'upcoming':
-                    cursor.execute(f"""
-                        SELECT 
-                            ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
-                            ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by
-                        FROM generalevents ge
-                        INNER JOIN event_subscriptions es ON ge.EventID = es.event_id
-                        WHERE {date_condition} AND es.user_id = %s
-                        ORDER BY ge.Date ASC, ge.StartTime ASC
-                    """, (*date_params, user_id))
-                else:
-                    cursor.execute("""
-                        SELECT 
-                            ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
-                            ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by
-                        FROM generalevents ge
-                        INNER JOIN event_subscriptions es ON ge.EventID = es.event_id
-                        WHERE es.user_id = %s
-                        ORDER BY ge.Date DESC, ge.StartTime DESC
-                    """, (user_id,))
+                # Regular users see ALL events
+                query = f"""
+                    SELECT 
+                        EventID, EventName, Date, StartTime, EndTime,
+                        EventType, Game, Location, Description, created_by
+                    FROM generalevents
+                    WHERE {where_clause}
+                    ORDER BY Date {'ASC' if is_upcoming_filter else 'DESC'}, 
+                             StartTime {'ASC' if is_upcoming_filter else 'DESC'}
+                """
+                cursor.execute(query, tuple(params))
 
             events = cursor.fetchall()
             cursor.close()
@@ -529,7 +551,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
 # HELPER FUNCTIONS
 # ===================================
 def _format_time(time_value):
-    """Convert timedelta or time object to HH:MM string"""
+    """Convert timedelta or time object to 12-hour format string with AM/PM"""
     if not time_value:
         return None
 
@@ -537,9 +559,18 @@ def _format_time(time_value):
         total_seconds = int(time_value.total_seconds())
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
-        return f"{hours:02d}:{minutes:02d}"
     else:
-        return time_value.strftime('%H:%M')
+        # It's already a time object
+        hours = time_value.hour
+        minutes = time_value.minute
+
+    # Convert to 12-hour format
+    period = "AM" if hours < 12 else "PM"
+    display_hour = hours % 12
+    if display_hour == 0:
+        display_hour = 12
+
+    return f"{display_hour}:{minutes:02d} {period}"
 
 
 def _check_if_ongoing(event_date, start_time_str, end_time_str, current_date, current_time):
