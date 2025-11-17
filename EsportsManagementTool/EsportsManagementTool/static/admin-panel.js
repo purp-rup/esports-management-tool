@@ -505,11 +505,29 @@ async function handleCreateGameSubmit(e) {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            formMessage.textContent = data.message || 'Game created successfully! Refreshing...';
+            formMessage.textContent = data.message || 'Game created successfully!';
             formMessage.className = 'form-message success';
             formMessage.style.display = 'block';
 
-            setTimeout(() => { window.location.reload(); }, 1500);
+            // Clear the games cache
+            if (typeof clearGamesCache === 'function') {
+                clearGamesCache();
+            }
+
+            // Refresh all game dropdowns on the page
+            await refreshAllGameDropdowns();
+
+            // If on the communities/rosters tab, reload games
+            if (typeof loadGames === 'function') {
+                await loadGames();
+            }
+
+            // Close modal after brief delay
+            setTimeout(() => {
+                closeCreateGameModal();
+                formMessage.style.display = 'none';
+            }, 1500);
+
         } else {
             throw new Error(data.message || 'Failed to create game');
         }
@@ -555,16 +573,19 @@ async function deleteGame(gameId, gameTitle) {
         const data = await response.json();
 
         if (data.success) {
-            alert(`"${gameTitle}" has been deleted successfully!`);
-
-            // Clear games cache if available
-            if (typeof gamesCache !== 'undefined') {
-                gamesCache = null;
+            // Clear the games cache
+            if (typeof clearGamesCache === 'function') {
+                clearGamesCache();
             }
 
-            // Reload games if function is available
+            alert(`"${gameTitle}" has been deleted successfully!`);
+
+            // Refresh all game dropdowns on the page
+            await refreshAllGameDropdowns();
+
+            // If on the communities/rosters tab, reload games
             if (typeof loadGames === 'function') {
-                loadGames();
+                await loadGames();
             }
         } else {
             alert(`Error: ${data.message}`);
@@ -572,6 +593,26 @@ async function deleteGame(gameId, gameTitle) {
     } catch (error) {
         console.error('Error deleting game:', error);
         alert('An error occurred while deleting the game. Please try again.');
+    }
+}
+
+/**
+ * Refresh all game dropdowns on the current page
+ */
+async function refreshAllGameDropdowns() {
+    // List of all game dropdown IDs that might exist on the page
+    const dropdownIds = [
+        { selectId: 'game', loadingId: 'gameLoadingIndicator' },           // Create event modal
+        { selectId: 'editGame', loadingId: 'editGameLoadingIndicator' },   // Edit event modal
+        { selectId: 'gameFilter', loadingId: 'gameFilterLoadingIndicator' } // Events filter
+    ];
+
+    // Refresh each dropdown that exists
+    for (const dropdown of dropdownIds) {
+        const selectElement = document.getElementById(dropdown.selectId);
+        if (selectElement && typeof populateGameDropdown === 'function') {
+            await populateGameDropdown(dropdown.selectId, dropdown.loadingId);
+        }
     }
 }
 
@@ -591,3 +632,4 @@ window.closeCreateGameModal = closeCreateGameModal;
 window.confirmDeleteGame = confirmDeleteGame;
 window.deleteGame = deleteGame;
 window.refreshUserListBadges = refreshUserListBadges;
+window.refreshAllGameDropdowns = refreshAllGameDropdowns;

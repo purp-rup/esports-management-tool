@@ -689,14 +689,47 @@
                     <h2>Events</h2>
                     <p>Manage matches, practices, and community events</p>
                 </div>
-                <div style="display: flex; gap: 1rem; align-items: center;">
+                <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
                     <div class="event-filter-dropdown">
-                        <label for="eventFilter" style="margin-right: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">Show:</label>
+                        <label for="eventFilter" style="margin-right: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">Filter by:</label>
                         <select id="eventFilter" onchange="filterEvents()" style="padding: 0.5rem 1rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; cursor: pointer;">
-                            <option value="all">All Events</option>
+                            <option value="subscribed" {% if not (user.is_admin or user.is_gm) %}selected{% endif %}>Subscribed Events</option>
+                            <option value="all" {% if user.is_admin or user.is_gm %}selected{% endif %}>All Events</option>
                             <option value="upcoming">Upcoming (Next 7 Days)</option>
+                            <option value="upcoming14">Upcoming (Next 14 Days)</option>
+                            <option value="past30">Past (Last 30 Days)</option>
+                            {% if user.is_admin or user.is_gm %}
+                            <option value="created_by_me">Created by Me</option>
+                            {% endif %}
+                            <option value="type">Type</option>
+                            <option value="game">Game</option>
                         </select>
                     </div>
+
+                    <!-- Event Type Filter Dropdown (Hidden by default) -->
+                    <div class="event-filter-dropdown" id="eventTypeFilterContainer" style="display: none;">
+                        <label for="eventTypeFilter" style="margin-right: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">Event Type:</label>
+                        <select id="eventTypeFilter" onchange="filterEventsByType()" style="padding: 0.5rem 1rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; cursor: pointer;">
+                            <option value="">Select Type</option>
+                            <option value="tournament">Tournament</option>
+                            <option value="match">Match</option>
+                            <option value="practice">Practice</option>
+                            <option value="event">Event</option>
+                        </select>
+                    </div>
+
+                    <!-- Game Filter Dropdown (Hidden by default) -->
+                    <div class="event-filter-dropdown" id="gameFilterContainer" style="display: none;">
+                        <label for="gameFilter" style="margin-right: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">Game:</label>
+                        <select id="gameFilter" onchange="filterEventsByGame()" style="padding: 0.5rem 1rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; cursor: pointer;">
+                            <option value="">Select Game</option>
+                            <!-- Games will be populated dynamically -->
+                        </select>
+                        <div id="gameFilterLoadingIndicator" style="display: none; margin-left: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                            <i class="fas fa-spinner fa-spin"></i> Loading games...
+                        </div>
+                    </div>
+
                     {%if user.is_admin or user.is_gm %}
                     <button class="btn btn-primary" onclick="openCreateEventModal()">
                         <i class="fas fa-plus"></i> Create Event
@@ -719,10 +752,11 @@
             <!-- Empty State -->
             <div id="eventsEmptyState" class="events-empty-state" style="display: none;">
                 <div class="events-empty-state-icon">🎮</div>
-                <h3>No Events Found</h3>
                 {% if user.is_admin or user.is_gm %}
+                <h3>No Events Found</h3>
                 <p>Click "Create Event" to add your first event</p>
                 {% else %}
+                <h3>No Subscribed Events Found</h3>
                 <p>Subscribe to events to see them here, or check back later</p>
                 {% endif %}
             </div>
@@ -859,7 +893,7 @@
         {% endif %}
     </div>
 
-    <!-- Teams Tab - NEW DESIGN -->
+    <!-- Teams Tab -->
     <div id="teams" class="tab-content">
         <div class="teams-layout">
             <!-- LEFT SIDEBAR: Team List -->
@@ -1132,6 +1166,14 @@
                     <div>
                         <h3>Game Managers</h3>
                         <p>{{ gms }}</p>
+                    </div>
+                </div>
+                <!-- NEW: Players Card -->
+                <div class="summary-card">
+                    <div class="summary-icon"><i class="fa-solid fa-gamepad"></i></div>
+                    <div>
+                        <h3>Players</h3>
+                        <p>{{ players }}</p>
                     </div>
                 </div>
             </div>

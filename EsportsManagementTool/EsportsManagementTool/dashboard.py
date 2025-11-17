@@ -127,7 +127,7 @@ def dashboard(year=None, month=None):
             events_by_date[date_str].append(event_data)
 
         # --- Admin Panel Stats ---
-        total_users = active_users = admins = gms = 0
+        total_users = active_users = admins = gms = players = 0
 
         if user['is_admin'] == 1:
             try:
@@ -156,6 +156,14 @@ def dashboard(year=None, month=None):
                 # Count game managers
                 cursor.execute("SELECT COUNT(*) AS gms FROM permissions WHERE is_gm = 1")
                 gms = cursor.fetchone()['gms']
+
+                # **NEW: Count unique players (users who are on at least one team)**
+                cursor.execute("""
+                    SELECT COUNT(DISTINCT user_id) AS players
+                    FROM team_members
+                """)
+                players = cursor.fetchone()['players']
+
             except Exception as e:
                 print("Admin stats error:", e)
 
@@ -212,6 +220,7 @@ def dashboard(year=None, month=None):
             active_users=active_users,
             admins=admins,
             gms=gms,
+            players=players,
             user_list=user_list
         )
 
