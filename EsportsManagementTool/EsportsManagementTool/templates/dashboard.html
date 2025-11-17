@@ -113,13 +113,13 @@
 
                                         {% for event in day_events[:3] %}
                                             <div class="event-link" onclick="openEventModal({{ event.id }})">
-                                                <div class="event {{ event.event_type|lower }}"
+                                                <div class="event {{ event.event_type|lower }} {% if event.is_all_day %}all-day{% endif %}"
                                                      data-event-type="{{ event.event_type|lower }}"
                                                      title="Click to view details">
+                                                    <div class="event-title">{{ event.title }}</div>
                                                     {% if event.time %}
-                                                        <strong>{{ event.time }}</strong> -
+                                                        <div class="event-time">{{ event.time }}</div>
                                                     {% endif %}
-                                                    {{ event.title }}
                                                 </div>
                                             </div>
                                         {% endfor %}

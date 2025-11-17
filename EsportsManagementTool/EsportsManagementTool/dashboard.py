@@ -105,21 +105,45 @@ def dashboard(year=None, month=None):
         for event in events:
             date_str = event['Date'].strftime('%Y-%m-%d')
 
-            # Handle timedelta for StartTime
+            # Replace the existing time conversion section in dashboard.py (around lines 116-124)
+            # with this updated version:
+
+            # Handle timedelta for StartTime and convert to 12-hour format
+            # In dashboard.py, find the section where you process events (around lines 116-130)
+            # Replace with this updated version:
+
+            # Handle timedelta for StartTime and convert to 12-hour format
             if event['StartTime']:
                 total_seconds = int(event['StartTime'].total_seconds())
                 hours = total_seconds // 3600
                 minutes = (total_seconds % 3600) // 60
-                time_str = f"{hours:02d}:{minutes:02d}"
+
+                # Check if this is an all-day event (00:00 to 23:59)
+                end_total_seconds = int(event['EndTime'].total_seconds()) if event['EndTime'] else 0
+                end_hours = end_total_seconds // 3600
+                end_minutes = (end_total_seconds % 3600) // 60
+
+                is_all_day = (hours == 0 and minutes == 0 and end_hours == 23 and end_minutes == 59)
+
+                # Convert to 12-hour format
+                period = 'AM' if hours < 12 else 'PM'
+                display_hours = hours if hours == 0 else (hours if hours <= 12 else hours - 12)
+                if display_hours == 0:
+                    display_hours = 12  # Handle midnight (0:00 -> 12:00 AM)
+
+                # Only show time if NOT all-day
+                time_str = None if is_all_day else f"{display_hours}:{minutes:02d} {period}"
             else:
                 time_str = None
+                is_all_day = False
 
             event_data = {
                 'id': event['EventID'],
-                'time': time_str,
+                'time': time_str,  # Will be None for all-day events
                 'title': event['EventName'],
                 'description': event['Description'] if event['Description'] else '',
-                'event_type': event['EventType'] if event.get('EventType') else 'Event'
+                'event_type': event['EventType'] if event.get('EventType') else 'Event',
+                'is_all_day': is_all_day  # Add flag for template
             }
 
             if date_str not in events_by_date:

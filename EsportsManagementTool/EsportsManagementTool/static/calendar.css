@@ -162,7 +162,7 @@
 .events-container {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.2rem;
     width: 100%;
     min-width: 0;
 }
@@ -173,21 +173,60 @@
     min-width: 0;
 }
 
-/* Event Base Styling - with border and enhanced opacity */
+/* Event Base Styling - Stacked Layout */
 .calendar-cell .event {
-    padding: 0.25rem 0.5rem;
+    padding: 0.2rem 0.4rem;
     border-radius: 4px;
-    font-size: 0.75rem;
-    line-height: 1.4;
+    font-size: 0.7rem;
     cursor: pointer;
     transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    width: 100%;
+    max-width: 100%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    line-height: 1.2;
+}
+
+.calendar-cell .event-title {
+    font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    display: block;
-    width: 100%;
-    max-width: 100%;
-    border: 2px solid rgba(255, 255, 255, 0.2); /* Add subtle border */
+    line-height: 1.1;
+}
+
+/* When all day, allow 2 line title */
+.calendar-cell .event:not(:has(.event-time)) .event-title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.1;
+}
+
+/* Fallback for browsers that don't support :has() */
+@supports not selector(:has(*)) {
+    .calendar-cell .event.all-day .event-title {
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.1
+    }
+}
+
+.calendar-cell .event-time {
+    font-size: 0.6rem;
+    opacity: 0.9;
+    font-weight: 750;
+    line-height: 1;
+    letter-spacing: 0.02em;
 }
 
 /* Event Type Colors */
@@ -317,5 +356,21 @@
     .calendar-cell .event {
         font-size: 0.65rem;
         padding: 0.2rem 0.3rem;
+    }
+}
+
+/* Add responsive adjustments for pill structure*/
+@media (max-width: 768px) {
+    .calendar-cell .event {
+        padding: 0.15rem 0.4rem;
+        gap: 0.1rem;
+    }
+
+    .calendar-cell .event-title {
+        font-size: 0.65rem;
+    }
+
+    .calendar-cell .event-time {
+        font-size: 0.55rem;
     }
 }

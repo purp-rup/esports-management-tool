@@ -551,7 +551,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
 # HELPER FUNCTIONS
 # ===================================
 def _format_time(time_value):
-    """Convert timedelta or time object to HH:MM string"""
+    """Convert timedelta or time object to 12-hour format string with AM/PM"""
     if not time_value:
         return None
 
@@ -559,9 +559,18 @@ def _format_time(time_value):
         total_seconds = int(time_value.total_seconds())
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
-        return f"{hours:02d}:{minutes:02d}"
     else:
-        return time_value.strftime('%H:%M')
+        # It's already a time object
+        hours = time_value.hour
+        minutes = time_value.minute
+
+    # Convert to 12-hour format
+    period = "AM" if hours < 12 else "PM"
+    display_hour = hours % 12
+    if display_hour == 0:
+        display_hour = 12
+
+    return f"{display_hour}:{minutes:02d} {period}"
 
 
 def _check_if_ongoing(event_date, start_time_str, end_time_str, current_date, current_time):

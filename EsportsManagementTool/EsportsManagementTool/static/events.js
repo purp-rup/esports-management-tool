@@ -1119,8 +1119,8 @@ function toggleAllDayEvent() {
         endTimeInput.value = '23:59';
 
         // Disable inputs visually
-        startTimeInput.disabled = true;
-        endTimeInput.disabled = true;
+        startTimeInput.readOnly = true;
+        endTimeInput.readOnly = true;
         startTimeInput.style.opacity = '0.5';
         endTimeInput.style.opacity = '0.5';
 
