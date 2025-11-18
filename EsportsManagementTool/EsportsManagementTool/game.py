@@ -14,7 +14,7 @@ Route designed to allow users to view all games available in the communities tab
 @app.route('/games')
 @login_required
 def view_games():
-    """View all available games"""
+    """View all available games - MEMORY OPTIMIZED VERSION"""
     if 'loggedin' not in session:
         flash('Please log in to view games', 'error')
         return redirect(url_for('login'))
@@ -22,39 +22,87 @@ def view_games():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-        cursor.execute("SELECT GameID, GameTitle, Description, TeamSizes, GameImage FROM games ORDER BY GameTitle ASC")
+        user_id = session['id']
+        
+        # Step 1: Get all games with basic info
+        cursor.execute("""
+            SELECT 
+                GameID,
+                GameTitle,
+                Description,
+                TeamSizes,
+                gm_id,
+                CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image
+            FROM games
+            ORDER BY GameTitle ASC
+        """)
+        
         games = cursor.fetchall()
-
+        
+        if not games:
+            return jsonify({'success': True, 'games': []})
+        
+        # Step 2: Get member counts for all games in one query
+        game_ids = [game['GameID'] for game in games]
+        placeholders = ','.join(['%s'] * len(game_ids))
+        
+        cursor.execute(f"""
+            SELECT game_id, COUNT(DISTINCT user_id) as member_count
+            FROM in_communities
+            WHERE game_id IN ({placeholders})
+            GROUP BY game_id
+        """, game_ids)
+        
+        member_counts = {row['game_id']: row['member_count'] for row in cursor.fetchall()}
+        
+        # Step 3: Get team counts for all games in one query
+        cursor.execute(f"""
+            SELECT gameID, COUNT(*) as team_count
+            FROM teams
+            WHERE gameID IN ({placeholders})
+            GROUP BY gameID
+        """, game_ids)
+        
+        team_counts = {row['gameID']: row['team_count'] for row in cursor.fetchall()}
+        
+        # Step 4: Get current user's memberships
+        cursor.execute(f"""
+            SELECT game_id
+            FROM in_communities
+            WHERE user_id = %s AND game_id IN ({placeholders})
+        """, [user_id] + game_ids)
+        
+        user_memberships = {row['game_id'] for row in cursor.fetchall()}
+        
+        # Step 5: Build the response
         games_with_details = []
         for game in games:
-            game_dict = dict(game)
-
-            if game.get('GameImage'):
-                game_dict['ImageURL'] = f'/game-image/{game["GameID"]}'
-            else:
-                game_dict['ImageURL'] = None
-
-            try:
-                cursor.execute(f"SELECT 1 FROM in_communities WHERE user_id = %s AND game_id = %s LIMIT 1",
-                               (session['id'], game['GameID']))
-                game_dict['is_member'] = cursor.fetchone() is not None
-            except:
-                game_dict['is_member'] = False
-
-            if 'GameImage' in game_dict:
-                del game_dict['GameImage']
-
+            game_id = game['GameID']
+            
+            game_dict = {
+                'GameID': game_id,
+                'GameTitle': game['GameTitle'],
+                'Description': game['Description'],
+                'TeamSizes': game['TeamSizes'],
+                'ImageURL': f'/game-image/{game_id}' if game['has_image'] else None,
+                'member_count': member_counts.get(game_id, 0),
+                'team_count': team_counts.get(game_id, 0),
+                'is_member': game_id in user_memberships,
+                'is_game_manager': game['gm_id'] == user_id if game['gm_id'] else False
+            }
+            
             games_with_details.append(game_dict)
 
         return jsonify({'success': True, 'games': games_with_details})
 
     except Exception as e:
         print(f"Error fetching games: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': True, 'games': []})
 
     finally:
         cursor.close()
-
 """
 Route that allows admins to create new games. Accessible via button that opens a modal.
 """
