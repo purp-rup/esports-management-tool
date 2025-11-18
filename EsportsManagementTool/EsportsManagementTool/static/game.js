@@ -101,6 +101,7 @@ async function loadGames() {
 
 /**
  * Display games in grid
+ * Assumes backend returns member_count, team_count, is_member, and is_game_manager
  */
 async function displayGames(games) {
     const gridDiv = document.getElementById('rostersGrid');
@@ -113,23 +114,11 @@ async function displayGames(games) {
     for (const game of games) {
         const teamSizes = game.TeamSizes ? game.TeamSizes.split(',').map(s => s.trim()) : [];
 
-        // Fetch member count and GM status from API
-        let memberCount = 0;
-        let teamCount = 0;
-        let isMember = false;
-        let isGameManager = false;
-        try {
-            const response = await fetch(`/api/game/${game.GameID}/details`);
-            const data = await response.json();
-            if (data.success) {
-                memberCount = data.game.member_count;
-                teamCount = data.game.team_count;
-                isMember = data.game.is_member;
-                isGameManager = data.game.is_game_manager; // Get GM status
-            }
-        } catch (error) {
-            console.error('Error fetching member count:', error);
-        }
+        
+        const memberCount = game.member_count || 0;
+        const teamCount = game.team_count || 0;
+        const isMember = game.is_member || false;
+        const isGameManager = game.is_game_manager || false;
 
         // Determine if we have an image or use icon
         let iconHTML;
@@ -214,7 +203,6 @@ async function displayGames(games) {
         gridDiv.appendChild(card);
     }
 }
-
 /**
  * Load games for dropdown in event creation
  */
