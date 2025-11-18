@@ -883,3 +883,76 @@
         padding: 1rem 1.5rem 1.5rem;
     }
 }
+
+/* Ensure the Teams tab content respects viewport width */
+#teams.tab-content {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Fix the teams layout container to prevent overflow */
+#teams .teams-layout {
+    display: flex;
+    gap: 1.5rem;
+    height: calc(100vh - 250px);
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* Ensure sidebar has fixed width and doesn't grow */
+#teams .teams-sidebar {
+    flex-shrink: 0;
+    width: 300px;
+    min-width: 300px;
+    max-width: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Main content should take remaining space */
+#teams .teams-main-content {
+    flex: 1;
+    min-width: 0; /* CRITICAL: allows flex item to shrink below content size */
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Team detail header should respect container width */
+#teams .team-detail-header {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Ensure action buttons wrap on smaller screens */
+#teams .team-header-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Fix stats summary to not overflow */
+#teams .team-stats-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    max-width: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    #teams .teams-layout {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    #teams .teams-sidebar {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        max-height: 400px;
+    }
+    
+    #teams .teams-main-content {
+        width: 100%;
+    }
+}
