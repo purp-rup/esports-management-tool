@@ -332,37 +332,41 @@
 /* Team Stats Summary */
 .team-stats-summary {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
     margin-bottom: 1.5rem;
+    width: 100%;
 }
 
 .stat-box {
     background: var(--dark-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 1rem;
-    text-align: center;
+    padding: 0.75rem; /* Reduced */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem; /* Reduced */
+    min-height: 90px; /* Smaller box */
 }
 
 .stat-box i {
-    font-size: 1.25rem;
+    font-size: 1.25rem; /* Smaller icon */
     color: var(--stockton-blue);
-    margin-bottom: 0.5rem;
 }
 
 .stat-value {
-    font-size: 1.75rem;
+    font-size: 1.75rem; /* Smaller number */
     font-weight: 700;
     color: var(--text-primary);
-    margin: 0.5rem 0;
+    line-height: 1;
 }
 
 .stat-label {
-    font-size: 0.8125rem;
+    font-size: 0.7rem; /* Smaller label */
     color: var(--text-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.05em;
 }
 
 /* Team Tabs */

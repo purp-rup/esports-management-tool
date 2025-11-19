@@ -97,18 +97,6 @@ function closeCreateScheduledEventModal() {
     }
 }
 
-/**
- * Handle form submission (placeholder for now)
- */
-async function handleScheduledEventSubmit(event) {
-    event.preventDefault();
-
-    const messageDiv = document.getElementById('scheduledEventMessage');
-    messageDiv.textContent = 'Form submission not yet implemented - this is just for testing the modal';
-    messageDiv.className = 'form-message error';
-    messageDiv.style.display = 'block';
-}
-
 // Attach event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('createScheduledEventForm');
@@ -116,6 +104,73 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', handleScheduledEventSubmit);
     }
 });
+
+/**
+ * Handle form submission
+ */
+async function handleScheduledEventSubmit(event) {
+    event.preventDefault();
+
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnSpinner = submitBtn.querySelector('.btn-spinner');
+    const messageDiv = document.getElementById('scheduledEventMessage');
+
+    // Disable submit button
+    submitBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnSpinner.style.display = 'inline-block';
+    messageDiv.style.display = 'none';
+
+    const formData = {
+        team_id: currentScheduleTeamId,
+        event_name: document.getElementById('scheduledEventName').value,
+        event_type: document.getElementById('scheduledEventType').value,
+        frequency: document.getElementById('scheduledFrequency').value,
+        day_of_week: parseInt(document.getElementById('scheduledDayOfWeek').value),
+        start_time: document.getElementById('scheduledStartTime').value,
+        end_time: document.getElementById('scheduledEndTime').value,
+        visibility: document.getElementById('scheduledVisibility').value,
+        end_date: document.getElementById('scheduledEndDate').value,
+        description: document.getElementById('scheduledDescription').value
+    };
+
+    try {
+        const response = await fetch('/api/scheduled-events/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            messageDiv.textContent = data.message;
+            messageDiv.className = 'form-message success';
+            messageDiv.style.display = 'block';
+
+            setTimeout(() => {
+                closeCreateScheduledEventModal();
+                // Reload team details
+                if (typeof selectTeam === 'function') {
+                    selectTeam(currentScheduleTeamId);
+                }
+            }, 1500);
+        } else {
+            throw new Error(data.message);
+        }
+    } catch (error) {
+        messageDiv.textContent = error.message || 'Failed to create scheduled event';
+        messageDiv.className = 'form-message error';
+        messageDiv.style.display = 'block';
+
+        submitBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnSpinner.style.display = 'none';
+    }
+}
 
 // Export functions to global scope
 window.openCreateScheduledEventModal = openCreateScheduledEventModal;

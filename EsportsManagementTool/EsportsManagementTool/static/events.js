@@ -382,9 +382,15 @@ function createEventCard(event, isAdmin, isGm) {
     // Normalize event type to lowercase for data attribute ONLY
     const eventTypeClass = (event.event_type || 'event').toLowerCase();
 
-    // REMOVED CLASS FROM event-card DIV - ONLY USE DATA-EVENT-TYPE
+    // Check if event is scheduled.
+    const scheduledClass = event.is_scheduled ? 'scheduled-event' : '';
+
+    // Full Return statement.
     return `
-        <div class="event-card" data-event-type="${eventTypeClass}" onclick="openEventModal(${event.id})">
+        <div class="event-card ${scheduledClass}"
+             data-event-type="${eventTypeClass}"
+             ${event.is_scheduled ? `data-scheduled="true" data-schedule-id="${event.schedule_id}"` : ''}
+             onclick="openEventModal(${event.id})">
             ${ongoingIndicator}
             <div class="event-card-header">
                 <h3 class="event-card-title">${event.name}</h3>

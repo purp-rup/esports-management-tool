@@ -601,6 +601,27 @@
 }
 
 /* ============================================
+   SCHEDULED EVENT STYLING
+   ============================================ */
+
+/* Scheduled event card - white border ONLY on hover */
+.event-card.scheduled-event:hover {
+    border: 2px solid white !important;
+    box-shadow: 0 8px 16px rgba(255, 255, 255, 0.3);
+}
+
+/* White border for event type badge on scheduled events */
+.event-card.scheduled-event .event-type-badge {
+    border: 2px solid white !important;
+    box-shadow: 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+/* Enhanced hover effect for scheduled events */
+.event-card.scheduled-event:hover {
+    box-shadow: 0 2px 4px rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================
    MODAL - Event Details Icons
    ============================================ */
 

@@ -643,6 +643,97 @@ def team_details(team_id):
         return jsonify({'success': False, 'message': 'Failed to load game details'}), 500
 
 """
+Method to get the details of the next scheduled event for a game.
+"""
+@app.route('/api/teams/<team_id>/next-scheduled-event')
+@login_required
+def get_next_scheduled_event(team_id):
+    """Get the next upcoming scheduled event for the team's game"""
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        # Get the team's game
+        cursor.execute("""
+            SELECT gameID FROM teams WHERE TeamID = %s
+        """, (team_id,))
+
+        team = cursor.fetchone()
+
+        if not team:
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        game_id = team['gameID']
+
+        # Get the next scheduled event for this game
+        cursor.execute("""
+            SELECT 
+                ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
+                ge.EventType, ge.schedule_id
+            FROM generalevents ge
+            WHERE ge.is_scheduled = TRUE
+            AND ge.Date >= CURDATE()
+            AND EXISTS (
+                SELECT 1 FROM scheduled_events se 
+                WHERE se.schedule_id = ge.schedule_id 
+                AND se.game_id = %s
+            )
+            ORDER BY ge.Date ASC, ge.StartTime ASC
+            LIMIT 1
+        """, (game_id,))
+
+        event = cursor.fetchone()
+        cursor.close()
+
+        if not event:
+            return jsonify({'success': True, 'event': None}), 200
+
+        # Format the event data
+        from datetime import timedelta
+
+        def format_time(time_value):
+            if not time_value:
+                return None
+            if isinstance(time_value, timedelta):
+                total_seconds = int(time_value.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+            else:
+                hours = time_value.hour
+                minutes = time_value.minute
+
+            period = "AM" if hours < 12 else "PM"
+            display_hour = hours % 12
+            if display_hour == 0:
+                display_hour = 12
+            return f"{display_hour}:{minutes:02d} {period}"
+
+        start_time_str = format_time(event['StartTime'])
+        end_time_str = format_time(event['EndTime'])
+
+        # Check if all-day event
+        is_all_day = False
+        if start_time_str and end_time_str:
+            is_all_day = (start_time_str == "12:00 AM" and end_time_str == "11:59 PM")
+
+        event_data = {
+            'id': event['EventID'],
+            'name': event['EventName'],
+            'date': event['Date'].strftime('%B %d, %Y'),
+            'start_time': start_time_str,
+            'end_time': end_time_str,
+            'event_type': event['EventType'] or 'Event',
+            'is_all_day': is_all_day
+        }
+
+        return jsonify({'success': True, 'event': event_data}), 200
+
+    except Exception as e:
+        print(f"Error fetching next scheduled event: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': 'Failed to fetch event'}), 500
+
+"""
 Method to delete a shell team for a game.
 """
 @app.route('/delete-team', methods=['POST'])

@@ -117,8 +117,9 @@
 
                                                 {% for event in day_events[:3] %}
                                                     <div class="event-link" onclick="openEventModal({{ event.id }})">
-                                                        <div class="event {{ event.event_type|lower }}"
+                                                        <div class="event {{ event.event_type|lower }} {% if event.is_scheduled %}scheduled-event{% endif %}"
                                                              data-event-type="{{ event.event_type|lower }}"
+                                                             {% if event.is_scheduled %}data-scheduled="true" data-schedule-id="{{ event.schedule_id }}"{% endif %}
                                                              title="Click to view details"
                                                              {% if not event.time %}class="all-day"{% endif %}>
                                                             <div class="event-title">{{ event.title }}</div>
@@ -175,9 +176,13 @@
                             <div class="legend-color event"></div>
                             <span class="legend-label">Event</span>
                         </div>
+                        <!-- ADD THIS NEW LEGEND ITEM -->
+                        <div class="legend-item">
+                            <div class="legend-color scheduled-indicator"></div>
+                            <span class="legend-label">Recurring/Scheduled</span>
+                        </div>
                     </div>
                 </div>
-
                 <!-- Today's Events Card -->
                 <div class="sidebar-card">
                     <h3><i class="fas fa-calendar-day"></i> Today's Events</h3>

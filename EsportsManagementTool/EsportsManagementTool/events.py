@@ -139,7 +139,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 query = f"""
                     SELECT 
                         ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
-                        ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by
+                        ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
+                        ge.is_scheduled, ge.schedule_id
                     FROM generalevents ge
                     INNER JOIN event_subscriptions es ON ge.EventID = es.event_id
                     WHERE {where_clause} AND es.user_id = %s
@@ -153,7 +154,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 query = f"""
                     SELECT 
                         EventID, EventName, Date, StartTime, EndTime,
-                        EventType, Game, Location, Description, created_by
+                        EventType, Game, Location, Description, created_by,
+                        is_scheduled, schedule_id
                     FROM generalevents
                     WHERE {where_clause}
                     ORDER BY Date {'ASC' if is_upcoming_filter else 'DESC'}, 
@@ -171,7 +173,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 query = f"""
                     SELECT 
                         EventID, EventName, Date, StartTime, EndTime,
-                        EventType, Game, Location, Description, created_by
+                        EventType, Game, Location, Description, created_by,
+                        is_scheduled, schedule_id
                     FROM generalevents
                     WHERE {where_clause}
                     ORDER BY Date {'ASC' if is_upcoming_filter else 'DESC'}, 
@@ -184,7 +187,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 query = f"""
                     SELECT 
                         EventID, EventName, Date, StartTime, EndTime,
-                        EventType, Game, Location, Description, created_by
+                        EventType, Game, Location, Description, created_by,
+                        is_scheduled, schedule_id
                     FROM generalevents
                     WHERE {where_clause}
                     ORDER BY Date {'ASC' if is_upcoming_filter else 'DESC'}, 
@@ -214,7 +218,9 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     'location': event['Location'] or 'TBD',
                     'description': event['Description'] or 'No description provided',
                     'is_ongoing': is_ongoing,
-                    'created_by': event['created_by']
+                    'created_by': event['created_by'],
+                    'is_scheduled': event.get('is_scheduled', False),  # ADD THIS
+                    'schedule_id': event.get('schedule_id')  # ADD THIS
                 }
                 events_list.append(event_data)
 

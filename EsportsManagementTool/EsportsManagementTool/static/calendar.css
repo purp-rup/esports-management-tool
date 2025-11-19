@@ -357,6 +357,13 @@
     border-color: rgba(147, 197, 253, 1);
 }
 
+/* Scheduled event legend indicator */
+.legend-color.scheduled-indicator {
+    background: var(--card-bg);
+    border: 2px solid white;
+    box-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
 .legend-label {
     color: var(--text-primary);
     font-weight: 500;

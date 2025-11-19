@@ -493,6 +493,13 @@ from EsportsManagementTool import teamCreation
 # =====================================
 EsportsManagementTool.events.register_event_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
+# =====================================
+# REGISTER SCHEDULED EVENTS ROUTES
+# =====================================
+from EsportsManagementTool import scheduled_events
+scheduled_events.register_scheduled_events_routes(app, mysql, login_required, roles_required, get_user_permissions)
+
+
 # This is used for debugging, It will show the app routes that are registered.
 if __name__ != '__main__':
     print("\n=== REGISTERED ROUTES ===")

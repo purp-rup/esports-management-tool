@@ -143,7 +143,9 @@ def dashboard(year=None, month=None):
                 'title': event['EventName'],
                 'description': event['Description'] if event['Description'] else '',
                 'event_type': event['EventType'] if event.get('EventType') else 'Event',
-                'is_all_day': is_all_day  # Add flag for template
+                'is_all_day': is_all_day,  # Add flag for template
+                'is_scheduled': event.get('is_scheduled', False),  # Add this line
+                'schedule_id': event.get('schedule_id')  # Add this line too
             }
 
             if date_str not in events_by_date:

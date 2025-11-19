@@ -4,8 +4,8 @@
 
 /* Next Scheduled Event in Header */
 #nextScheduledEventContainer {
-    grid-column: 1 / -1;
-    margin-top: 1.5rem;
+    grid-column: auto; /* Takes 1 column, not spanning */
+    min-height: 90px; /* Match stat boxes */
 }
 
 .next-scheduled-event h4 {
@@ -380,23 +380,187 @@
     color: var(--stockton-black);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-    .scheduled-event-header {
-        flex-direction: column;
-        gap: 1rem;
+/* Scheduled event styling */
+.event.scheduled-event {
+    border: 2px solid white !important;
+    box-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+/* Next Scheduled Event Card */
+.next-scheduled-event-card {
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.next-scheduled-event-card:hover {
+    background: var(--hover-bg);
+    border-color: var(--stockton-blue);
+    transform: translateY(-2px);
+}
+
+.next-event-header {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.next-event-header i {
+    font-size: 0.75rem;
+    color: var(--stockton-blue);
+}
+
+.next-event-header h4 {
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.next-event-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.next-event-time {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+}
+
+.next-event-time i {
+    font-size: 0.6rem;
+}
+
+.next-event-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.next-event-date {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+}
+
+.next-event-date i {
+    font-size: 0.6rem;
+}
+
+.next-event-type {
+    display: inline-block;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    align-self: flex-start;
+}
+
+.next-event-type.tournament {
+    background: rgba(167, 139, 250, 0.2);
+    color: rgba(167, 139, 250, 1);
+}
+
+.next-event-type.match {
+    background: rgba(252, 165, 165, 0.2);
+    color: rgba(252, 165, 165, 1);
+}
+
+.next-event-type.practice {
+    background: rgba(134, 239, 172, 0.2);
+    color: rgba(134, 239, 172, 1);
+}
+
+.next-event-type.event {
+    background: rgba(147, 197, 253, 0.2);
+    color: rgba(147, 197, 253, 1);
+}
+
+/* Empty state for next scheduled event */
+.next-scheduled-event-empty {
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem;
+    text-align: center;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.next-scheduled-event-empty i {
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+    opacity: 0.5;
+}
+
+.next-scheduled-event-empty p {
+    margin: 0;
+    font-size: 0.7rem;
+}
+
+/* ============================================
+   RESPONSIVE LAYOUT
+   ============================================ */
+
+/* Large screens - keep 3 columns */
+@media (min-width: 1200px) {
+    .team-stats-summary {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Medium screens - keep 3 columns but might be tighter */
+@media (min-width: 900px) and (max-width: 1199px) {
+    .team-stats-summary {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Smaller tablets - 2 columns, event wraps to second row */
+@media (min-width: 600px) and (max-width: 899px) {
+    .team-stats-summary {
+        grid-template-columns: repeat(2, 1fr);
     }
 
-    .scheduled-event-actions {
-        width: 100%;
-        justify-content: flex-end;
+    #nextScheduledEventContainer {
+        grid-column: span 2; /* Spans both columns */
     }
+}
 
-    .upcoming-events-grid {
+/* Mobile - single column */
+@media (max-width: 599px) {
+    .team-stats-summary {
         grid-template-columns: 1fr;
     }
 
-    .schedule-section {
-        padding: 1rem;
+    .stat-box,
+    #nextScheduledEventContainer {
+        min-height: 80px;
     }
 }
