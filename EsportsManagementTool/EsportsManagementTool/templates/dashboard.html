@@ -1369,12 +1369,24 @@
     <div id="scheduleDetailsModal" class="modal">
         <div class="modal-content modal-content-large">
             <div class="modal-header">
-                <h2 id="scheduleModalTitle">Schedule Details</h2>
+                <div class="modal-header-left">
+                    <div id="scheduleModalGameIcon" class="schedule-modal-title-game-icon" style="display: none;">
+                        <!-- Game icon will be inserted here -->
+                    </div>
+                    <h2 id="scheduleModalTitle">Schedule Details</h2>
+                </div>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button id="editScheduleBtn"
+                            class="btn-icon-action btn-icon-edit"
+                            style="display: none;"
+                            title="Edit Schedule">
+                        <i class="fas fa-edit"></i>
+                    </button>
                     <button id="deleteScheduleBtn"
-                            class="btn btn-secondary"
-                            style="display: none;">
-                        <i class="fas fa-trash"></i> Delete Schedule
+                            class="btn-icon-action btn-icon-delete"
+                            style="display: none;"
+                            title="Delete Schedule">
+                        <i class="fas fa-trash"></i>
                     </button>
                     <button class="modal-close" onclick="closeScheduleModal()">
                         <i class="fas fa-times"></i>

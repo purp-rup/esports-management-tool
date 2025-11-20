@@ -171,11 +171,31 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
     def get_team_scheduled_events(team_id):
         """
         Get all active scheduled events for a team
+        Includes team-specific, game_players, and game_community schedules
         """
         try:
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             try:
+                # First get the team's game_id
+                cursor.execute("""
+                    SELECT gameID FROM teams WHERE TeamID = %s
+                """, (team_id,))
+
+                team = cursor.fetchone()
+                if not team:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Team not found'
+                    }), 404
+
+                game_id = team['gameID']
+
+                # Get schedules that are:
+                # 1. Team-specific (team_id matches)
+                # 2. Game-wide for players (game_players visibility)
+                # 3. Game-wide for community (game_community visibility)
+                # EXCLUDE: all_members visibility (those should only show in next event card)
                 cursor.execute("""
                     SELECT 
                         se.*,
@@ -185,35 +205,51 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                     FROM scheduled_events se
                     JOIN games g ON se.game_id = g.GameID
                     JOIN users u ON se.created_by = u.id
-                    WHERE se.team_id = %s AND se.is_active = TRUE
+                    WHERE se.is_active = TRUE
+                    AND se.game_id = %s
+                    AND (
+                        se.team_id = %s
+                        OR se.visibility = 'game_players'
+                        OR se.visibility = 'game_community'
+                    )
+                    AND se.visibility != 'all_members'
                     ORDER BY se.created_at DESC
-                """, (team_id,))
+                """, (game_id, team_id))
 
                 schedules = cursor.fetchall()
 
                 # Format the response
                 formatted_schedules = []
                 for schedule in schedules:
+                    # Get team name if this is a team-specific schedule
+                    team_name = None
+                    if schedule['visibility'] == 'team' and schedule.get('team_id'):
+                        cursor.execute("""
+                            SELECT teamName FROM teams WHERE TeamID = %s
+                        """, (schedule['team_id'],))
+                        team_result = cursor.fetchone()
+                        if team_result:
+                            team_name = team_result['teamName']
+
                     formatted_schedules.append({
                         'schedule_id': schedule['schedule_id'],
                         'event_name': schedule['event_name'],
                         'event_type': schedule['event_type'],
                         'frequency': schedule['frequency'],
                         'day_of_week': schedule.get('day_of_week'),
-                        'day_of_week_name': calendar.day_name[schedule['day_of_week']] if schedule.get(
-                            'day_of_week') is not None else None,
-                        'specific_date': schedule['specific_date'].strftime('%Y-%m-%d') if schedule.get(
-                            'specific_date') else None,
-                        'start_time': format_time_to_12hr(schedule['start_time']),  # ← ADD THIS
-                        'end_time': format_time_to_12hr(schedule['end_time']),  # ← ADD THIS
+                        'day_of_week_name': calendar.day_name[schedule['day_of_week']] if schedule.get('day_of_week') is not None else None,
+                        'specific_date': schedule['specific_date'].strftime('%Y-%m-%d') if schedule.get('specific_date') else None,
+                        'start_time': format_time_to_12hr(schedule['start_time']),
+                        'end_time': format_time_to_12hr(schedule['end_time']),
                         'visibility': schedule['visibility'],
                         'description': schedule['description'],
                         'location': schedule['location'],
                         'schedule_end_date': schedule['schedule_end_date'].strftime('%Y-%m-%d'),
                         'game_title': schedule['GameTitle'],
+                        'game_id': schedule['game_id'],  # ADD THIS LINE
+                        'team_name': team_name,
                         'created_by_name': f"{schedule['firstname']} {schedule['lastname']}",
-                        'last_generated': schedule['last_generated'].strftime('%Y-%m-%d') if schedule[
-                            'last_generated'] else None
+                        'last_generated': schedule['last_generated'].strftime('%Y-%m-%d') if schedule['last_generated'] else None
                     })
 
                 return jsonify({
@@ -298,6 +334,100 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
             return jsonify({
                 'success': False,
                 'message': 'Failed to delete scheduled event'
+            }), 500
+
+    # ============================================
+    # UPDATE SCHEDULED EVENT
+    # ============================================
+    @app.route('/api/scheduled-events/update', methods=['POST'])
+    @login_required
+    @roles_required('gm')
+    def update_scheduled_event():
+        """
+        Update a scheduled event and all its generated events
+        Cannot change frequency/timing - only metadata
+        """
+        try:
+            data = request.get_json()
+            user_id = session['id']
+            schedule_id = data.get('schedule_id')
+
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+            try:
+                # Verify ownership/permission
+                cursor.execute("""
+                    SELECT se.*, g.gm_id
+                    FROM scheduled_events se
+                    JOIN games g ON se.game_id = g.GameID
+                    WHERE se.schedule_id = %s
+                """, (schedule_id,))
+
+                schedule = cursor.fetchone()
+
+                if not schedule:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Scheduled event not found'
+                    }), 404
+
+                if schedule['gm_id'] != user_id:
+                    return jsonify({
+                        'success': False,
+                        'message': 'You do not have permission to edit this schedule'
+                    }), 403
+
+                # Update the schedule
+                cursor.execute("""
+                    UPDATE scheduled_events 
+                    SET event_name = %s,
+                        event_type = %s,
+                        visibility = %s,
+                        location = %s,
+                        description = %s
+                    WHERE schedule_id = %s
+                """, (
+                    data['event_name'],
+                    data['event_type'],
+                    data['visibility'],
+                    data['location'],
+                    data.get('description', ''),
+                    schedule_id
+                ))
+
+                # Update all associated events in generalevents table
+                cursor.execute("""
+                    UPDATE generalevents
+                    SET EventName = %s,
+                        EventType = %s,
+                        Location = %s,
+                        Description = %s
+                    WHERE schedule_id = %s
+                """, (
+                    data['event_name'],
+                    data['event_type'],
+                    data['location'],
+                    data.get('description', ''),
+                    schedule_id
+                ))
+
+                affected_events = cursor.rowcount
+                mysql.connection.commit()
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Schedule updated successfully. {affected_events} event(s) updated.'
+                }), 200
+
+            finally:
+                cursor.close()
+
+        except Exception as e:
+            print(f"Error updating scheduled event: {str(e)}")
+            mysql.connection.rollback()
+            return jsonify({
+                'success': False,
+                'message': 'Failed to update scheduled event'
             }), 500
 
     # ============================================

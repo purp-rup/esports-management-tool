@@ -41,7 +41,7 @@
     display: flex !important;
     flex-direction: row !important;
     gap: 1.5rem !important;
-    height: calc(100vh - 500px) !important;
+    height: calc(100vh - 50px) !important;
     min-height: 675px !important;
     width: 100% !important;
     max-width: 100% !important;
@@ -364,15 +364,32 @@
 }
 
 /* Tab Panels */
+.team-tab-content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
 .team-tab-panel {
     display: none;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .team-tab-panel.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Roster Tab */
+#rosterTabContent {
+    overflow-y: auto; /* Roster can scroll normally */
+    padding: 1.5rem;
+}
+
 .roster-search {
     margin-bottom: 1rem;
     position: relative;

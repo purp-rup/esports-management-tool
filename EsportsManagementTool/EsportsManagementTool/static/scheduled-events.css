@@ -234,6 +234,47 @@
     gap: 0.5rem;
 }
 
+/* Icon action buttons (edit and delete) in modal header */
+.btn-icon-action {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    border: none;
+    outline: none;
+}
+
+.btn-icon-edit {
+    background: rgba(121, 189, 233, 0.1);
+    color: var(--stockton-blue);
+}
+
+.btn-icon-edit:hover {
+    background: var(--stockton-blue);
+    color: white;
+    transform: scale(1.05);
+}
+
+.btn-icon-delete {
+    background: rgba(255, 82, 82, 0.1);
+    color: #ff5252;
+}
+
+.btn-icon-delete:hover {
+    background: #ff5252;
+    color: white;
+    transform: scale(1.05);
+}
+
+.btn-icon-action:active {
+    transform: scale(0.95);
+}
+
 .btn-icon-secondary {
     background: transparent;
     border: 2px solid var(--stockton-blue);
@@ -254,6 +295,65 @@
     background: var(--stockton-blue);
     color: var(--stockton-black);
     transform: scale(1.05);
+}
+
+/* Schedule edit form */
+.schedule-edit-form {
+    padding: 1rem;
+}
+
+.schedule-edit-form .form-group {
+    margin-bottom: 1.25rem;
+}
+
+.schedule-edit-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.schedule-edit-form input[type="text"],
+.schedule-edit-form select,
+.schedule-edit-form textarea {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    transition: all 0.2s;
+}
+
+.schedule-edit-form input[type="text"]:disabled,
+.schedule-edit-form select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.schedule-edit-form input:focus,
+.schedule-edit-form select:focus,
+.schedule-edit-form textarea:focus {
+    outline: none;
+    border-color: var(--stockton-blue);
+    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+}
+
+.schedule-edit-form textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.schedule-edit-form .form-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.schedule-edit-form .form-actions button {
+    flex: 1;
 }
 
 .scheduled-event-details {
@@ -355,46 +455,43 @@
     gap: 0.25rem;
 }
 
-/* empty states */
-.schedule-empty {
-    text-align: center;
+/* Empty and loading states */
+.schedule-empty,
+.schedule-loading,
+.schedule-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     padding: 3rem 2rem;
+    text-align: center;
     color: var(--text-secondary);
+    min-height: 300px;
 }
 
-.schedule-empty i {
+.schedule-empty i,
+.schedule-loading i,
+.schedule-error i {
     font-size: 3rem;
     margin-bottom: 1rem;
-    opacity: 0.3;
+    color: var(--text-muted);
 }
 
-.schedule-empty p {
-    margin: 0.5rem 0;
+.schedule-empty h3 {
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.schedule-empty p,
+.schedule-empty-hint {
+    color: var(--text-secondary);
+    margin: 0.25rem 0;
 }
 
 .schedule-empty-hint {
     font-size: 0.875rem;
-    color: var(--text-secondary);
-    opacity: 0.7;
-}
-
-/* loading/error states */
-.schedule-loading,
-.schedule-error {
-    text-align: center;
-    padding: 3rem 2rem;
-    color: var(--text-secondary);
-}
-
-.schedule-loading i,
-.schedule-error i {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-    color: var(--stockton-blue);
-}
-
-.schedule-loading i {
-    animation: spin 1s linear infinite;
+    font-style: italic;
 }
 
 @keyframes spin {
@@ -575,34 +672,58 @@
 /* ============================================
    SCHEDULE TAB - Schedule Cards Grid
    ============================================ */
-
 .schedule-cards-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
-    padding: 0.5rem;
+    padding: 1.5rem;
+    padding-bottom: 2rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 0;
+    align-content: start;
 }
 
-/* Schedule Card */
+/* Ensure smooth scrolling */
+.schedule-cards-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.schedule-cards-grid::-webkit-scrollbar-track {
+    background: var(--background-primary);
+    border-radius: 4px;
+}
+
+.schedule-cards-grid::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.schedule-cards-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--stockton-blue);
+}
+
 .schedule-card {
     background: var(--dark-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
     padding: 1rem;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    height: fit-content; /* Ensure card height is based on content */
 }
 
 .schedule-card:hover {
     border-color: var(--stockton-blue);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(121, 189, 233, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
 }
 
-/* Schedule Card Header */
+/* Schedule card header */
 .schedule-card-header {
     display: flex;
     align-items: flex-start;
@@ -610,16 +731,9 @@
 }
 
 .schedule-card-icon {
-    width: 40px;
-    height: 40px;
-    background: rgba(121, 189, 233, 0.1);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    font-size: 1.25rem;
     color: var(--stockton-blue);
     flex-shrink: 0;
-    font-size: 1.125rem;
 }
 
 .schedule-card-title-section {
@@ -631,12 +745,13 @@
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin: 0 0 0.5rem 0;
+    margin: 0 0 0.25rem 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+/* Badges */
 .schedule-type-badge {
     display: inline-block;
     padding: 0.25rem 0.6rem;
@@ -665,26 +780,26 @@
     border: 1px solid rgba(234, 179, 8, 0.3);
 }
 
-/* Schedule Card Details */
+/* Schedule card details */
 .schedule-card-details {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.5rem; /* Reduced gap */
 }
 
 .schedule-card-detail {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     color: var(--text-secondary);
 }
 
 .schedule-card-detail i {
     width: 16px;
+    font-size: 0.875rem;
     color: var(--stockton-blue);
     flex-shrink: 0;
-    font-size: 0.75rem;
 }
 
 .schedule-card-detail span {
@@ -696,36 +811,90 @@
    ============================================ */
 
 #scheduleDetailsModal .modal-content {
-    max-width: 800px;
+    max-width: 600px;
+}
+
+/* Modal header with game icon next to title */
+.modal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.schedule-modal-title-game-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 3px solid black;
+    position: relative;
+    background: var(--dark-bg);
+    flex-shrink: 0;
+}
+
+.schedule-modal-title-game-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.schedule-modal-game-icon-fallback {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.25rem;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 .schedule-modal-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 .schedule-modal-section {
     display: flex;
-    gap: 1rem;
     align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--dark-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
 }
 
-.schedule-modal-section.full-width {
-    grid-column: 1 / -1;
-}
-
+/* Event type icon colors */
 .schedule-modal-icon {
-    width: 48px;
-    height: 48px;
-    background: rgba(121, 189, 233, 0.1);
-    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--stockton-blue);
     flex-shrink: 0;
-    font-size: 1.25rem;
+    transition: all 0.2s;
+}
+
+/* Match icon colors to event type badges */
+.schedule-modal-icon.match {
+    background: rgba(255, 82, 82, 0.1);
+    color: #ff5252;
+}
+
+.schedule-modal-icon.practice {
+    background: rgba(76, 175, 80, 0.1);
+    color: #4CAF50;
+}
+
+.schedule-modal-icon.misc {
+    background: rgba(234, 179, 8, 0.1);
+    color: #eab308;
 }
 
 .schedule-modal-content {
@@ -734,24 +903,28 @@
 }
 
 .schedule-modal-content h3 {
-    font-size: 0.875rem;
-    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+    font-size: 0.8125rem;
     color: var(--text-secondary);
-    margin: 0 0 0.5rem 0;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
 .schedule-modal-content p {
-    font-size: 1rem;
-    color: var(--text-primary);
     margin: 0;
-    word-wrap: break-word;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
 }
 
 /* ============================================
    RESPONSIVE
    ============================================ */
+@media (max-width: 1400px) {
+    .schedule-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
 
 @media (max-width: 1024px) {
     .schedule-cards-grid {
@@ -776,10 +949,12 @@
         flex-direction: column;
         gap: 0.75rem;
     }
+
+    @media (max-width: 768px) {
+    .schedule-cards-grid {
+        grid-template-columns: 1fr;
+    }
 }
-/* ============================================
-   responsive layout
-   ============================================ */
 
 /* medium screens (tablets) - keep 3 columns but reduce padding */
 @media (min-width: 768px) and (max-width: 1024px) {

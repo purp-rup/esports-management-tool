@@ -256,10 +256,33 @@ async function selectTeam(teamId) {
     document.getElementById('teamsWelcomeState').style.display = 'none';
     document.getElementById('teamsDetailContent').style.display = 'block';
 
+    // Reset to Roster tab (first tab)
+    document.querySelectorAll('.team-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.team-tab-panel').forEach(panel => panel.classList.remove('active'));
+
+    const rosterTab = document.querySelector('[data-team-tab="roster"]');
+    const rosterPanel = document.getElementById('rosterTabContent');
+    if (rosterTab) rosterTab.classList.add('active');
+    if (rosterPanel) rosterPanel.classList.add('active');
+
+    // Clear Schedule tab content so it reloads when clicked
+    const schedulePanel = document.getElementById('scheduleTabContent');
+    if (schedulePanel) {
+        schedulePanel.innerHTML = `
+            <div class="schedule-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading schedules...</p>
+            </div>
+        `;
+    }
+
     // Load team details
     await loadTeamDetails(teamId);
 }
 
+/**
+ * Method to load the next scheduled event onto the next-scheduled-event-card for each team.
+ */
 async function loadNextScheduledEvent(teamId, gameId) {
     const container = document.getElementById('nextScheduledEventContainer');
 

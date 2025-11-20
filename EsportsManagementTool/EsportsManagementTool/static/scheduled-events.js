@@ -338,7 +338,7 @@ function renderScheduleCards(schedules) {
 
                     <div class="schedule-card-detail">
                         <i class="fas fa-eye"></i>
-                        <span>${formatVisibility(schedule.visibility)}</span>
+                        <span>${buildVisibilityText(schedule)}</span>
                     </div>
 
                     <div class="schedule-card-detail">
@@ -368,7 +368,7 @@ function formatVisibility(visibility) {
 }
 
 /**
- * Open schedule details modal
+ * Method to build the elements within the schedule modal. Including adding a game icon.
  */
 function openScheduleModal(scheduleId) {
     const schedule = currentSchedules.find(s => s.schedule_id === scheduleId);
@@ -384,92 +384,66 @@ function openScheduleModal(scheduleId) {
         return;
     }
 
-    // Populate modal
-    const isOnce = schedule.frequency === 'Once';
-    const dayName = schedule.day_of_week_name || 'N/A';
-
+    // Set title
     document.getElementById('scheduleModalTitle').textContent = schedule.event_name;
 
+    // Handle game icon in header
+    const gameIconContainer = document.getElementById('scheduleModalGameIcon');
+    if (schedule.game_id && gameIconContainer) {
+        gameIconContainer.innerHTML = `
+            <img src="/game-image/${schedule.game_id}"
+                 alt="${schedule.game_title}"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="schedule-modal-game-icon-fallback" style="display: none;">
+                <i class="fas fa-gamepad"></i>
+            </div>
+        `;
+        gameIconContainer.style.display = 'flex';
+    } else if (gameIconContainer) {
+        gameIconContainer.style.display = 'none';
+    }
+
+    // Build modal body (without game icon header now)
     const modalBody = document.getElementById('scheduleModalBody');
+    const eventTypeClass = schedule.event_type.toLowerCase();
+
     modalBody.innerHTML = `
         <div class="schedule-modal-grid">
             <div class="schedule-modal-section">
-                <div class="schedule-modal-icon"><i class="fas fa-tag"></i></div>
+                <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-tag"></i></div>
                 <div class="schedule-modal-content">
                     <h3>Event Type</h3>
-                    <span class="schedule-type-badge ${schedule.event_type.toLowerCase()}">${schedule.event_type}</span>
-                </div>
-            </div>
-
-            <div class="schedule-modal-section">
-                <div class="schedule-modal-icon"><i class="fas fa-redo"></i></div>
-                <div class="schedule-modal-content">
-                    <h3>Frequency</h3>
-                    <p>${schedule.frequency}</p>
-                </div>
-            </div>
-
-            ${!isOnce ? `
-                <div class="schedule-modal-section">
-                    <div class="schedule-modal-icon"><i class="fas fa-calendar-week"></i></div>
-                    <div class="schedule-modal-content">
-                        <h3>Day of Week</h3>
-                        <p>${dayName}</p>
-                    </div>
-                </div>
-            ` : `
-                <div class="schedule-modal-section">
-                    <div class="schedule-modal-icon"><i class="fas fa-calendar-day"></i></div>
-                    <div class="schedule-modal-content">
-                        <h3>Event Date</h3>
-                        <p>${schedule.specific_date}</p>
-                    </div>
-                </div>
-            `}
-
-            <div class="schedule-modal-section">
-                <div class="schedule-modal-icon"><i class="fas fa-clock"></i></div>
-                <div class="schedule-modal-content">
-                    <h3>Time</h3>
-                    <p>${schedule.start_time} - ${schedule.end_time}</p>
-                </div>
-            </div>
-
-            <div class="schedule-modal-section">
-                <div class="schedule-modal-icon"><i class="fas fa-eye"></i></div>
-                <div class="schedule-modal-content">
-                    <h3>Visibility</h3>
-                    <p>${formatVisibility(schedule.visibility)}</p>
-                </div>
-            </div>
-
-            <div class="schedule-modal-section">
-                <div class="schedule-modal-icon"><i class="fas fa-gamepad"></i></div>
-                <div class="schedule-modal-content">
-                    <h3>Game</h3>
-                    <p>${schedule.game_title}</p>
+                    <span class="schedule-type-badge ${eventTypeClass}">${schedule.event_type}</span>
                 </div>
             </div>
 
             <div class="schedule-modal-section full-width">
-                <div class="schedule-modal-icon"><i class="fas fa-map-marker-alt"></i></div>
+                <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-redo"></i></div>
+                <div class="schedule-modal-content">
+                    <h3>Frequency</h3>
+                    <p>${buildFrequencyText(schedule)}</p>
+                </div>
+            </div>
+
+            <div class="schedule-modal-section full-width">
+                <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-eye"></i></div>
+                <div class="schedule-modal-content">
+                    <h3>Visibility</h3>
+                    <p>${buildVisibilityText(schedule)}</p>
+                </div>
+            </div>
+
+            <div class="schedule-modal-section full-width">
+                <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-map-marker-alt"></i></div>
                 <div class="schedule-modal-content">
                     <h3>Location</h3>
                     <p>${schedule.location || 'TBD'}</p>
                 </div>
             </div>
 
-            <div class="schedule-modal-section full-width">
-                <div class="schedule-modal-icon"><i class="fas fa-calendar-check"></i></div>
-                <div class="schedule-modal-content">
-                    <h3>Schedule End Date</h3>
-                    <p>Events will be generated until ${schedule.schedule_end_date}</p>
-                </div>
-            </div>
-
             ${schedule.description ? `
                 <div class="schedule-modal-section full-width">
-                    <div class="schedule-modal-icon"><i class="fas fa-info-circle"></i></div>
+                    <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-info-circle"></i></div>
                     <div class="schedule-modal-content">
                         <h3>Description</h3>
                         <p>${schedule.description}</p>
@@ -477,18 +451,8 @@ function openScheduleModal(scheduleId) {
                 </div>
             ` : ''}
 
-            ${schedule.last_generated ? `
-                <div class="schedule-modal-section full-width">
-                    <div class="schedule-modal-icon"><i class="fas fa-history"></i></div>
-                    <div class="schedule-modal-content">
-                        <h3>Last Generated</h3>
-                        <p>${schedule.last_generated}</p>
-                    </div>
-                </div>
-            ` : ''}
-
             <div class="schedule-modal-section full-width">
-                <div class="schedule-modal-icon"><i class="fas fa-user"></i></div>
+                <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-user"></i></div>
                 <div class="schedule-modal-content">
                     <h3>Created By</h3>
                     <p>${schedule.created_by_name}</p>
@@ -497,12 +461,19 @@ function openScheduleModal(scheduleId) {
         </div>
     `;
 
-    // Show/hide delete button based on permissions
+    // Show/hide edit and delete buttons based on permissions
+    const editBtn = document.getElementById('editScheduleBtn');
     const deleteBtn = document.getElementById('deleteScheduleBtn');
+    const isAdmin = window.userPermissions?.is_admin || false;
+    const isGM = window.userPermissions?.is_gm || false;
+
+    if (editBtn) {
+        editBtn.style.display = (isAdmin || isGM) ? 'flex' : 'none';
+        editBtn.onclick = () => openEditScheduleMode(scheduleId);
+    }
+
     if (deleteBtn) {
-        const isAdmin = window.userPermissions?.is_admin || false;
-        const isGM = window.userPermissions?.is_gm || false;
-        deleteBtn.style.display = (isAdmin || isGM) ? 'inline-flex' : 'none';
+        deleteBtn.style.display = (isAdmin || isGM) ? 'flex' : 'none';
         deleteBtn.onclick = () => confirmDeleteSchedule(scheduleId);
     }
 
@@ -565,6 +536,254 @@ async function deleteSchedule(scheduleId) {
     }
 }
 
+/**
+ * Open edit mode for a schedule
+ */
+function openEditScheduleMode(scheduleId) {
+    const schedule = currentSchedules.find(s => s.schedule_id === scheduleId);
+
+    if (!schedule) {
+        console.error('Schedule not found:', scheduleId);
+        return;
+    }
+
+    const modalBody = document.getElementById('scheduleModalBody');
+    const eventTypeClass = schedule.event_type.toLowerCase();
+
+    // Build edit form
+    modalBody.innerHTML = `
+        <form id="editScheduleForm" class="schedule-edit-form">
+            <input type="hidden" id="editScheduleId" value="${scheduleId}">
+
+            <div class="form-group">
+                <label for="editScheduleName">Event Name *</label>
+                <input type="text"
+                       id="editScheduleName"
+                       name="event_name"
+                       value="${schedule.event_name}"
+                       required>
+            </div>
+
+            <div class="form-group">
+                <label for="editScheduleType">Event Type *</label>
+                <select id="editScheduleType" name="event_type" required>
+                    <option value="Match" ${schedule.event_type === 'Match' ? 'selected' : ''}>Match</option>
+                    <option value="Practice" ${schedule.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
+                    <option value="Misc" ${schedule.event_type === 'Misc' ? 'selected' : ''}>Misc</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Frequency (Cannot be changed)</label>
+                <input type="text" value="${buildFrequencyText(schedule)}" disabled>
+            </div>
+
+            <div class="form-group">
+                <label for="editScheduleVisibility">Visibility *</label>
+                <select id="editScheduleVisibility" name="visibility" required>
+                    <option value="team" ${schedule.visibility === 'team' ? 'selected' : ''}>Team Only</option>
+                    <option value="game_players" ${schedule.visibility === 'game_players' ? 'selected' : ''}>Game Players</option>
+                    <option value="game_community" ${schedule.visibility === 'game_community' ? 'selected' : ''}>Game Community</option>
+                    <option value="all_members" ${schedule.visibility === 'all_members' ? 'selected' : ''}>All Members</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="editScheduleLocation">Location *</label>
+                <select id="editScheduleLocation" name="location" required>
+                    <option value="">Select location</option>
+                    <option value="Campus Center" ${schedule.location === 'Campus Center' ? 'selected' : ''}>Campus Center</option>
+                    <option value="Campus Center Coffee House" ${schedule.location === 'Campus Center Coffee House' ? 'selected' : ''}>Campus Center Coffee House</option>
+                    <option value="Campus Center Event Room" ${schedule.location === 'Campus Center Event Room' ? 'selected' : ''}>Campus Center Event Room</option>
+                    <option value="D-108" ${schedule.location === 'D-108' ? 'selected' : ''}>D-108</option>
+                    <option value="Esports Lab (Commons Building 80)" ${schedule.location === 'Esports Lab (Commons Building 80)' ? 'selected' : ''}>Esports Lab (Commons Building 80)</option>
+                    <option value="Lakeside Lodge" ${schedule.location === 'Lakeside Lodge' ? 'selected' : ''}>Lakeside Lodge</option>
+                    <option value="Online" ${schedule.location === 'Online' ? 'selected' : ''}>Online</option>
+                    <option value="other" ${!['Campus Center', 'Campus Center Coffee House', 'Campus Center Event Room', 'D-108', 'Esports Lab (Commons Building 80)', 'Lakeside Lodge', 'Online'].includes(schedule.location) ? 'selected' : ''}>Other</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="editCustomLocationGroup" style="display: ${!['Campus Center', 'Campus Center Coffee House', 'Campus Center Event Room', 'D-108', 'Esports Lab (Commons Building 80)', 'Lakeside Lodge', 'Online'].includes(schedule.location) ? 'block' : 'none'};">
+                <label for="editCustomLocation">Custom Location</label>
+                <input type="text"
+                       id="editCustomLocation"
+                       name="custom_location"
+                       value="${!['Campus Center', 'Campus Center Coffee House', 'Campus Center Event Room', 'D-108', 'Esports Lab (Commons Building 80)', 'Lakeside Lodge', 'Online'].includes(schedule.location) ? schedule.location : ''}">
+            </div>
+
+            <div class="form-group">
+                <label for="editScheduleDescription">Description</label>
+                <textarea id="editScheduleDescription"
+                          name="description"
+                          rows="3">${schedule.description || ''}</textarea>
+            </div>
+
+            <div id="editScheduleMessage" class="form-message" style="display: none;"></div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="cancelEditSchedule(${scheduleId})">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-text">Save Changes</span>
+                    <i class="btn-spinner fas fa-spinner fa-spin" style="display: none;"></i>
+                </button>
+            </div>
+        </form>
+    `;
+
+    // Add location change handler
+    const locationSelect = document.getElementById('editScheduleLocation');
+    const customLocationGroup = document.getElementById('editCustomLocationGroup');
+    const customLocationInput = document.getElementById('editCustomLocation');
+
+    locationSelect.addEventListener('change', function() {
+        if (this.value === 'other') {
+            customLocationGroup.style.display = 'block';
+            customLocationInput.required = true;
+        } else {
+            customLocationGroup.style.display = 'none';
+            customLocationInput.required = false;
+            customLocationInput.value = '';
+        }
+    });
+
+    // Add form submit handler
+    document.getElementById('editScheduleForm').addEventListener('submit', handleEditScheduleSubmit);
+
+    // Hide edit/delete buttons while in edit mode
+    document.getElementById('editScheduleBtn').style.display = 'none';
+    document.getElementById('deleteScheduleBtn').style.display = 'none';
+}
+
+/**
+ * Cancel edit mode and return to view mode
+ */
+function cancelEditSchedule(scheduleId) {
+    openScheduleModal(scheduleId);
+}
+
+/**
+ * Handle edit schedule form submission
+ */
+async function handleEditScheduleSubmit(event) {
+    event.preventDefault();
+
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnSpinner = submitBtn.querySelector('.btn-spinner');
+    const messageDiv = document.getElementById('editScheduleMessage');
+
+    submitBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnSpinner.style.display = 'inline-block';
+    messageDiv.style.display = 'none';
+
+    const scheduleId = document.getElementById('editScheduleId').value;
+    const locationSelect = document.getElementById('editScheduleLocation');
+    const customLocationInput = document.getElementById('editCustomLocation');
+    const location = locationSelect.value === 'other' ? customLocationInput.value : locationSelect.value;
+
+    const formData = {
+        schedule_id: scheduleId,
+        event_name: document.getElementById('editScheduleName').value,
+        event_type: document.getElementById('editScheduleType').value,
+        visibility: document.getElementById('editScheduleVisibility').value,
+        location: location,
+        description: document.getElementById('editScheduleDescription').value
+    };
+
+    try {
+        const response = await fetch('/api/scheduled-events/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            messageDiv.textContent = data.message;
+            messageDiv.className = 'form-message success';
+            messageDiv.style.display = 'block';
+
+            setTimeout(() => {
+                closeScheduleModal();
+                // Reload the schedule tab
+                if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
+                    loadScheduleTab(currentSelectedTeamId);
+                }
+            }, 1500);
+        } else {
+            throw new Error(data.message);
+        }
+    } catch (error) {
+        messageDiv.textContent = error.message || 'Failed to update schedule';
+        messageDiv.className = 'form-message error';
+        messageDiv.style.display = 'block';
+
+        submitBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnSpinner.style.display = 'none';
+    }
+}
+
+/**
+ * Build dynamic frequency text based on schedule settings
+ */
+function buildFrequencyText(schedule) {
+    const startTime = schedule.start_time;
+    const endTime = schedule.end_time;
+    const timeRange = `${startTime} - ${endTime}`;
+
+    if (schedule.frequency === 'Once') {
+        // Once on {date} from {start time - end time}
+        return `${schedule.specific_date} from (${timeRange})`;
+    } else if (schedule.frequency === 'Monthly') {
+        // Once a month on {day of week} from {start-time - end-time} until {last generation day}
+        return `Monthly / ${schedule.day_of_week_name} / (${timeRange}) until ${schedule.schedule_end_date}`;
+    } else if (schedule.frequency === 'Biweekly') {
+        // Every other week on {day-of-week} from {start-time - end-time} until {last generation day}
+        return `Biweekly / ${schedule.day_of_week_name} / (${timeRange}) until ${schedule.schedule_end_date}`;
+    } else if (schedule.frequency === 'Weekly') {
+        // Every week on {day-of-week} from {start-time - end-time} until {last generation day}
+        return `Weekly / ${schedule.day_of_week_name} / (${timeRange}) until ${schedule.schedule_end_date}`;
+    } else {
+        // Fallback
+        return `${schedule.frequency} - ${schedule.day_of_week_name || 'N/A'}`;
+    }
+}
+
+/**
+ * Build dynamic visibility text with game/team context
+ */
+function buildVisibilityText(schedule) {
+    const gameName = schedule.game_title;
+
+    switch (schedule.visibility) {
+        case 'all_members':
+            return 'All Users';
+
+        case 'game_community':
+            return `${gameName} Community`;
+
+        case 'game_players':
+            return `${gameName} Players`;
+
+        case 'team':
+            // Use team name if available, otherwise show generic message
+            if (schedule.team_name) {
+                return `${schedule.team_name} for ${gameName}`;
+            }
+            return `Team-specific for ${gameName}`;
+
+        default:
+            return formatVisibility(schedule.visibility);
+    }
+}
+
 // Export functions to global scope
 window.openCreateScheduledEventModal = openCreateScheduledEventModal;
 window.closeCreateScheduledEventModal = closeCreateScheduledEventModal;
@@ -573,3 +792,5 @@ window.handleFrequencyChange = handleFrequencyChange;
 window.openScheduleModal = openScheduleModal;
 window.closeScheduleModal = closeScheduleModal;
 window.loadScheduleTab = loadScheduleTab;
+window.openEditScheduleMode = openEditScheduleMode;
+window.cancelEditSchedule = cancelEditSchedule;
