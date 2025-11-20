@@ -106,6 +106,45 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /**
+ * Handle frequency change - show/hide date vs day of week
+ */
+function handleFrequencyChange() {
+    const frequency = document.getElementById('scheduledFrequency').value;
+    const dayOfWeekGroup = document.getElementById('scheduledDayOfWeekGroup');
+    const specificDateGroup = document.getElementById('scheduledSpecificDateGroup');
+    const dayOfWeekSelect = document.getElementById('scheduledDayOfWeek');
+    const specificDateInput = document.getElementById('scheduledSpecificDate');
+    const endDateGroup = document.querySelector('label[for="scheduledEndDate"]').parentElement;
+    const endDateInput = document.getElementById('scheduledEndDate'); // ADD THIS
+
+    if (frequency === 'Once') {
+        // Hide day of week, show specific date
+        dayOfWeekGroup.style.display = 'none';
+        specificDateGroup.style.display = 'block';
+
+        // Update required attributes
+        dayOfWeekSelect.removeAttribute('required');
+        specificDateInput.setAttribute('required', 'required');
+
+        // Hide end date (not needed for one-time events)
+        endDateGroup.style.display = 'none';
+        endDateInput.removeAttribute('required'); // ADD THIS LINE
+    } else {
+        // Show day of week, hide specific date
+        dayOfWeekGroup.style.display = 'block';
+        specificDateGroup.style.display = 'none';
+
+        // Update required attributes
+        dayOfWeekSelect.setAttribute('required', 'required');
+        specificDateInput.removeAttribute('required');
+
+        // Show end date
+        endDateGroup.style.display = 'block';
+        endDateInput.setAttribute('required', 'required'); // ADD THIS LINE
+    }
+}
+
+/**
  * Handle form submission
  */
 async function handleScheduledEventSubmit(event) {
@@ -115,6 +154,9 @@ async function handleScheduledEventSubmit(event) {
     const btnText = submitBtn.querySelector('.btn-text');
     const btnSpinner = submitBtn.querySelector('.btn-spinner');
     const messageDiv = document.getElementById('scheduledEventMessage');
+    const locationSelect = document.getElementById('scheduledLocation');
+    const customLocationInput = document.getElementById('scheduledCustomLocation');
+    const location = locationSelect.value === 'other' ? customLocationInput.value : locationSelect.value;
 
     // Disable submit button
     submitBtn.disabled = true;
@@ -127,13 +169,25 @@ async function handleScheduledEventSubmit(event) {
         event_name: document.getElementById('scheduledEventName').value,
         event_type: document.getElementById('scheduledEventType').value,
         frequency: document.getElementById('scheduledFrequency').value,
-        day_of_week: parseInt(document.getElementById('scheduledDayOfWeek').value),
+        //day_of_week: parseInt(document.getElementById('scheduledDayOfWeek').value),
         start_time: document.getElementById('scheduledStartTime').value,
         end_time: document.getElementById('scheduledEndTime').value,
         visibility: document.getElementById('scheduledVisibility').value,
-        end_date: document.getElementById('scheduledEndDate').value,
-        description: document.getElementById('scheduledDescription').value
+        //end_date: document.getElementById('scheduledEndDate').value,
+        description: document.getElementById('scheduledDescription').value,
+        location: location
     };
+
+    // Add day_of_week OR specific_date depending on frequency
+    if (formData.frequency === 'Once') {
+        formData.specific_date = document.getElementById('scheduledSpecificDate').value;
+        // Don't send day_of_week at all
+        formData.end_date = formData.specific_date; // Same as event date
+    } else {
+        formData.day_of_week = document.getElementById('scheduledDayOfWeek').value;
+        // Don't send specific_date at all
+        formData.end_date = document.getElementById('scheduledEndDate').value;
+    }
 
     try {
         const response = await fetch('/api/scheduled-events/create', {
@@ -172,7 +226,28 @@ async function handleScheduledEventSubmit(event) {
     }
 }
 
+// Handle location dropdown change
+document.addEventListener('DOMContentLoaded', function() {
+    const locationSelect = document.getElementById('scheduledLocation');
+    const customLocationGroup = document.getElementById('scheduledCustomLocationGroup');
+    const customLocationInput = document.getElementById('scheduledCustomLocation');
+
+    if (locationSelect) {
+        locationSelect.addEventListener('change', function() {
+            if (this.value === 'other') {
+                customLocationGroup.style.display = 'block';
+                customLocationInput.required = true;
+            } else {
+                customLocationGroup.style.display = 'none';
+                customLocationInput.required = false;
+                customLocationInput.value = '';
+            }
+        });
+    }
+});
+
 // Export functions to global scope
 window.openCreateScheduledEventModal = openCreateScheduledEventModal;
 window.closeCreateScheduledEventModal = closeCreateScheduledEventModal;
 window.initScheduleButton = initScheduleButton;
+window.handleFrequencyChange = handleFrequencyChange;

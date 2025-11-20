@@ -176,7 +176,11 @@
                             <div class="legend-color event"></div>
                             <span class="legend-label">Event</span>
                         </div>
-                        <!-- ADD THIS NEW LEGEND ITEM -->
+                        <!-- ADD THIS -->
+                        <div class="legend-item">
+                            <div class="legend-color misc"></div>
+                            <span class="legend-label">Misc</span>
+                        </div>
                         <div class="legend-item">
                             <div class="legend-color scheduled-indicator"></div>
                             <span class="legend-label">Recurring/Scheduled</span>
@@ -780,6 +784,7 @@
                             <option value="match">Match</option>
                             <option value="practice">Practice</option>
                             <option value="event">Event</option>
+                            <option value="misc">Misc</option>
                         </select>
                     </div>
 
@@ -868,16 +873,17 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="eventType">Event Type</label>
-                                <select id="eventType" name="eventType" required>
+                                <select id="eventType" name="eventType" required onchange="handleEventTypeChange()">
                                     <option value="">Select type</option>
-                                    <option>Event</option>
-                                    <option>Match</option>
-                                    <option>Practice</option>
-                                    <option>Tournament</option>
+                                    <option value="Event">Event</option>
+                                    <option value="Match">Match</option>
+                                    <option value="Practice">Practice</option>
+                                    <option value="Tournament">Tournament</option>
+                                    <option value="Misc">Misc</option>
                                 </select>
                             </div>
 
-                            <div class="form-group">
+                            <div class="form-group" id="gameFieldGroup">
                                 <label for="game">Game (Optional)</label>
                                 <select id="game" name="game">
                                     <option value="">Select game</option>
@@ -1063,7 +1069,7 @@
                         </div>
 
                         <!-- Next Scheduled Event Container (spans 2 columns) -->
-                        <div id="nextScheduledEventContainer" style="grid-column: span 2;">
+                        <div id="nextScheduledEventContainer">
                             <!-- Next scheduled event will be dynamically loaded here -->
                         </div>
                     </div>
@@ -1230,13 +1236,15 @@
                                 <option value="">Select type</option>
                                 <option value="Match">Match</option>
                                 <option value="Practice">Practice</option>
+                                <option value="Misc">Misc</option>
                             </select>
                         </div>
 
                         <div class="form-group">
                             <label for="scheduledFrequency">Frequency *</label>
-                            <select id="scheduledFrequency" name="frequency" required>
+                            <select id="scheduledFrequency" name="frequency" required onchange="handleFrequencyChange()">
                                 <option value="">Select frequency</option>
+                                <option value="Once">Once</option>
                                 <option value="Weekly">Weekly</option>
                                 <option value="Biweekly">Biweekly</option>
                                 <option value="Monthly">Monthly</option>
@@ -1245,8 +1253,32 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="scheduledLocation">Location *</label>
+                        <select id="scheduledLocation" name="location" required>
+                            <option value="">Select location</option>
+                            <option value="Campus Center">Campus Center</option>
+                            <option value="Campus Center Coffee House">Campus Center Coffee House</option>
+                            <option value="Campus Center Event Room">Campus Center Event Room</option>
+                            <option value="D-108">D-108</option>
+                            <option value="Esports Lab (Commons Building 80)">Esports Lab (Commons Building 80)</option>
+                            <option value="Lakeside Lodge">Lakeside Lodge</option>
+                            <option value="Online">Online</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="scheduledCustomLocationGroup" style="display: none;">
+                        <label for="scheduledCustomLocation">Custom Location</label>
+                        <input type="text"
+                               id="scheduledCustomLocation"
+                               name="custom_location"
+                               placeholder="Enter custom location">
+                    </div>
+
+                    <!-- Day of Week - Hidden when "Once" is selected -->
+                    <div class="form-group" id="scheduledDayOfWeekGroup">
                         <label for="scheduledDayOfWeek">Day of Week *</label>
-                        <select id="scheduledDayOfWeek" name="day_of_week" required>
+                        <select id="scheduledDayOfWeek" name="day_of_week">
                             <option value="">Select day</option>
                             <option value="0">Sunday</option>
                             <option value="1">Monday</option>
@@ -1256,6 +1288,14 @@
                             <option value="5">Friday</option>
                             <option value="6">Saturday</option>
                         </select>
+                    </div>
+
+                    <!-- Specific Date - Shown only when "Once" is selected -->
+                    <div class="form-group" id="scheduledSpecificDateGroup" style="display: none;">
+                        <label for="scheduledSpecificDate">Event Date *</label>
+                        <input type="date"
+                               id="scheduledSpecificDate"
+                               name="specific_date">
                     </div>
 
                     <div class="form-row">

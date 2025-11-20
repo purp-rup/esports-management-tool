@@ -11,4 +11,8 @@ Needs doing:
             Remember Me button on login
             Forgot password button on login
 
+            Game Schedules:
+            Schedule tab
+            Delete all scheduled events associated with a schedule.
+
 

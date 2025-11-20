@@ -24,21 +24,34 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
     def create_scheduled_event():
         """
         Create a new scheduled event that generates recurring events
-        Only GMs can create scheduled events
         """
         try:
             data = request.get_json()
             user_id = session['id']
 
             # Validate required fields
-            required_fields = ['team_id', 'event_name', 'event_type', 'day_of_week',
-                             'start_time', 'end_time', 'frequency', 'visibility', 'end_date']
+            required_fields = ['team_id', 'event_name', 'event_type',
+                               'start_time', 'end_time', 'frequency', 'visibility', 'end_date']
 
             for field in required_fields:
                 if field not in data:
                     return jsonify({
                         'success': False,
                         'message': f'Missing required field: {field}'
+                    }), 400
+
+            # Additional validation based on frequency
+            if data['frequency'] == 'Once':
+                if 'specific_date' not in data or not data['specific_date']:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Specific date is required for one-time events'
+                    }), 400
+            else:
+                if 'day_of_week' not in data or data['day_of_week'] is None:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Day of week is required for recurring events'
                     }), 400
 
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -73,21 +86,23 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                 # Insert scheduled event
                 cursor.execute("""
                     INSERT INTO scheduled_events 
-                    (team_id, game_id, event_name, event_type, day_of_week, 
+                    (team_id, game_id, event_name, event_type, day_of_week, specific_date,
                      start_time, end_time, frequency, visibility, description, 
-                     schedule_end_date, created_by)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     location, schedule_end_date, created_by)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     data['team_id'],
                     game_id,
                     data['event_name'],
                     data['event_type'],
-                    data['day_of_week'],
+                    data.get('day_of_week'),  # NULL for "Once"
+                    data.get('specific_date'),  # NULL for recurring
                     data['start_time'],
                     data['end_time'],
                     data['frequency'],
                     data['visibility'],
                     data.get('description', ''),
+                    data.get('location', 'TBD'),
                     data['end_date'],
                     user_id
                 ))
@@ -108,13 +123,14 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                 cursor.close()
 
         except Exception as e:
-            print(f"Error creating scheduled event: {str(e)}")
+            print(f"❌ Error creating scheduled event: {str(e)}")
+            print(f"   Error type: {type(e).__name__}")
             import traceback
-            traceback.print_exc()
+            traceback.print_exc()  # Print full stack trace
             mysql.connection.rollback()
             return jsonify({
                 'success': False,
-                'message': 'Failed to create scheduled event'
+                'message': f'Failed to create scheduled event: {str(e)}'
             }), 500
 
     # ============================================
@@ -152,13 +168,15 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                         'schedule_id': schedule['schedule_id'],
                         'event_name': schedule['event_name'],
                         'event_type': schedule['event_type'],
-                        'day_of_week': schedule['day_of_week'],
-                        'day_of_week_name': calendar.day_name[schedule['day_of_week']],
+                        'frequency': schedule['frequency'],
+                        'day_of_week': schedule.get('day_of_week'),
+                        'day_of_week_name': calendar.day_name[schedule['day_of_week']] if schedule.get('day_of_week') is not None else None,
+                        'specific_date': schedule['specific_date'].strftime('%Y-%m-%d') if schedule.get('specific_date') else None,
                         'start_time': str(schedule['start_time']),
                         'end_time': str(schedule['end_time']),
-                        'frequency': schedule['frequency'],
                         'visibility': schedule['visibility'],
                         'description': schedule['description'],
+                        'location': schedule['location'],
                         'schedule_end_date': schedule['schedule_end_date'].strftime('%Y-%m-%d'),
                         'game_title': schedule['GameTitle'],
                         'created_by_name': f"{schedule['firstname']} {schedule['lastname']}",
@@ -295,7 +313,12 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
 # ============================================
 # HELPER FUNCTIONS
 # ============================================
-
+"""
+Method to build the frontend for scheduled events
+@param - cursor is access to the database
+@param - schedule_id is the id of the schedule whose events are generated
+@param - connection is the conenction between events within a schedule
+"""
 def generate_events_for_schedule(cursor, schedule_id, connection):
     """
     Generate events for a schedule up to 2 months in advance
@@ -309,10 +332,53 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
 
         schedule = cursor.fetchone()
 
+        # ADD THIS DEBUG
+        print(f"🔍 DEBUG generate_events_for_schedule:")
+        print(f"   schedule_id: {schedule_id}")
+        print(f"   schedule found: {schedule is not None}")
+        if schedule:
+            print(f"   frequency: {schedule['frequency']}")
+            print(f"   is_active: {schedule['is_active']}")
+            print(f"   specific_date: {schedule.get('specific_date')}")
+
         if not schedule or not schedule['is_active']:
+            print(f"   ❌ Schedule not found or not active")
             return 0
 
-        # Determine start date for generation
+        # Handle "Once" frequency differently
+        if schedule['frequency'] == 'Once':
+            print(f"   ✅ Processing 'Once' event")
+            event_date = schedule['specific_date']
+            print(f"   event_date: {event_date}")
+
+            # Check if event already exists
+            cursor.execute("""
+                SELECT EventID FROM generalevents
+                WHERE schedule_id = %s AND Date = %s
+            """, (schedule_id, event_date))
+
+            existing = cursor.fetchone()
+            print(f"   existing event: {existing}")
+
+            if not existing:
+                print(f"   📝 Creating event instance...")
+                create_scheduled_event_instance(cursor, schedule, event_date, connection)
+
+                # Update last_generated
+                cursor.execute("""
+                    UPDATE scheduled_events 
+                    SET last_generated = %s 
+                    WHERE schedule_id = %s
+                """, (event_date, schedule_id))
+
+                connection.commit()
+                print(f"   ✅ Event created successfully")
+                return 1
+            else:
+                print(f"   ⚠️  Event already exists")
+            return 0
+
+        # Original recurring logic for Weekly, Biweekly, Monthly
         today = datetime.now().date()
         last_generated = schedule['last_generated'] or today
         start_date = max(today, last_generated)
@@ -329,8 +395,6 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
 
         while current_date <= end_generation_date:
             # Check if this date matches the schedule's day of week
-            # Python weekday(): Monday=0, Sunday=6
-            # Our day_of_week: Sunday=0, Saturday=6
             python_weekday = current_date.weekday()
             our_day_of_week = (python_weekday + 1) % 7
 
@@ -350,7 +414,6 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
                     """, (schedule_id, current_date))
 
                     if not cursor.fetchone():
-                        # Create the event
                         create_scheduled_event_instance(
                             cursor,
                             schedule,
@@ -392,26 +455,67 @@ def check_frequency_match(current_date, start_date, frequency):
 
     return False
 
-
+"""
+Method to create one scheduled event within a set list of scheduled events based on date and duration selected.
+@param - cursor is the mysql selection
+@param - schedule is the schedule for which an event is being made
+@param - event_date is the date of the event if it has one
+@param - connection is the connection between different scheduled events.
+"""
 def create_scheduled_event_instance(cursor, schedule, event_date, connection):
     """
     Create a single event instance from a schedule
     """
     try:
+        # Get the game title for this schedule
+        cursor.execute("""
+            SELECT GameTitle FROM games WHERE GameID = %s
+        """, (schedule['game_id'],))
+
+        game_result = cursor.fetchone()
+        game_title = game_result['GameTitle'] if game_result else None
+
+        # Build event name with team suffix if it's team-specific
+        event_name = schedule['event_name']
+        if schedule['visibility'] == 'team' and schedule['team_id']:
+            # Get team name
+            cursor.execute("""
+                SELECT teamName FROM teams WHERE TeamID = %s
+            """, (schedule['team_id'],))
+
+            team_result = cursor.fetchone()
+            if team_result:
+                # Append team name to event name if not already there
+                team_name = team_result['teamName']
+                if team_name not in event_name:
+                    event_name = f"{event_name} ({team_name})"
+
+        # Build game display string with team name if team-specific
+        game_display = game_title
+        if game_title and schedule['visibility'] == 'team' and schedule['team_id']:
+            cursor.execute("""
+                SELECT teamName FROM teams WHERE TeamID = %s
+            """, (schedule['team_id'],))
+
+            team_result = cursor.fetchone()
+            if team_result:
+                game_display = f"{game_title} ({team_result['teamName']})"
+
         # Create the event
         cursor.execute("""
             INSERT INTO generalevents
             (EventName, Date, StartTime, EndTime, Description, EventType, 
-             Location, created_by, schedule_id, is_scheduled)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+             Game, Location, created_by, schedule_id, is_scheduled)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
         """, (
-            schedule['event_name'],
+            event_name,
             event_date,
             schedule['start_time'],
             schedule['end_time'],
             schedule['description'] or f"Recurring {schedule['event_type']}",
             schedule['event_type'],
-            'Team Location',  # Default location
+            game_display,  # Now includes game title and optionally team name
+            schedule['location'] or 'TBD',
             schedule['created_by'],
             schedule['schedule_id']
         ))
@@ -419,7 +523,7 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
         event_id = cursor.lastrowid
 
         # ============================================
-        # ADD ASSOCIATIONS - THIS IS THE FIX!
+        # ADD ASSOCIATIONS
         # ============================================
 
         # Get all members of the team
@@ -447,7 +551,7 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
                 """, (member['user_id'], schedule['game_id']))
 
         connection.commit()
-        print(f"✓ Created scheduled event for {event_date}: {schedule['event_name']}")
+        print(f"✅ Created scheduled event for {event_date}: {event_name}")
 
     except Exception as e:
         print(f"Error creating event instance: {str(e)}")

@@ -10,6 +10,8 @@
     --event-practice-hover: #16a34a;
     --event-event: #79bde9;        /* Stockton Blue */
     --event-event-hover: #5aabdd;
+    --event-misc: #eab308;         /* Yellow */
+    --event-misc-hover: #ca8a04;
 }
 
 /* Calendar Container */
@@ -301,6 +303,21 @@
     border-color: rgba(90, 171, 221, 1);
 }
 
+/* Misc - Yellow */
+.calendar-cell .event.misc,
+.calendar-cell .event[data-event-type="misc"] {
+    background: rgba(234, 179, 8, 0.8); /* Yellow with opacity */
+    color: black;
+    border-color: rgba(234, 179, 8, 1); /* Solid yellow border */
+}
+
+.calendar-cell .event.misc:hover,
+.calendar-cell .event[data-event-type="misc"]:hover {
+    background: rgba(202, 138, 4, 0.95); /* Darker yellow on hover */
+    transform: translateY(-1px);
+    border-color: rgba(202, 138, 4, 1);
+}
+
 /* Event Overflow Text */
 .event-overflow {
     font-size: 0.75rem;
@@ -355,6 +372,11 @@
 .legend-color.event {
     background: rgba(147, 197, 253, 0.7);
     border-color: rgba(147, 197, 253, 1);
+}
+
+.legend-color.misc {
+    background: rgba(250, 204, 21, 0.7);
+    border-color: rgba(250, 204, 21, 1);
 }
 
 /* Scheduled event legend indicator */
@@ -441,6 +463,11 @@
 .today-event-type.event {
     background: rgba(147, 197, 253, 0.2);
     color: rgba(147, 197, 253, 1);
+}
+
+.today-event-type.misc {
+    background: rgba(250, 204, 21, 0.2);
+    color: rgba(250, 204, 21, 1);
 }
 
 .today-button {

@@ -664,22 +664,37 @@ def get_next_scheduled_event(team_id):
 
         game_id = team['gameID']
 
-        # Get the next scheduled event for this game
+        # Get current date and time for proper filtering
+        from datetime import datetime
+        now = datetime.now()
+        current_date = now.date()
+        current_time = now.time()
+
+        # Get the next scheduled event for this team
+        # Logic:
+        # 1. If visibility = 'team', ONLY show if team_id matches
+        # 2. If visibility = 'game_players', 'game_community', or 'all_members', show for ALL teams in that game
         cursor.execute("""
             SELECT 
                 ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
-                ge.EventType, ge.schedule_id
+                ge.EventType, ge.schedule_id, se.visibility, se.team_id as schedule_team_id
             FROM generalevents ge
+            INNER JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
             WHERE ge.is_scheduled = TRUE
-            AND ge.Date >= CURDATE()
-            AND EXISTS (
-                SELECT 1 FROM scheduled_events se 
-                WHERE se.schedule_id = ge.schedule_id 
-                AND se.game_id = %s
+            AND se.game_id = %s
+            AND (
+                ge.Date > %s
+                OR (ge.Date = %s AND ge.StartTime > %s)
+            )
+            AND (
+                -- Team-specific events: only show if it's THIS team
+                (se.visibility = 'team' AND se.team_id = %s)
+                -- Broad visibility: show for ALL teams in this game
+                OR se.visibility IN ('game_players', 'game_community', 'all_members')
             )
             ORDER BY ge.Date ASC, ge.StartTime ASC
             LIMIT 1
-        """, (game_id,))
+        """, (game_id, current_date, current_date, current_time, team_id))
 
         event = cursor.fetchone()
         cursor.close()

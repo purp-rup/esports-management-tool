@@ -105,27 +105,27 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             # Date filter
             if event_filter == 'upcoming':
                 end_date = current_date + timedelta(days=7)
-                conditions.append("Date >= %s AND Date <= %s")
+                conditions.append("ge.Date >= %s AND ge.Date <= %s")
                 params.extend([current_date, end_date])
             elif event_filter == 'upcoming14':
                 end_date = current_date + timedelta(days=14)
-                conditions.append("Date >= %s AND Date <= %s")
+                conditions.append("ge.Date >= %s AND ge.Date <= %s")
                 params.extend([current_date, end_date])
             elif event_filter == 'past30':
                 start_date = current_date - timedelta(days=30)
-                conditions.append("Date >= %s AND Date < %s")
+                conditions.append("ge.Date >= %s AND ge.Date < %s")
                 params.extend([start_date, current_date])
             elif event_filter == 'created_by_me':
                 # Only allow this filter for admins and GMs
                 if not (is_admin or is_gm):
                     return jsonify({'success': False, 'message': 'Unauthorized filter'}), 403
-                conditions.append("created_by = %s")
+                conditions.append("ge.created_by = %s")
                 params.append(user_id)
             elif event_filter == 'type' and event_type_filter:
-                conditions.append("LOWER(EventType) = %s")
+                conditions.append("LOWER(ge.EventType) = %s")
                 params.append(event_type_filter)
             elif event_filter == 'game' and game_filter:
-                conditions.append("Game = %s")
+                conditions.append("ge.Game = %s")
                 params.append(game_filter)
 
             # Build WHERE clause
@@ -133,6 +133,28 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
 
             # Determine sort order (upcoming filters should sort ascending, others descending)
             is_upcoming_filter = event_filter in ['upcoming', 'upcoming14']
+
+            # Add visibility filtering - UPDATED TO INCLUDE GM CREATOR ACCESS
+            visibility_clause = """
+                (
+                    ge.schedule_id IS NULL
+                    OR se.created_by = %s
+                    OR se.visibility = 'all_members'
+                    OR (se.visibility = 'team' AND EXISTS (
+                        SELECT 1 FROM team_members tm 
+                        WHERE tm.team_id = se.team_id AND tm.user_id = %s
+                    ))
+                    OR (se.visibility = 'game_players' AND EXISTS (
+                        SELECT 1 FROM team_members tm
+                        JOIN teams t ON tm.team_id = t.TeamID
+                        WHERE t.gameID = se.game_id AND tm.user_id = %s
+                    ))
+                    OR (se.visibility = 'game_community' AND EXISTS (
+                        SELECT 1 FROM in_communities ic
+                        WHERE ic.game_id = se.game_id AND ic.user_id = %s
+                    ))
+                )
+            """
 
             # Handle "subscribed" filter - applies to all users
             if event_filter == 'subscribed':
@@ -142,58 +164,70 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                         ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
                         ge.is_scheduled, ge.schedule_id
                     FROM generalevents ge
+                    LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
                     INNER JOIN event_subscriptions es ON ge.EventID = es.event_id
                     WHERE {where_clause} AND es.user_id = %s
+                    AND {visibility_clause}
                     ORDER BY ge.Date DESC, ge.StartTime DESC
                 """
                 params.append(user_id)
+                params.extend([user_id, user_id, user_id, user_id])  # For visibility clause
                 cursor.execute(query, tuple(params))
 
             # Build query based on user role
             elif is_admin:
                 query = f"""
                     SELECT 
-                        EventID, EventName, Date, StartTime, EndTime,
-                        EventType, Game, Location, Description, created_by,
-                        is_scheduled, schedule_id
-                    FROM generalevents
+                        ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
+                        ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
+                        ge.is_scheduled, ge.schedule_id
+                    FROM generalevents ge
+                    LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
                     WHERE {where_clause}
-                    ORDER BY Date {'ASC' if is_upcoming_filter else 'DESC'}, 
-                             StartTime {'ASC' if is_upcoming_filter else 'DESC'}
+                    AND {visibility_clause}
+                    ORDER BY ge.Date {'ASC' if is_upcoming_filter else 'DESC'}, 
+                             ge.StartTime {'ASC' if is_upcoming_filter else 'DESC'}
                 """
+                params.extend([user_id, user_id, user_id, user_id])  # For visibility clause
                 cursor.execute(query, tuple(params))
 
             elif is_gm:
                 # For GMs, if not using "created_by_me" filter, still only show their events
                 if event_filter != 'created_by_me':
-                    conditions.append("created_by = %s")
+                    conditions.append("ge.created_by = %s")
                     params.append(user_id)
-                    where_clause = " AND ".join(conditions) if conditions else "created_by = %s"
+                    where_clause = " AND ".join(conditions) if conditions else "ge.created_by = %s"
 
                 query = f"""
                     SELECT 
-                        EventID, EventName, Date, StartTime, EndTime,
-                        EventType, Game, Location, Description, created_by,
-                        is_scheduled, schedule_id
-                    FROM generalevents
+                        ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
+                        ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
+                        ge.is_scheduled, ge.schedule_id
+                    FROM generalevents ge
+                    LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
                     WHERE {where_clause}
-                    ORDER BY Date {'ASC' if is_upcoming_filter else 'DESC'}, 
-                             StartTime {'ASC' if is_upcoming_filter else 'DESC'}
+                    AND {visibility_clause}
+                    ORDER BY ge.Date {'ASC' if is_upcoming_filter else 'DESC'}, 
+                             ge.StartTime {'ASC' if is_upcoming_filter else 'DESC'}
                 """
+                params.extend([user_id, user_id, user_id, user_id])  # For visibility clause
                 cursor.execute(query, tuple(params))
 
             else:
-                # Regular users see ALL events
+                # Regular users see ALL events (with visibility filtering)
                 query = f"""
                     SELECT 
-                        EventID, EventName, Date, StartTime, EndTime,
-                        EventType, Game, Location, Description, created_by,
-                        is_scheduled, schedule_id
-                    FROM generalevents
+                        ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
+                        ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
+                        ge.is_scheduled, ge.schedule_id
+                    FROM generalevents ge
+                    LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
                     WHERE {where_clause}
-                    ORDER BY Date {'ASC' if is_upcoming_filter else 'DESC'}, 
-                             StartTime {'ASC' if is_upcoming_filter else 'DESC'}
+                    AND {visibility_clause}
+                    ORDER BY ge.Date {'ASC' if is_upcoming_filter else 'DESC'}, 
+                             ge.StartTime {'ASC' if is_upcoming_filter else 'DESC'}
                 """
+                params.extend([user_id, user_id, user_id, user_id])  # For visibility clause
                 cursor.execute(query, tuple(params))
 
             events = cursor.fetchall()
@@ -219,8 +253,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     'description': event['Description'] or 'No description provided',
                     'is_ongoing': is_ongoing,
                     'created_by': event['created_by'],
-                    'is_scheduled': event.get('is_scheduled', False),  # ADD THIS
-                    'schedule_id': event.get('schedule_id')  # ADD THIS
+                    'is_scheduled': event.get('is_scheduled', False),
+                    'schedule_id': event.get('schedule_id')
                 }
                 events_list.append(event_data)
 

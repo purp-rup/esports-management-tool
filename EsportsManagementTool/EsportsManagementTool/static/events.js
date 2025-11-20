@@ -839,34 +839,6 @@ async function loadGamesForFilter() {
     await populateGameDropdown('gameFilter', 'gameFilterLoadingIndicator');
 }
 
-// ============================================
-// EXPORT FUNCTIONS TO GLOBAL SCOPE
-// ============================================
-
-// Make functions available globally for onclick handlers
-window.initializeEventsModule = initializeEventsModule;
-window.loadEvents = loadEvents;
-window.filterEvents = filterEvents;
-window.openEventModal = openEventModal;
-window.closeEventModal = closeEventModal;
-window.openDayModal = openDayModal;
-window.closeDayModal = closeDayModal;
-window.openCreateEventModal = openCreateEventModal;
-window.closeCreateEventModal = closeCreateEventModal;
-window.toggleEditMode = toggleEditMode;
-window.cancelEdit = cancelEdit;
-window.submitEventEdit = submitEventEdit;
-window.deleteEvent = deleteEvent;
-window.openDeleteConfirmModal = openDeleteConfirmModal;
-window.closeDeleteConfirmModal = closeDeleteConfirmModal;
-window.confirmDeleteEvent = confirmDeleteEvent;
-window.toggleEventSubscription = toggleEventSubscription;
-window.loadGamesForDropdown = loadGamesForDropdown;
-window.toggleAllDayEvent = toggleAllDayEvent;
-window.filterEventsByGame = filterEventsByGame;
-window.loadGamesForFilter = loadGamesForFilter;
-window.clearGamesCache = clearGamesCache;
-
     const isGM = window.userPermissions ? window.userPermissions.is_gm : false;
     const currentUserId = window.currentUserId || 0;
     const editBtn = document.getElementById("editEventBtn");
@@ -1076,6 +1048,25 @@ function openCreateEventModal() {
 }
 
 /**
+ * Handle event type change - hide game field for Misc events
+ */
+function handleEventTypeChange() {
+    const eventType = document.getElementById('eventType').value;
+    const gameFieldGroup = document.getElementById('gameFieldGroup');
+    const gameSelect = document.getElementById('game');
+
+    if (eventType === 'Misc') {
+        // Hide game field for Misc events
+        gameFieldGroup.style.display = 'none';
+        gameSelect.removeAttribute('required');
+        gameSelect.value = ''; // Clear selection
+    } else {
+        // Show game field for other event types
+        gameFieldGroup.style.display = 'block';
+    }
+}
+
+/**
  * Close create event modal
  */
 function closeCreateEventModal() {
@@ -1257,6 +1248,7 @@ function createEditForm() {
                         <option value="Match" ${event.event_type === 'Match' ? 'selected' : ''}>Match</option>
                         <option value="Practice" ${event.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
                         <option value="Tournament" ${event.event_type === 'Tournament' ? 'selected' : ''}>Tournament</option>
+                        <option value="Misc" ${event.event_type === 'Misc' ? 'selected' : ''}>Misc</option>
                     </select>
                 </div>
 
@@ -1332,6 +1324,7 @@ function createEditForm() {
 
     loadGamesForEditDropdown();
     setupEditLocationDropdown(event.location);
+    handleEditEventTypeChange();
 }
 
 /**
@@ -1374,6 +1367,22 @@ function setupEditLocationDropdown(currentLocation) {
 }
 
 /**
+ * Handle event type change in edit form
+ */
+function handleEditEventTypeChange() {
+    const eventType = document.getElementById('editEventType').value;
+    const gameGroup = document.querySelector('#editGame').closest('.form-group');
+    const gameSelect = document.getElementById('editGame');
+
+    if (eventType === 'Misc') {
+        gameGroup.style.display = 'none';
+        gameSelect.value = '';
+    } else {
+        gameGroup.style.display = 'block';
+    }
+}
+
+/**
  * Cancel edit
  */
 function cancelEdit() {
@@ -1388,3 +1397,31 @@ function cancelEdit() {
 
     const isAdmin = window.userPermissions ? window.userPermissions.is_admin : false;
 }
+
+// ============================================
+// EXPORT FUNCTIONS TO GLOBAL SCOPE
+// ============================================
+window.initializeEventsModule = initializeEventsModule;
+window.loadEvents = loadEvents;
+window.filterEvents = filterEvents;
+window.openEventModal = openEventModal;
+window.closeEventModal = closeEventModal;
+window.openDayModal = openDayModal;
+window.closeDayModal = closeDayModal;
+window.openCreateEventModal = openCreateEventModal;
+window.closeCreateEventModal = closeCreateEventModal;
+window.toggleEditMode = toggleEditMode;
+window.cancelEdit = cancelEdit;
+window.submitEventEdit = submitEventEdit;
+window.deleteEvent = deleteEvent;
+window.openDeleteConfirmModal = openDeleteConfirmModal;
+window.closeDeleteConfirmModal = closeDeleteConfirmModal;
+window.confirmDeleteEvent = confirmDeleteEvent;
+window.toggleEventSubscription = toggleEventSubscription;
+window.loadGamesForDropdown = loadGamesForDropdown;
+window.toggleAllDayEvent = toggleAllDayEvent;
+window.filterEventsByGame = filterEventsByGame;
+window.loadGamesForFilter = loadGamesForFilter;
+window.clearGamesCache = clearGamesCache;
+window.handleEventTypeChange = handleEventTypeChange;
+window.handleEditEventTypeChange = handleEditEventTypeChange;
