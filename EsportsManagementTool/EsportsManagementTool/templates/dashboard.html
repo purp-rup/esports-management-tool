@@ -1365,6 +1365,30 @@
         </div>
     </div>
 
+    <!-- Schedule Details Modal -->
+    <div id="scheduleDetailsModal" class="modal">
+        <div class="modal-content modal-content-large">
+            <div class="modal-header">
+                <h2 id="scheduleModalTitle">Schedule Details</h2>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button id="deleteScheduleBtn"
+                            class="btn btn-secondary"
+                            style="display: none;">
+                        <i class="fas fa-trash"></i> Delete Schedule
+                    </button>
+                    <button class="modal-close" onclick="closeScheduleModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="scheduleModalBody">
+                    <!-- Schedule details will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Admin Tab -->
     {% if user.is_admin %}
     <div id="admin" class="tab-content">

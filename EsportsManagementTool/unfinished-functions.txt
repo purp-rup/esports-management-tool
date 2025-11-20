@@ -12,7 +12,12 @@ Needs doing:
             Forgot password button on login
 
             Game Schedules:
-            Schedule tab
-            Delete all scheduled events associated with a schedule.
-
+            Edit all scheduled events
+            Community schedule only showing up under team where it was created.
+            Remove any schedule for "all users" from schedule tab.
+            Move delete button for schedules
+            Remove last-generated field.
+            Change wording for schedule end date
+            Remove created by field for anyone not an admin
+            Scrolling issues on schedule tab
 

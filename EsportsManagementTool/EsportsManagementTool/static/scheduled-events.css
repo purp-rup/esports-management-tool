@@ -573,6 +573,211 @@
 }
 
 /* ============================================
+   SCHEDULE TAB - Schedule Cards Grid
+   ============================================ */
+
+.schedule-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    padding: 0.5rem;
+}
+
+/* Schedule Card */
+.schedule-card {
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.schedule-card:hover {
+    border-color: var(--stockton-blue);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(121, 189, 233, 0.2);
+}
+
+/* Schedule Card Header */
+.schedule-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.schedule-card-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(121, 189, 233, 0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--stockton-blue);
+    flex-shrink: 0;
+    font-size: 1.125rem;
+}
+
+.schedule-card-title-section {
+    flex: 1;
+    min-width: 0;
+}
+
+.schedule-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.schedule-type-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.schedule-type-badge.match {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.schedule-type-badge.practice {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.schedule-type-badge.misc {
+    background: rgba(234, 179, 8, 0.1);
+    color: #eab308;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+/* Schedule Card Details */
+.schedule-card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.schedule-card-detail {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.schedule-card-detail i {
+    width: 16px;
+    color: var(--stockton-blue);
+    flex-shrink: 0;
+    font-size: 0.75rem;
+}
+
+.schedule-card-detail span {
+    color: var(--text-primary);
+}
+
+/* ============================================
+   SCHEDULE DETAILS MODAL
+   ============================================ */
+
+#scheduleDetailsModal .modal-content {
+    max-width: 800px;
+}
+
+.schedule-modal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.schedule-modal-section {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.schedule-modal-section.full-width {
+    grid-column: 1 / -1;
+}
+
+.schedule-modal-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(121, 189, 233, 0.1);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--stockton-blue);
+    flex-shrink: 0;
+    font-size: 1.25rem;
+}
+
+.schedule-modal-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.schedule-modal-content h3 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 0.5rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.schedule-modal-content p {
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin: 0;
+    word-wrap: break-word;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 1024px) {
+    .schedule-cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .schedule-modal-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .schedule-card {
+        padding: 0.875rem;
+    }
+
+    .schedule-card-title {
+        font-size: 0.9375rem;
+    }
+
+    .schedule-modal-section {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+}
+/* ============================================
    responsive layout
    ============================================ */
 

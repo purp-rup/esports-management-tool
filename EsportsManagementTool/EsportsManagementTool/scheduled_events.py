@@ -9,7 +9,37 @@ import MySQLdb.cursors
 from dateutil.relativedelta import relativedelta
 import calendar
 
+"""
+Formats schedule-related time to 12Hr format.
+"""
+def format_time_to_12hr(time_value):
+    """
+    Convert time object or timedelta to 12-hour format string
+    """
+    if not time_value:
+        return None
 
+    # Handle timedelta (from MySQL TIME type)
+    if isinstance(time_value, timedelta):
+        total_seconds = int(time_value.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+    else:
+        # Handle time object
+        hours = time_value.hour
+        minutes = time_value.minute
+
+    # Convert to 12-hour format
+    period = "AM" if hours < 12 else "PM"
+    display_hour = hours % 12
+    if display_hour == 0:
+        display_hour = 12
+
+    return f"{display_hour}:{minutes:02d} {period}"
+
+"""
+Method to create a database element for a newly created schedule.
+"""
 def register_scheduled_events_routes(app, mysql, login_required, roles_required, get_user_permissions):
     """
     Register all scheduled event routes
@@ -170,17 +200,20 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                         'event_type': schedule['event_type'],
                         'frequency': schedule['frequency'],
                         'day_of_week': schedule.get('day_of_week'),
-                        'day_of_week_name': calendar.day_name[schedule['day_of_week']] if schedule.get('day_of_week') is not None else None,
-                        'specific_date': schedule['specific_date'].strftime('%Y-%m-%d') if schedule.get('specific_date') else None,
-                        'start_time': str(schedule['start_time']),
-                        'end_time': str(schedule['end_time']),
+                        'day_of_week_name': calendar.day_name[schedule['day_of_week']] if schedule.get(
+                            'day_of_week') is not None else None,
+                        'specific_date': schedule['specific_date'].strftime('%Y-%m-%d') if schedule.get(
+                            'specific_date') else None,
+                        'start_time': format_time_to_12hr(schedule['start_time']),  # ← ADD THIS
+                        'end_time': format_time_to_12hr(schedule['end_time']),  # ← ADD THIS
                         'visibility': schedule['visibility'],
                         'description': schedule['description'],
                         'location': schedule['location'],
                         'schedule_end_date': schedule['schedule_end_date'].strftime('%Y-%m-%d'),
                         'game_title': schedule['GameTitle'],
                         'created_by_name': f"{schedule['firstname']} {schedule['lastname']}",
-                        'last_generated': schedule['last_generated'].strftime('%Y-%m-%d') if schedule['last_generated'] else None
+                        'last_generated': schedule['last_generated'].strftime('%Y-%m-%d') if schedule[
+                            'last_generated'] else None
                     })
 
                 return jsonify({
@@ -206,8 +239,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
     @roles_required('gm')
     def delete_scheduled_event(schedule_id):
         """
-        Delete a scheduled event (marks as inactive)
-        Does NOT delete already-generated events
+        Delete a scheduled event and all associated generated events
         """
         try:
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -236,10 +268,17 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                         'message': 'You do not have permission to delete this schedule'
                     }), 403
 
-                # Mark as inactive
+                # Step 1: Delete all associated events from generalevents
                 cursor.execute("""
-                    UPDATE scheduled_events 
-                    SET is_active = FALSE 
+                    DELETE FROM generalevents 
+                    WHERE schedule_id = %s
+                """, (schedule_id,))
+
+                deleted_events_count = cursor.rowcount
+
+                # Step 2: Delete the schedule from scheduled_events
+                cursor.execute("""
+                    DELETE FROM scheduled_events 
                     WHERE schedule_id = %s
                 """, (schedule_id,))
 
@@ -247,7 +286,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
 
                 return jsonify({
                     'success': True,
-                    'message': 'Scheduled event deleted successfully'
+                    'message': f'Schedule deleted successfully. {deleted_events_count} associated event(s) removed.'
                 }), 200
 
             finally:
@@ -262,7 +301,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
             }), 500
 
     # ============================================
-    # CRON JOB - GENERATE UPCOMING EVENTS
+    # GENERATE UPCOMING EVENTS
     # ============================================
     @app.route('/api/scheduled-events/generate-all', methods=['POST'])
     def generate_all_scheduled_events():

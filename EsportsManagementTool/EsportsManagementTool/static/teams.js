@@ -529,6 +529,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             document.querySelectorAll('.team-tab-panel').forEach(panel => panel.classList.remove('active'));
             document.getElementById(`${targetTab}TabContent`)?.classList.add('active');
+
+            // Load schedule data when Schedule tab is clicked (handled here, but rest of schedule tab code is in scheduled-events.js).
+            if (targetTab === 'schedule' && currentSelectedTeamId) {
+                loadScheduleTab(currentSelectedTeamId);
+            }
         });
     });
 
