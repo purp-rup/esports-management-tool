@@ -1,11 +1,54 @@
 /* ============================================
-   SCHEDULED EVENTS STYLING
+   scheduled events styling (and team stats)
    ============================================ */
+.team-stats-summary {
+    display: grid;
+    grid-template-columns: 140px 140px auto;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    width: 100%;
+    max-width: none;
+    padding: 0 1rem;
+}
 
-/* Next Scheduled Event in Header */
-#nextScheduledEventContainer {
-    grid-column: 1 / -1;
-    margin-top: 1.5rem;
+.stat-box {
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 90px;
+    max-width: 140px;
+}
+
+.stat-box i {
+    font-size: 1.25rem;
+    color: var(--stockton-blue);
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* next scheduled event in header */
+#nextscheduledeventcontainer {
+    grid-column: auto; /* takes 1 column, not spanning */
+    min-height: 90px; /* match stat boxes */
+    width: 100%
 }
 
 .next-scheduled-event h4 {
@@ -31,7 +74,7 @@
 .scheduled-event-card:hover {
     background: var(--hover-bg);
     border-color: var(--stockton-blue);
-    transform: translateX(4px);
+    transform: translatex(4px);
 }
 
 .scheduled-event-time {
@@ -84,7 +127,7 @@
     opacity: 0.5;
 }
 
-/* Schedule Tab Content */
+/* schedule tab content */
 .schedule-container {
     display: flex;
     flex-direction: column;
@@ -107,7 +150,7 @@
     gap: 0.5rem;
 }
 
-/* Scheduled Events List */
+/* scheduled events list */
 .scheduled-events-list {
     display: flex;
     flex-direction: column;
@@ -191,6 +234,47 @@
     gap: 0.5rem;
 }
 
+/* Icon action buttons (edit and delete) in modal header */
+.btn-icon-action {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    border: none;
+    outline: none;
+}
+
+.btn-icon-edit {
+    background: rgba(121, 189, 233, 0.1);
+    color: var(--stockton-blue);
+}
+
+.btn-icon-edit:hover {
+    background: var(--stockton-blue);
+    color: white;
+    transform: scale(1.05);
+}
+
+.btn-icon-delete {
+    background: rgba(255, 82, 82, 0.1);
+    color: #ff5252;
+}
+
+.btn-icon-delete:hover {
+    background: #ff5252;
+    color: white;
+    transform: scale(1.05);
+}
+
+.btn-icon-action:active {
+    transform: scale(0.95);
+}
+
 .btn-icon-secondary {
     background: transparent;
     border: 2px solid var(--stockton-blue);
@@ -211,6 +295,65 @@
     background: var(--stockton-blue);
     color: var(--stockton-black);
     transform: scale(1.05);
+}
+
+/* Schedule edit form */
+.schedule-edit-form {
+    padding: 1rem;
+}
+
+.schedule-edit-form .form-group {
+    margin-bottom: 1.25rem;
+}
+
+.schedule-edit-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.schedule-edit-form input[type="text"],
+.schedule-edit-form select,
+.schedule-edit-form textarea {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    transition: all 0.2s;
+}
+
+.schedule-edit-form input[type="text"]:disabled,
+.schedule-edit-form select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.schedule-edit-form input:focus,
+.schedule-edit-form select:focus,
+.schedule-edit-form textarea:focus {
+    outline: none;
+    border-color: var(--stockton-blue);
+    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+}
+
+.schedule-edit-form textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.schedule-edit-form .form-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.schedule-edit-form .form-actions button {
+    flex: 1;
 }
 
 .scheduled-event-details {
@@ -240,7 +383,7 @@
     flex: 1;
 }
 
-/* Upcoming Events Grid */
+/* upcoming events grid */
 .upcoming-events-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -260,12 +403,12 @@
 
 .upcoming-event-card:hover {
     border-color: var(--stockton-blue);
-    transform: translateY(-2px);
+    transform: translatey(-2px);
     box-shadow: 0 4px 12px rgba(121, 189, 233, 0.15);
 }
 
 .upcoming-event-date {
-    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    background: linear-gradient(135deg, var(--stockton-blue), #1976d2);
     border-radius: 8px;
     padding: 0.75rem;
     display: flex;
@@ -312,46 +455,43 @@
     gap: 0.25rem;
 }
 
-/* Empty States */
-.schedule-empty {
-    text-align: center;
+/* Empty and loading states */
+.schedule-empty,
+.schedule-loading,
+.schedule-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     padding: 3rem 2rem;
+    text-align: center;
     color: var(--text-secondary);
+    min-height: 300px;
 }
 
-.schedule-empty i {
+.schedule-empty i,
+.schedule-loading i,
+.schedule-error i {
     font-size: 3rem;
     margin-bottom: 1rem;
-    opacity: 0.3;
+    color: var(--text-muted);
 }
 
-.schedule-empty p {
-    margin: 0.5rem 0;
+.schedule-empty h3 {
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.schedule-empty p,
+.schedule-empty-hint {
+    color: var(--text-secondary);
+    margin: 0.25rem 0;
 }
 
 .schedule-empty-hint {
     font-size: 0.875rem;
-    color: var(--text-secondary);
-    opacity: 0.7;
-}
-
-/* Loading/Error States */
-.schedule-loading,
-.schedule-error {
-    text-align: center;
-    padding: 3rem 2rem;
-    color: var(--text-secondary);
-}
-
-.schedule-loading i,
-.schedule-error i {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-    color: var(--stockton-blue);
-}
-
-.schedule-loading i {
-    animation: spin 1s linear infinite;
+    font-style: italic;
 }
 
 @keyframes spin {
@@ -359,7 +499,7 @@
     to { transform: rotate(360deg); }
 }
 
-/* Create Scheduled Event Button */
+/* create scheduled event button */
 .btn-create-schedule {
     background: transparent;
     border: 2px solid var(--stockton-blue);
@@ -380,23 +520,446 @@
     color: var(--stockton-black);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-    .scheduled-event-header {
-        flex-direction: column;
-        gap: 1rem;
-    }
+/* scheduled event styling */
+.event.scheduled-event {
+    border: 2px solid white !important;
+    box-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
+}
 
-    .scheduled-event-actions {
-        width: 100%;
-        justify-content: flex-end;
-    }
+/* next scheduled event card */
+.next-scheduled-event-card {
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
 
-    .upcoming-events-grid {
+.next-scheduled-event-card:hover {
+    background: var(--hover-bg);
+    border-color: white;
+    transform: translatey(-2px);
+}
+
+.next-event-header {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.next-event-header i {
+    font-size: 0.75rem;
+    color: var(--stockton-blue);
+}
+
+.next-event-header h4 {
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.next-event-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.next-event-time {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+}
+
+.next-event-time i {
+    font-size: 0.6rem;
+}
+
+.next-event-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.next-event-date {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+}
+
+.next-event-date i {
+    font-size: 0.6rem;
+}
+
+.next-event-type {
+    display: inline-block;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    align-self: flex-start;
+}
+
+.next-event-type.tournament {
+    background: rgba(167, 139, 250, 0.2);
+    color: rgba(167, 139, 250, 1);
+}
+
+.next-event-type.match {
+    background: rgba(252, 165, 165, 0.2);
+    color: rgba(252, 165, 165, 1);
+}
+
+.next-event-type.practice {
+    background: rgba(134, 239, 172, 0.2);
+    color: rgba(134, 239, 172, 1);
+}
+
+.next-event-type.event {
+    background: rgba(147, 197, 253, 0.2);
+    color: rgba(147, 197, 253, 1);
+}
+
+.next-event-type.misc {
+    background: rgba(250, 204, 21, 0.2);
+    color: rgba(250, 204, 21, 1);
+}
+
+/* empty state for next scheduled event */
+.next-scheduled-event-empty {
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem;
+    text-align: center;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.next-scheduled-event-empty i {
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+    opacity: 0.5;
+}
+
+.next-scheduled-event-empty p {
+    margin: 0;
+    font-size: 0.7rem;
+}
+
+/* ============================================
+   SCHEDULE TAB - Schedule Cards Grid
+   ============================================ */
+.schedule-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    padding: 1.5rem;
+    padding-bottom: 2rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 0;
+    align-content: start;
+}
+
+/* Ensure smooth scrolling */
+.schedule-cards-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.schedule-cards-grid::-webkit-scrollbar-track {
+    background: var(--background-primary);
+    border-radius: 4px;
+}
+
+.schedule-cards-grid::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.schedule-cards-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--stockton-blue);
+}
+
+.schedule-card {
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    height: fit-content; /* Ensure card height is based on content */
+}
+
+.schedule-card:hover {
+    border-color: var(--stockton-blue);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+}
+
+/* Schedule card header */
+.schedule-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.schedule-card-icon {
+    font-size: 1.25rem;
+    color: var(--stockton-blue);
+    flex-shrink: 0;
+}
+
+.schedule-card-title-section {
+    flex: 1;
+    min-width: 0;
+}
+
+.schedule-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Badges */
+.schedule-type-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.schedule-type-badge.match {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.schedule-type-badge.practice {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.schedule-type-badge.misc {
+    background: rgba(234, 179, 8, 0.1);
+    color: #eab308;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+/* Schedule card details */
+.schedule-card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; /* Reduced gap */
+}
+
+.schedule-card-detail {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.schedule-card-detail i {
+    width: 16px;
+    font-size: 0.875rem;
+    color: var(--stockton-blue);
+    flex-shrink: 0;
+}
+
+.schedule-card-detail span {
+    color: var(--text-primary);
+}
+
+/* ============================================
+   SCHEDULE DETAILS MODAL
+   ============================================ */
+
+#scheduleDetailsModal .modal-content {
+    max-width: 600px;
+}
+
+/* Modal header with game icon next to title */
+.modal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.schedule-modal-title-game-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 3px solid black;
+    position: relative;
+    background: var(--dark-bg);
+    flex-shrink: 0;
+}
+
+.schedule-modal-title-game-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.schedule-modal-game-icon-fallback {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.25rem;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.schedule-modal-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.schedule-modal-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--dark-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+/* Event type icon colors */
+.schedule-modal-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+/* Match icon colors to event type badges */
+.schedule-modal-icon.match {
+    background: rgba(255, 82, 82, 0.1);
+    color: #ff5252;
+}
+
+.schedule-modal-icon.practice {
+    background: rgba(76, 175, 80, 0.1);
+    color: #4CAF50;
+}
+
+.schedule-modal-icon.misc {
+    background: rgba(234, 179, 8, 0.1);
+    color: #eab308;
+}
+
+.schedule-modal-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.schedule-modal-content h3 {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.schedule-modal-content p {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 1400px) {
+    .schedule-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 1024px) {
+    .schedule-cards-grid {
         grid-template-columns: 1fr;
     }
 
-    .schedule-section {
-        padding: 1rem;
+    .schedule-modal-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .schedule-card {
+        padding: 0.875rem;
+    }
+
+    .schedule-card-title {
+        font-size: 0.9375rem;
+    }
+
+    .schedule-modal-section {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    @media (max-width: 768px) {
+    .schedule-cards-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* medium screens (tablets) - keep 3 columns but reduce padding */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .team-stats-summary {
+        padding: 0 1rem;
+        max-width: 100%;
     }
 }

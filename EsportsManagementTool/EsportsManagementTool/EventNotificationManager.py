@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
+from EsportsManagementTool import app, get_current_time, localize_datetime, EST
 
 mysql = MySQL()
 mail = Mail()
@@ -148,7 +149,7 @@ def check_and_send_notifications():
     """
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        current_time = datetime.now()
+        current_time = get_current_time()
 
         # ============================
         # 1️⃣ Event Subscriptions
@@ -239,9 +240,11 @@ def check_and_send_notifications():
                 minutes = (total_seconds % 3600) // 60
                 seconds = total_seconds % 60
                 event_datetime = datetime.combine(event_date, datetime.min.time()).replace(hour=hours, minute=minutes, second=seconds)
+                event_datetime = localize_datetime(event_datetime)
                 time_obj = datetime.min.time().replace(hour=hours, minute=minutes, second=seconds)
             else:
                 event_datetime = datetime.combine(event_date, start_time)
+                event_datetime = localize_datetime(event_datetime)
                 time_obj = start_time
 
             # Use user's advance notice preferences
@@ -290,7 +293,7 @@ def check_and_send_notifications():
                     print(f"Sent notification to {user_email} for {sub['EventName']} ({event_type})")
 
         mysql.connection.commit()
-        print(f"Notification check completed at {datetime.now()}")
+        print(f"Notification check completed at {get_current_time()}")
 
     except Exception as e:
         import traceback

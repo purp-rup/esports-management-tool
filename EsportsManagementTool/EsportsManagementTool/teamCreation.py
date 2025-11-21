@@ -1,6 +1,7 @@
 from EsportsManagementTool import app, mysql, login_required, roles_required, get_user_permissions, has_role
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import MySQLdb.cursors
+from EsportsManagementTool import get_current_time, localize_datetime, EST
 
 def idgen(text, existing_ids):
     words = text.split()
@@ -248,8 +249,8 @@ def add_members_to_team(team_id):
                     continue  # Skip if already a member
 
                 cursor.execute(
-                    'INSERT INTO team_members (team_id, user_id, joined_at) VALUES (%s, %s, NOW())',
-                    (team_id, member_id)
+                    'INSERT INTO team_members (team_id, user_id, joined_at) VALUES (%s, %s, %s)',
+                    (team_id, member_id, get_current_time())
                 )
                 added_count += 1
 
@@ -641,6 +642,199 @@ def team_details(team_id):
     except Exception as e:
         print(f"Error getting game details: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load game details'}), 500
+
+"""
+Method to get the details of the next scheduled event for a game.
+"""
+@app.route('/api/teams/<team_id>/next-scheduled-event')
+@login_required
+def get_next_scheduled_event(team_id):
+    """Get the next upcoming scheduled event for the team's game"""
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        # Get the team's game
+        cursor.execute("""
+            SELECT gameID FROM teams WHERE TeamID = %s
+        """, (team_id,))
+
+        team = cursor.fetchone()
+
+        if not team:
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        game_id = team['gameID']
+
+        # Get current date and time for proper filtering
+        from datetime import datetime
+        now = get_current_time()
+        current_date = now.date()
+        current_time = now.time()
+
+        # Get the next scheduled event for this team
+        # Logic:
+        # 1. If visibility = 'team', ONLY show if team_id matches
+        # 2. If visibility = 'game_players', 'game_community', or 'all_members', show for ALL teams in that game
+        cursor.execute("""
+            SELECT 
+                ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
+                ge.EventType, ge.schedule_id, se.visibility, se.team_id as schedule_team_id
+            FROM generalevents ge
+            INNER JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+            WHERE ge.is_scheduled = TRUE
+            AND se.game_id = %s
+            AND (
+                ge.Date > %s
+                OR (ge.Date = %s AND ge.StartTime > %s)
+            )
+            AND (
+                -- Team-specific events: only show if it's THIS team
+                (se.visibility = 'team' AND se.team_id = %s)
+                -- Broad visibility: show for ALL teams in this game
+                OR se.visibility IN ('game_players', 'game_community', 'all_members')
+            )
+            ORDER BY ge.Date ASC, ge.StartTime ASC
+            LIMIT 1
+        """, (game_id, current_date, current_date, current_time, team_id))
+
+        event = cursor.fetchone()
+        cursor.close()
+
+        if not event:
+            return jsonify({'success': True, 'event': None}), 200
+
+        # Format the event data
+        from datetime import timedelta
+
+        def format_time(time_value):
+            if not time_value:
+                return None
+            if isinstance(time_value, timedelta):
+                total_seconds = int(time_value.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+            else:
+                hours = time_value.hour
+                minutes = time_value.minute
+
+            period = "AM" if hours < 12 else "PM"
+            display_hour = hours % 12
+            if display_hour == 0:
+                display_hour = 12
+            return f"{display_hour}:{minutes:02d} {period}"
+
+        start_time_str = format_time(event['StartTime'])
+        end_time_str = format_time(event['EndTime'])
+
+        # Check if all-day event
+        is_all_day = False
+        if start_time_str and end_time_str:
+            is_all_day = (start_time_str == "12:00 AM" and end_time_str == "11:59 PM")
+
+        event_data = {
+            'id': event['EventID'],
+            'name': event['EventName'],
+            'date': event['Date'].strftime('%B %d, %Y'),
+            'start_time': start_time_str,
+            'end_time': end_time_str,
+            'event_type': event['EventType'] or 'Event',
+            'is_all_day': is_all_day
+        }
+
+        return jsonify({'success': True, 'event': event_data}), 200
+
+    except Exception as e:
+        print(f"Error fetching next scheduled event: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': 'Failed to fetch event'}), 500
+
+"""
+Method to get the next scheduled event for a game community
+"""
+@app.route('/api/games/<int:game_id>/next-scheduled-event')
+@login_required
+def get_game_next_scheduled_event(game_id):
+    """Get the next upcoming scheduled event for a game community"""
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        # Get current date and time for proper filtering
+        from datetime import datetime
+        now = get_current_time()
+        current_date = now.date()
+        current_time = now.time()
+
+        # Get the next scheduled event for this game
+        # Only show events visible to game_community or all_members
+        cursor.execute("""
+            SELECT 
+                ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
+                ge.EventType, ge.schedule_id, se.visibility
+            FROM generalevents ge
+            INNER JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+            WHERE ge.is_scheduled = TRUE
+            AND se.game_id = %s
+            AND (
+                ge.Date > %s
+                OR (ge.Date = %s AND ge.StartTime > %s)
+            )
+            AND se.visibility IN ('game_community', 'all_members')
+            ORDER BY ge.Date ASC, ge.StartTime ASC
+            LIMIT 1
+        """, (game_id, current_date, current_date, current_time))
+
+        event = cursor.fetchone()
+        cursor.close()
+
+        if not event:
+            return jsonify({'success': True, 'event': None}), 200
+
+        # Format the event data
+        from datetime import timedelta
+
+        def format_time(time_value):
+            if not time_value:
+                return None
+            if isinstance(time_value, timedelta):
+                total_seconds = int(time_value.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+            else:
+                hours = time_value.hour
+                minutes = time_value.minute
+
+            period = "AM" if hours < 12 else "PM"
+            display_hour = hours % 12
+            if display_hour == 0:
+                display_hour = 12
+            return f"{display_hour}:{minutes:02d} {period}"
+
+        start_time_str = format_time(event['StartTime'])
+        end_time_str = format_time(event['EndTime'])
+
+        # Check if all-day event
+        is_all_day = False
+        if start_time_str and end_time_str:
+            is_all_day = (start_time_str == "12:00 AM" and end_time_str == "11:59 PM")
+
+        event_data = {
+            'id': event['EventID'],
+            'name': event['EventName'],
+            'date': event['Date'].strftime('%B %d, %Y'),
+            'start_time': start_time_str,
+            'end_time': end_time_str,
+            'event_type': event['EventType'] or 'Event',
+            'is_all_day': is_all_day
+        }
+
+        return jsonify({'success': True, 'event': event_data}), 200
+
+    except Exception as e:
+        print(f"Error fetching game next scheduled event: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': 'Failed to fetch event'}), 500
 
 """
 Method to delete a shell team for a game.

@@ -117,8 +117,9 @@
 
                                                 {% for event in day_events[:3] %}
                                                     <div class="event-link" onclick="openEventModal({{ event.id }})">
-                                                        <div class="event {{ event.event_type|lower }}"
+                                                        <div class="event {{ event.event_type|lower }} {% if event.is_scheduled %}scheduled-event{% endif %}"
                                                              data-event-type="{{ event.event_type|lower }}"
+                                                             {% if event.is_scheduled %}data-scheduled="true" data-schedule-id="{{ event.schedule_id }}"{% endif %}
                                                              title="Click to view details"
                                                              {% if not event.time %}class="all-day"{% endif %}>
                                                             <div class="event-title">{{ event.title }}</div>
@@ -175,9 +176,17 @@
                             <div class="legend-color event"></div>
                             <span class="legend-label">Event</span>
                         </div>
+                        <!-- ADD THIS -->
+                        <div class="legend-item">
+                            <div class="legend-color misc"></div>
+                            <span class="legend-label">Misc</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color scheduled-indicator"></div>
+                            <span class="legend-label">Recurring/Scheduled</span>
+                        </div>
                     </div>
                 </div>
-
                 <!-- Today's Events Card -->
                 <div class="sidebar-card">
                     <h3><i class="fas fa-calendar-day"></i> Today's Events</h3>
@@ -659,16 +668,24 @@
                         </div>
                     </div>
 
-                    <div class="game-stats-row">
-                        <div class="game-stat-card">
-                            <i class="fas fa-users"></i>
-                            <div class="game-stat-number" id="gameDetailsMemberCount">0</div>
-                            <div class="game-stat-label">Members</div>
+                    <!-- Game stats row - now includes next scheduled event -->
+                    <div class="game-stats-and-event">
+                        <div class="game-stats-row">
+                            <div class="game-stat-card">
+                                <i class="fas fa-users"></i>
+                                <div class="game-stat-number" id="gameDetailsMemberCount">0</div>
+                                <div class="game-stat-label">Members</div>
+                            </div>
+                            <div class="game-stat-card">
+                                <i class="fas fa-shield-alt"></i>
+                                <div class="game-stat-number" id="gameDetailsTeamCount">0</div>
+                                <div class="game-stat-label">Teams</div>
+                            </div>
                         </div>
-                        <div class="game-stat-card">
-                            <i class="fas fa-shield-alt"></i>
-                            <div class="game-stat-number" id="gameDetailsTeamCount">0</div>
-                            <div class="game-stat-label">Teams</div>
+
+                        <!-- Next Scheduled Event Card -->
+                        <div id="gameNextScheduledEventContainer" class="game-next-event-container">
+                            <!-- Event will be loaded here -->
                         </div>
                     </div>
 
@@ -775,6 +792,7 @@
                             <option value="match">Match</option>
                             <option value="practice">Practice</option>
                             <option value="event">Event</option>
+                            <option value="misc">Misc</option>
                         </select>
                     </div>
 
@@ -863,16 +881,17 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="eventType">Event Type</label>
-                                <select id="eventType" name="eventType" required>
+                                <select id="eventType" name="eventType" required onchange="handleEventTypeChange()">
                                     <option value="">Select type</option>
-                                    <option>Event</option>
-                                    <option>Match</option>
-                                    <option>Practice</option>
-                                    <option>Tournament</option>
+                                    <option value="Event">Event</option>
+                                    <option value="Match">Match</option>
+                                    <option value="Practice">Practice</option>
+                                    <option value="Tournament">Tournament</option>
+                                    <option value="Misc">Misc</option>
                                 </select>
                             </div>
 
-                            <div class="form-group">
+                            <div class="form-group" id="gameFieldGroup">
                                 <label for="game">Game (Optional)</label>
                                 <select id="game" name="game">
                                     <option value="">Select game</option>
@@ -1058,7 +1077,7 @@
                         </div>
 
                         <!-- Next Scheduled Event Container (spans 2 columns) -->
-                        <div id="nextScheduledEventContainer" style="grid-column: span 2;">
+                        <div id="nextScheduledEventContainer">
                             <!-- Next scheduled event will be dynamically loaded here -->
                         </div>
                     </div>
@@ -1225,13 +1244,15 @@
                                 <option value="">Select type</option>
                                 <option value="Match">Match</option>
                                 <option value="Practice">Practice</option>
+                                <option value="Misc">Misc</option>
                             </select>
                         </div>
 
                         <div class="form-group">
                             <label for="scheduledFrequency">Frequency *</label>
-                            <select id="scheduledFrequency" name="frequency" required>
+                            <select id="scheduledFrequency" name="frequency" required onchange="handleFrequencyChange()">
                                 <option value="">Select frequency</option>
+                                <option value="Once">Once</option>
                                 <option value="Weekly">Weekly</option>
                                 <option value="Biweekly">Biweekly</option>
                                 <option value="Monthly">Monthly</option>
@@ -1240,8 +1261,32 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="scheduledLocation">Location *</label>
+                        <select id="scheduledLocation" name="location" required>
+                            <option value="">Select location</option>
+                            <option value="Campus Center">Campus Center</option>
+                            <option value="Campus Center Coffee House">Campus Center Coffee House</option>
+                            <option value="Campus Center Event Room">Campus Center Event Room</option>
+                            <option value="D-108">D-108</option>
+                            <option value="Esports Lab (Commons Building 80)">Esports Lab (Commons Building 80)</option>
+                            <option value="Lakeside Lodge">Lakeside Lodge</option>
+                            <option value="Online">Online</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="scheduledCustomLocationGroup" style="display: none;">
+                        <label for="scheduledCustomLocation">Custom Location</label>
+                        <input type="text"
+                               id="scheduledCustomLocation"
+                               name="custom_location"
+                               placeholder="Enter custom location">
+                    </div>
+
+                    <!-- Day of Week - Hidden when "Once" is selected -->
+                    <div class="form-group" id="scheduledDayOfWeekGroup">
                         <label for="scheduledDayOfWeek">Day of Week *</label>
-                        <select id="scheduledDayOfWeek" name="day_of_week" required>
+                        <select id="scheduledDayOfWeek" name="day_of_week">
                             <option value="">Select day</option>
                             <option value="0">Sunday</option>
                             <option value="1">Monday</option>
@@ -1251,6 +1296,14 @@
                             <option value="5">Friday</option>
                             <option value="6">Saturday</option>
                         </select>
+                    </div>
+
+                    <!-- Specific Date - Shown only when "Once" is selected -->
+                    <div class="form-group" id="scheduledSpecificDateGroup" style="display: none;">
+                        <label for="scheduledSpecificDate">Event Date *</label>
+                        <input type="date"
+                               id="scheduledSpecificDate"
+                               name="specific_date">
                     </div>
 
                     <div class="form-row">
@@ -1275,9 +1328,9 @@
                         <label for="scheduledVisibility">Visibility *</label>
                         <select id="scheduledVisibility" name="visibility" required>
                             <option value="">Who can see this?</option>
-                            <option value="team">Team Only</option>
-                            <option value="game_players">Players (for this game)</option>
-                            <option value="game_community">Community Members (for this game)</option>
+                            <option value="team" id="visibilityTeamOption">Team Only</option>
+                            <option value="game_players" id="visibilityPlayersOption">Players</option>
+                            <option value="game_community" id="visibilityCommunityOption">Community Members</option>
                             <option value="all_members">All Users</option>
                         </select>
                         <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
@@ -1316,6 +1369,42 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Details Modal -->
+    <div id="scheduleDetailsModal" class="modal">
+        <div class="modal-content modal-content-large">
+            <div class="modal-header">
+                <div class="modal-header-left">
+                    <div id="scheduleModalGameIcon" class="schedule-modal-title-game-icon" style="display: none;">
+                        <!-- Game icon will be inserted here -->
+                    </div>
+                    <h2 id="scheduleModalTitle">Schedule Details</h2>
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button id="editScheduleBtn"
+                            class="btn-icon-action btn-icon-edit"
+                            style="display: none;"
+                            title="Edit Schedule">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button id="deleteScheduleBtn"
+                            class="btn-icon-action btn-icon-delete"
+                            style="display: none;"
+                            title="Delete Schedule">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="modal-close" onclick="closeScheduleModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="scheduleModalBody">
+                    <!-- Schedule details will be populated here -->
+                </div>
             </div>
         </div>
     </div>

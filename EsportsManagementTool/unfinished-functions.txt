@@ -11,4 +11,13 @@ Needs doing:
             Remember Me button on login
             Forgot password button on login
 
+            Schedule:
+            Remove All-Users option from schedule (not necessary)
+            Show next community event if next_scheduled_community_event or if general event has game attached to it
+
+            Organizing Files (Done):
+            admin-panel.css
+            calendar.css
+            communities.css
+
 

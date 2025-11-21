@@ -382,9 +382,15 @@ function createEventCard(event, isAdmin, isGm) {
     // Normalize event type to lowercase for data attribute ONLY
     const eventTypeClass = (event.event_type || 'event').toLowerCase();
 
-    // REMOVED CLASS FROM event-card DIV - ONLY USE DATA-EVENT-TYPE
+    // Check if event is scheduled.
+    const scheduledClass = event.is_scheduled ? 'scheduled-event' : '';
+
+    // Full Return statement.
     return `
-        <div class="event-card" data-event-type="${eventTypeClass}" onclick="openEventModal(${event.id})">
+        <div class="event-card ${scheduledClass}"
+             data-event-type="${eventTypeClass}"
+             ${event.is_scheduled ? `data-scheduled="true" data-schedule-id="${event.schedule_id}"` : ''}
+             onclick="openEventModal(${event.id})">
             ${ongoingIndicator}
             <div class="event-card-header">
                 <h3 class="event-card-title">${event.name}</h3>
@@ -833,34 +839,6 @@ async function loadGamesForFilter() {
     await populateGameDropdown('gameFilter', 'gameFilterLoadingIndicator');
 }
 
-// ============================================
-// EXPORT FUNCTIONS TO GLOBAL SCOPE
-// ============================================
-
-// Make functions available globally for onclick handlers
-window.initializeEventsModule = initializeEventsModule;
-window.loadEvents = loadEvents;
-window.filterEvents = filterEvents;
-window.openEventModal = openEventModal;
-window.closeEventModal = closeEventModal;
-window.openDayModal = openDayModal;
-window.closeDayModal = closeDayModal;
-window.openCreateEventModal = openCreateEventModal;
-window.closeCreateEventModal = closeCreateEventModal;
-window.toggleEditMode = toggleEditMode;
-window.cancelEdit = cancelEdit;
-window.submitEventEdit = submitEventEdit;
-window.deleteEvent = deleteEvent;
-window.openDeleteConfirmModal = openDeleteConfirmModal;
-window.closeDeleteConfirmModal = closeDeleteConfirmModal;
-window.confirmDeleteEvent = confirmDeleteEvent;
-window.toggleEventSubscription = toggleEventSubscription;
-window.loadGamesForDropdown = loadGamesForDropdown;
-window.toggleAllDayEvent = toggleAllDayEvent;
-window.filterEventsByGame = filterEventsByGame;
-window.loadGamesForFilter = loadGamesForFilter;
-window.clearGamesCache = clearGamesCache;
-
     const isGM = window.userPermissions ? window.userPermissions.is_gm : false;
     const currentUserId = window.currentUserId || 0;
     const editBtn = document.getElementById("editEventBtn");
@@ -1070,6 +1048,25 @@ function openCreateEventModal() {
 }
 
 /**
+ * Handle event type change - hide game field for Misc events
+ */
+function handleEventTypeChange() {
+    const eventType = document.getElementById('eventType').value;
+    const gameFieldGroup = document.getElementById('gameFieldGroup');
+    const gameSelect = document.getElementById('game');
+
+    if (eventType === 'Misc') {
+        // Hide game field for Misc events
+        gameFieldGroup.style.display = 'none';
+        gameSelect.removeAttribute('required');
+        gameSelect.value = ''; // Clear selection
+    } else {
+        // Show game field for other event types
+        gameFieldGroup.style.display = 'block';
+    }
+}
+
+/**
  * Close create event modal
  */
 function closeCreateEventModal() {
@@ -1235,6 +1232,24 @@ function createEditForm() {
 
     const event = currentEventData;
 
+    // Convert 12-hour time format to 24-hour format for input[type="time"]
+    function convertTo24Hour(time12h) {
+        if (!time12h) return '';
+
+        const [time, period] = time12h.split(' ');
+        let [hours, minutes] = time.split(':');
+
+        hours = parseInt(hours);
+
+        if (period === 'PM' && hours !== 12) {
+            hours += 12;
+        } else if (period === 'AM' && hours === 12) {
+            hours = 0;
+        }
+
+        return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    }
+
     editForm.innerHTML = `
         <form id="editEventFormData" class="event-form-modal">
             <div class="form-group">
@@ -1246,15 +1261,16 @@ function createEditForm() {
             <div class="form-row">
                 <div class="form-group">
                     <label for="editEventType">Event Type</label>
-                    <select id="editEventType" name="eventType" required>
+                    <select id="editEventType" name="eventType" required onchange="handleEditEventTypeChange()">
                         <option value="Event" ${event.event_type === 'Event' ? 'selected' : ''}>Event</option>
                         <option value="Match" ${event.event_type === 'Match' ? 'selected' : ''}>Match</option>
                         <option value="Practice" ${event.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
                         <option value="Tournament" ${event.event_type === 'Tournament' ? 'selected' : ''}>Tournament</option>
+                        <option value="Misc" ${event.event_type === 'Misc' ? 'selected' : ''}>Misc</option>
                     </select>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" id="editGameGroup">
                     <label for="editGame">Game (Optional)</label>
                     <select id="editGame" name="game">
                         <option value="">Select game</option>
@@ -1275,13 +1291,13 @@ function createEditForm() {
                 <div class="form-group">
                     <label for="editStartTime">Start Time</label>
                     <input type="time" id="editStartTime" name="startTime"
-                           value="${event.start_time}" required>
+                           value="${convertTo24Hour(event.start_time)}" required>
                 </div>
 
                 <div class="form-group">
                     <label for="editEndTime">End Time</label>
                     <input type="time" id="editEndTime" name="endTime"
-                           value="${event.end_time}" required>
+                           value="${convertTo24Hour(event.end_time)}" required>
                 </div>
             </div>
 
@@ -1326,6 +1342,7 @@ function createEditForm() {
 
     loadGamesForEditDropdown();
     setupEditLocationDropdown(event.location);
+    handleEditEventTypeChange();
 }
 
 /**
@@ -1368,6 +1385,22 @@ function setupEditLocationDropdown(currentLocation) {
 }
 
 /**
+ * Handle event type change in edit form
+ */
+function handleEditEventTypeChange() {
+    const eventType = document.getElementById('editEventType').value;
+    const gameGroup = document.querySelector('#editGame').closest('.form-group');
+    const gameSelect = document.getElementById('editGame');
+
+    if (eventType === 'Misc') {
+        gameGroup.style.display = 'none';
+        gameSelect.value = '';
+    } else {
+        gameGroup.style.display = 'block';
+    }
+}
+
+/**
  * Cancel edit
  */
 function cancelEdit() {
@@ -1382,3 +1415,31 @@ function cancelEdit() {
 
     const isAdmin = window.userPermissions ? window.userPermissions.is_admin : false;
 }
+
+// ============================================
+// EXPORT FUNCTIONS TO GLOBAL SCOPE
+// ============================================
+window.initializeEventsModule = initializeEventsModule;
+window.loadEvents = loadEvents;
+window.filterEvents = filterEvents;
+window.openEventModal = openEventModal;
+window.closeEventModal = closeEventModal;
+window.openDayModal = openDayModal;
+window.closeDayModal = closeDayModal;
+window.openCreateEventModal = openCreateEventModal;
+window.closeCreateEventModal = closeCreateEventModal;
+window.toggleEditMode = toggleEditMode;
+window.cancelEdit = cancelEdit;
+window.submitEventEdit = submitEventEdit;
+window.deleteEvent = deleteEvent;
+window.openDeleteConfirmModal = openDeleteConfirmModal;
+window.closeDeleteConfirmModal = closeDeleteConfirmModal;
+window.confirmDeleteEvent = confirmDeleteEvent;
+window.toggleEventSubscription = toggleEventSubscription;
+window.loadGamesForDropdown = loadGamesForDropdown;
+window.toggleAllDayEvent = toggleAllDayEvent;
+window.filterEventsByGame = filterEventsByGame;
+window.loadGamesForFilter = loadGamesForFilter;
+window.clearGamesCache = clearGamesCache;
+window.handleEventTypeChange = handleEventTypeChange;
+window.handleEditEventTypeChange = handleEditEventTypeChange;

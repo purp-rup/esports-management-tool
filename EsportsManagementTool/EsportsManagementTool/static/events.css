@@ -508,6 +508,10 @@
     --event-event: #79bde9;        /* Stockton Blue (default) */
     --event-event-light: rgba(121, 189, 233, 0.1);
     --event-event-hover: #5aabdd;
+
+    --event-misc: #eab308;         /* Yellow */
+    --event-misc-light: rgba(234, 179, 8, 0.1);
+    --event-misc-hover: #ca8a04;
 }
 
 /* ============================================
@@ -554,6 +558,13 @@
     color: rgba(147, 197, 253, 1) !important;
 }
 
+/* Misc - Yellow Border */
+.event-type-badge[data-type="misc"],
+.event-type-badge.misc {
+    border: 1px solid rgba(250, 204, 21, 1) !important;
+    color: rgba(250, 204, 21, 1) !important;
+}
+
 /* Event Card Icon Colors */
 .event-card[data-event-type="tournament"] .event-detail-icon,
 .event-card.tournament .event-detail-icon {
@@ -579,6 +590,12 @@
     color: var(--event-event);
 }
 
+.event-card[data-event-type="misc"] .event-detail-icon,
+.event-card.misc .event-detail-icon {
+    background: var(--event-misc-light);
+    color: var(--event-misc);
+}
+
 /* Event Card Border Colors on Hover */
 .event-card[data-event-type="tournament"]:hover,
 .event-card.tournament:hover {
@@ -598,6 +615,32 @@
 .event-card[data-event-type="event"]:hover,
 .event-card.event:hover {
     border-color: var(--event-event);
+}
+
+.event-card[data-event-type="misc"]:hover,
+.event-card.misc:hover {
+    border-color: var(--event-misc);
+}
+
+/* ============================================
+   SCHEDULED EVENT STYLING
+   ============================================ */
+
+/* Scheduled event card - white border ONLY on hover */
+.event-card.scheduled-event:hover {
+    border: 2px solid white !important;
+    box-shadow: 0 8px 16px rgba(255, 255, 255, 0.3);
+}
+
+/* White border for event type badge on scheduled events */
+.event-card.scheduled-event .event-type-badge {
+    border: 2px solid white !important;
+    box-shadow: 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+/* Enhanced hover effect for scheduled events */
+.event-card.scheduled-event:hover {
+    box-shadow: 0 2px 4px rgba(255, 255, 255, 0.2);
 }
 
 /* ============================================
@@ -627,4 +670,10 @@
 #eventDetailsModal[data-event-type="event"] .event-detail-icon {
     background: var(--event-event-light);
     color: var(--event-event);
+}
+
+.modal-content[data-event-type="misc"] .event-detail-icon,
+#eventDetailsModal[data-event-type="misc"] .event-detail-icon {
+    background: var(--event-misc-light);
+    color: var(--event-misc);
 }

@@ -92,25 +92,65 @@ def dashboard(year=None, month=None):
         next_month = month + 1
         next_year = year
 
-    # Get events from database for this month
+    # Get events from database for this month - WITH VISIBILITY FILTERING
     try:
-        cursor.execute(
-            'SELECT * FROM generalevents WHERE YEAR(Date) = %s AND MONTH(Date) = %s ORDER BY Date, StartTime',
-            (year, month)
-        )
+        user_id = session['id']
+
+        # Build visibility query
+        # An event is visible if:
+        # 1. It's not a scheduled event (schedule_id is NULL), OR
+        # 2. The user created the scheduled event (GM access), OR
+        # 3. It's a scheduled event with visibility = 'all_members', OR
+        # 4. It's a scheduled event with visibility = 'team' AND user is in that team, OR
+        # 5. It's a scheduled event with visibility = 'game_players' AND user is a player for that game, OR
+        # 6. It's a scheduled event with visibility = 'game_community' AND user is in that game's community
+
+        cursor.execute("""
+            SELECT ge.* 
+            FROM generalevents ge
+            LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+            WHERE YEAR(ge.Date) = %s AND MONTH(ge.Date) = %s
+            AND (
+                -- Non-scheduled events (always visible)
+                ge.schedule_id IS NULL
+                OR
+                -- GM can see all events they created
+                se.created_by = %s
+                OR
+                -- Scheduled events with 'all_members' visibility
+                se.visibility = 'all_members'
+                OR
+                -- Scheduled events with 'team' visibility - user must be in the team
+                (se.visibility = 'team' AND EXISTS (
+                    SELECT 1 FROM team_members tm 
+                    WHERE tm.team_id = se.team_id 
+                    AND tm.user_id = %s
+                ))
+                OR
+                -- Scheduled events with 'game_players' visibility - user must be a player for that game
+                (se.visibility = 'game_players' AND EXISTS (
+                    SELECT 1 FROM team_members tm
+                    JOIN teams t ON tm.team_id = t.TeamID
+                    WHERE t.gameID = se.game_id
+                    AND tm.user_id = %s
+                ))
+                OR
+                -- Scheduled events with 'game_community' visibility - user must be in game's community
+                (se.visibility = 'game_community' AND EXISTS (
+                    SELECT 1 FROM in_communities ic
+                    WHERE ic.game_id = se.game_id
+                    AND ic.user_id = %s
+                ))
+            )
+            ORDER BY ge.Date, ge.StartTime
+        """, (year, month, user_id, user_id, user_id, user_id))
+
         events = cursor.fetchall()
 
         # Organize events by date
         events_by_date = {}
         for event in events:
             date_str = event['Date'].strftime('%Y-%m-%d')
-
-            # Replace the existing time conversion section in dashboard.py (around lines 116-124)
-            # with this updated version:
-
-            # Handle timedelta for StartTime and convert to 12-hour format
-            # In dashboard.py, find the section where you process events (around lines 116-130)
-            # Replace with this updated version:
 
             # Handle timedelta for StartTime and convert to 12-hour format
             if event['StartTime']:
@@ -143,7 +183,9 @@ def dashboard(year=None, month=None):
                 'title': event['EventName'],
                 'description': event['Description'] if event['Description'] else '',
                 'event_type': event['EventType'] if event.get('EventType') else 'Event',
-                'is_all_day': is_all_day  # Add flag for template
+                'is_all_day': is_all_day,  # Add flag for template
+                'is_scheduled': event.get('is_scheduled', False),  # Add this line
+                'schedule_id': event.get('schedule_id')  # Add this line too
             }
 
             if date_str not in events_by_date:

@@ -256,8 +256,115 @@ async function selectTeam(teamId) {
     document.getElementById('teamsWelcomeState').style.display = 'none';
     document.getElementById('teamsDetailContent').style.display = 'block';
 
+    // Reset to Roster tab (first tab)
+    document.querySelectorAll('.team-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.team-tab-panel').forEach(panel => panel.classList.remove('active'));
+
+    const rosterTab = document.querySelector('[data-team-tab="roster"]');
+    const rosterPanel = document.getElementById('rosterTabContent');
+    if (rosterTab) rosterTab.classList.add('active');
+    if (rosterPanel) rosterPanel.classList.add('active');
+
+    // Clear Schedule tab content so it reloads when clicked
+    const schedulePanel = document.getElementById('scheduleTabContent');
+    if (schedulePanel) {
+        schedulePanel.innerHTML = `
+            <div class="schedule-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading schedules...</p>
+            </div>
+        `;
+    }
+
     // Load team details
     await loadTeamDetails(teamId);
+}
+
+/**
+ * Method to load the next scheduled event onto the next-scheduled-event-card for each team.
+ */
+async function loadNextScheduledEvent(teamId, gameId) {
+    const container = document.getElementById('nextScheduledEventContainer');
+
+    if (!container) {
+        console.error('nextScheduledEventContainer not found');
+        return;
+    }
+
+    // Validate inputs
+    if (!teamId || !gameId) {
+        console.error('Invalid teamId or gameId:', { teamId, gameId });
+        container.innerHTML = `
+            <div class="next-scheduled-event-empty">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Invalid team or game data</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Show loading state
+    container.innerHTML = `
+        <div style="text-align: center; padding: 1rem; color: var(--text-secondary);">
+            <i class="fas fa-spinner fa-spin"></i> Loading...
+        </div>
+    `;
+
+    try {
+        console.log(`Fetching scheduled event for team ${teamId}, game ${gameId}`);
+        const response = await fetch(`/api/teams/${teamId}/next-scheduled-event`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('Scheduled event response:', data);
+
+        if (data.success && data.event) {
+            const event = data.event;
+
+            // Format similar to "Today's Events" on calendar
+            container.innerHTML = `
+                <div class="next-scheduled-event-card" onclick="openEventModal(${event.id})">
+                    <div class="next-event-header">
+                        <i class="fas fa-calendar-plus"></i>
+                        <h4>Next Scheduled Event</h4>
+                    </div>
+                    <div class="next-event-content">
+                        <div class="next-event-time">
+                            ${event.is_all_day ?
+                                '<i class="fas fa-calendar"></i> All Day' :
+                                `<i class="fas fa-clock"></i> ${event.start_time}`
+                            }
+                        </div>
+                        <div class="next-event-title">${event.name}</div>
+                        <div class="next-event-date">
+                            <i class="fas fa-calendar-day"></i> ${event.date}
+                        </div>
+                        <span class="next-event-type ${event.event_type.toLowerCase()}">${event.event_type}</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            // No scheduled events
+            container.innerHTML = `
+                <div class="next-scheduled-event-empty">
+                    <i class="fas fa-calendar-times"></i>
+                    <p>No upcoming scheduled events</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading next scheduled event:', error);
+        container.innerHTML = `
+            <div class="next-scheduled-event-empty">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Failed to load scheduled events</p>
+                <small style="color: var(--text-secondary); font-size: 0.75rem;">${error.message}</small>
+            </div>
+        `;
+    }
 }
 
 /**
@@ -291,6 +398,22 @@ async function loadTeamDetails(teamId) {
             // Update stats
             document.getElementById('teamStatMembers').textContent = team.member_count || 0;
             document.getElementById('teamStatMaxSize').textContent = team.team_max_size || 0;
+
+            // Load next scheduled event card with correct game_id
+            if (team.game_id) {
+                loadNextScheduledEvent(teamId, team.game_id);
+            } else {
+                // Show empty state if no game_id
+                const container = document.getElementById('nextScheduledEventContainer');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="next-scheduled-event-empty">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <p>Team has no associated game</p>
+                        </div>
+                    `;
+                }
+            }
 
             // Show/hide action buttons based on permissions
             const isAdmin = window.userPermissions?.is_admin || false;
@@ -429,6 +552,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             document.querySelectorAll('.team-tab-panel').forEach(panel => panel.classList.remove('active'));
             document.getElementById(`${targetTab}TabContent`)?.classList.add('active');
+
+            // Load schedule data when Schedule tab is clicked (handled here, but rest of schedule tab code is in scheduled-events.js).
+            if (targetTab === 'schedule' && currentSelectedTeamId) {
+                loadScheduleTab(currentSelectedTeamId);
+            }
         });
     });
 
@@ -707,3 +835,4 @@ window.openAddTeamMembersModal = openAddTeamMembersModal;
 window.addSelectedMembersToTeam = addSelectedMembersToTeam;
 window.closeAddTeamMembersModal = closeAddTeamMembersModal;
 window.filterAvailableMembers = filterAvailableMembers;
+window.loadNextScheduledEvent = loadNextScheduledEvent;
