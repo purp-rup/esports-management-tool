@@ -1,20 +1,30 @@
-/* Calendar Styling - Stockton Esports Theme */
+/* ============================================
+   CALENDAR STYLES - STOCKTON ESPORTS THEME
+   Main stylesheet for calendar interface
+   ORGANIZED BY CLAUDEAI
+   ============================================ */
 
-/* Color Variables */
+/* --------------------------------------------
+   COLOR VARIABLES
+   Event type color definitions
+   -------------------------------------------- */
 :root {
-    --event-tournament: #8b5cf6;  /* Purple */
+    --event-tournament: #8b5cf6;         /* Purple */
     --event-tournament-hover: #7c3aed;
-    --event-match: #ef4444;        /* Red */
+    --event-match: #ef4444;              /* Red */
     --event-match-hover: #dc2626;
-    --event-practice: #22c55e;     /* Green */
+    --event-practice: #22c55e;           /* Green */
     --event-practice-hover: #16a34a;
-    --event-event: #79bde9;        /* Stockton Blue */
+    --event-event: #79bde9;              /* Stockton Blue */
     --event-event-hover: #5aabdd;
-    --event-misc: #eab308;         /* Yellow */
+    --event-misc: #eab308;               /* Yellow */
     --event-misc-hover: #ca8a04;
 }
 
-/* Calendar Container */
+/* --------------------------------------------
+   CALENDAR LAYOUT
+   Main container and grid structure
+   -------------------------------------------- */
 .calendar-container {
     display: grid;
     flex-direction: column;
@@ -26,33 +36,7 @@
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 1.5rem;
-    width: 100%
-}
-
-.calendar-sidebar {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-}
-
-.sidebar-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1.25rem;
-}
-
-.sidebar-card h3 {
-    font-size: 0.95rem;
-    margin-bottom: 0.75rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.sidebar-card h3 i {
-    font-size: 0.9rem;
+    width: 100%;
 }
 
 .calendar-wrapper {
@@ -61,7 +45,10 @@
     margin: 0 auto;
 }
 
-/* Calendar Navigation */
+/* --------------------------------------------
+   CALENDAR NAVIGATION
+   Month/year header with navigation buttons
+   -------------------------------------------- */
 .calendar-navigation {
     display: flex;
     justify-content: space-between;
@@ -100,7 +87,29 @@
     border-color: var(--stockton-blue);
 }
 
-/* Days of Week Header */
+.today-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--stockton-blue);
+    color: var(--stockton-black);
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.today-button:hover {
+    background: #5aabdd;
+    transform: translateY(-1px);
+}
+
+/* --------------------------------------------
+   CALENDAR HEADER
+   Days of the week display
+   -------------------------------------------- */
 .calendar-header {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -121,7 +130,10 @@
     letter-spacing: 0.05em;
 }
 
-/* Calendar Grid */
+/* --------------------------------------------
+   CALENDAR GRID
+   Main calendar grid and day cells
+   -------------------------------------------- */
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -135,7 +147,7 @@
     width: 100%;
 }
 
-/* Calendar Cells */
+/* Individual calendar cells */
 .calendar-cell {
     background: var(--card-bg);
     min-height: 100px;
@@ -160,6 +172,7 @@
     border: 2px solid var(--stockton-blue);
 }
 
+/* Day number display */
 .day-number {
     font-size: 0.875rem;
     font-weight: 600;
@@ -172,7 +185,12 @@
     font-weight: 700;
 }
 
-/* Events Container */
+/* --------------------------------------------
+   CALENDAR EVENTS
+   Event display in calendar cells
+   -------------------------------------------- */
+
+/* Events container */
 .events-container {
     display: flex;
     flex-direction: column;
@@ -187,7 +205,7 @@
     min-width: 0;
 }
 
-/* Event Base Styling - Stacked Layout */
+/* Base event styling - stacked layout */
 .calendar-cell .event {
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
@@ -211,7 +229,7 @@
     line-height: 1.1;
 }
 
-/* When all day, allow 2 line title */
+/* Allow 2-line titles for all-day events */
 .calendar-cell .event:not(:has(.event-time)) .event-title {
     white-space: normal;
     display: -webkit-box;
@@ -222,7 +240,7 @@
     line-height: 1.1;
 }
 
-/* Fallback for browsers that don't support :has() */
+/* Fallback for browsers without :has() support */
 @supports not selector(:has(*)) {
     .calendar-cell .event.all-day .event-title {
         white-space: normal;
@@ -231,7 +249,7 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
         text-overflow: ellipsis;
-        line-height: 1.1
+        line-height: 1.1;
     }
 }
 
@@ -243,82 +261,7 @@
     letter-spacing: 0.02em;
 }
 
-/* Event Type Colors */
-
-/* Tournament - Purple */
-.calendar-cell .event.tournament,
-.calendar-cell .event[data-event-type="tournament"] {
-    background: rgba(167, 139, 250, 0.8); /* Added opacity */
-    color: black;
-    border-color: rgba(139, 92, 246, 1); /* Solid border in event color */
-}
-
-.calendar-cell .event.tournament:hover,
-.calendar-cell .event[data-event-type="tournament"]:hover {
-    background: rgba(139, 92, 246, 0.95); /* Slightly more opaque on hover */
-    transform: translateY(-1px);
-    border-color: rgba(124, 58, 237, 1);
-}
-
-/* Match - Red */
-.calendar-cell .event.match,
-.calendar-cell .event[data-event-type="match"] {
-    background: rgba(239, 68, 68, 0.8); /* Added opacity */
-    color: black;
-    border-color: rgba(239, 68, 68, 1); /* Solid border in event color */
-}
-
-.calendar-cell .event.match:hover,
-.calendar-cell .event[data-event-type="match"]:hover {
-    background: rgba(220, 38, 38, 0.95); /* Slightly more opaque on hover */
-    transform: translateY(-1px);
-    border-color: rgba(220, 38, 38, 1);
-}
-
-/* Practice - Green */
-.calendar-cell .event.practice,
-.calendar-cell .event[data-event-type="practice"] {
-    background: rgba(34, 197, 94, 0.8); /* Added opacity */
-    color: black;
-    border-color: rgba(34, 197, 94, 1); /* Solid border in event color */
-}
-
-.calendar-cell .event.practice:hover,
-.calendar-cell .event[data-event-type="practice"]:hover {
-    background: rgba(22, 163, 74, 0.95); /* Slightly more opaque on hover */
-    transform: translateY(-1px);
-    border-color: rgba(22, 163, 74, 1);
-}
-
-/* Event - Blue (default) */
-.calendar-cell .event[data-event-type="event"] {
-    background: rgba(121, 189, 233, 0.8); /* Added opacity */
-    color: var(--stockton-black);
-    border-color: rgba(121, 189, 233, 1); /* Solid border in event color */
-}
-
-.calendar-cell .event[data-event-type="event"]:hover {
-    background: rgba(90, 171, 221, 0.95); /* Slightly more opaque on hover */
-    transform: translateY(-1px);
-    border-color: rgba(90, 171, 221, 1);
-}
-
-/* Misc - Yellow */
-.calendar-cell .event.misc,
-.calendar-cell .event[data-event-type="misc"] {
-    background: rgba(234, 179, 8, 0.8); /* Yellow with opacity */
-    color: black;
-    border-color: rgba(234, 179, 8, 1); /* Solid yellow border */
-}
-
-.calendar-cell .event.misc:hover,
-.calendar-cell .event[data-event-type="misc"]:hover {
-    background: rgba(202, 138, 4, 0.95); /* Darker yellow on hover */
-    transform: translateY(-1px);
-    border-color: rgba(202, 138, 4, 1);
-}
-
-/* Event Overflow Text */
+/* Event overflow indicator */
 .event-overflow {
     font-size: 0.75rem;
     color: var(--text-secondary);
@@ -326,13 +269,115 @@
     font-style: italic;
 }
 
-/* Calendar Footer */
-.calendar-footer {
-    margin-top: 1rem;
-    text-align: center;
+/* --------------------------------------------
+   EVENT TYPE COLORS
+   Color schemes for different event types
+   -------------------------------------------- */
+
+/* Tournament - Purple */
+.calendar-cell .event.tournament,
+.calendar-cell .event[data-event-type="tournament"] {
+    background: rgba(167, 139, 250, 0.8);
+    color: black;
+    border-color: rgba(139, 92, 246, 1);
 }
 
-/* Legend Styles */
+.calendar-cell .event.tournament:hover,
+.calendar-cell .event[data-event-type="tournament"]:hover {
+    background: rgba(139, 92, 246, 0.95);
+    transform: translateY(-1px);
+    border-color: rgba(124, 58, 237, 1);
+}
+
+/* Match - Red */
+.calendar-cell .event.match,
+.calendar-cell .event[data-event-type="match"] {
+    background: rgba(239, 68, 68, 0.8);
+    color: black;
+    border-color: rgba(239, 68, 68, 1);
+}
+
+.calendar-cell .event.match:hover,
+.calendar-cell .event[data-event-type="match"]:hover {
+    background: rgba(220, 38, 38, 0.95);
+    transform: translateY(-1px);
+    border-color: rgba(220, 38, 38, 1);
+}
+
+/* Practice - Green */
+.calendar-cell .event.practice,
+.calendar-cell .event[data-event-type="practice"] {
+    background: rgba(34, 197, 94, 0.8);
+    color: black;
+    border-color: rgba(34, 197, 94, 1);
+}
+
+.calendar-cell .event.practice:hover,
+.calendar-cell .event[data-event-type="practice"]:hover {
+    background: rgba(22, 163, 74, 0.95);
+    transform: translateY(-1px);
+    border-color: rgba(22, 163, 74, 1);
+}
+
+/* Event - Blue (default) */
+.calendar-cell .event[data-event-type="event"] {
+    background: rgba(121, 189, 233, 0.8);
+    color: var(--stockton-black);
+    border-color: rgba(121, 189, 233, 1);
+}
+
+.calendar-cell .event[data-event-type="event"]:hover {
+    background: rgba(90, 171, 221, 0.95);
+    transform: translateY(-1px);
+    border-color: rgba(90, 171, 221, 1);
+}
+
+/* Misc - Yellow */
+.calendar-cell .event.misc,
+.calendar-cell .event[data-event-type="misc"] {
+    background: rgba(234, 179, 8, 0.8);
+    color: black;
+    border-color: rgba(234, 179, 8, 1);
+}
+
+.calendar-cell .event.misc:hover,
+.calendar-cell .event[data-event-type="misc"]:hover {
+    background: rgba(202, 138, 4, 0.95);
+    transform: translateY(-1px);
+    border-color: rgba(202, 138, 4, 1);
+}
+
+/* --------------------------------------------
+   SIDEBAR COMPONENTS
+   Legend and today's events panels
+   -------------------------------------------- */
+.calendar-sidebar {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.sidebar-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.sidebar-card h3 {
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sidebar-card h3 i {
+    font-size: 0.9rem;
+}
+
+/* Legend items */
 .legend-items {
     display: flex;
     flex-direction: column;
@@ -379,7 +424,6 @@
     border-color: rgba(250, 204, 21, 1);
 }
 
-/* Scheduled event legend indicator */
 .legend-color.scheduled-indicator {
     background: var(--card-bg);
     border: 2px solid white;
@@ -392,7 +436,10 @@
     line-height: 1.3;
 }
 
-/* Today's Events Sidebar Card */
+/* --------------------------------------------
+   TODAY'S EVENTS SIDEBAR
+   List of events happening today
+   -------------------------------------------- */
 .today-events-list {
     display: flex;
     flex-direction: column;
@@ -432,9 +479,10 @@
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 0.4rem;
-    line height: 1.3;
+    line-height: 1.3;
 }
 
+/* Today's event type badges */
 .today-event-type {
     display: inline-block;
     padding: 0.15rem 0.5rem;
@@ -470,32 +518,28 @@
     color: rgba(250, 204, 21, 1);
 }
 
-.today-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: var(--stockton-blue);
-    color: var(--stockton-black);
-    text-decoration: none;
-    border-radius: 8px;
-    font-weight: 500;
-    font-size: 0.875rem;
-    transition: all 0.2s;
+/* --------------------------------------------
+   CALENDAR FOOTER
+   Optional footer section
+   -------------------------------------------- */
+.calendar-footer {
+    margin-top: 1rem;
+    text-align: center;
 }
 
-.today-button:hover {
-    background: #5aabdd;
-    transform: translateY(-1px);
-}
+/* --------------------------------------------
+   RESPONSIVE DESIGN
+   Mobile and tablet adaptations
+   -------------------------------------------- */
 
-/* Responsive Design */
+/* Tablet and below */
 @media (max-width: 1024px) {
     .calendar-container {
         grid-template-columns: 1fr;
     }
 }
 
+/* Mobile devices */
 @media (max-width: 768px) {
     .calendar-navigation {
         flex-direction: column;
@@ -522,13 +566,6 @@
 
     .calendar-cell .event {
         font-size: 0.65rem;
-        padding: 0.2rem 0.3rem;
-    }
-}
-
-/* Add responsive adjustments for pill structure*/
-@media (max-width: 768px) {
-    .calendar-cell .event {
         padding: 0.15rem 0.4rem;
         gap: 0.1rem;
     }
