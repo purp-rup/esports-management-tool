@@ -526,6 +526,7 @@ async function handleCreateGameSubmit(e) {
             setTimeout(() => {
                 closeCreateGameModal();
                 formMessage.style.display = 'none';
+                window.location.reload();
             }, 1500);
 
         } else {
