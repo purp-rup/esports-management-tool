@@ -668,16 +668,24 @@
                         </div>
                     </div>
 
-                    <div class="game-stats-row">
-                        <div class="game-stat-card">
-                            <i class="fas fa-users"></i>
-                            <div class="game-stat-number" id="gameDetailsMemberCount">0</div>
-                            <div class="game-stat-label">Members</div>
+                    <!-- Game stats row - now includes next scheduled event -->
+                    <div class="game-stats-and-event">
+                        <div class="game-stats-row">
+                            <div class="game-stat-card">
+                                <i class="fas fa-users"></i>
+                                <div class="game-stat-number" id="gameDetailsMemberCount">0</div>
+                                <div class="game-stat-label">Members</div>
+                            </div>
+                            <div class="game-stat-card">
+                                <i class="fas fa-shield-alt"></i>
+                                <div class="game-stat-number" id="gameDetailsTeamCount">0</div>
+                                <div class="game-stat-label">Teams</div>
+                            </div>
                         </div>
-                        <div class="game-stat-card">
-                            <i class="fas fa-shield-alt"></i>
-                            <div class="game-stat-number" id="gameDetailsTeamCount">0</div>
-                            <div class="game-stat-label">Teams</div>
+
+                        <!-- Next Scheduled Event Card -->
+                        <div id="gameNextScheduledEventContainer" class="game-next-event-container">
+                            <!-- Event will be loaded here -->
                         </div>
                     </div>
 
@@ -1320,9 +1328,9 @@
                         <label for="scheduledVisibility">Visibility *</label>
                         <select id="scheduledVisibility" name="visibility" required>
                             <option value="">Who can see this?</option>
-                            <option value="team">Team Only</option>
-                            <option value="game_players">Players (for this game)</option>
-                            <option value="game_community">Community Members (for this game)</option>
+                            <option value="team" id="visibilityTeamOption">Team Only</option>
+                            <option value="game_players" id="visibilityPlayersOption">Players</option>
+                            <option value="game_community" id="visibilityCommunityOption">Community Members</option>
                             <option value="all_members">All Users</option>
                         </select>
                         <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">

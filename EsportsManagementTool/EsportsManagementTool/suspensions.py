@@ -10,6 +10,7 @@ Handles all suspension-related functionality including:
 from flask import jsonify, session, redirect, url_for, flash, request
 from datetime import datetime, timedelta
 import MySQLdb.cursors
+from EsportsManagementTool import get_current_time, localize_datetime, EST
 
 
 """
@@ -41,13 +42,15 @@ def check_user_suspension(mysql, user_id):
         cursor.close()
 
         if suspension:
-            remaining = suspension['suspended_until'] - datetime.now()
+            # Make suspended_until timezone-aware before comparison
+            suspended_until = localize_datetime(suspension['suspended_until'])  # ✅ ADD THIS
+            remaining = suspended_until - get_current_time()  # ✅ CHANGE THIS
             days = remaining.days
             hours = remaining.seconds // 3600
 
             return True, {
                 'reason': suspension['reason'],
-                'suspended_until': suspension['suspended_until'].strftime('%B %d, %Y at %I:%M %p'),
+                'suspended_until': suspended_until.strftime('%B %d, %Y at %I:%M %p') + ' EST',  # ✅ ADD EST
                 'remaining_days': days,
                 'remaining_hours': hours
             }
@@ -56,6 +59,8 @@ def check_user_suspension(mysql, user_id):
 
     except Exception as e:
         print(f"Error checking suspension: {e}")
+        import traceback
+        traceback.print_exc()  # ✅ ADD THIS for better debugging
         return False, None
 
 """
@@ -77,7 +82,7 @@ def check_session_validity(mysql):
                 AND invalidated_at > %s
                 ORDER BY invalidated_at DESC 
                 LIMIT 1
-            """, (session['id'], session.get('login_time', datetime.now())))
+            """, (session['id'], session.get('login_time', get_current_time())))
 
             invalidation = cursor.fetchone()
 
@@ -156,7 +161,7 @@ def suspend_user_route(mysql):
 
         # Calculate suspension end time
         total_hours = (duration_days * 24) + duration_hours
-        suspended_until = datetime.now() + timedelta(hours=total_hours)
+        suspended_until = get_current_time() + timedelta(hours=total_hours)
 
         # Deactivate any existing active suspensions for this user
         cursor.execute("""
@@ -267,8 +272,12 @@ def get_suspension_status_route(mysql, user_id):
         cursor.close()
 
         if suspension:
+            # Make datetimes timezone-aware before calculations
+            suspended_until = localize_datetime(suspension['suspended_until'])  # ✅ ADD THIS
+            suspended_at = localize_datetime(suspension['suspended_at'])  # ✅ ADD THIS
+
             # Calculate remaining time
-            remaining = suspension['suspended_until'] - datetime.now()
+            remaining = suspended_until - get_current_time()  # ✅ CHANGE THIS
             days = remaining.days
             hours = remaining.seconds // 3600
 
@@ -278,8 +287,8 @@ def get_suspension_status_route(mysql, user_id):
                 'suspension': {
                     'sus_id': suspension['sus_id'],
                     'reason': suspension['reason'],
-                    'suspended_until': suspension['suspended_until'].strftime('%B %d, %Y at %I:%M %p'),
-                    'suspended_at': suspension['suspended_at'].strftime('%B %d, %Y at %I:%M %p'),
+                    'suspended_until': suspended_until.strftime('%B %d, %Y at %I:%M %p') + ' EST',  # ✅ CHANGE
+                    'suspended_at': suspended_at.strftime('%B %d, %Y at %I:%M %p') + ' EST',  # ✅ CHANGE
                     'suspended_by': suspension.get('suspended_by_name', 'Unknown'),
                     'remaining_days': days,
                     'remaining_hours': hours

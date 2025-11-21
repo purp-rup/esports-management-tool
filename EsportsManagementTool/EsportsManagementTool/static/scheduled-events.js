@@ -82,6 +82,9 @@ function openCreateScheduledEventModal() {
         messageDiv.style.display = 'none';
     }
 
+    // Update visibility labels before showing modal
+    updateVisibilityLabels(currentScheduleTeamId, currentScheduleGameId);
+
     // Show modal
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
@@ -731,6 +734,87 @@ async function handleEditScheduleSubmit(event) {
 }
 
 /**
+ * Initialize schedule button visibility when team is selected
+ */
+async function initScheduleButton(teamId, gameId) {
+    console.log('initScheduleButton called:', { teamId, gameId });
+
+    currentScheduleTeamId = teamId;
+    currentScheduleGameId = gameId;
+
+    const createScheduleBtn = document.getElementById('createScheduleBtn');
+    if (!createScheduleBtn) {
+        console.log('createScheduleBtn element not found');
+        return;
+    }
+
+    const isGM = window.userPermissions?.is_gm || false;
+    console.log('User is GM:', isGM);
+
+    if (isGM && gameId) {
+        try {
+            const userId = window.currentUserId;
+            console.log('Current user ID:', userId);
+
+            const response = await fetch(`/api/user/${userId}/managed-game`);
+            const data = await response.json();
+            console.log('API response:', data);
+
+            if (data.success && data.manages_game && data.game_id === gameId) {
+                console.log('✓ User manages this game - showing button');
+                createScheduleBtn.style.display = 'flex';
+
+                // Update visibility dropdown labels with team/game names
+                updateVisibilityLabels(teamId, gameId);
+            } else {
+                console.log('✗ User does not manage this game or game ID mismatch');
+                console.log('  Managed game ID:', data.game_id, 'Current game ID:', gameId);
+                createScheduleBtn.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Error checking GM status:', error);
+            createScheduleBtn.style.display = 'none';
+        }
+    } else {
+        console.log('User is not a GM or no gameId provided');
+        createScheduleBtn.style.display = 'none';
+    }
+}
+
+/**
+ * Update visibility dropdown labels with team and game names
+ */
+async function updateVisibilityLabels(teamId, gameId) {
+    try {
+        // Get team and game info
+        const response = await fetch(`/api/teams/${teamId}/details`);
+        const data = await response.json();
+
+        if (data.success) {
+            const teamName = data.team.title;
+            const gameName = data.team.game_title;
+
+            // Update the dropdown options
+            const teamOption = document.getElementById('visibilityTeamOption');
+            const playersOption = document.getElementById('visibilityPlayersOption');
+            const communityOption = document.getElementById('visibilityCommunityOption');
+
+            if (teamOption) {
+                teamOption.textContent = `${teamName} only`;
+            }
+            if (playersOption) {
+                playersOption.textContent = `Players for ${gameName}`;
+            }
+            if (communityOption) {
+                communityOption.textContent = `Community Members for ${gameName}`;
+            }
+        }
+    } catch (error) {
+        console.error('Error updating visibility labels:', error);
+    }
+}
+
+/**
  * Build dynamic frequency text based on schedule settings
  */
 function buildFrequencyText(schedule) {
@@ -740,16 +824,16 @@ function buildFrequencyText(schedule) {
 
     if (schedule.frequency === 'Once') {
         // Once on {date} from {start time - end time}
-        return `${schedule.specific_date} from (${timeRange})`;
+        return `${schedule.specific_date} from ${timeRange}`;
     } else if (schedule.frequency === 'Monthly') {
         // Once a month on {day of week} from {start-time - end-time} until {last generation day}
-        return `Monthly / ${schedule.day_of_week_name} / (${timeRange}) until ${schedule.schedule_end_date}`;
+        return `Monthly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
     } else if (schedule.frequency === 'Biweekly') {
         // Every other week on {day-of-week} from {start-time - end-time} until {last generation day}
-        return `Biweekly / ${schedule.day_of_week_name} / (${timeRange}) until ${schedule.schedule_end_date}`;
+        return `Biweekly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
     } else if (schedule.frequency === 'Weekly') {
         // Every week on {day-of-week} from {start-time - end-time} until {last generation day}
-        return `Weekly / ${schedule.day_of_week_name} / (${timeRange}) until ${schedule.schedule_end_date}`;
+        return `Weekly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
     } else {
         // Fallback
         return `${schedule.frequency} - ${schedule.day_of_week_name || 'N/A'}`;
@@ -794,3 +878,4 @@ window.closeScheduleModal = closeScheduleModal;
 window.loadScheduleTab = loadScheduleTab;
 window.openEditScheduleMode = openEditScheduleMode;
 window.cancelEditSchedule = cancelEditSchedule;
+window.updateVisibilityLabels = updateVisibilityLabels;

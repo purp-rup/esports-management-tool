@@ -4,6 +4,7 @@ import MySQLdb.cursors
 from datetime import datetime
 from flask import send_file
 from io import BytesIO
+from EsportsManagementTool import get_current_time, localize_datetime, EST
 
 ## ==============================================
 ## THE FOLLOWING WAS PRODUCED ALONGSIDE CLAUDEAI
@@ -409,7 +410,7 @@ def join_community(game_id):
             except:
                 pass
 
-            cursor.execute('INSERT INTO in_communities (user_id, game_id, joined_at) VALUES (%s, %s, %s)', (session['id'], game_id, datetime.now()))
+            cursor.execute('INSERT INTO in_communities (user_id, game_id, joined_at) VALUES (%s, %s, %s)', (session['id'], game_id, get_current_time()))
             mysql.connection.commit()
 
             return jsonify({'success': True, 'message': f'Successfully joined {game_title} community!'}), 200
@@ -618,7 +619,7 @@ def assign_game_manager(game_id):
                 cursor.execute("UPDATE games SET gm_id = %s WHERE GameTitle = %s", (gm_user_id, game_title))
                 mysql.connection.commit()
             else: #Add as member and GM
-                cursor.execute("INSERT INTO in_communities (user_id, game_id, joined_at) VALUES (%s, %s, %s)", (gm_user_id, game_id, datetime.now()))
+                cursor.execute("INSERT INTO in_communities (user_id, game_id, joined_at) VALUES (%s, %s, %s)", (gm_user_id, game_id, get_current_time()))
                 cursor.execute("UPDATE games SET gm_id = %s WHERE GameTitle = %s", (gm_user_id, game_title))
                 mysql.connection.commit()
 

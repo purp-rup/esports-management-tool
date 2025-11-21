@@ -5,7 +5,7 @@ Consolidated module for all event-related functionality
 from flask import request, jsonify, session, render_template
 from datetime import datetime, timedelta
 import MySQLdb.cursors
-
+from EsportsManagementTool import get_current_time, localize_datetime, EST
 
 def register_event_routes(app, mysql, login_required, roles_required, get_user_permissions):
     """
@@ -94,7 +94,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             game_filter = request.args.get('game', '')
 
             # Get current date and time
-            now = datetime.now()
+            now = get_current_time()
             current_date = now.date()
             current_time = now.time()
 
@@ -573,7 +573,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 cursor.execute("""
                     INSERT INTO event_subscriptions (user_id, event_id, subscribed_at)
                     VALUES (%s, %s, %s)
-                """, (user_id, event_id, datetime.now()))
+                """, (user_id, event_id, get_current_time()))
                 status = 'subscribed'
 
             mysql.connection.commit()

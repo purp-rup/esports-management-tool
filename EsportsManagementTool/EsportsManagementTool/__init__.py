@@ -16,6 +16,7 @@ import os
 import requests
 from datetime import datetime, timedelta
 from functools import wraps
+import pytz
 
 app = Flask(__name__)
 
@@ -23,10 +24,7 @@ app = Flask(__name__)
 # IMPORTS THAT DON'T RELY ON INITIALIZATION
 # =========================================
 import EsportsManagementTool.exampleModule
-import EsportsManagementTool.EventNotificationManager
 import EsportsManagementTool.UpdateProfile
-import EsportsManagementTool.suspensions
-import EsportsManagementTool.events
 
 # Change this to your secret key (can be anything, it's for extra protection)
 app.secret_key = 'your secret key'
@@ -58,14 +56,60 @@ leakage across packet transferring.
 mysql = MySQL(app)
 mail = Mail(app)
 
-# Set timezone for all MySQL connections
+# =========================================
+# TIMEZONE CONFIGURATION
+# =========================================
+EST = pytz.timezone('America/New_York')  # EST/EDT timezone
+
+def get_current_time():
+    """Get current time in EST"""
+    return datetime.now(EST)
+
+def localize_datetime(dt):
+    """Convert naive datetime to EST"""
+    if dt.tzinfo is None:
+        return EST.localize(dt)
+    return dt.astimezone(EST)
+
+##Set timezone, accounting for DST dynamically.
 @app.before_request
 def set_mysql_timezone():
-    """Set MySQL session timezone to match server"""
+    """Set MySQL session timezone to match EST/EDT dynamically"""
     if mysql.connection:
         cursor = mysql.connection.cursor()
-        cursor.execute("SET time_zone = '-05:00';")  # Adjust based on your timezone
+        # Get current UTC offset for America/New_York (handles DST automatically)
+        est_now = datetime.now(EST)
+        offset_seconds = est_now.utcoffset().total_seconds()
+        offset_hours = int(offset_seconds / 3600)
+        offset_minutes = int((offset_seconds % 3600) / 60)
+
+        offset_str = f"{offset_hours:+03d}:{offset_minutes:02d}"
+        cursor.execute(f"SET time_zone = '{offset_str}';")
         cursor.close()
+
+##Template to display times.
+@app.template_filter('format_datetime')
+def format_datetime_filter(dt, format='%B %d, %Y at %I:%M %p'):
+    """Format datetime in EST for templates"""
+    if dt is None:
+        return 'N/A'
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt)
+        except:
+            return dt
+    if dt.tzinfo is None:
+        dt = EST.localize(dt)
+    return dt.strftime(format) + ' EST'
+
+@app.template_filter('to_est')
+def to_est_filter(dt):
+    """Convert datetime to EST"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return EST.localize(dt)
+    return dt.astimezone(EST)
 
 # For production, force HTTPS
 app.config['SESSION_COOKIE_SECURE'] = True
@@ -240,11 +284,6 @@ def cleanup_inactive_users():
     except Exception as e:
         print(f"Error cleaning up inactive users: {str(e)}")
 
-# ================================
-# REGISTER SUSPENSION ROUTES
-# ==================================
-EsportsManagementTool.suspensions.register_suspension_routes(app, mysql, roles_required)
-
 # ============================================
 # ROUTES (The following was developed in part with ClaudeAI
 # ============================================
@@ -324,7 +363,7 @@ def login():
                         flash(
                             'Account is still not verified! A new email has been sent, check your inbox! If mail does not appear, please check your spam!')
                         verification_token = secrets.token_urlsafe(32)
-                        token_expiry = datetime.now() + timedelta(hours=24)
+                        token_expiry = get_current_time() + timedelta(hours=24)
 
                         cursor.execute(
                             'UPDATE verified_users SET verification_token = %s, token_expiry = %s WHERE userid = %s',
@@ -359,7 +398,7 @@ def login():
                             session['loggedin'] = True
                             session['id'] = account['id']
                             session['username'] = account['username']
-                            session['login_time'] = datetime.now()
+                            session['login_time'] = get_current_time().isoformat()
 
                             # Update user activity tracking
                             try:
@@ -465,7 +504,7 @@ def register():
                 mysql.connection.commit()
 
                 verification_token = secrets.token_urlsafe(32)
-                token_expiry = datetime.now() + timedelta(hours=24)
+                token_expiry = get_current_time() + timedelta(hours=24)
 
                 cursor.execute('UPDATE verified_users SET verification_token = %s, token_expiry = %s WHERE userid = %s',
                                (verification_token, token_expiry, newUser['id']))
@@ -484,9 +523,19 @@ def register():
 # =======================================
 # IMPORTS THAT RELY ON INITIALIZATION
 # =======================================
+import EsportsManagementTool.exampleModule
+import EsportsManagementTool.UpdateProfile
+import EsportsManagementTool.EventNotificationManager
+import EsportsManagementTool.suspensions
+import EsportsManagementTool.events
 import EsportsManagementTool.dashboard
 from EsportsManagementTool import game
 from EsportsManagementTool import teamCreation
+
+# ================================
+# REGISTER SUSPENSION ROUTES (MOVED HERE)
+# ==================================
+EsportsManagementTool.suspensions.register_suspension_routes(app, mysql, roles_required)
 
 # =====================================
 # PULLS EVENT METHODS
@@ -499,6 +548,12 @@ EsportsManagementTool.events.register_event_routes(app, mysql, login_required, r
 from EsportsManagementTool import scheduled_events
 scheduled_events.register_scheduled_events_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
+# =====================================
+# EXPORT TIMEZONE FUNCTIONS
+# =====================================
+app.get_current_time = get_current_time
+app.localize_datetime = localize_datetime
+app.EST = EST
 
 # This is used for debugging, It will show the app routes that are registered.
 if __name__ != '__main__':

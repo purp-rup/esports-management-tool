@@ -11,9 +11,4 @@ Needs doing:
             Remember Me button on login
             Forgot password button on login
 
-            Game Schedules:
-            Remove created by field for anyone not an admin
-            Editing event does not keep old time set when entering edit mode
-            Editing a game schedule does not sync schedule time to event time if an event for a schedule is out of sync
-
 

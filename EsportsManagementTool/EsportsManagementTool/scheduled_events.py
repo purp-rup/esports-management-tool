@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import MySQLdb.cursors
 from dateutil.relativedelta import relativedelta
 import calendar
+from EsportsManagementTool import get_current_time, localize_datetime, EST
 
 """
 Formats schedule-related time to 12Hr format.
@@ -548,7 +549,7 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
             return 0
 
         # Original recurring logic for Weekly, Biweekly, Monthly
-        today = datetime.now().date()
+        today = get_current_time().date()
         last_generated = schedule['last_generated'] or today
         start_date = max(today, last_generated)
 

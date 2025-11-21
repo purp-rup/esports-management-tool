@@ -223,7 +223,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1rem;
-    margin-bottom: 2rem;
+    margin-bottom: 0.25rem;
 }
 
 .game-stat-card {
@@ -792,4 +792,149 @@
     border-color: #ff9800;
     color: #ff9800;
     background: rgba(255, 152, 0, 0.1);
+}
+
+/* Game stats and event container */
+.game-stats-and-event {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Next scheduled event container */
+.game-next-event-container {
+    width: 100%;
+}
+
+/* Game next event card */
+.game-next-event-card {
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.game-next-event-card:hover {
+    border-color: var(--stockton-blue);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(121, 189, 233, 0.2);
+}
+
+.game-next-event-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--stockton-blue);
+}
+
+.game-next-event-header i {
+    font-size: 1.25rem;
+}
+
+.game-next-event-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.game-next-event-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.game-next-event-time {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.game-next-event-time i {
+    color: var(--stockton-blue);
+}
+
+.game-next-event-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.game-next-event-date {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.game-next-event-date i {
+    color: var(--stockton-blue);
+}
+
+.game-next-event-type {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    width: fit-content;
+}
+
+/* Event type colors - match your existing badges */
+.game-next-event-type.match {
+    background: rgba(255, 82, 82, 0.2);
+    color: #ff5252;
+}
+
+.game-next-event-type.practice {
+    background: rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+}
+
+.game-next-event-type.misc {
+    background: rgba(234, 179, 8, 0.1);
+    color: #eab308;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+/* Empty state for no events */
+.game-next-event-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--text-secondary);
+    background: var(--dark-bg);
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+}
+
+.game-next-event-empty i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+}
+
+.game-next-event-empty p {
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .game-stats-and-event {
+        gap: 1rem;
+    }
+
+    .game-next-event-card {
+        padding: 1rem;
+    }
 }

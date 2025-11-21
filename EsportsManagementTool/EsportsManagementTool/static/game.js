@@ -415,6 +415,8 @@ async function openGameDetailsModal(gameId) {
             // Show content, hide loading
             loading.style.display = 'none';
             content.style.display = 'block';
+            //Loads next schedule event.
+            await loadGameNextScheduledEvent(gameId);
         } else {
             throw new Error(data.message || 'Failed to load game details');
         }
@@ -435,6 +437,80 @@ function closeGameDetailsModal() {
     modal.style.display = 'none';
     document.body.style.overflow = 'auto';
     currentGameId = null;
+}
+
+/**
+ * Load next scheduled event for game community
+ */
+async function loadGameNextScheduledEvent(gameId) {
+    const container = document.getElementById('gameNextScheduledEventContainer');
+
+    if (!container) {
+        console.error('gameNextScheduledEventContainer not found');
+        return;
+    }
+
+    // Show loading state
+    container.innerHTML = `
+        <div style="text-align: center; padding: 1rem; color: var(--text-secondary);">
+            <i class="fas fa-spinner fa-spin"></i> Loading...
+        </div>
+    `;
+
+    try {
+        console.log(`Fetching scheduled event for game ${gameId}`);
+        const response = await fetch(`/api/games/${gameId}/next-scheduled-event`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('Game scheduled event response:', data);
+
+        if (data.success && data.event) {
+            const event = data.event;
+
+            // Format similar to team scheduled event card
+            container.innerHTML = `
+                <div class="game-next-event-card" onclick="openEventModal(${event.id})">
+                    <div class="game-next-event-header">
+                        <i class="fas fa-calendar-plus"></i>
+                        <h4>Next Community Event</h4>
+                    </div>
+                    <div class="game-next-event-content">
+                        <div class="game-next-event-time">
+                            ${event.is_all_day ?
+                                '<i class="fas fa-calendar"></i> All Day' :
+                                `<i class="fas fa-clock"></i> ${event.start_time}`
+                            }
+                        </div>
+                        <div class="game-next-event-title">${event.name}</div>
+                        <div class="game-next-event-date">
+                            <i class="fas fa-calendar-day"></i> ${event.date}
+                        </div>
+                        <span class="game-next-event-type ${event.event_type.toLowerCase()}">${event.event_type}</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            // No scheduled events
+            container.innerHTML = `
+                <div class="game-next-event-empty">
+                    <i class="fas fa-calendar-times"></i>
+                    <p>No upcoming community events</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading game next scheduled event:', error);
+        container.innerHTML = `
+            <div class="game-next-event-empty">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Failed to load scheduled events</p>
+            </div>
+        `;
+    }
 }
 
 /**
@@ -932,3 +1008,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeGamesModule();
     setupCreateTeamForm();
 });
+
+//Global Exports
+window.loadGameNextScheduledEvent = loadGameNextScheduledEvent;

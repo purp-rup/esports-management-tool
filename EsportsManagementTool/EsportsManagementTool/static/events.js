@@ -1232,6 +1232,24 @@ function createEditForm() {
 
     const event = currentEventData;
 
+    // Convert 12-hour time format to 24-hour format for input[type="time"]
+    function convertTo24Hour(time12h) {
+        if (!time12h) return '';
+
+        const [time, period] = time12h.split(' ');
+        let [hours, minutes] = time.split(':');
+
+        hours = parseInt(hours);
+
+        if (period === 'PM' && hours !== 12) {
+            hours += 12;
+        } else if (period === 'AM' && hours === 12) {
+            hours = 0;
+        }
+
+        return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    }
+
     editForm.innerHTML = `
         <form id="editEventFormData" class="event-form-modal">
             <div class="form-group">
@@ -1243,7 +1261,7 @@ function createEditForm() {
             <div class="form-row">
                 <div class="form-group">
                     <label for="editEventType">Event Type</label>
-                    <select id="editEventType" name="eventType" required>
+                    <select id="editEventType" name="eventType" required onchange="handleEditEventTypeChange()">
                         <option value="Event" ${event.event_type === 'Event' ? 'selected' : ''}>Event</option>
                         <option value="Match" ${event.event_type === 'Match' ? 'selected' : ''}>Match</option>
                         <option value="Practice" ${event.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
@@ -1252,7 +1270,7 @@ function createEditForm() {
                     </select>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" id="editGameGroup">
                     <label for="editGame">Game (Optional)</label>
                     <select id="editGame" name="game">
                         <option value="">Select game</option>
@@ -1273,13 +1291,13 @@ function createEditForm() {
                 <div class="form-group">
                     <label for="editStartTime">Start Time</label>
                     <input type="time" id="editStartTime" name="startTime"
-                           value="${event.start_time}" required>
+                           value="${convertTo24Hour(event.start_time)}" required>
                 </div>
 
                 <div class="form-group">
                     <label for="editEndTime">End Time</label>
                     <input type="time" id="editEndTime" name="endTime"
-                           value="${event.end_time}" required>
+                           value="${convertTo24Hour(event.end_time)}" required>
                 </div>
             </div>
 
