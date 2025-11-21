@@ -10,6 +10,7 @@ from EsportsManagementTool.encryption_utils import encrypt_token, decrypt_token
 import requests
 from datetime import datetime, timedelta
 import os
+from EsportsManagementTool import get_current_time, localize_datetime, EST
 
 # Discord OAuth2 Configuration
 DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID')
@@ -133,7 +134,7 @@ def discord_callback():
         expires_in = token_json.get('expires_in', 604800)
         
         # Calculate token expiration
-        expires_at = datetime.now() + timedelta(seconds=expires_in)
+        expires_at = get_current_time() + timedelta(seconds=expires_in)
         
         # Fetch Discord user info
         user_headers = {'Authorization': f'Bearer {access_token}'}
