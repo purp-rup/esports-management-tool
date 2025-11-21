@@ -903,15 +903,35 @@ function openCreateTeamModal(gameID, gameTitle, teamSizes) {
     const sizeContainer = document.getElementById('teamSizesContainer');
     if (sizeContainer) {
         sizeContainer.innerHTML = '';
+        sizeContainer.className = 'team-size-options';
+
         const sizes = teamSizes.split(',').map(s => s.trim());
-        sizes.forEach(size => {
-            const label = document.createElement('label');
-            label.className = 'team-size-final';
-            label.innerHTML = `
-                <input type="radio" name="team_sizes" value="${size}" required>
-                <span>${size} Player${size != 1 ? 's' : ''}</span>
+        sizes.forEach((size, index) => {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'team-size-option';
+
+            const radioId = `teamSize${size}`;
+            const isFirst = index === 0;
+            const playerText = size === '1' ? 'player' : 'players';
+
+            optionDiv.innerHTML = `
+                <input type="radio"
+                       name="team_sizes"
+                       value="${size}"
+                       id="${radioId}"
+                       ${isFirst ? 'checked' : ''}>
+                <label for="${radioId}">
+                    <div class="size-content">
+                        <i class="fas fa-users size-icon"></i>
+                        <div class="size-text">
+                            <span class="size-number">${size} ${size === '1' ? 'Player' : 'Players'}</span>
+                            <span class="size-description">Maximum ${size} ${playerText} per team</span>
+                        </div>
+                    </div>
+                </label>
             `;
-            sizeContainer.appendChild(label);
+
+            sizeContainer.appendChild(optionDiv);
         });
     }
 }

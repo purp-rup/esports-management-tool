@@ -5,6 +5,7 @@ Needs doing:
             Filter specific to admins to show ALL events (all current + archived)?
 
             Assigning a GM not in a community does NOT automatically make them a community member/GM
+            GM for multiple games cannot schedule events for all but first assigned game
 
             Visual bug in teams tab right side stemming below bottom of page
 
@@ -16,8 +17,6 @@ Needs doing:
             Show next community event if next_scheduled_community_event or if general event has game attached to it
 
             Organizing Files (Done):
-            admin-panel.css
-            calendar.css
-            communities.css
+            all css
 
 

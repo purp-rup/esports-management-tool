@@ -5,23 +5,6 @@
    ============================================ */
 
 /* --------------------------------------------
-   COLOR VARIABLES
-   Event type color definitions
-   -------------------------------------------- */
-:root {
-    --event-tournament: #8b5cf6;         /* Purple */
-    --event-tournament-hover: #7c3aed;
-    --event-match: #ef4444;              /* Red */
-    --event-match-hover: #dc2626;
-    --event-practice: #22c55e;           /* Green */
-    --event-practice-hover: #16a34a;
-    --event-event: #79bde9;              /* Stockton Blue */
-    --event-event-hover: #5aabdd;
-    --event-misc: #eab308;               /* Yellow */
-    --event-misc-hover: #ca8a04;
-}
-
-/* --------------------------------------------
    CALENDAR LAYOUT
    Main container and grid structure
    -------------------------------------------- */

@@ -1617,38 +1617,76 @@
                     <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
                         Select all applicable team sizes for this game
                     </p>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem;">
+                    <div class="team-sizes-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem;">
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="1">
-                            <span>1 Player</span>
+                            <span>
+                                <i class="fas fa-user checkbox-icon"></i>
+                                <div class="checkbox-text">1 Player</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="2">
-                            <span>2 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">2 Players</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="3">
-                            <span>3 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">3 Players</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="4">
-                            <span>4 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">4 Players</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="5">
-                            <span>5 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">5 Players</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="6">
-                            <span>6 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">6 Players</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="7">
-                            <span>7 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">7 Players</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="8">
-                            <span>8 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">8 Players</div>
+                            </span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="9">
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">9 Players</div>
+                            </span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="10">
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">10 Players</div>
+                            </span>
                         </label>
                     </div>
                 </div>
@@ -1692,8 +1730,8 @@
                     <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
                         Select the applicable team size.
                     </p>
-                    <div id="teamSizesContainer" style="display: grid; gid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem">
-                        <!-- Radio buttons will be inserted here dynamically -->
+                    <div id="teamSizesContainer" class="team-size-options">
+                        <!-- Team size options will be dynamically inserted here -->
                     </div>
                 </div>
 

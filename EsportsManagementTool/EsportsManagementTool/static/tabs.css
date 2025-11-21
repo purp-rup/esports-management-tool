@@ -1,4 +1,13 @@
-/* Tab Navigation */
+/* ============================================
+   TAB NAVIGATION STYLES
+   Tabbed interface navigation system
+   ORGANIZED BY CLAUDEAI
+   ============================================ */
+
+/* --------------------------------------------
+   TAB NAVIGATION
+   Horizontal tab button container
+   -------------------------------------------- */
 .tab-navigation {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -10,6 +19,7 @@
     overflow-x: auto;
 }
 
+/* Tab buttons */
 .tab-button {
     padding: 1rem 2rem;
     background: transparent;
@@ -44,7 +54,10 @@
     font-size: 1.125rem;
 }
 
-/* Mobile Tab Dropdown */
+/* --------------------------------------------
+   MOBILE TAB DROPDOWN
+   Dropdown selector for mobile devices
+   -------------------------------------------- */
 .tab-dropdown {
     display: none;
     width: 100%;
@@ -77,6 +90,22 @@
     padding: 1rem;
 }
 
+/* --------------------------------------------
+   TAB CONTENT
+   Content panels for each tab
+   -------------------------------------------- */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* --------------------------------------------
+   RESPONSIVE DESIGN
+   Mobile adaptations
+   -------------------------------------------- */
 @media (max-width: 800px) {
     .tab-navigation {
         display: none;
@@ -85,13 +114,4 @@
     .tab-dropdown {
         display: block;
     }
-}
-
-/* Tab Content */
-.tab-content {
-    display: none;
-}
-
-.tab-content.active {
-    display: block;
 }

@@ -104,7 +104,6 @@ def notification_settings():
     # GET request - redirect to dashboard (no standalone page anymore)
     return redirect(url_for('dashboard'))
 
-
 # UC-14: SendEventNotice - Automated Email Notifications
 def send_event_notification(user_email, user_name, event_type, event_details):
     """Send email notification to user about upcoming event"""
@@ -302,12 +301,9 @@ def check_and_send_notifications():
     finally:
         cursor.close()
 
-
-
 # ========================================================================
 # Initialize scheduler for background notifications (UC-14)
 # ========================================================================
-
 def scheduled_check_wrapper():
     """Wrapper ensures the scheduler runs safely within the Flask app context"""
     with app.app_context():
@@ -317,7 +313,6 @@ def scheduled_check_wrapper():
             import traceback
             traceback.print_exc()
             print(f"Error in notification scheduler: {str(e)}")
-
 
 # Initialize the background scheduler
 scheduler = BackgroundScheduler()

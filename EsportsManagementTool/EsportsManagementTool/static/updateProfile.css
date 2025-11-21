@@ -1,5 +1,13 @@
-/* DISCLAIMER: THIS CODE WAS WRITTEN USING CLAUDE AI */
-/* Modal Styles */
+/* ============================================
+   UPDATE PROFILE MODAL STYLES
+   Profile editing modal interface
+   DISCLAIMER: THIS CODE WAS WRITTEN and ORGANIZED USING CLAUDE AI
+   ============================================ */
+
+/* --------------------------------------------
+   MODAL STRUCTURE
+   Modal overlay and container
+   -------------------------------------------- */
 .modal {
     display: none;
     position: fixed;
@@ -26,17 +34,10 @@
     animation: modalSlideIn 0.3s ease-out;
 }
 
-@keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-50px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
+/* --------------------------------------------
+   MODAL HEADER
+   Title bar with close button
+   -------------------------------------------- */
 .modal-header {
     padding: 2rem 2rem 1.5rem 2rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -68,6 +69,10 @@
     color: #ffffff;
 }
 
+/* --------------------------------------------
+   FORM STRUCTURE
+   Form container and layout
+   -------------------------------------------- */
 .modal-form {
     padding: 2rem;
 }
@@ -84,6 +89,23 @@
     font-size: 0.95rem;
 }
 
+.form-group small {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: #888888;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+/* --------------------------------------------
+   FORM INPUTS
+   Input fields and styling
+   -------------------------------------------- */
 .form-group input {
     width: 100%;
     padding: 0.875rem 1rem;
@@ -107,19 +129,24 @@
     color: #666666;
 }
 
-.form-group small {
-    display: block;
-    margin-top: 0.5rem;
-    font-size: 0.875rem;
-    color: #888888;
+/* Read-only input styling */
+.form-group input[readonly] {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #aaaaaa;
+    cursor: not-allowed;
 }
 
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+.form-group input[readonly]:focus {
+    outline: none;
+    box-shadow: none;
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
+/* --------------------------------------------
+   FORM MESSAGES
+   Success and error feedback
+   -------------------------------------------- */
 .form-message {
     padding: 1rem;
     border-radius: 10px;
@@ -140,6 +167,10 @@
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+/* --------------------------------------------
+   MODAL ACTIONS
+   Button container and styles
+   -------------------------------------------- */
 .modal-actions {
     display: flex;
     justify-content: flex-end;
@@ -194,7 +225,10 @@
     cursor: not-allowed;
 }
 
-/* Scrollbar styling for modal content */
+/* --------------------------------------------
+   SCROLLBAR STYLING
+   Custom scrollbar for modal content
+   -------------------------------------------- */
 .modal-content::-webkit-scrollbar {
     width: 8px;
 }
@@ -213,21 +247,25 @@
     background: rgba(255, 255, 255, 0.3);
 }
 
-/* Read-only input styling */
-.form-group input[readonly] {
-    background-color: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.15);
-    color: #aaaaaa;
-    cursor: not-allowed;
+/* --------------------------------------------
+   ANIMATIONS
+   Modal entrance animation
+   -------------------------------------------- */
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.form-group input[readonly]:focus {
-    outline: none;
-    box-shadow: none;
-    border-color: rgba(255, 255, 255, 0.15);
-}
-
-/* Responsive Design */
+/* --------------------------------------------
+   RESPONSIVE DESIGN
+   Mobile adaptations
+   -------------------------------------------- */
 @media (max-width: 640px) {
     .modal-content {
         width: 95%;
