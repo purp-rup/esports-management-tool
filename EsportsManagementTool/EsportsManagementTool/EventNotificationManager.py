@@ -1,5 +1,4 @@
 from EsportsManagementTool import app
-from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
@@ -10,6 +9,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 from EsportsManagementTool import app, get_current_time, localize_datetime, EST
+import os
 
 mysql = MySQL()
 mail = Mail()
@@ -346,30 +346,35 @@ def check_and_send_notifications():
 
 def scheduled_check_wrapper():
     """Wrapper ensures the scheduler runs safely within the Flask app context"""
+    print(f"[{datetime.now()}] ===== SCHEDULER TRIGGERED =====")
     with app.app_context():
         try:
+            print(f"[{datetime.now()}] Starting notification check...")
             check_and_send_notifications()
+            print(f"[{datetime.now()}] Notification check completed successfully")
         except Exception as e:
             import traceback
             traceback.print_exc()
-            print(f"Error in notification scheduler: {str(e)}")
+            print(f"[{datetime.now()}] Error in notification scheduler: {str(e)}")
 
 
-# Initialize the background scheduler
-scheduler = BackgroundScheduler()
+# Only start scheduler in the main process (not the reloader)
+if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+    # Initialize the background scheduler
+    scheduler = BackgroundScheduler()
 
-# Add job to run every minute
-scheduler.add_job(
-    func=scheduled_check_wrapper,
-    trigger="interval",
-    minutes=1,
-    id="event_notification_job",
-    replace_existing=True
-)
+    # Add job to run every minute
+    scheduler.add_job(
+        func=scheduled_check_wrapper,
+        trigger="interval",
+        minutes=1,
+        id="event_notification_job",
+        replace_existing=True
+    )
 
-# Start the scheduler
-scheduler.start()
+    # Start the scheduler
+    scheduler.start()
 
-# Ensure clean shutdown on app exit
-atexit.register(lambda: scheduler.shutdown(wait=False))
+    # Ensure clean shutdown on app exit
+    atexit.register(lambda: scheduler.shutdown(wait=False))
 """DISCLAIMER: THIS CODE WAS GENERATED USING CLAUDE AI AND CHATGPT"""

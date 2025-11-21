@@ -671,12 +671,13 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
             if team_result:
                 game_display = f"{game_title} ({team_result['teamName']})"
 
-        # Create the event
+        # Create the event - NOW WITH team_id, game_id, and visibility!
         cursor.execute("""
             INSERT INTO generalevents
             (EventName, Date, StartTime, EndTime, Description, EventType, 
-             Game, Location, created_by, schedule_id, is_scheduled)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+             Game, Location, created_by, schedule_id, is_scheduled,
+             team_id, game_id, visibility)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s)
         """, (
             event_name,
             event_date,
@@ -687,7 +688,10 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
             game_display,  # Now includes game title and optionally team name
             schedule['location'] or 'TBD',
             schedule['created_by'],
-            schedule['schedule_id']
+            schedule['schedule_id'],
+            schedule['team_id'],      # NEW: Copy team_id
+            schedule['game_id'],      # NEW: Copy game_id
+            schedule['visibility']    # NEW: Copy visibility
         ))
 
         event_id = cursor.lastrowid
