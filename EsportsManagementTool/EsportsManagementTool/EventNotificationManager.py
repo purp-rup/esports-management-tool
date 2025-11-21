@@ -36,11 +36,12 @@ def notification_settings():
         advance_notice_days = int(request.form.get('advance_notice_days', 1))
         advance_notice_hours = int(request.form.get('advance_notice_hours', 0))
 
-        # NEW: Get event type preferences
+        # Get event type preferences
         notify_events = request.form.get('notify_events') == 'on'
         notify_matches = request.form.get('notify_matches') == 'on'
         notify_tournaments = request.form.get('notify_tournaments') == 'on'
         notify_practices = request.form.get('notify_practices') == 'on'
+        notify_misc = request.form.get('notify_misc') == 'on'  # NEW: Added misc
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
@@ -64,23 +65,26 @@ def notification_settings():
                                    notify_matches       = %s,
                                    notify_tournaments   = %s,
                                    notify_practices     = %s,
+                                   notify_misc          = %s,
                                    updated_at           = NOW()
                                WHERE user_id = %s
                                """, (enable_notifications, advance_notice_days,
                                      advance_notice_hours, notify_events,
                                      notify_matches, notify_tournaments,
-                                     notify_practices, user_id))
+                                     notify_practices, notify_misc, user_id))
             else:
                 # Insert new preferences
                 cursor.execute("""
                                INSERT INTO notification_preferences
                                (user_id, enable_notifications, advance_notice_days,
                                 advance_notice_hours, notify_events, notify_matches,
-                                notify_tournaments, notify_practices, created_at, updated_at)
-                               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                                notify_tournaments, notify_practices, notify_misc, 
+                                created_at, updated_at)
+                               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                                """, (user_id, enable_notifications, advance_notice_days,
                                      advance_notice_hours, notify_events,
-                                     notify_matches, notify_tournaments, notify_practices))
+                                     notify_matches, notify_tournaments, notify_practices,
+                                     notify_misc))
 
             mysql.connection.commit()
 
@@ -141,168 +145,200 @@ def send_event_notification(user_email, user_name, event_type, event_details):
 
 def check_and_send_notifications():
     """
-    Background task to check for upcoming events and send notifications.
-
-    Mechanisms:
-    1. Event Subscriptions: Users subscribed to specific events always get notified.
-    2. General Reminders: Users who enabled notifications for event types get notified for matching events.
+    Background task to check for upcoming events and send notifications
+    to users based on their notification preferences, memberships, event visibility,
+    and manual event subscriptions
     """
+
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        current_time = get_current_time()
 
-        # ============================
-        # 1️⃣ Event Subscriptions
-        # ============================
+        # Get all users with notifications enabled
         cursor.execute("""
-            SELECT 
-                es.user_id,
-                ge.EventID,
-                ge.EventName,
-                ge.Date,
-                ge.StartTime,
-                ge.EndTime,
-                ge.Location,
-                ge.Description,
-                ge.EventType,
-                u.email,
-                u.firstname,
-                u.lastname
-            FROM event_subscriptions es
-            JOIN generalevents ge ON es.event_id = ge.EventID
-            JOIN users u ON es.user_id = u.id
-            JOIN notification_preferences np ON np.user_id = es.user_id
-            WHERE np.enable_notifications = 1
-              AND ge.Date >= CURDATE()
-        """)
-        subscriptions = cursor.fetchall()
+                       SELECT u.id as user_id,
+                              u.email,
+                              u.firstname,
+                              np.advance_notice_days,
+                              np.advance_notice_hours,
+                              np.notify_events,
+                              np.notify_matches,
+                              np.notify_practices,
+                              np.notify_tournaments,
+                              np.notify_misc
+                       FROM users u
+                                JOIN notification_preferences np ON u.id = np.user_id
+                       WHERE np.enable_notifications = TRUE
+                       """)
 
-        # ============================
-        # 2️⃣ General Reminders (by event type)
-        # ============================
-        cursor.execute("""
-            SELECT 
-                np.user_id,
-                ge.EventID,
-                ge.EventName,
-                ge.Date,
-                ge.StartTime,
-                ge.EndTime,
-                ge.Location,
-                ge.Description,
-                ge.EventType,
-                u.email,
-                u.firstname,
-                u.lastname,
-                np.notify_events,
-                np.notify_matches,
-                np.notify_tournaments,
-                np.notify_practices
-            FROM generalevents ge
-            JOIN users u ON u.id = u.id
-            JOIN notification_preferences np ON np.user_id = u.id
-            WHERE np.enable_notifications = 1
-              AND ge.Date >= CURDATE()
-        """)
-        general_reminders = cursor.fetchall()
+        users = cursor.fetchall()
 
-        # Combine subscriptions and general reminders into one list
-        all_notifications = []
+        for user in users:
+            # Calculate notification window
+            advance_time = timedelta(
+                days=user['advance_notice_days'],
+                hours=user['advance_notice_hours']
+            )
+            notification_time = datetime.now() + advance_time
 
-        # Subscriptions: Always notify
-        for sub in subscriptions:
-            all_notifications.append((sub, True))  # True = ignore event type filtering
-
-        # General reminders: Only notify if preference matches event type
-        for gr in general_reminders:
-            event_type_lower = gr['EventType'].lower() if gr['EventType'] else 'event'
-            should_notify = False
-            if event_type_lower == 'event' and gr.get('notify_events', 0):
-                should_notify = True
-            elif event_type_lower == 'match' and gr.get('notify_matches', 0):
-                should_notify = True
-            elif event_type_lower == 'tournament' and gr.get('notify_tournaments', 0):
-                should_notify = True
-            elif event_type_lower == 'practice' and gr.get('notify_practices', 0):
-                should_notify = True
-
-            if should_notify:
-                all_notifications.append((gr, False))  # False = respect type filtering
-
-        # Process notifications
-        for sub, ignore_type in all_notifications:
-            # Compute event datetime
-            event_date = sub['Date']
-            start_time = sub['StartTime']
-            if isinstance(start_time, timedelta):
-                total_seconds = int(start_time.total_seconds())
-                hours = total_seconds // 3600
-                minutes = (total_seconds % 3600) // 60
-                seconds = total_seconds % 60
-                event_datetime = datetime.combine(event_date, datetime.min.time()).replace(hour=hours, minute=minutes, second=seconds)
-                event_datetime = localize_datetime(event_datetime)
-                time_obj = datetime.min.time().replace(hour=hours, minute=minutes, second=seconds)
-            else:
-                event_datetime = datetime.combine(event_date, start_time)
-                event_datetime = localize_datetime(event_datetime)
-                time_obj = start_time
-
-            # Use user's advance notice preferences
+            # Get user's team memberships
             cursor.execute("""
-                SELECT advance_notice_days, advance_notice_hours
-                FROM notification_preferences
-                WHERE user_id = %s
-            """, (sub['user_id'],))
-            prefs = cursor.fetchone()
-            advance_notice = timedelta(days=prefs.get('advance_notice_days', 1),
-                                       hours=prefs.get('advance_notice_hours', 0))
+                           SELECT team_id
+                           FROM team_members
+                           WHERE user_id = %s
+                           """, (user['user_id'],))
+            user_teams = [row['team_id'] for row in cursor.fetchall()]
 
-            target_notification_time = event_datetime - advance_notice
-            notification_start = target_notification_time - timedelta(minutes=15)
-            notification_end = target_notification_time + timedelta(minutes=15)
+            # Get ALL games user is associated with (both from communities AND teams)
+            cursor.execute("""
+                           SELECT DISTINCT game_id
+                           FROM (SELECT game_id
+                                 FROM in_communities
+                                 WHERE user_id = %s
+                                 UNION
+                                 SELECT t.gameID as game_id
+                                 FROM team_members tm
+                                          JOIN teams t ON tm.team_id = t.teamID
+                                 WHERE tm.user_id = %s) AS user_games
+                           """, (user['user_id'], user['user_id']))
+            user_games = [row['game_id'] for row in cursor.fetchall()]
 
-            if notification_start <= current_time <= notification_end:
-                # Check if notification was already sent
-                cursor.execute("""
-                    SELECT id
-                    FROM sent_notifications
-                    WHERE user_id = %s
-                      AND event_id = %s
-                      AND sent_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
-                """, (sub['user_id'], sub['EventID']))
-                if cursor.fetchone():
-                    continue  # Already sent
+            # Build dynamic query based on user preferences and memberships
+            event_conditions = []
 
-                # Prepare event details for email
-                event_details = {
-                    'EventName': sub['EventName'],
-                    'date': sub['Date'],
-                    'StartTime': time_obj,
-                    'location': sub['Location'] or 'TBA',
-                    'description': sub['Description'] or 'No additional details'
-                }
-                user_email = sub['email']
-                user_name = f"{sub['firstname']} {sub['lastname']}"
-                event_type = sub['EventType'].capitalize() if sub['EventType'] else 'Event'
+            # Helper to build visibility check
+            def build_visibility_check(user_teams, user_games, user_id):
+                """Returns SQL condition for checking if user should see event based on visibility"""
+                conditions = ["ge.visibility = 'all_members'"]
 
-                if send_event_notification(user_email, user_name, event_type, event_details):
+                if user_games:
+                    game_ids = ','.join([str(gid) for gid in user_games])
+                    conditions.append(f"(ge.visibility = 'game_community' AND ge.game_id IN ({game_ids}))")
+
+                if user_teams:
+                    # For game_players: user must be on a team in that game
+                    conditions.append(f"""(ge.visibility = 'game_players' AND ge.game_id IN (
+                        SELECT t.gameID FROM team_members tm 
+                        JOIN teams t ON tm.team_id = t.teamID 
+                        WHERE tm.user_id = {user_id}
+                    ))""")
+
+                    # For team: user must be on that specific team
+                    team_ids = ','.join([f"'{tid}'" for tid in user_teams])
+                    conditions.append(f"(ge.visibility = 'team' AND ge.team_id IN ({team_ids}))")
+
+                return ' OR '.join(conditions)
+
+            visibility_check = build_visibility_check(user_teams, user_games, user['user_id'])
+
+            # 1. General Events - check notification preference and visibility
+            if user['notify_events']:
+                event_conditions.append(f"(ge.EventType = 'Event' AND ({visibility_check}))")
+
+            # 2. Matches - check notification preference and visibility
+            if user['notify_matches']:
+                event_conditions.append(f"(ge.EventType = 'Match' AND ({visibility_check}))")
+
+            # 3. Practices - check notification preference and visibility
+            if user['notify_practices']:
+                event_conditions.append(f"(ge.EventType = 'Practice' AND ({visibility_check}))")
+
+            # 4. Tournaments - for all games user is associated with
+            if user['notify_tournaments'] and user_games:
+                game_ids = ','.join([str(gid) for gid in user_games])
+                # Tournaments should reach game community and players
+                event_conditions.append(f"""
+                    (ge.EventType = 'Tournament' AND ge.game_id IN ({game_ids}) AND (
+                        ge.visibility IN ('game_community', 'game_players', 'all_members')
+                    ))
+                """)
+
+            # 5. Misc - check notification preference and visibility
+            if user['notify_misc']:
+                event_conditions.append(f"(ge.EventType = 'Misc' AND ({visibility_check}))")
+
+            # 6. Manual Subscriptions - ALWAYS include events user manually subscribed to
+            # Manual subscriptions override category preferences but still respect visibility
+            event_conditions.append(f"""
+                (ge.EventID IN (
+                    SELECT event_id 
+                    FROM event_subscriptions 
+                    WHERE user_id = {user['user_id']}
+                ) AND ({visibility_check}))
+            """)
+
+            # Skip if user has no applicable preferences or memberships
+            if not event_conditions:
+                continue
+
+            # Combine all conditions with OR
+            where_clause = ' OR '.join(event_conditions)
+
+            # Get all upcoming events that match user's preferences and memberships
+            query = f"""
+                SELECT ge.EventID,
+                       ge.EventName,
+                       ge.Date as date,
+                       ge.StartTime,
+                       ge.location,
+                       ge.description,
+                       ge.EventType as event_type
+                FROM generalevents ge
+                WHERE ge.Date = DATE(%s)
+                  AND ge.StartTime BETWEEN %s AND %s
+                  AND ({where_clause})
+                  AND NOT EXISTS (
+                      SELECT 1 FROM sent_notifications sn
+                      WHERE sn.user_id = %s
+                        AND sn.event_id = ge.EventID
+                        AND sn.event_type = ge.EventType
+                        AND sn.sent_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
+                  )
+            """
+
+            cursor.execute(query, (
+                notification_time.date(),
+                notification_time.time(),
+                (notification_time + timedelta(hours=1)).time(),
+                user['user_id']
+            ))
+
+            events = cursor.fetchall()
+
+            # Send notifications for all matched events
+            for event in events:
+                # Convert timedelta to time object if needed
+                if isinstance(event['StartTime'], timedelta):
+                    total_seconds = int(event['StartTime'].total_seconds())
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    seconds = total_seconds % 60
+                    event['StartTime'] = datetime.min.time().replace(
+                        hour=hours, minute=minutes, second=seconds
+                    )
+
+                # Capitalize event type for display
+                event_label = event['event_type'].capitalize() if event['event_type'] else 'Event'
+
+                if send_event_notification(
+                        user['email'],
+                        user['firstname'],
+                        event_label,
+                        event
+                ):
+                    # Log sent notification
                     cursor.execute("""
-                        INSERT INTO sent_notifications (user_id, event_id, sent_at)
-                        VALUES (%s, %s, NOW())
-                    """, (sub['user_id'], sub['EventID']))
-                    print(f"Sent notification to {user_email} for {sub['EventName']} ({event_type})")
+                                   INSERT INTO sent_notifications
+                                       (user_id, event_id, event_type, sent_at)
+                                   VALUES (%s, %s, %s, NOW())
+                                   """, (user['user_id'], event['EventID'], event['event_type']))
 
         mysql.connection.commit()
-        print(f"Notification check completed at {get_current_time()}")
 
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"Error in notification scheduler: {str(e)}")
     finally:
         cursor.close()
-
-
 
 # ========================================================================
 # Initialize scheduler for background notifications (UC-14)
