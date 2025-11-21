@@ -354,6 +354,18 @@
                                         <small>Team meetings, socials, and other events</small>
                                     </span>
                                 </label>
+
+                                <label class="checkbox-label">
+                                    <input type="checkbox"
+                                           name="notify_misc"
+                                           id="notifyMisc"
+                                           {% if not preferences or preferences.notify_misc %}checked{% endif %}>
+                                    <span class="checkbox-text">
+                                        <i class="fas fa-star"></i>
+                                        <strong>Miscellaneous</strong>
+                                        <small>Team photoshoots, outings, and other activities</small>
+                                    </span>
+                                </label>
                             </div>
                         </div>
 
