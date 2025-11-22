@@ -440,8 +440,6 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
         Cron job endpoint to generate events for all active schedules
         Should be called daily
         """
-        # TODO: Add authentication for cron jobs (API key, etc.)
-
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         try:
@@ -501,15 +499,6 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
         """, (schedule_id,))
 
         schedule = cursor.fetchone()
-
-        # ADD THIS DEBUG
-        print(f"🔍 DEBUG generate_events_for_schedule:")
-        print(f"   schedule_id: {schedule_id}")
-        print(f"   schedule found: {schedule is not None}")
-        if schedule:
-            print(f"   frequency: {schedule['frequency']}")
-            print(f"   is_active: {schedule['is_active']}")
-            print(f"   specific_date: {schedule.get('specific_date')}")
 
         if not schedule or not schedule['is_active']:
             print(f"   ❌ Schedule not found or not active")

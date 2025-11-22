@@ -890,17 +890,32 @@
                                     <option value="Misc">Misc</option>
                                 </select>
                             </div>
+                        </div>
 
-                            <div class="form-group" id="gameFieldGroup">
-                                <label for="game">Game (Optional)</label>
-                                <select id="game" name="game">
-                                    <option value="">Select game</option>
-                                    <!-- Games will be loaded dynamically via JavaScript -->
-                                </select>
-                                <div id="gameLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                                    <i class="fas fa-spinner fa-spin"></i> Loading games...
-                                </div>
+                        <!-- Full-width game selection with tags -->
+                        <div class="form-group" id="gameFieldGroup">
+                            <label for="gameDropdown">Games (Optional)</label>
+                            <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
+                                Select games from the dropdown - they'll appear as tags below
                             </div>
+
+                            <!-- Selected games display area -->
+                            <div id="selectedGamesContainer" class="selected-games-container">
+                                <!-- Selected game tags will appear here -->
+                            </div>
+
+                            <!-- Dropdown for selecting games -->
+                            <select id="gameDropdown" class="game-dropdown-single">
+                                <option value="">+ Add a game</option>
+                                <!-- Games will be loaded dynamically via JavaScript -->
+                            </select>
+
+                            <div id="gameLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                                <i class="fas fa-spinner fa-spin"></i> Loading games...
+                            </div>
+
+                            <!-- Hidden input to store selected games as JSON -->
+                            <input type="hidden" id="selectedGamesInput" name="games" value="[]">
                         </div>
 
                         <div class="form-group">
@@ -1331,7 +1346,6 @@
                             <option value="team" id="visibilityTeamOption">Team Only</option>
                             <option value="game_players" id="visibilityPlayersOption">Players</option>
                             <option value="game_community" id="visibilityCommunityOption">Community Members</option>
-                            <option value="all_members">All Users</option>
                         </select>
                         <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
                             Events will be automatically created on the calendar based on this schedule
@@ -1742,6 +1756,57 @@
                     <button type="submit" class="btn btn-primary">
                         <span id="submitTeamBtnText">Create Team</span>
                         <i id="submitTeamBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Team Modal -->
+<div id="editTeamModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <div class="modal-header">
+            <h2>Edit Team: <span id="editTeamModalTitle">Team Name</span></h2>
+            <button class="modal-close" onclick="closeEditTeamModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Update team information</p>
+
+            <form id="editTeamForm" class="event-form-modal">
+                <input type="hidden" id="editTeamID" name="team_id">
+                <input type="hidden" id="editGameID" name="game_id">
+
+                <div class="form-group">
+                    <label for="editTeamTitle">Team Title *</label>
+                    <input type="text"
+                           id="editTeamTitle"
+                           name="team_title"
+                           placeholder="Enter team title"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label>Team Size *</label>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                        Select the team size for this team
+                    </p>
+                    <div id="editTeamSizesContainer" class="team-size-options">
+                        <!-- Radio buttons will be inserted here dynamically -->
+                    </div>
+                </div>
+
+                <div id="editTeamFormMessage" class="form-message" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditTeamModal()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="updateTeamBtnText">Update Team</span>
+                        <i id="updateTeamBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
                     </button>
                 </div>
             </form>

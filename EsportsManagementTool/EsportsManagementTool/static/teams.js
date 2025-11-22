@@ -225,15 +225,28 @@ function renderTeamsSidebar(teams) {
         const teamItem = document.createElement('div');
         teamItem.className = 'team-sidebar-item';
         teamItem.setAttribute('data-team-id', team.TeamID);
-        teamItem.onclick = () => selectTeam(team.TeamID);
+        teamItem.setAttribute('data-gm-id', team.gm_id || ''); // Store GM ID for permission check
 
+        // Check if current user is the GM for THIS specific game
+        const isGameManager = team.gm_id && team.gm_id === window.currentUserId;
+
+        // Only add click handler to the main area, not the edit button
         teamItem.innerHTML = `
-            <div class="team-sidebar-name">${team.teamName}</div>
-            <div class="team-sidebar-game">${team.GameTitle || 'Unknown Game'}</div>
-            <div class="team-sidebar-meta">
-                <span><i class="fas fa-users"></i> ${team.member_count || 0}</span>
-                <span><i class="fas fa-trophy"></i> ${team.teamMaxSize}</span>
+            <div class="team-sidebar-content" onclick="selectTeam('${team.TeamID}')">
+                <div class="team-sidebar-name">${team.teamName}</div>
+                <div class="team-sidebar-game">${team.GameTitle || 'Unknown Game'}</div>
+                <div class="team-sidebar-meta">
+                    <span><i class="fas fa-users"></i> ${team.member_count || 0}</span>
+                    <span><i class="fas fa-trophy"></i> ${team.teamMaxSize}</span>
+                </div>
             </div>
+            ${isGameManager ? `
+                <button class="team-edit-btn"
+                        onclick="event.stopPropagation(); openEditTeamModal('${team.TeamID}', '${team.teamName.replace(/'/g, "\\'")}', ${team.teamMaxSize}, '${team.TeamSizes || ''}')"
+                        title="Edit team">
+                    <i class="fas fa-edit"></i>
+                </button>
+            ` : ''}
         `;
 
         sidebarList.appendChild(teamItem);
@@ -804,6 +817,182 @@ function closeAddTeamMembersModal() {
 }
 
 /**
+ * Open edit team modal
+ */
+async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSizes) {
+    const modal = document.getElementById('editTeamModal');
+    const modalTitle = document.getElementById('editTeamModalTitle');
+    const teamIdField = document.getElementById('editTeamID');
+    const teamTitleInput = document.getElementById('editTeamTitle');
+    const sizeContainer = document.getElementById('editTeamSizesContainer');
+    const formMessage = document.getElementById('editTeamFormMessage');
+
+    if (!modal) {
+        console.error('Edit team modal not found');
+        return;
+    }
+
+    // Reset form
+    document.getElementById('editTeamForm').reset();
+    formMessage.style.display = 'none';
+
+    // Set values
+    modalTitle.textContent = teamName;
+    teamIdField.value = teamId;
+    teamTitleInput.value = teamName;
+
+    // Get available team sizes for this game
+    // We need to fetch the team details to get the game's available sizes
+    try {
+        const response = await fetch(`/api/teams/${teamId}/details`);
+        const data = await response.json();
+
+        if (data.success) {
+            const team = data.team;
+
+            // Get game details to fetch available team sizes
+            const gameResponse = await fetch(`/api/game/${team.game_id}/details`);
+            const gameData = await gameResponse.json();
+
+            if (gameData.success) {
+                const sizes = gameData.game.team_sizes || availableSizes.split(',').map(s => s.trim());
+
+                // Populate team size radio buttons
+                sizeContainer.innerHTML = '';
+                sizeContainer.className = 'team-size-options';
+
+                sizes.forEach((size) => {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'team-size-option';
+
+                    const radioId = `editTeamSize${size}`;
+                    const isSelected = parseInt(size) === parseInt(currentMaxSize);
+                    const playerText = size === 1 ? 'player' : 'players';
+
+                    optionDiv.innerHTML = `
+                        <input type="radio"
+                               name="team_sizes"
+                               value="${size}"
+                               id="${radioId}"
+                               ${isSelected ? 'checked' : ''}>
+                        <label for="${radioId}">
+                            <div class="size-content">
+                                <i class="fas fa-users size-icon"></i>
+                                <div class="size-text">
+                                    <span class="size-number">${size} ${size == 1 ? 'Player' : 'Players'}</span>
+                                    <span class="size-description">Maximum ${size} ${playerText} per team</span>
+                                </div>
+                            </div>
+                        </label>
+                    `;
+
+                    sizeContainer.appendChild(optionDiv);
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error loading team details for edit:', error);
+        alert('Failed to load team information. Please try again.');
+        return;
+    }
+
+    // Show modal
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Close edit team modal
+ */
+function closeEditTeamModal() {
+    const modal = document.getElementById('editTeamModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
+/**
+ * Setup edit team form submission
+ */
+function setupEditTeamForm() {
+    const editTeamForm = document.getElementById('editTeamForm');
+    if (!editTeamForm) return;
+
+    editTeamForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const submitBtn = editTeamForm.querySelector('button[type="submit"]');
+        const submitBtnText = document.getElementById('updateTeamBtnText');
+        const submitBtnSpinner = document.getElementById('updateTeamBtnSpinner');
+        const formMessage = document.getElementById('editTeamFormMessage');
+
+        submitBtn.disabled = true;
+        submitBtnText.style.display = 'none';
+        submitBtnSpinner.style.display = 'inline-block';
+
+        const teamId = document.getElementById('editTeamID').value;
+        const teamTitle = document.getElementById('editTeamTitle').value;
+
+        const selectedSize = document.querySelector('input[name="team_sizes"]:checked');
+        if (!selectedSize) {
+            formMessage.textContent = 'Please select a team size.';
+            formMessage.className = 'form-message error';
+            formMessage.style.display = 'block';
+
+            submitBtn.disabled = false;
+            submitBtnText.style.display = 'inline';
+            submitBtnSpinner.style.display = 'none';
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/teams/${teamId}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    team_title: teamTitle,
+                    team_max_size: selectedSize.value
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                formMessage.textContent = data.message || 'Team updated successfully!';
+                formMessage.className = 'form-message success';
+                formMessage.style.display = 'block';
+
+                setTimeout(() => {
+                    closeEditTeamModal();
+                    // Reload teams and re-select the current team
+                    loadTeams().then(() => {
+                        selectTeam(teamId);
+                    });
+                }, 1500);
+            } else {
+                throw new Error(data.message || 'Failed to update team');
+            }
+        } catch (error) {
+            formMessage.textContent = error.message || 'Failed to update team. Please try again.';
+            formMessage.className = 'form-message error';
+            formMessage.style.display = 'block';
+
+            submitBtn.disabled = false;
+            submitBtnText.style.display = 'inline';
+            submitBtnSpinner.style.display = 'none';
+        }
+    });
+}
+
+// Initialize edit form on DOM load
+document.addEventListener('DOMContentLoaded', function() {
+    setupEditTeamForm();
+});
+
+/**
  * Filter available members
  */
 function filterAvailableMembers() {
@@ -836,3 +1025,5 @@ window.addSelectedMembersToTeam = addSelectedMembersToTeam;
 window.closeAddTeamMembersModal = closeAddTeamMembersModal;
 window.filterAvailableMembers = filterAvailableMembers;
 window.loadNextScheduledEvent = loadNextScheduledEvent;
+window.openEditTeamModal = openEditTeamModal;
+window.closeEditTeamModal = closeEditTeamModal;

@@ -14,8 +14,8 @@ let currentEventData = null;
 let currentDeleteEventId = null;
 let currentDeleteEventName = '';
 let currentUserPermissions = { is_admin: false, is_gm: false };
-//let gamesCache = null;
 let gamesListCache = null;
+let selectedGames = [];
 
 // Store events data for day modal access
 let eventsData = {};
@@ -159,8 +159,102 @@ async function loadGamesList() {
     }
 }
 
+/* ----------------------------------------------------
+    GAME TAG SYSTEM FOR EVENT CREATION
+    Creates a nice game selection window for multiple games
+    --------------------------------------------------- */
 /**
- * Populate any game dropdown with the cached games list
+ * Initialize game tag selector event listener
+ */
+function initializeGameTagSelector() {
+    const dropdown = document.getElementById('gameDropdown');
+    if (!dropdown) return;
+
+    // Remove any existing event listeners to prevent duplicates
+    const clone = dropdown.cloneNode(true);
+    dropdown.replaceWith(clone);
+
+    // Get fresh reference to the replaced element
+    const newDropdown = document.getElementById('gameDropdown');
+    if (!newDropdown) return;
+
+    newDropdown.addEventListener('change', function() {
+        const selectedGame = this.value;
+        if (selectedGame && !selectedGames.includes(selectedGame)) {
+            addGameTag(selectedGame);
+        }
+        // Reset dropdown to placeholder
+        this.value = '';
+    });
+}
+
+/**
+ * Add a game tag to the selected games
+ */
+function addGameTag(gameTitle) {
+    if (selectedGames.includes(gameTitle)) return;
+
+    selectedGames.push(gameTitle);
+    updateGameTagsDisplay();
+    updateHiddenGamesInput();
+}
+
+/**
+ * Remove a game tag from selected games
+ */
+function removeGameTag(gameTitle) {
+    selectedGames = selectedGames.filter(game => game !== gameTitle);
+    updateGameTagsDisplay();
+    updateHiddenGamesInput();
+}
+
+/**
+ * Update the visual display of selected game tags
+ */
+function updateGameTagsDisplay() {
+    const container = document.getElementById('selectedGamesContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    selectedGames.forEach(game => {
+        const tag = document.createElement('div');
+        tag.className = 'game-tag';
+        tag.innerHTML = `
+            <i class="fas fa-gamepad game-tag-icon"></i>
+            <span>${game}</span>
+            <button type="button"
+                    class="game-tag-remove"
+                    onclick="removeGameTag('${game.replace(/'/g, "\\'")}')"
+                    title="Remove ${game}">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(tag);
+    });
+}
+
+/**
+ * Update the hidden input with selected games as JSON
+ */
+function updateHiddenGamesInput() {
+    const hiddenInput = document.getElementById('selectedGamesInput');
+    if (hiddenInput) {
+        hiddenInput.value = JSON.stringify(selectedGames);
+    }
+}
+
+/**
+ * Clear all selected games
+ */
+function clearSelectedGames() {
+    selectedGames = [];
+    updateGameTagsDisplay();
+    updateHiddenGamesInput();
+}
+
+/**
+ * Populate a SINGLE SELECT dropdown with games (for edit/filter)
  * @param {string} selectId - ID of the select element to populate
  * @param {string} loadingIndicatorId - ID of loading indicator (optional)
  * @param {string} selectedGame - Game to pre-select (optional)
@@ -217,6 +311,70 @@ async function populateGameDropdown(selectId, loadingIndicatorId = null, selecte
         }
         selectElement.disabled = false;
     }
+}
+
+/**
+ * Populate the TAG-BASED multi-select dropdown for create event modal
+ */
+async function loadGamesForTagSelector() {
+    const dropdown = document.getElementById('gameDropdown');
+    const loadingIndicator = document.getElementById('gameLoadingIndicator');
+
+    if (!dropdown) {
+        console.warn('gameDropdown element not found');
+        return;
+    }
+
+    // Show loading indicator
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'block';
+    }
+    dropdown.disabled = true;
+
+    try {
+        // Load games (uses cache if available)
+        const games = await loadGamesList();
+
+        // Clear existing options except placeholder
+        dropdown.innerHTML = '<option value="">+ Add a game</option>';
+
+        if (games.length === 0) {
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "No games available";
+            option.disabled = true;
+            dropdown.appendChild(option);
+            return;
+        }
+
+        // Populate dropdown
+        games.forEach(game => {
+            const option = document.createElement('option');
+            option.value = game.GameTitle;
+            option.textContent = game.GameTitle;
+            dropdown.appendChild(option);
+        });
+
+        // Initialize the tag selector event listener
+        initializeGameTagSelector();
+
+    } catch (error) {
+        console.error('Error populating game dropdown:', error);
+        dropdown.innerHTML = '<option value="">Error loading games</option>';
+    } finally {
+    // Hide loading indicator
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+    }
+
+    // FORCE enable the dropdown
+    dropdown.removeAttribute('disabled');
+    dropdown.disabled = false;
+
+    // Verify it's enabled
+    console.log('Dropdown disabled attribute:', dropdown.hasAttribute('disabled'));
+    console.log('Dropdown disabled property:', dropdown.disabled);
+}
 }
 
 /**
@@ -377,15 +535,20 @@ function createEventCard(event, isAdmin, isGm) {
         </button>
     ` : '';
 
-    const gameDisplay = event.game && event.game !== 'N/A' ? event.game : 'None';
+    // Handle multiple games display
+    let gameDisplay = 'None';
+    if (event.game && event.game !== 'N/A') {
+        const games = event.game.split(', ');
+        if (games.length > 2) {
+            gameDisplay = `${games.slice(0, 2).join(', ')} +${games.length - 2} more`;
+        } else {
+            gameDisplay = event.game;
+        }
+    }
 
-    // Normalize event type to lowercase for data attribute ONLY
     const eventTypeClass = (event.event_type || 'event').toLowerCase();
-
-    // Check if event is scheduled.
     const scheduledClass = event.is_scheduled ? 'scheduled-event' : '';
 
-    // Full Return statement.
     return `
         <div class="event-card ${scheduledClass}"
              data-event-type="${eventTypeClass}"
@@ -1044,9 +1207,12 @@ function openCreateEventModal() {
     document.getElementById('customLocationGroup').style.display = 'none';
     document.getElementById('formMessage').style.display = 'none';
 
-    loadGamesForDropdown();
-}
+    // Clear selected games
+    clearSelectedGames();
 
+    // Load games for tag selector
+    loadGamesForTagSelector();
+}
 /**
  * Handle event type change - hide game field for Misc events
  */
@@ -1443,3 +1609,6 @@ window.loadGamesForFilter = loadGamesForFilter;
 window.clearGamesCache = clearGamesCache;
 window.handleEventTypeChange = handleEventTypeChange;
 window.handleEditEventTypeChange = handleEditEventTypeChange;
+window.addGameTag = addGameTag;
+window.removeGameTag = removeGameTag;
+window.clearSelectedGames = clearSelectedGames;

@@ -365,7 +365,6 @@ function formatVisibility(visibility) {
         'team': 'Team Only',
         'game_players': 'Game Players',
         'game_community': 'Game Community',
-        'all_members': 'All Members'
     };
     return visibilityMap[visibility] || visibility;
 }
@@ -587,7 +586,6 @@ function openEditScheduleMode(scheduleId) {
                     <option value="team" ${schedule.visibility === 'team' ? 'selected' : ''}>Team Only</option>
                     <option value="game_players" ${schedule.visibility === 'game_players' ? 'selected' : ''}>Game Players</option>
                     <option value="game_community" ${schedule.visibility === 'game_community' ? 'selected' : ''}>Game Community</option>
-                    <option value="all_members" ${schedule.visibility === 'all_members' ? 'selected' : ''}>All Members</option>
                 </select>
             </div>
 
@@ -752,23 +750,24 @@ async function initScheduleButton(teamId, gameId) {
     console.log('User is GM:', isGM);
 
     if (isGM && gameId) {
+        // Check if GM manages THIS specific game
         try {
             const userId = window.currentUserId;
-            console.log('Current user ID:', userId);
+            console.log('Current user ID:', userId, 'Game ID:', gameId);
 
-            const response = await fetch(`/api/user/${userId}/managed-game`);
+            // Use the new route with game_id parameter
+            const response = await fetch(`/api/user/${userId}/manages-game/${gameId}`);
             const data = await response.json();
             console.log('API response:', data);
 
-            if (data.success && data.manages_game && data.game_id === gameId) {
+            if (data.success && data.manages_game) {
                 console.log('✓ User manages this game - showing button');
                 createScheduleBtn.style.display = 'flex';
 
                 // Update visibility dropdown labels with team/game names
                 updateVisibilityLabels(teamId, gameId);
             } else {
-                console.log('✗ User does not manage this game or game ID mismatch');
-                console.log('  Managed game ID:', data.game_id, 'Current game ID:', gameId);
+                console.log('✗ User does not manage this game');
                 createScheduleBtn.style.display = 'none';
             }
         } catch (error) {
@@ -847,9 +846,6 @@ function buildVisibilityText(schedule) {
     const gameName = schedule.game_title;
 
     switch (schedule.visibility) {
-        case 'all_members':
-            return 'All Users';
-
         case 'game_community':
             return `${gameName} Community`;
 

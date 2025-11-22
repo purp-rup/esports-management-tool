@@ -460,13 +460,17 @@ def manage_role():
 
 """
 Route meant to retrieve the games a user manages from the database.
+Updated to support checking a specific game or getting the first managed game.
 """
-
-
 @app.route('/api/user/<int:user_id>/managed-game', methods=['GET'])
+@app.route('/api/user/<int:user_id>/manages-game/<int:game_id>', methods=['GET'])
 @login_required
-def get_user_managed_game(user_id):
-    """Get which game (if any) this user manages"""
+def get_user_managed_game(user_id, game_id=None):
+    """
+    Get which game (if any) this user manages.
+    If game_id is provided, check if user manages that specific game.
+    If game_id is not provided, return the first game the user manages.
+    """
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -481,33 +485,69 @@ def get_user_managed_game(user_id):
                     'manages_game': False
                 })
 
-            # Find which game this user manages by checking gm_id in games table
-            cursor.execute("""
-                SELECT GameID, GameTitle, GameImage 
-                FROM games 
-                WHERE gm_id = %s
-                LIMIT 1
-            """, (user_id,))
+            # If specific game_id is provided, check that specific game
+            if game_id is not None:
+                cursor.execute("""
+                    SELECT GameID, GameTitle, GameImage, gm_id
+                    FROM games 
+                    WHERE GameID = %s
+                """, (game_id,))
 
-            game = cursor.fetchone()
+                game = cursor.fetchone()
 
-            if game:
-                # This user manages this game
-                image_url = f'/game-image/{game["GameID"]}' if game.get('GameImage') else None
+                if not game:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Game not found'
+                    }), 404
 
+                # Check if this user is the GM for this specific game
+                manages_this_game = (game['gm_id'] == user_id)
+
+                if manages_this_game:
+                    image_url = f'/game-image/{game["GameID"]}' if game.get('GameImage') else None
+
+                    return jsonify({
+                        'success': True,
+                        'manages_game': True,
+                        'game_id': game['GameID'],
+                        'game_title': game['GameTitle'],
+                        'game_icon': image_url
+                    })
+                else:
+                    return jsonify({
+                        'success': True,
+                        'manages_game': False,
+                        'game_id': game_id
+                    })
+
+            # If no game_id provided, return the first game this user manages (original behavior)
+            else:
+                cursor.execute("""
+                    SELECT GameID, GameTitle, GameImage 
+                    FROM games 
+                    WHERE gm_id = %s
+                    LIMIT 1
+                """, (user_id,))
+
+                game = cursor.fetchone()
+
+                if game:
+                    image_url = f'/game-image/{game["GameID"]}' if game.get('GameImage') else None
+
+                    return jsonify({
+                        'success': True,
+                        'manages_game': True,
+                        'game_id': game['GameID'],
+                        'game_title': game['GameTitle'],
+                        'game_icon': image_url
+                    })
+
+                # User is a GM but doesn't manage any game yet
                 return jsonify({
                     'success': True,
-                    'manages_game': True,
-                    'game_id': game['GameID'],
-                    'game_title': game['GameTitle'],
-                    'game_icon': image_url
+                    'manages_game': False
                 })
-
-            # User is a GM but doesn't manage any game yet
-            return jsonify({
-                'success': True,
-                'manages_game': False
-            })
 
         finally:
             cursor.close()

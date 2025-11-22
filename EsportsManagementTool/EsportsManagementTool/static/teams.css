@@ -138,12 +138,22 @@
 }
 
 .team-sidebar-item {
-    padding: 1rem;
+    padding: 0;
     background: var(--dark-bg);
     border: 2px solid var(--border-color);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+}
+
+.team-sidebar-content {
+    flex: 1;
+    padding: 1rem;
+    cursor: pointer;
 }
 
 .team-sidebar-item:hover {
@@ -182,6 +192,30 @@
     display: flex;
     align-items: center;
     gap: 0.25rem;
+}
+
+/* Edit button */
+.team-edit-btn {
+    background: transparent;
+    border: none;
+    color: var(--stockton-blue);
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+    margin-right: 0.5rem;
+    border-radius: 6px;
+    opacity: 1;
+}
+
+.team-edit-btn:hover {
+    background: rgba(121, 189, 233, 0.15);
+    color: var(--stockton-blue);
+    transform: scale(1.1);
+}
+
+.team-edit-btn:active {
+    transform: scale(0.95);
 }
 
 /* --------------------------------------------
@@ -902,6 +936,11 @@
     justify-content: center;
     gap: 0.5rem;
 }
+
+/* --------------------------------------------
+    EDIT BUTTON
+    Edit button and edit team modal
+    ------------------------------------------- */
 
 /* --------------------------------------------
    ANIMATIONS

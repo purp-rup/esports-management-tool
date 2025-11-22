@@ -34,7 +34,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             eventName = request.form.get('eventName', '').strip()
             eventDate = request.form.get('eventDate', '').strip()
             eventType = request.form.get('eventType', '').strip()
-            game = request.form.get('game', '').strip()
+            games_json = request.form.get('games', '[]')  # Get as JSON string
             startTime = request.form.get('startTime', '').strip()
             endTime = request.form.get('endTime', '').strip()
             eventDescription = request.form.get('eventDescription', '').strip()
@@ -43,11 +43,34 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             if eventName and eventDate and eventType and startTime and endTime and eventDescription:
                 cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
                 try:
+                    # Parse selected games
+                    import json
+                    selected_games = json.loads(games_json)
+
+                    # Create the main event (without Game field for now)
                     cursor.execute(
-                        'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Game, Location, created_by) '
-                        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                        (eventName, eventDate, startTime, endTime, eventDescription, eventType, game, location,
+                        'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Location, created_by) '
+                        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
+                        (eventName, eventDate, startTime, endTime, eventDescription, eventType, location,
                          session['id']))
+
+                    event_id = cursor.lastrowid
+
+                    # Insert game associations
+                    if selected_games:
+                        for game_title in selected_games:
+                            cursor.execute(
+                                'INSERT INTO event_games (event_id, game_title) VALUES (%s, %s)',
+                                (event_id, game_title)
+                            )
+
+                        # Set the Game field to a comma-separated list for backward compatibility
+                        game_display = ', '.join(selected_games)
+                        cursor.execute(
+                            'UPDATE generalevents SET Game = %s WHERE EventID = %s',
+                            (game_display, event_id)
+                        )
+
                     mysql.connection.commit()
                     msg = 'Event Registered!'
 
@@ -57,6 +80,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                         return jsonify({'success': True, 'message': msg}), 200
 
                 except Exception as e:
+                    mysql.connection.rollback()
                     msg = f'Error: {str(e)}'
                     if request.headers.get(
                             'X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
