@@ -65,11 +65,27 @@ function renderStatsContent() {
     const isAdmin = window.userPermissions?.is_admin || false;
     const canManage = isGM || isAdmin;
     
+    // Parse wins and losses as integers to ensure proper calculation
+    const wins = parseInt(teamStats.wins) || 0;
+    const losses = parseInt(teamStats.losses) || 0;
+    const totalMatches = wins + losses;
+    
     // Calculate win percentage
-    const totalMatches = teamStats.wins + teamStats.losses;
-    const winPercentage = totalMatches > 0 
-        ? ((teamStats.wins / totalMatches) * 100).toFixed(1) 
-        : 0;
+    let winPercentage = '0';
+    if (totalMatches > 0) {
+        const rawPercentage = (wins / totalMatches) * 100;
+        // If it's a whole number, don't show decimals. Otherwise show 1 decimal place.
+        winPercentage = (rawPercentage % 1 === 0) ? rawPercentage.toFixed(0) : rawPercentage.toFixed(1);
+    }
+    
+    console.log('📊 Stats Debug:', {
+        wins,
+        losses,
+        totalMatches,
+        winPercentage,
+        calculation: `${wins} / ${totalMatches} * 100 = ${winPercentage}`,
+        originalStats: teamStats
+    });
     
     statsPanel.innerHTML = `
         <div class="stats-container">
@@ -80,7 +96,7 @@ function renderStatsContent() {
                         <i class="fas fa-trophy"></i>
                     </div>
                     <div class="stat-card-content">
-                        <div class="stat-card-value">${teamStats.wins}</div>
+                        <div class="stat-card-value">${wins}</div>
                         <div class="stat-card-label">Wins</div>
                     </div>
                 </div>
@@ -90,7 +106,7 @@ function renderStatsContent() {
                         <i class="fas fa-times-circle"></i>
                     </div>
                     <div class="stat-card-content">
-                        <div class="stat-card-value">${teamStats.losses}</div>
+                        <div class="stat-card-value">${losses}</div>
                         <div class="stat-card-label">Losses</div>
                     </div>
                 </div>
@@ -110,7 +126,7 @@ function renderStatsContent() {
                         <i class="fas fa-chart-line"></i>
                     </div>
                     <div class="stat-card-content">
-                        <div class="stat-card-value">${teamStats.wins}-${teamStats.losses}</div>
+                        <div class="stat-card-value">${wins}-${losses}</div>
                         <div class="stat-card-label">Record</div>
                     </div>
                 </div>
@@ -202,10 +218,7 @@ function openRecordResultModal() {
         return;
     }
     
-    // Populate events dropdown with unrecorded matches
-    populateMatchEventsDropdown();
-    
-    // Reset form
+    // Reset form completely
     const form = document.getElementById('recordMatchResultForm');
     if (form) {
         form.reset();
@@ -217,6 +230,24 @@ function openRecordResultModal() {
         messageDiv.style.display = 'none';
     }
     
+    // Reset submit button state BEFORE populating dropdown
+    const submitBtn = form?.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        const btnText = submitBtn.querySelector('.btn-text');
+        const btnSpinner = submitBtn.querySelector('.btn-spinner');
+        if (btnText) btnText.style.display = 'inline';
+        if (btnSpinner) btnSpinner.style.display = 'none';
+    }
+    
+    // Clear any selected result options
+    const resultOptions = document.querySelectorAll('.result-option');
+    resultOptions.forEach(option => option.classList.remove('selected'));
+    
+    // Populate events dropdown
+    populateMatchEventsDropdown();
+    
+    // Show modal
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
 }
@@ -234,8 +265,9 @@ function closeRecordResultModal() {
 
 /**
  * Populate the events dropdown with past match events
+ * @param {number} preSelectEventId - Optional event ID to pre-select after loading
  */
-async function populateMatchEventsDropdown() {
+async function populateMatchEventsDropdown(preSelectEventId = null) {
     const select = document.getElementById('matchEventSelect');
     if (!select) return;
     
@@ -260,6 +292,11 @@ async function populateMatchEventsDropdown() {
                 
                 select.appendChild(option);
             });
+            
+            // Pre-select the event if specified
+            if (preSelectEventId) {
+                select.value = preSelectEventId;
+            }
         } else {
             select.innerHTML = '<option value="">No past matches found</option>';
         }
@@ -289,16 +326,17 @@ function handleResultSelection(result) {
 async function submitMatchResult(event) {
     event.preventDefault();
     
-    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const form = event.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
     const btnText = submitBtn.querySelector('.btn-text');
     const btnSpinner = submitBtn.querySelector('.btn-spinner');
     const messageDiv = document.getElementById('recordResultMessage');
     
     // Disable submit button
     submitBtn.disabled = true;
-    btnText.style.display = 'none';
-    btnSpinner.style.display = 'inline-block';
-    messageDiv.style.display = 'none';
+    if (btnText) btnText.style.display = 'none';
+    if (btnSpinner) btnSpinner.style.display = 'inline-block';
+    if (messageDiv) messageDiv.style.display = 'none';
     
     const formData = {
         team_id: currentStatsTeamId,
@@ -359,36 +397,67 @@ async function editMatchResult(eventId) {
         return;
     }
     
-    // Open modal and pre-populate with existing data
-    openRecordResultModal();
+    // Open modal
+    const modal = document.getElementById('recordMatchResultModal');
+    if (!modal) {
+        console.error('Record match result modal not found');
+        return;
+    }
     
-    // Wait a bit for modal to populate dropdown
-    setTimeout(() => {
-        const select = document.getElementById('matchEventSelect');
-        const notesField = document.getElementById('matchNotes');
-        
-        if (select) {
-            select.value = eventId;
+    // Reset form
+    const form = document.getElementById('recordMatchResultForm');
+    if (form) {
+        form.reset();
+    }
+    
+    // Clear message
+    const messageDiv = document.getElementById('recordResultMessage');
+    if (messageDiv) {
+        messageDiv.style.display = 'none';
+    }
+    
+    // Reset submit button state
+    const submitBtn = form?.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        const btnText = submitBtn.querySelector('.btn-text');
+        const btnSpinner = submitBtn.querySelector('.btn-spinner');
+        if (btnText) btnText.style.display = 'inline';
+        if (btnSpinner) btnSpinner.style.display = 'none';
+    }
+    
+    // Clear any selected result options
+    const resultOptions = document.querySelectorAll('.result-option');
+    resultOptions.forEach(option => option.classList.remove('selected'));
+    
+    // Show modal
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    
+    // Populate dropdown with the event pre-selected, then set other fields
+    await populateMatchEventsDropdown(eventId);
+    
+    // Set the result radio button if there's an existing result
+    if (match.result) {
+        const resultRadio = document.querySelector(`input[name="matchResult"][value="${match.result}"]`);
+        if (resultRadio) {
+            resultRadio.checked = true;
+            handleResultSelection(match.result);
         }
-        
-        if (match.result) {
-            const resultRadio = document.querySelector(`input[name="matchResult"][value="${match.result}"]`);
-            if (resultRadio) {
-                resultRadio.checked = true;
-                handleResultSelection(match.result);
-            }
-        }
-        
-        if (match.notes && notesField) {
-            notesField.value = match.notes;
-        }
-    }, 300);
+    }
+    
+    // Set notes if they exist
+    const notesField = document.getElementById('matchNotes');
+    if (match.notes && notesField) {
+        notesField.value = match.notes;
+    }
 }
 
 /**
  * Helper: Show message
  */
 function showMessage(element, message, type) {
+    if (!element) return;
     element.textContent = message;
     element.className = `form-message ${type}`;
     element.style.display = 'block';
@@ -398,9 +467,10 @@ function showMessage(element, message, type) {
  * Helper: Reset submit button
  */
 function resetSubmitButton(btn, textSpan, spinner) {
+    if (!btn) return;
     btn.disabled = false;
-    textSpan.style.display = 'inline';
-    spinner.style.display = 'none';
+    if (textSpan) textSpan.style.display = 'inline';
+    if (spinner) spinner.style.display = 'none';
 }
 
 // Export functions to global scope

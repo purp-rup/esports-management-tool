@@ -54,8 +54,8 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                 """, (team_id,))
                 
                 stats = cursor.fetchone()
-                wins = stats['wins'] or 0
-                losses = stats['losses'] or 0
+                wins = int(stats['wins']) if stats['wins'] is not None else 0
+                losses = int(stats['losses']) if stats['losses'] is not None else 0
 
                 # Get match history with results
                 cursor.execute("""
