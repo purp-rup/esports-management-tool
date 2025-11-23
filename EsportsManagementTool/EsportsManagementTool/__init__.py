@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 import pytz
 
+
 app = Flask(__name__)
 
 # =========================================
@@ -547,6 +548,12 @@ EsportsManagementTool.events.register_event_routes(app, mysql, login_required, r
 # =====================================
 from EsportsManagementTool import scheduled_events
 scheduled_events.register_scheduled_events_routes(app, mysql, login_required, roles_required, get_user_permissions)
+
+# =====================================
+# REGISTER TEAM STATISTICS ROUTES
+# =====================================
+from EsportsManagementTool import team_stats
+team_stats.register_team_stats_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
 # =====================================
 # EXPORT TIMEZONE FUNCTIONS

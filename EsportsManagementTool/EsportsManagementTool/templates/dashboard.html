@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='updateProfile.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='scheduled-events.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='teamstats.css') }}">
 
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
@@ -1142,10 +1143,9 @@
 
                         <!-- Stats Tab -->
                         <div id="statsTabContent" class="team-tab-panel">
-                            <div class="tab-coming-soon">
-                                <i class="fas fa-chart-line"></i>
-                                <h3>Stats Coming Soon</h3>
-                                <p>Team statistics and performance metrics will be available here</p>
+                            <div class="stats-loading">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading statistics...</p>
                             </div>
                         </div>
 
@@ -1723,6 +1723,82 @@
     </div>
 </div>
 
+<!-- Record Match Result Modal -->
+<!-- Add this modal to your dashboard.html, after the other team modals -->
+
+<div id="recordMatchResultModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Record Match Result</h2>
+            <button class="modal-close" onclick="closeRecordResultModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Record the outcome of a past match</p>
+
+            <form id="recordMatchResultForm" class="event-form-modal" onsubmit="submitMatchResult(event)">
+                <!-- Match Selection -->
+                <div class="form-group">
+                    <label for="matchEventSelect">Select Match *</label>
+                    <select id="matchEventSelect" name="event_id" required>
+                        <option value="">Loading matches...</option>
+                    </select>
+                    <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                        Only past matches are shown. Future matches cannot have results recorded yet.
+                    </small>
+                </div>
+
+                <!-- Result Selection -->
+                <div class="form-group">
+                    <label>Match Result *</label>
+                    <div class="result-options">
+                        <label class="result-option result-option-win" data-result="win" onclick="handleResultSelection('win')">
+                            <input type="radio" name="matchResult" value="win" required>
+                            <div class="result-option-icon">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <span class="result-option-label">WIN</span>
+                        </label>
+
+                        <label class="result-option result-option-loss" data-result="loss" onclick="handleResultSelection('loss')">
+                            <input type="radio" name="matchResult" value="loss" required>
+                            <div class="result-option-icon">
+                                <i class="fas fa-times-circle"></i>
+                            </div>
+                            <span class="result-option-label">LOSS</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Optional Notes -->
+                <div class="form-group">
+                    <label for="matchNotes">Notes (Optional)</label>
+                    <textarea id="matchNotes" 
+                              name="notes" 
+                              rows="3" 
+                              placeholder="Add any additional notes about the match..."></textarea>
+                    <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                        e.g., "Close game, went to overtime" or "Dominant performance"
+                    </small>
+                </div>
+
+                <div id="recordResultMessage" class="form-message" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeRecordResultModal()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="btn-text">Record Result</span>
+                        <i class="btn-spinner fas fa-spinner fa-spin" style="display: none;"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Change Avatar Modal -->
 <div id="changeAvatarModal" class="modal">
     <div class="modal-content">
@@ -1796,6 +1872,7 @@
 <script src="{{ url_for('static', filename='game.js') }}"></script>
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <script src="{{ url_for('static', filename='scheduled-events.js') }}"></script>
+<script src="{{ url_for('static', filename='teamstats.js') }}"></script>
 <!-- Must load last -->
 <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 

@@ -20,4 +20,7 @@ Needs doing:
             calendar.css
             communities.css
 
-
+Stats page WIP
+Fix win rate statistic
+fix create button
+test more thoroughly
