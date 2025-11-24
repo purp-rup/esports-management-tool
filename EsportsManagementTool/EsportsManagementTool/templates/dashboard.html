@@ -1166,15 +1166,29 @@
 
                         <!-- VODs Tab -->
                         <div id="vodsTabContent" class="team-tab-panel">
-                            <div class="tab-coming-soon">
-                                <h3>VODs</h3>
-                                <div id="video-player">
-                                    <iframe width="560" height="315"
-                                            src="https://www.youtube.com/embed/uUfCKaAKEUY"
+                            <div class="vods-section">
+                                <div class="vods-header">
+                                    <h3>Team VODs</h3>
+                                    {% if user.is_admin or user.is_gm %}
+                                    <button onclick="showAddVodModal()" class="btn btn-primary">Add VOD</button>
+                                    {% endif %}
+                                </div>
+
+                                <div id="video-player-container">
+                                    <iframe id="video-player" width="100%" height="500"
+                                            src=""
                                             frameborder="0"
                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                             allowfullscreen>
                                     </iframe>
+                                    <div id="current-video-info" style="margin-top: 10px;">
+                                        <h4 id="video-title"></h4>
+                                        <p id="video-meta"></p>
+                                    </div>
+                                </div>
+
+                                <div class="vods-list" id="vods-list">
+
                                 </div>
                             </div>
                         </div>
@@ -1903,6 +1917,26 @@
                 </div>
             </form>
         </div>
+    </div>
+</div>
+
+<!-- Add VOD Modal -->
+<div id="addVodModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeAddVodModal()">&times;</span>
+        <h3>Add Team VOD</h3>
+        <form id="addVodForm">
+            <label>YouTube Video URL or ID:</label>
+            <input type="text" id="youtube_video_input" required>
+
+            <label>Match Date:</label>
+            <input type="date" id="match_date">
+
+            <label>Opponent:</label>
+            <input type="text" id="opponent">
+
+            <button type="submit" class="btn btn-primary">Add VOD</button>
+        </form>
     </div>
 </div>
               
