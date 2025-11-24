@@ -621,8 +621,6 @@ Method to create one scheduled event within a set list of scheduled events based
 @param - event_date is the date of the event if it has one
 @param - connection is the connection between different scheduled events.
 """
-
-
 def create_scheduled_event_instance(cursor, schedule, event_date, connection):
     """
     Create a single event instance from a schedule
@@ -660,28 +658,29 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
             if team_result:
                 game_display = f"{game_title} ({team_result['teamName']})"
 
-        # Create the event - NOW WITH team_id, game_id, and visibility!
+        # ============================================
+        # Correct column order and value mapping
+        # ============================================
         cursor.execute("""
             INSERT INTO generalevents
             (EventName, Date, StartTime, EndTime, Description, EventType, 
-             Game, Location, created_by, schedule_id, is_scheduled,
-             team_id, game_id, visibility)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s)
+             Game, game_id, Location, created_by, schedule_id, is_scheduled,
+             team_id, visibility)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s)
         """, (
-            event_name,
-            event_date,
-            schedule['start_time'],
-            schedule['end_time'],
-            schedule['description'] or f"Recurring {schedule['event_type']}",
-            schedule['event_type'],
-            game_display,  # Display name (can include team info)
-            schedule['game_id'],  # ← Store game_id directly
-            schedule['location'] or 'TBD',
-            schedule['created_by'],
-            schedule['schedule_id'],
-            schedule['team_id'],      # NEW: Copy team_id
-            schedule['game_id'],      # NEW: Copy game_id
-            schedule['visibility']    # NEW: Copy visibility
+            event_name,                                                    # EventName
+            event_date,                                                    # Date
+            schedule['start_time'],                                        # StartTime
+            schedule['end_time'],                                          # EndTime
+            schedule['description'] or f"Recurring {schedule['event_type']}", # Description
+            schedule['event_type'],                                        # EventType
+            game_display,                                                  # Game (display string)
+            schedule['game_id'],                                          # game_id
+            schedule['location'] or 'TBD',                                # Location
+            schedule['created_by'],                                        # created_by
+            schedule['schedule_id'],                                       # schedule_id
+            schedule['team_id'],                                          # team_id
+            schedule['visibility']                                         # visibility
         ))
 
         event_id = cursor.lastrowid
