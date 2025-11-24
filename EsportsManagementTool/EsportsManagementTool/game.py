@@ -649,37 +649,43 @@ def assign_game_manager(game_id):
             if not game:
                 return jsonify({'success': False, 'message': 'Game not found'}), 404
 
-
             game_title = game['GameTitle']
 
-            #checking if user is already a gm of said game
-            cursor.execute("SELECT gm_id FROM games WHERE gm_id = %s AND GameTitle = %s", (gm_user_id, game_title))
+            # Check if user is already the GM of this specific game
+            cursor.execute("SELECT gm_id FROM games WHERE gm_id = %s AND GameID = %s", (gm_user_id, game_id))
             is_already_gm = cursor.fetchone()
 
             if is_already_gm:
-                return jsonify({'success': False, 'message': f'User is already GM for specified game.'}), 400
+                return jsonify({'success': False, 'message': f'User is already GM for this game.'}), 400
 
-            # Setting new gm_id for selected game.
-            cursor.execute("SELECT 1 FROM in_communities WHERE user_id = %s", (gm_user_id,))
-            existUser = cursor.fetchone()
+            # Check if user is a member of THIS SPECIFIC game's community
+            cursor.execute("SELECT 1 FROM in_communities WHERE user_id = %s AND game_id = %s",
+                          (gm_user_id, game_id))
+            is_member = cursor.fetchone()
 
-            if existUser:
-                cursor.execute("UPDATE games SET gm_id = %s WHERE GameTitle = %s", (gm_user_id, game_title))
-                mysql.connection.commit()
-            else: #Add as member and GM
-                cursor.execute("INSERT INTO in_communities (user_id, game_id, joined_at) VALUES (%s, %s, %s)", (gm_user_id, game_id, get_current_time()))
-                cursor.execute("UPDATE games SET gm_id = %s WHERE GameTitle = %s", (gm_user_id, game_title))
-                mysql.connection.commit()
+            if not is_member:
+                # User is NOT in the community, so add them first
+                cursor.execute(
+                    "INSERT INTO in_communities (user_id, game_id, joined_at) VALUES (%s, %s, %s)",
+                    (gm_user_id, game_id, get_current_time())
+                )
+
+            # Now assign them as GM
+            cursor.execute("UPDATE games SET gm_id = %s WHERE GameID = %s", (gm_user_id, game_id))
+            mysql.connection.commit()
 
             # Get GM name for response
             cursor.execute("SELECT firstname, lastname FROM users WHERE id = %s", (gm_user_id,))
             gm = cursor.fetchone()
             gm_name = f"{gm['firstname']} {gm['lastname']}"
+
             return jsonify({'success': True, 'message': f'{gm_name} has been assigned as Game Manager'}), 200
 
         except Exception as e:
             mysql.connection.rollback()
             print(f"Database error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'success': False, 'message': 'Failed to assign game manager'}), 500
 
         finally:
@@ -687,6 +693,8 @@ def assign_game_manager(game_id):
 
     except Exception as e:
         print(f"Error assigning GM: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
 """

@@ -1,12 +1,27 @@
-/* Font Awesome CDN */
+/* ============================================
+   DASHBOARD BASE STYLES
+   Core stylesheet for dashboard layout
+   ORGANIZED BY CLAUDEAI
+   ============================================ */
+
+/* --------------------------------------------
+   EXTERNAL RESOURCES
+   -------------------------------------------- */
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 
-/* Make dashboard full viewport height */
+/* --------------------------------------------
+   MAIN LAYOUT
+   Dashboard viewport and spacing
+   -------------------------------------------- */
 main {
     min-height: calc(100vh - 73px) !important;
     padding: 2rem 0 !important;
 }
 
+/* --------------------------------------------
+   DASHBOARD HEADER
+   Page title and description area
+   -------------------------------------------- */
 .dashboard-header {
     margin-bottom: 2rem;
 }
@@ -21,7 +36,10 @@ main {
     font-size: 0.875rem;
 }
 
-/* Content Cards */
+/* --------------------------------------------
+   CONTENT CARDS
+   Primary content container styling
+   -------------------------------------------- */
 .content-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -29,6 +47,7 @@ main {
     padding: 2rem;
 }
 
+/* Card header section */
 .card-header {
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
@@ -52,6 +71,33 @@ main {
     font-size: 0.875rem;
 }
 
+/* Event type colors - used across calendar, events, and schedules */
+:root {
+    --event-tournament: #8b5cf6;
+    --event-tournament-light: rgba(139, 92, 246, 0.1);
+    --event-tournament-hover: #7c3aed;
+
+    --event-match: #ef4444;
+    --event-match-light: rgba(239, 68, 68, 0.1);
+    --event-match-hover: #dc2626;
+
+    --event-practice: #22c55e;
+    --event-practice-light: rgba(34, 197, 94, 0.1);
+    --event-practice-hover: #16a34a;
+
+    --event-event: #79bde9;
+    --event-event-light: rgba(121, 189, 233, 0.1);
+    --event-event-hover: #5aabdd;
+
+    --event-misc: #eab308;
+    --event-misc-light: rgba(234, 179, 8, 0.1);
+    --event-misc-hover: #ca8a04;
+}
+
+/* --------------------------------------------
+   EMPTY STATES
+   No content placeholder styling
+   -------------------------------------------- */
 .empty-state {
     text-align: center;
     padding: 4rem 2rem;
@@ -74,6 +120,40 @@ main {
     font-size: 0.875rem;
 }
 
+/* --------------------------------------------
+   CUSTOM SCROLLBARS
+   Shared scrollbar styling
+   -------------------------------------------- */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--dark-bg);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--stockton-blue);
+}
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--dark-bg);
+}
+
+/* --------------------------------------------
+   RESPONSIVE DESIGN
+   Mobile adaptations
+   -------------------------------------------- */
 @media (max-width: 640px) {
     .card-header {
         flex-direction: column;

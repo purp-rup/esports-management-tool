@@ -1,12 +1,22 @@
-/* Notification Settings – Stockton Esports Theme */
+/* ============================================
+   NOTIFICATION SETTINGS STYLES
+   User notification preferences interface
+   ============================================ */
 
+/* --------------------------------------------
+   FORM LAYOUT
+   Main notification form structure
+   -------------------------------------------- */
 .notification-form {
     display: flex;
     flex-direction: column;
     gap: 2rem;
 }
 
-/* Toggle Cards */
+/* --------------------------------------------
+   TOGGLE CARDS
+   Card containers for settings sections
+   -------------------------------------------- */
 .notification-toggle,
 .notification-options {
     background: var(--card-bg);
@@ -23,7 +33,15 @@
     box-shadow: 0 0 12px rgba(121, 189, 233, 0.15);
 }
 
-/* Section Titles */
+/* Fade-in animation for expanded settings */
+.notification-options {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* --------------------------------------------
+   SECTION HEADERS
+   Titles and descriptions
+   -------------------------------------------- */
 .toggle-info h3,
 .form-section h3 {
     font-size: 1rem;
@@ -39,7 +57,10 @@
     margin: 0;
 }
 
-/* Toggle Switch */
+/* --------------------------------------------
+   TOGGLE SWITCH
+   On/off switch component
+   -------------------------------------------- */
 .switch {
     position: relative;
     display: inline-block;
@@ -56,7 +77,10 @@
 .slider {
     position: absolute;
     cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background-color: var(--border-color);
     transition: 0.4s ease;
     border-radius: 28px;
@@ -82,17 +106,10 @@ input:checked + .slider:before {
     transform: translateX(24px);
 }
 
-/* Smooth fade-in for expanded settings */
-.notification-options {
-    animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-5px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Input and Checkbox Styles */
+/* --------------------------------------------
+   FORM INPUTS
+   Number input fields
+   -------------------------------------------- */
 .notification-form input[type="number"] {
     width: 100%;
     padding: 0.75rem;
@@ -111,12 +128,16 @@ input:checked + .slider:before {
     box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.15);
 }
 
+/* --------------------------------------------
+   EVENT TYPE CHECKBOXES
+   Selectable event type preferences
+   -------------------------------------------- */
 .event-type-checkboxes {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
     margin-top: 1rem;
-    margin-bottom: 2rem; /* 👈 This adds space before Advance Notice */
+    margin-bottom: 2rem; /* Space before Advance Notice section */
 }
 
 .checkbox-label {
@@ -154,7 +175,10 @@ input:checked + .slider:before {
     font-size: 0.8rem;
 }
 
-/* Preview Banner */
+/* --------------------------------------------
+   NOTIFICATION PREVIEW
+   Preview banner for notification appearance
+   -------------------------------------------- */
 .notification-preview {
     display: flex;
     align-items: center;
@@ -175,4 +199,19 @@ input:checked + .slider:before {
 
 .notification-preview strong {
     color: var(--stockton-blue);
+}
+
+/* --------------------------------------------
+   ANIMATIONS
+   Keyframe animations
+   -------------------------------------------- */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

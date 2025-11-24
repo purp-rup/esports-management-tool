@@ -34,7 +34,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             eventName = request.form.get('eventName', '').strip()
             eventDate = request.form.get('eventDate', '').strip()
             eventType = request.form.get('eventType', '').strip()
-            game = request.form.get('game', '').strip()
+            games_json = request.form.get('games', '[]')
             startTime = request.form.get('startTime', '').strip()
             endTime = request.form.get('endTime', '').strip()
             eventDescription = request.form.get('eventDescription', '').strip()
@@ -43,21 +43,135 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             if eventName and eventDate and eventType and startTime and endTime and eventDescription:
                 cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
                 try:
+                    import json
+
+                    # ============================================
+                    # CRITICAL DEBUG LOGGING
+                    # ============================================
+                    print("\n" + "=" * 60)
+                    print(f"🎮 Creating Event: {eventName}")
+                    print("=" * 60)
+                    print(f"📦 Raw games_json: {repr(games_json)}")
+
+                    selected_games = json.loads(games_json)
+                    print(f"📋 Parsed games: {selected_games}")
+                    print(f"   Type: {type(selected_games)}")
+                    print(f"   Length: {len(selected_games)}")
+
+                    if selected_games:
+                        for idx, game in enumerate(selected_games):
+                            print(f"   [{idx}] '{game}' (len={len(game)}, repr={repr(game)})")
+
+                    # Build comma-separated display string
+                    game_display = ', '.join(selected_games) if selected_games else None
+                    print(f"🏷️  Display string: {game_display}")
+
+                    # Get primary game_id (first selected game)
+                    primary_game_id = None
+                    if selected_games:
+                        first_game_title = selected_games[0]
+                        print(f"\n🔍 Looking up primary game: '{first_game_title}'")
+
+                        cursor.execute('SELECT gameID, GameTitle FROM games WHERE GameTitle = %s', (first_game_title,))
+                        game_result = cursor.fetchone()
+
+                        if game_result:
+                            primary_game_id = game_result['gameID']
+                            print(f"   ✅ Found: game_id={primary_game_id}, title='{game_result['GameTitle']}'")
+                        else:
+                            print(f"   ❌ NOT FOUND in games table")
+                            # Show what games ARE in the table
+                            cursor.execute('SELECT gameID, GameTitle FROM games ORDER BY gameID DESC LIMIT 10')
+                            available = cursor.fetchall()
+                            print(f"   📚 Available games (last 10):")
+                            for g in available:
+                                print(f"      - {g['gameID']}: '{g['GameTitle']}'")
+
+                    # Create the event
+                    print(f"\n💾 Inserting event into generalevents...")
+                    print(f"   game_id: {primary_game_id}")
+
                     cursor.execute(
-                        'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Game, Location, created_by) '
-                        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                        (eventName, eventDate, startTime, endTime, eventDescription, eventType, game, location,
-                         session['id']))
+                        'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Location, Game, game_id, created_by) '
+                        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                        (eventName, eventDate, startTime, endTime, eventDescription, eventType, location, game_display,
+                         primary_game_id, session['id']))
+
+                    event_id = cursor.lastrowid
+                    print(f"   ✅ Created event_id: {event_id}")
+
+                    # Insert ALL games into event_games
+                    print(f"\n🔗 Inserting into event_games table...")
+
+                    if selected_games:
+                        for game_title in selected_games:
+                            print(f"\n   Processing: '{game_title}'")
+
+                            cursor.execute('SELECT gameID, GameTitle FROM games WHERE GameTitle = %s', (game_title,))
+                            game_result = cursor.fetchone()
+
+                            if game_result:
+                                game_id = game_result['gameID']
+                                print(f"      ✅ Found game_id: {game_id}")
+
+                                try:
+                                    cursor.execute(
+                                        'INSERT IGNORE INTO event_games (event_id, game_id) VALUES (%s, %s)',
+                                        (event_id, game_id)
+                                    )
+
+                                    rows_affected = cursor.rowcount
+                                    print(f"      📝 INSERT result: {rows_affected} row(s) affected")
+
+                                    if rows_affected > 0:
+                                        print(f"      ✅ Successfully linked event {event_id} to game_id {game_id}")
+                                    else:
+                                        print(f"      ⚠️  No rows inserted (duplicate or failed)")
+
+                                except Exception as insert_error:
+                                    print(f"      ❌ INSERT ERROR: {insert_error}")
+
+                            else:
+                                print(f"      ❌ Game '{game_title}' NOT FOUND in database")
+                                # Show similar games
+                                cursor.execute(
+                                    'SELECT gameID, GameTitle FROM games WHERE GameTitle LIKE %s LIMIT 5',
+                                    (f'%{game_title[:5]}%',)
+                                )
+                                similar = cursor.fetchall()
+                                if similar:
+                                    print(f"      💡 Similar games found:")
+                                    for s in similar:
+                                        print(f"         - {s['gameID']}: '{s['GameTitle']}'")
+                    else:
+                        print("   ⚠️  No games selected!")
+
+                    print("\n" + "=" * 60)
+                    print("🔍 Verifying event_games entries...")
+                    cursor.execute(
+                        'SELECT * FROM event_games WHERE event_id = %s',
+                        (event_id,)
+                    )
+                    verify_results = cursor.fetchall()
+                    print(f"   Found {len(verify_results)} entries:")
+                    for entry in verify_results:
+                        print(f"      - event_games.id={entry['id']}, game_id={entry['game_id']}")
+                    print("=" * 60 + "\n")
+
                     mysql.connection.commit()
                     msg = 'Event Registered!'
 
-                    # Return JSON for AJAX requests
                     if request.headers.get(
                             'X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
                         return jsonify({'success': True, 'message': msg}), 200
 
                 except Exception as e:
+                    mysql.connection.rollback()
                     msg = f'Error: {str(e)}'
+                    print(f"\n❌ EXCEPTION in eventRegister: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+
                     if request.headers.get(
                             'X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
                         return jsonify({'success': False, 'message': msg}), 400
@@ -125,8 +239,20 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 conditions.append("LOWER(ge.EventType) = %s")
                 params.append(event_type_filter)
             elif event_filter == 'game' and game_filter:
-                conditions.append("ge.Game = %s")
-                params.append(game_filter)
+                # Get game_id from game title
+                cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (game_filter,))
+                game_result = cursor.fetchone()
+
+                if game_result:
+                    game_id = game_result['gameID']
+                    conditions.append("""
+                        ge.EventID IN (
+                            SELECT eg.event_id 
+                            FROM event_games eg 
+                            WHERE eg.game_id = %s
+                        )
+                    """)
+                    params.append(game_id)
 
             # Build WHERE clause
             where_clause = " AND ".join(conditions) if conditions else "1=1"

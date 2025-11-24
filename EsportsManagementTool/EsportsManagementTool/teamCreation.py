@@ -343,6 +343,85 @@ def remove_member_from_team(team_id):
     finally:
         cursor.close()
 
+
+"""
+Route to update team information
+@param - team_id is the team being updated
+"""
+
+
+@app.route('/api/teams/<team_id>/update', methods=['POST'])
+@login_required
+def update_team(team_id):
+    """Update team name and max size - Only GM of the game can edit"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        data = request.get_json()
+        team_title = data.get('team_title', '').strip()
+        team_max_size = data.get('team_max_size')
+
+        if not team_title:
+            return jsonify({'success': False, 'message': 'Team title is required'}), 400
+
+        if not team_max_size:
+            return jsonify({'success': False, 'message': 'Team size is required'}), 400
+
+        # Check if team exists and get the GM
+        cursor.execute('''
+            SELECT t.teamName, t.gameID, g.gm_id, g.GameTitle
+            FROM teams t
+            LEFT JOIN games g ON t.gameID = g.GameID
+            WHERE t.TeamID = %s
+        ''', (team_id,))
+
+        team = cursor.fetchone()
+
+        if not team:
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        # STRICT PERMISSION CHECK: Only the GM of this game can edit
+        if team['gm_id'] != session['id']:
+            return jsonify({
+                'success': False,
+                'message': 'Only the Game Manager of this game can edit this team'
+            }), 403
+
+        # Check if new name conflicts with existing team (excluding current team)
+        cursor.execute('''
+            SELECT COUNT(*) AS count 
+            FROM teams 
+            WHERE gameID = %s 
+            AND LOWER(teamName) = LOWER(%s) 
+            AND TeamID != %s
+        ''', (team['gameID'], team_title, team_id))
+
+        name_check = cursor.fetchone()
+        if name_check['count'] > 0:
+            return jsonify({'success': False, 'message': 'A team with this name already exists for this game'}), 400
+
+        # Update the team
+        cursor.execute('''
+            UPDATE teams 
+            SET teamName = %s, teamMaxSize = %s 
+            WHERE TeamID = %s
+        ''', (team_title, team_max_size, team_id))
+
+        mysql.connection.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Team "{team_title}" updated successfully!'
+        })
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error updating team: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    finally:
+        cursor.close()
+
 """
 Method to filter teams based on user role AND selected view
 - Supports view switching for multi-role users
@@ -368,9 +447,9 @@ def get_teams_sidebar():
 
         # Determine which query to run based on view_mode
         if view_mode == 'all' and is_admin:
-            # Admin viewing ALL teams
+            # Admin viewing ALL teams - INCLUDE gm_id for permission checks
             cursor.execute("""
-                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle, g.gm_id,
                        (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
                 FROM teams t
                 LEFT JOIN games g ON t.gameID = g.GameID
@@ -378,9 +457,9 @@ def get_teams_sidebar():
             """)
 
         elif view_mode == 'manage' and (is_admin or is_gm):
-            # Admin or GM viewing teams they manage
+            # Admin or GM viewing teams they manage - INCLUDE gm_id
             cursor.execute("""
-                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle, g.gm_id,
                        (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
                 FROM teams t
                 LEFT JOIN games g ON t.gameID = g.GameID
@@ -389,9 +468,9 @@ def get_teams_sidebar():
             """, (session['id'],))
 
         elif view_mode == 'play' and is_player:
-            # Any role viewing teams they play for
+            # Any role viewing teams they play for - INCLUDE gm_id
             cursor.execute("""
-                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle, g.gm_id,
                        (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
                 FROM teams t
                 LEFT JOIN games g ON t.gameID = g.GameID
@@ -403,18 +482,18 @@ def get_teams_sidebar():
         else:
             # Default behavior based on highest priority role (no view_mode specified)
             if is_admin:
-                # Admins see ALL teams by default
+                # Admins see ALL teams by default - INCLUDE gm_id
                 cursor.execute("""
-                    SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                    SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle, g.gm_id,
                            (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
                     FROM teams t
                     LEFT JOIN games g ON t.gameID = g.GameID
                     ORDER BY t.teamName ASC
                 """)
             elif is_gm:
-                # GMs see only teams from games they manage
+                # GMs see only teams from games they manage - INCLUDE gm_id
                 cursor.execute("""
-                    SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                    SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle, g.gm_id,
                            (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
                     FROM teams t
                     LEFT JOIN games g ON t.gameID = g.GameID
@@ -422,9 +501,9 @@ def get_teams_sidebar():
                     ORDER BY t.teamName ASC
                 """, (session['id'],))
             elif is_player:
-                # Players see only teams they are members of
+                # Players see only teams they are members of - INCLUDE gm_id
                 cursor.execute("""
-                    SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle,
+                    SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle, g.gm_id,
                            (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
                     FROM teams t
                     LEFT JOIN games g ON t.gameID = g.GameID
@@ -438,7 +517,7 @@ def get_teams_sidebar():
 
         teams = cursor.fetchall()
 
-        # Format teams
+        # Format teams - INCLUDE gm_id in response
         teams_list = []
         for team in teams:
             teams_list.append({
@@ -447,7 +526,8 @@ def get_teams_sidebar():
                 'teamMaxSize': team['teamMaxSize'],
                 'gameID': team['gameID'],
                 'GameTitle': team['GameTitle'],
-                'member_count': team['member_count']
+                'member_count': team['member_count'],
+                'gm_id': team['gm_id']  # ADD THIS LINE
             })
 
         return jsonify({'success': True, 'teams': teams_list})

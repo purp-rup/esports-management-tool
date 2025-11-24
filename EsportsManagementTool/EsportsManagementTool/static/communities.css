@@ -869,56 +869,6 @@
 }
 
 /* --------------------------------------------
-   SCROLLBARS
-   Custom scrollbar styling
-   -------------------------------------------- */
-
-/* Members list scrollbar */
-.members-list::-webkit-scrollbar {
-    width: 6px;
-}
-
-.members-list::-webkit-scrollbar-track {
-    background: var(--card-background);
-    border-radius: 3px;
-}
-
-.members-list::-webkit-scrollbar-thumb {
-    background: var(--stockton-blue);
-    border-radius: 3px;
-}
-
-.members-list::-webkit-scrollbar-thumb:hover {
-    background: #1976D2;
-}
-
-/* GM selection list scrollbar */
-.gm-selection-list::-webkit-scrollbar {
-    width: 8px;
-}
-
-.gm-selection-list::-webkit-scrollbar-track {
-    background: var(--dark-bg);
-    border-radius: 4px;
-}
-
-.gm-selection-list::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 4px;
-    transition: background 0.2s;
-}
-
-.gm-selection-list::-webkit-scrollbar-thumb:hover {
-    background: var(--stockton-blue);
-}
-
-/* Firefox scrollbar styling */
-.gm-selection-list {
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-color) var(--dark-bg);
-}
-
-/* --------------------------------------------
    RESPONSIVE DESIGN
    Mobile and tablet adaptations
    -------------------------------------------- */

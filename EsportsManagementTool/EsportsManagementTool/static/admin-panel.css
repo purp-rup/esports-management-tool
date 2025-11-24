@@ -352,6 +352,120 @@
 }
 
 /* --------------------------------------------
+    ADDITIONAL CREATE GAME MODAL STYLE
+    Adding special look to team size selection
+    ------------------------------------------- */
+.team-size-checkbox {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.team-size-checkbox input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    width: 0;
+    height: 0;
+}
+
+.team-size-checkbox span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    width: 100%;
+    min-height: 90px;
+    position: relative;
+}
+
+/* Icon */
+.team-size-checkbox .checkbox-icon {
+    font-size: 1.35rem;
+    color: rgba(255, 255, 255, 0.4);
+    transition: all 0.2s ease;
+}
+
+/* Text */
+.team-size-checkbox .checkbox-text {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    transition: color 0.2s ease;
+    text-align: center;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+/* Hover state */
+.team-size-checkbox:hover span {
+    background: rgba(121, 189, 233, 0.08);
+    border-color: rgba(121, 189, 233, 0.4);
+    transform: translateY(-2px);
+}
+
+.team-size-checkbox:hover .checkbox-icon {
+    color: var(--stockton-blue);
+    transform: scale(1.1);
+}
+
+/* Checked state */
+.team-size-checkbox input[type="checkbox"]:checked + span {
+    background: linear-gradient(135deg,
+        rgba(121, 189, 233, 0.2) 0%,
+        rgba(121, 189, 233, 0.1) 100%);
+    border-color: var(--stockton-blue);
+    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.15);
+    transform: translateY(-2px);
+}
+
+.team-size-checkbox input[type="checkbox"]:checked + span .checkbox-icon {
+    color: var(--stockton-blue);
+    transform: scale(1.15);
+}
+
+.team-size-checkbox input[type="checkbox"]:checked + span .checkbox-text {
+    color: var(--stockton-blue);
+}
+
+/* Checkmark indicator */
+.team-size-checkbox input[type="checkbox"]:checked + span::after {
+    content: '\f00c';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    background: var(--stockton-blue);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.65rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    animation: checkmarkPop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Focus state for accessibility */
+.team-size-checkbox input[type="checkbox"]:focus + span {
+    outline: 2px solid var(--stockton-blue);
+    outline-offset: 2px;
+}
+
+/* --------------------------------------------
    ANIMATIONS
    Keyframe animations used throughout
    -------------------------------------------- */
@@ -373,6 +487,21 @@
   }
 }
 
+/* Team size selection */
+@keyframes checkmarkPop {
+    0% {
+        transform: scale(0) rotate(0deg);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2) rotate(180deg);
+    }
+    100% {
+        transform: scale(1) rotate(360deg);
+        opacity: 1;
+    }
+}
+
 /* --------------------------------------------
    RESPONSIVE DESIGN
    Media queries for different screen sizes
@@ -383,6 +512,10 @@
   .admin-summary {
     grid-template-columns: repeat(3, 1fr);
   }
+
+  .team-sizes-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
 }
 
 /* Small screens (mobile landscape) */
@@ -390,6 +523,19 @@
   .admin-summary {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .team-sizes-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    .team-size-checkbox span {
+        min-height: 80px;
+        padding: 0.875rem 0.5rem;
+    }
+
+    .team-size-checkbox .checkbox-icon {
+        font-size: 1.5rem;
+    }
 }
 
 /* Extra small screens (mobile portrait) */
@@ -397,4 +543,8 @@
   .admin-summary {
     grid-template-columns: 1fr;
   }
+
+  .team-sizes-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
 }

@@ -903,17 +903,32 @@
                                     <option value="Misc">Misc</option>
                                 </select>
                             </div>
+                        </div>
 
-                            <div class="form-group" id="gameFieldGroup">
-                                <label for="game">Game (Optional)</label>
-                                <select id="game" name="game">
-                                    <option value="">Select game</option>
-                                    <!-- Games will be loaded dynamically via JavaScript -->
-                                </select>
-                                <div id="gameLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                                    <i class="fas fa-spinner fa-spin"></i> Loading games...
-                                </div>
+                        <!-- Full-width game selection with tags -->
+                        <div class="form-group" id="gameFieldGroup">
+                            <label for="gameDropdown">Games (Optional)</label>
+                            <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
+                                Select games from the dropdown - they'll appear as tags below
                             </div>
+
+                            <!-- Selected games display area -->
+                            <div id="selectedGamesContainer" class="selected-games-container">
+                                <!-- Selected game tags will appear here -->
+                            </div>
+
+                            <!-- Dropdown for selecting games -->
+                            <select id="gameDropdown" class="game-dropdown-single">
+                                <option value="">+ Add a game</option>
+                                <!-- Games will be loaded dynamically via JavaScript -->
+                            </select>
+
+                            <div id="gameLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                                <i class="fas fa-spinner fa-spin"></i> Loading games...
+                            </div>
+
+                            <!-- Hidden input to store selected games as JSON -->
+                            <input type="hidden" id="selectedGamesInput" name="games" value="[]">
                         </div>
 
                         <div class="form-group">
@@ -1343,7 +1358,6 @@
                             <option value="team" id="visibilityTeamOption">Team Only</option>
                             <option value="game_players" id="visibilityPlayersOption">Players</option>
                             <option value="game_community" id="visibilityCommunityOption">Community Members</option>
-                            <option value="all_members">All Users</option>
                         </select>
                         <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
                             Events will be automatically created on the calendar based on this schedule
@@ -1629,38 +1643,76 @@
                     <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
                         Select all applicable team sizes for this game
                     </p>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem;">
+                    <div class="team-sizes-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem;">
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="1">
-                            <span>1 Player</span>
+                            <span>
+                                <i class="fas fa-user checkbox-icon"></i>
+                                <div class="checkbox-text">1 Player</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="2">
-                            <span>2 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">2 Players</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="3">
-                            <span>3 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">3 Players</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="4">
-                            <span>4 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">4 Players</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="5">
-                            <span>5 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">5 Players</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="6">
-                            <span>6 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">6 Players</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="7">
-                            <span>7 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">7 Players</div>
+                            </span>
                         </label>
                         <label class="team-size-checkbox">
                             <input type="checkbox" name="teamSize" value="8">
-                            <span>8 Players</span>
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">8 Players</div>
+                            </span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="9">
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">9 Players</div>
+                            </span>
+                        </label>
+                        <label class="team-size-checkbox">
+                            <input type="checkbox" name="teamSize" value="10">
+                            <span>
+                                <i class="fas fa-users checkbox-icon"></i>
+                                <div class="checkbox-text">10 Players</div>
+                            </span>
                         </label>
                     </div>
                 </div>
@@ -1704,8 +1756,8 @@
                     <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
                         Select the applicable team size.
                     </p>
-                    <div id="teamSizesContainer" style="display: grid; gid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem">
-                        <!-- Radio buttons will be inserted here dynamically -->
+                    <div id="teamSizesContainer" class="team-size-options">
+                        <!-- Team size options will be dynamically inserted here -->
                     </div>
                 </div>
 
@@ -1724,8 +1776,6 @@
 </div>
 
 <!-- Record Match Result Modal -->
-<!-- Add this modal to your dashboard.html, after the other team modals -->
-
 <div id="recordMatchResultModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -1799,6 +1849,57 @@
     </div>
 </div>
 
+<!-- Edit Team Modal -->
+<div id="editTeamModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <div class="modal-header">
+            <h2>Edit Team: <span id="editTeamModalTitle">Team Name</span></h2>
+            <button class="modal-close" onclick="closeEditTeamModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Update team information</p>
+
+            <form id="editTeamForm" class="event-form-modal">
+                <input type="hidden" id="editTeamID" name="team_id">
+                <input type="hidden" id="editGameID" name="game_id">
+
+                <div class="form-group">
+                    <label for="editTeamTitle">Team Title *</label>
+                    <input type="text"
+                           id="editTeamTitle"
+                           name="team_title"
+                           placeholder="Enter team title"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label>Team Size *</label>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                        Select the team size for this team
+                    </p>
+                    <div id="editTeamSizesContainer" class="team-size-options">
+                        <!-- Radio buttons will be inserted here dynamically -->
+                    </div>
+                </div>
+
+                <div id="editTeamFormMessage" class="form-message" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditTeamModal()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="updateTeamBtnText">Update Team</span>
+                        <i id="updateTeamBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+              
 <!-- Change Avatar Modal -->
 <div id="changeAvatarModal" class="modal">
     <div class="modal-content">

@@ -1,15 +1,21 @@
-/* ========================================
+/* ============================================
    DISCORD INTEGRATION STYLES
-   File: static/discord.css
-   Description: Styling for Discord OAuth integration
-   ======================================== */
+   OAuth integration and profile display
+   ORGANIZED BY CLAUDEAI
+   ============================================ */
 
-/* Discord Profile Container */
+/* --------------------------------------------
+   MAIN CONTAINER
+   Primary Discord section wrapper
+   -------------------------------------------- */
 .discord-profile-container {
     padding: 1.5rem;
 }
 
-/* Discord Profile Header - Main container for user info */
+/* --------------------------------------------
+   DISCORD PROFILE HEADER
+   Connected user display card
+   -------------------------------------------- */
 .discord-profile-header {
     display: flex;
     align-items: center;
@@ -26,7 +32,10 @@
     box-shadow: 0 4px 12px rgba(88, 101, 242, 0.1);
 }
 
-/* Discord Avatar - Large circular avatar display */
+/* --------------------------------------------
+   DISCORD AVATAR
+   Large circular profile picture
+   -------------------------------------------- */
 .discord-avatar-large {
     width: 100px;
     height: 100px;
@@ -58,7 +67,10 @@
     font-size: 3rem;
 }
 
-/* Discord Profile Info - Text information section */
+/* --------------------------------------------
+   DISCORD PROFILE INFO
+   User information text section
+   -------------------------------------------- */
 .discord-profile-info {
     flex: 1;
     min-width: 0; /* Prevents text overflow issues */
@@ -87,11 +99,13 @@
     font-size: 0.875rem;
 }
 
+/* Discord ID display */
 #discordId {
     font-family: 'Courier New', monospace;
     font-size: 0.813rem;
 }
 
+/* Connection date display */
 #discordConnectedDate {
     margin-top: 0.5rem;
     display: flex;
@@ -103,7 +117,10 @@
     color: #5865F2;
 }
 
-/* Discord Action Buttons */
+/* --------------------------------------------
+   ACTION BUTTONS
+   Connect, sync, and disconnect buttons
+   -------------------------------------------- */
 .discord-actions {
     margin-top: 1.5rem;
     display: flex;
@@ -136,7 +153,17 @@
     box-shadow: 0 4px 12px rgba(88, 101, 242, 0.3);
 }
 
-/* Loading State */
+/* Focus states for accessibility */
+.discord-connect-btn:focus,
+.discord-sync-btn:focus {
+    outline: 3px solid rgba(88, 101, 242, 0.5);
+    outline-offset: 2px;
+}
+
+/* --------------------------------------------
+   LOADING STATE
+   Display while fetching Discord data
+   -------------------------------------------- */
 #discordLoading {
     text-align: center;
     padding: 2rem;
@@ -152,7 +179,10 @@
     margin-top: 1rem;
 }
 
-/* Not Connected State */
+/* --------------------------------------------
+   NOT CONNECTED STATE
+   Display when no Discord account linked
+   -------------------------------------------- */
 #discordNotConnected .empty-state {
     padding: 2rem;
 }
@@ -174,7 +204,10 @@
     margin: 1rem auto;
 }
 
-/* Message Styling */
+/* --------------------------------------------
+   ACTION MESSAGES
+   Success/error feedback messages
+   -------------------------------------------- */
 #discordActionMessage {
     margin-top: 1rem;
     padding: 0.75rem 1rem;
@@ -182,6 +215,10 @@
     animation: slideIn 0.3s ease;
 }
 
+/* --------------------------------------------
+   ANIMATIONS
+   Keyframe animations
+   -------------------------------------------- */
 @keyframes slideIn {
     from {
         opacity: 0;
@@ -193,72 +230,76 @@
     }
 }
 
-/* Responsive Design - Mobile */
+/* --------------------------------------------
+   RESPONSIVE DESIGN
+   Mobile and tablet adaptations
+   -------------------------------------------- */
+
+/* Mobile devices */
 @media (max-width: 768px) {
     .discord-profile-header {
         flex-direction: column;
         text-align: center;
         padding: 1.25rem;
     }
-    
+
     .discord-profile-info h3 {
         justify-content: center;
         font-size: 1.25rem;
     }
-    
+
     .discord-avatar-large {
         width: 80px;
         height: 80px;
         font-size: 2rem;
     }
-    
+
     .discord-avatar-large i {
         font-size: 2.5rem;
     }
-    
+
     .discord-actions {
         flex-direction: column;
         gap: 0.5rem;
         margin-top: 1rem;
     }
-    
+
     .discord-actions button {
         width: 100%;
     }
-    
+
     #discordNotConnected .fab.fa-discord {
         font-size: 3rem;
     }
 }
 
-/* Tablet adjustments */
+/* Tablet devices */
 @media (max-width: 992px) and (min-width: 769px) {
     .discord-profile-header {
         gap: 1rem;
         padding: 1.25rem;
     }
-    
+
     .discord-avatar-large {
         width: 90px;
         height: 90px;
     }
 }
 
-/* Dark mode support (if your app has dark mode) */
+/* --------------------------------------------
+   DARK MODE SUPPORT
+   Enhanced dark mode styling
+   -------------------------------------------- */
 @media (prefers-color-scheme: dark) {
     .discord-profile-header {
         background: linear-gradient(135deg, rgba(88, 101, 242, 0.15) 0%, rgba(88, 101, 242, 0.08) 100%);
     }
 }
 
-/* Accessibility - Focus states */
-.discord-connect-btn:focus,
-.discord-sync-btn:focus {
-    outline: 3px solid rgba(88, 101, 242, 0.5);
-    outline-offset: 2px;
-}
-
-/* Print styles - hide Discord section when printing */
+/* --------------------------------------------
+   PRINT STYLES
+   Hide Discord section when printing
+   -------------------------------------------- */
 @media print {
     .discord-profile-container {
         display: none;

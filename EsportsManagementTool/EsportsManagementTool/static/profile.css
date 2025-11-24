@@ -1,4 +1,13 @@
-/* Profile Tab Specific */
+/* ============================================
+   PROFILE TAB STYLES
+   User profile display and information
+   ORGANIZED BY CLAUDEAI
+   ============================================ */
+
+/* --------------------------------------------
+   PROFILE GRID LAYOUT
+   Two-column layout for avatar and info
+   -------------------------------------------- */
 .profile-grid {
     display: grid;
     grid-template-columns: 250px 1fr;
@@ -6,7 +15,13 @@
     margin-bottom: 2rem;
 }
 
-.profile-avatar { text-align: center; }
+/* --------------------------------------------
+   PROFILE AVATAR
+   User avatar display section
+   -------------------------------------------- */
+.profile-avatar {
+    text-align: center;
+}
 
 .avatar-container {
     width: 200px;
@@ -22,7 +37,14 @@
     margin: 0 auto 1rem;
 }
 
-.profile-info { display: grid; gap: 1.5rem; }
+/* --------------------------------------------
+   PROFILE INFORMATION
+   User details and data display
+   -------------------------------------------- */
+.profile-info {
+    display: grid;
+    gap: 1.5rem;
+}
 
 .info-row {
     display: grid;
@@ -41,18 +63,23 @@
     color: var(--text-primary);
 }
 
+/* --------------------------------------------
+   PROFILE ACTIONS
+   Action buttons section
+   -------------------------------------------- */
 .profile-actions {
     margin-top: 2rem;
     display: flex;
     gap: 1rem;
 }
 
+/* --------------------------------------------
+   RESPONSIVE DESIGN
+   Mobile and tablet adaptations
+   -------------------------------------------- */
 @media (max-width: 1024px) {
-    .profile-grid { grid-template-columns: 1fr; }
-    .avatar-container {
-        width: 150px;
-        height: 150px;
-        font-size: 3rem;
+    .profile-grid {
+        grid-template-columns: 1fr;
     }
 
     .avatar-container {
