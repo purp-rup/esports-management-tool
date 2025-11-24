@@ -577,6 +577,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadStatsTab(currentSelectedTeamId, team.gameID);
                 }
             }
+
+            // Load data for VODs when tab is clicked
+            if (targetTab === 'vods' && currentSelectedTeamId) {
+                loadTeamVods(currentSelectedTeamId);
+            }
         });
     });
 
