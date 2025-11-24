@@ -524,6 +524,32 @@
     MULTI-GAME SELECTION
     Select Multiple games from a dropdown
     ------------------------------------------ */
+/* Multi-select game dropdown */
+select[multiple] {
+    padding: 0.5rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+}
+
+select[multiple] option {
+    padding: 0.5rem;
+    margin: 0.25rem 0;
+    border-radius: 4px;
+}
+
+select[multiple] option:checked {
+    background: var(--stockton-blue);
+    color: var(--stockton-black);
+}
+
+select[multiple]:focus {
+    outline: none;
+    border-color: var(--stockton-blue);
+    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+}
+
 .selected-games-container {
     min-height: 45px;
     padding: 0.5rem;
@@ -590,35 +616,29 @@
 .game-dropdown-single {
     width: 100%;
     padding: 0.75rem;
-    background: var(--dark-bg);
+    background: var(--dark-bg) !important;
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
     font-size: 0.9375rem;
-    cursor: pointer;
+    cursor: pointer !important;
     transition: all 0.2s;
+    -webkit-appearance: menulist;
+    -moz-appearance: menulist;
+    appearance: menulist;
+    pointer-events: auto !important;
+    user-select: auto !important;
 }
 
-.game-dropdown-single:hover {
-    border-color: var(--stockton-blue);
-    background: var(--hover-bg);
+.game-dropdown-single:disabled {
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
 }
 
-.game-dropdown-single:focus {
-    outline: none;
-    border-color: var(--stockton-blue);
-    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
-}
-
-.game-dropdown-single option {
-    padding: 0.75rem;
-    background: var(--dark-bg);
-    color: var(--text-primary);
-}
-
-.game-dropdown-single option:disabled {
-    color: var(--text-secondary);
-    font-style: italic;
+.game-dropdown-single:not(:disabled) {
+    opacity: 1 !important;
+    pointer-events: auto !important;
 }
 
 /* --------------------------------------------

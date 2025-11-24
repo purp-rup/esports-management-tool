@@ -325,14 +325,13 @@ async function loadGamesForTagSelector() {
         return;
     }
 
-    // Show loading indicator
+    // Show loading indicator - DON'T disable dropdown
     if (loadingIndicator) {
         loadingIndicator.style.display = 'block';
     }
-    dropdown.disabled = true;
+    // REMOVED: dropdown.disabled = true;
 
     try {
-        // Load games (uses cache if available)
         const games = await loadGamesList();
 
         // Clear existing options except placeholder
@@ -362,19 +361,20 @@ async function loadGamesForTagSelector() {
         console.error('Error populating game dropdown:', error);
         dropdown.innerHTML = '<option value="">Error loading games</option>';
     } finally {
-    // Hide loading indicator
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'none';
+        // Hide loading indicator
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+        }
+
+        // FORCE enable the dropdown with all methods
+        dropdown.removeAttribute('disabled');
+        dropdown.disabled = false;
+        dropdown.style.pointerEvents = 'auto';
+        dropdown.style.opacity = '1';
+        dropdown.style.cursor = 'pointer';
+
+        console.log('Dropdown fully enabled');
     }
-
-    // FORCE enable the dropdown
-    dropdown.removeAttribute('disabled');
-    dropdown.disabled = false;
-
-    // Verify it's enabled
-    console.log('Dropdown disabled attribute:', dropdown.hasAttribute('disabled'));
-    console.log('Dropdown disabled property:', dropdown.disabled);
-}
 }
 
 /**
@@ -1210,9 +1210,22 @@ function openCreateEventModal() {
     // Clear selected games
     clearSelectedGames();
 
-    // Load games for tag selector
-    loadGamesForTagSelector();
+    // IMPORTANT: Wait for modal to be fully rendered before loading games
+    setTimeout(() => {
+        const dropdown = document.getElementById('gameDropdown');
+        if (dropdown) {
+            // Force enable before loading
+            dropdown.disabled = false;
+            dropdown.removeAttribute('disabled');
+            dropdown.style.pointerEvents = 'auto';
+            dropdown.style.opacity = '1';
+        }
+
+        // Load games for tag selector
+        loadGamesForTagSelector();
+    }, 50);
 }
+
 /**
  * Handle event type change - hide game field for Misc events
  */

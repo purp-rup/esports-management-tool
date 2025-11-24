@@ -247,7 +247,7 @@
    -------------------------------------------- */
 .schedule-cards-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Auto-adjusts based on available space */
     gap: 1rem;
     padding: 1.5rem;
     padding-bottom: 2rem;
@@ -268,7 +268,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    height: fit-content;
+    height: 100%;
 }
 
 .schedule-card:hover {

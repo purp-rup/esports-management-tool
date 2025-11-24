@@ -126,8 +126,8 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                     game_id,
                     data['event_name'],
                     data['event_type'],
-                    data.get('day_of_week'),  # NULL for "Once"
-                    data.get('specific_date'),  # NULL for recurring
+                    data.get('day_of_week'),
+                    data.get('specific_date'),
                     data['start_time'],
                     data['end_time'],
                     data['frequency'],
@@ -621,6 +621,8 @@ Method to create one scheduled event within a set list of scheduled events based
 @param - event_date is the date of the event if it has one
 @param - connection is the connection between different scheduled events.
 """
+
+
 def create_scheduled_event_instance(cursor, schedule, event_date, connection):
     """
     Create a single event instance from a schedule
@@ -628,7 +630,7 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
     try:
         # Get the game title for this schedule
         cursor.execute("""
-            SELECT GameTitle FROM games WHERE GameID = %s
+            SELECT GameTitle FROM games WHERE gameID = %s
         """, (schedule['game_id'],))
 
         game_result = cursor.fetchone()
@@ -637,14 +639,12 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
         # Build event name with team suffix if it's team-specific
         event_name = schedule['event_name']
         if schedule['visibility'] == 'team' and schedule['team_id']:
-            # Get team name
             cursor.execute("""
                 SELECT teamName FROM teams WHERE TeamID = %s
             """, (schedule['team_id'],))
 
             team_result = cursor.fetchone()
             if team_result:
-                # Append team name to event name if not already there
                 team_name = team_result['teamName']
                 if team_name not in event_name:
                     event_name = f"{event_name} ({team_name})"
@@ -660,12 +660,14 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
             if team_result:
                 game_display = f"{game_title} ({team_result['teamName']})"
 
-        # Create the event
+        # ============================================
+        # CRITICAL: Include game_id in INSERT
+        # ============================================
         cursor.execute("""
             INSERT INTO generalevents
             (EventName, Date, StartTime, EndTime, Description, EventType, 
-             Game, Location, created_by, schedule_id, is_scheduled)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+             Game, game_id, Location, created_by, schedule_id, is_scheduled)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
         """, (
             event_name,
             event_date,
@@ -673,7 +675,8 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
             schedule['end_time'],
             schedule['description'] or f"Recurring {schedule['event_type']}",
             schedule['event_type'],
-            game_display,  # Now includes game title and optionally team name
+            game_display,  # Display name (can include team info)
+            schedule['game_id'],  # ← Store game_id directly
             schedule['location'] or 'TBD',
             schedule['created_by'],
             schedule['schedule_id']
@@ -681,33 +684,36 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
 
         event_id = cursor.lastrowid
 
-        # ============================================
-        # ADD ASSOCIATIONS
-        # ============================================
-
-        # Get all members of the team
-        cursor.execute("""
-            SELECT user_id 
-            FROM team_members 
-            WHERE team_id = %s
-        """, (schedule['team_id'],))
-
-        team_members = cursor.fetchall()
-
-        # Associate event with each team member's game community
-        for member in team_members:
-            # Check if user is in the game's community
+        # Insert into event_games using game_id directly
+        if schedule['game_id']:
             cursor.execute("""
-                SELECT * FROM in_communities 
-                WHERE user_id = %s AND game_id = %s
-            """, (member['user_id'], schedule['game_id']))
+                INSERT INTO event_games (event_id, game_id)
+                VALUES (%s, %s)
+            """, (event_id, schedule['game_id']))
 
-            if not cursor.fetchone():
-                # Add them to the game community if not already there
+            print(f"   ✅ Linked event {event_id} to game_id {schedule['game_id']}")
+
+        # Add team member associations
+        if schedule['team_id']:
+            cursor.execute("""
+                SELECT user_id 
+                FROM team_members 
+                WHERE team_id = %s
+            """, (schedule['team_id'],))
+
+            team_members = cursor.fetchall()
+
+            for member in team_members:
                 cursor.execute("""
-                    INSERT INTO in_communities (user_id, game_id, joined_at)
-                    VALUES (%s, %s, NOW())
+                    SELECT * FROM in_communities 
+                    WHERE user_id = %s AND game_id = %s
                 """, (member['user_id'], schedule['game_id']))
+
+                if not cursor.fetchone():
+                    cursor.execute("""
+                        INSERT INTO in_communities (user_id, game_id, joined_at)
+                        VALUES (%s, %s, NOW())
+                    """, (member['user_id'], schedule['game_id']))
 
         connection.commit()
         print(f"✅ Created scheduled event for {event_date}: {event_name}")
