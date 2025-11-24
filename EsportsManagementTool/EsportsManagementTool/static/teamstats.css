@@ -1,0 +1,388 @@
+/* ============================================
+   TEAM STATISTICS STYLES
+   ============================================ */
+
+.stats-container {
+    padding: 1.5rem;
+}
+
+/* Loading and Error States */
+.stats-loading,
+.stats-error {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-secondary);
+}
+
+.stats-loading i,
+.stats-error i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--stockton-blue);
+}
+
+.stats-error i {
+    color: #ff5252;
+}
+
+.stats-error h3 {
+    color: var(--text-primary);
+    margin: 1rem 0 0.5rem;
+}
+
+/* Stats Summary Grid */
+.stats-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Reduced min-width from 200px */
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem; /* Reduced from 1.5rem */
+    display: flex;
+    align-items: center;
+    gap: 0.875rem; /* Reduced from 1rem */
+    transition: all 0.3s ease;
+    min-width: 0; /* Allow flex items to shrink below content size */
+    overflow: hidden; /* Prevent content from overflowing */
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.stat-card-icon {
+    width: 50px; /* Reduced from 60px */
+    height: 50px; /* Reduced from 60px */
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem; /* Reduced from 1.75rem */
+    flex-shrink: 0;
+}
+
+.stat-card-wins .stat-card-icon {
+    background: linear-gradient(135deg, #4caf50, #66bb6a);
+    color: white;
+}
+
+.stat-card-losses .stat-card-icon {
+    background: linear-gradient(135deg, #f44336, #ef5350);
+    color: white;
+}
+
+.stat-card-percentage .stat-card-icon {
+    background: linear-gradient(135deg, var(--stockton-blue), #42a5f5);
+    color: white;
+}
+
+.stat-card-record .stat-card-icon {
+    background: linear-gradient(135deg, #ff9800, #ffa726);
+    color: white;
+}
+
+.stat-card-content {
+    flex: 1;
+    min-width: 0; /* Critical for text wrapping in flex containers */
+    overflow: hidden; /* Prevent overflow */
+}
+
+.stat-card-value {
+    font-size: clamp(1.25rem, 3.5vw, 1.75rem); /* Reduced from 1.5-2rem to 1.25-1.75rem */
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+    margin-bottom: 0.25rem;
+    white-space: nowrap; /* Prevent wrapping if possible */
+}
+
+.stat-card-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Match History Section */
+.match-history-section {
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.section-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-header h3 i {
+    color: var(--stockton-blue);
+}
+
+/* Match History List */
+.match-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.match-history-item {
+    display: grid;
+    grid-template-columns: 150px 1fr auto auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.match-history-item:hover {
+    border-color: var(--stockton-blue);
+    box-shadow: 0 2px 8px rgba(121, 189, 233, 0.2);
+}
+
+.match-date {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.match-date i {
+    color: var(--stockton-blue);
+}
+
+.match-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.match-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.match-location {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.match-result {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.match-result-win {
+    background: rgba(76, 175, 80, 0.1);
+    color: #4caf50;
+    border: 2px solid #4caf50;
+}
+
+.match-result-loss {
+    background: rgba(244, 67, 54, 0.1);
+    color: #f44336;
+    border: 2px solid #f44336;
+}
+
+.match-result-pending {
+    background: rgba(255, 152, 0, 0.1);
+    color: #ff9800;
+    border: 2px solid #ff9800;
+}
+
+.match-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-icon {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    background: var(--hover-bg);
+    border-color: var(--stockton-blue);
+    color: var(--stockton-blue);
+}
+
+/* Empty State */
+.match-history-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-secondary);
+}
+
+.match-history-empty i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.match-history-empty p {
+    margin: 0.5rem 0;
+    font-size: 1rem;
+}
+
+.match-history-empty small {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    opacity: 0.7;
+}
+
+/* ============================================
+   RECORD MATCH RESULT MODAL
+   ============================================ */
+
+#recordMatchResultModal .modal-content {
+    max-width: 600px;
+}
+
+.result-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.result-option {
+    padding: 1.5rem;
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.result-option:hover {
+    border-color: var(--stockton-blue);
+    background: var(--hover-bg);
+}
+
+.result-option input[type="radio"] {
+    display: none;
+}
+
+.result-option.selected {
+    border-width: 3px;
+}
+
+.result-option-win.selected {
+    border-color: #4caf50;
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.result-option-loss.selected {
+    border-color: #f44336;
+    background: rgba(244, 67, 54, 0.1);
+}
+
+.result-option-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+
+.result-option-win .result-option-icon {
+    background: linear-gradient(135deg, #4caf50, #66bb6a);
+    color: white;
+}
+
+.result-option-loss .result-option-icon {
+    background: linear-gradient(135deg, #f44336, #ef5350);
+    color: white;
+}
+
+.result-option-label {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 768px) {
+    .stats-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+    }
+    
+    .stat-card-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+    
+    .stat-card-value {
+        font-size: 1.5rem;
+    }
+    
+    .match-history-item {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .match-result {
+        justify-content: center;
+    }
+    
+    .result-options {
+        grid-template-columns: 1fr;
+    }
+}

@@ -570,6 +570,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (targetTab === 'schedule' && currentSelectedTeamId) {
                 loadScheduleTab(currentSelectedTeamId);
             }
+                //Load stats when Stats tab is clicked
+            if (targetTab === 'stats' && currentSelectedTeamId) {
+                const team = allTeamsData.find(t => t.TeamID === currentSelectedTeamId);
+                if (team && team.gameID) {
+                    loadStatsTab(currentSelectedTeamId, team.gameID);
+                }
+            }
         });
     });
 

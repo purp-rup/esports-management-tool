@@ -18,6 +18,7 @@ function updateNotificationPreview() {
     const notifyMatches = document.getElementById('notifyMatches');
     const notifyTournaments = document.getElementById('notifyTournaments');
     const notifyEvents = document.getElementById('notifyEvents');
+    const notifyMisc = document.getElementById('notifyMisc');
 
     if (!daysInput || !hoursInput || !previewText) return;
 
@@ -54,11 +55,14 @@ function updateNotificationPreview() {
     if (notifyEvents && notifyEvents.checked) {
         eventTypes.push('general events');
     }
+    if (notifyMisc && notifyMisc.checked) {
+        eventTypes.push('miscellaneous activities');
+    }
 
     // Update preview text
     if (eventTypes.length === 0) {
         previewText.textContent = `${timeText} (no event types selected)`;
-    } else if (eventTypes.length === 4) {
+    } else if (eventTypes.length === 5) {
         previewText.textContent = `${timeText} for all event types`;
     } else {
         const lastType = eventTypes.pop();
@@ -75,13 +79,15 @@ function validateEventTypes() {
     const notifyMatches = document.getElementById('notifyMatches');
     const notifyTournaments = document.getElementById('notifyTournaments');
     const notifyEvents = document.getElementById('notifyEvents');
+    const notifyMisc = document.getElementById('notifyMisc');
 
     const practicesChecked = notifyPractices && notifyPractices.checked;
     const matchesChecked = notifyMatches && notifyMatches.checked;
     const tournamentsChecked = notifyTournaments && notifyTournaments.checked;
     const eventsChecked = notifyEvents && notifyEvents.checked;
+    const miscChecked = notifyMisc && notifyMisc.checked;
 
-    return practicesChecked || matchesChecked || tournamentsChecked || eventsChecked;
+    return practicesChecked || matchesChecked || tournamentsChecked || eventsChecked || miscChecked;
 }
 
 // ===============================
@@ -98,6 +104,7 @@ function initializeNotificationSettings() {
     const notifyMatches = document.getElementById('notifyMatches');
     const notifyTournaments = document.getElementById('notifyTournaments');
     const notifyEvents = document.getElementById('notifyEvents');
+    const notifyMisc = document.getElementById('notifyMisc');
 
     // Toggle notification options visibility
     if (enableNotifToggle && notificationOptions) {
@@ -127,6 +134,9 @@ function initializeNotificationSettings() {
         }
         if (notifyEvents) {
             notifyEvents.addEventListener('change', updateNotificationPreview);
+        }
+        if (notifyMisc) {
+            notifyMisc.addEventListener('change', updateNotificationPreview);
         }
 
         // Initial preview update
