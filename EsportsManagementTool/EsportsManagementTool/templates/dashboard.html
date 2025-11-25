@@ -1171,25 +1171,32 @@
                                 <div class="vods-header">
                                     <h3>Team VODs</h3>
                                     {% if user.is_admin or user.is_gm %}
-                                    <button onclick="showAddVodModal()" class="btn btn-primary">Add VOD</button>
+                                    <button onclick="showAddVodModal()" class="btn btn-primary">
+                                        <i class="fas fa-plus"></i> Add VOD
+                                    </button>
                                     {% endif %}
                                 </div>
 
-                                <div id="video-player-container">
-                                    <iframe id="video-player" width="100%" height="500"
+                                <div id="video-player-container" style="display: none;">
+                                    <iframe id="video-player"
+                                            width="100%"
+                                            height="500"
                                             src=""
                                             frameborder="0"
                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                             allowfullscreen>
                                     </iframe>
-                                    <div id="current-video-info" style="margin-top: 10px;">
+                                    <div id="current-video-info">
                                         <h4 id="video-title"></h4>
                                         <p id="video-meta"></p>
                                     </div>
                                 </div>
 
-                                <div class="vods-list" id="vods-list">
+                                <div class="vods-list" id="vods-list"></div>
 
+                                <div id="vods-empty" class="tab-empty-state" style="display: none;">
+                                    <i class="fas fa-video-slash"></i>
+                                    <p>No VODs available yet.</p>
                                 </div>
                             </div>
                         </div>
@@ -1924,20 +1931,47 @@
 <!-- Add VOD Modal -->
 <div id="addVodModal" class="modal" style="display:none;">
     <div class="modal-content">
-        <span class="close" onclick="closeAddVodModal()">&times;</span>
-        <h3>Add Team VOD</h3>
-        <form id="addVodForm">
-            <label>YouTube Video URL or ID:</label>
-            <input type="text" id="youtube_video_input" required>
+        <div class="modal-header">
+            <h2>Add Team VOD</h2>
+            <button class="modal-close" onclick="closeAddVodModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="addVodForm" class="event-form-modal">
+                <div class="form-group">
+                    <label for="youtube_video_input">YouTube Video URL or ID *</label>
+                    <input type="text"
+                           id="youtube_video_input"
+                           placeholder="https://www.youtube.com/watch?v=... or video ID"
+                           required>
+                </div>
 
-            <label>Match Date:</label>
-            <input type="date" id="match_date">
+                <div class="form-group">
+                    <label for="opponent">Opponent</label>
+                    <input type="text"
+                           id="opponent"
+                           placeholder="Enter opponent name">
+                </div>
 
-            <label>Opponent:</label>
-            <input type="text" id="opponent">
+                <div class="form-group">
+                    <label for="match_date">Match Date</label>
+                    <input type="date" id="match_date">
+                </div>
 
-            <button type="submit" class="btn btn-primary">Add VOD</button>
-        </form>
+                <div id="addVodMessage" class="form-message" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddVodModal()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="addVodBtnText">Add VOD</span>
+                        <i id="addVodBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
               

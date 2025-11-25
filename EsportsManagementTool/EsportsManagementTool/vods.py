@@ -30,6 +30,7 @@ def get_team_vods(team_id):
 
     return jsonify(vods)
 
+
 @app.route('/api/vods/team/<string:team_id>/add', methods=['POST'])
 @login_required
 @roles_required('admin', 'gm')
@@ -40,6 +41,19 @@ def add_team_vod(team_id):
 
     if not youtube_video_id:
         return jsonify({'error': 'YouTube video ID required!'}), 400
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('''
+                   SELECT id
+                   FROM team_vods
+                   WHERE teamID = %s
+                     AND youtube_video_id = %s
+                   ''', (team_id, youtube_video_id))
+
+    existing_vod = cursor.fetchone()
+    if existing_vod:
+        cursor.close()
+        return jsonify({'error': 'This video is already added for this team!'}), 409
 
     # Fetching video details from YouTube API
     youtube = get_youtube_service()
@@ -56,6 +70,7 @@ def add_team_vod(team_id):
         video = response['items'][0]
         snippet = video['snippet']
 
+        print(data.get('match_date'), 'ERROR CHECKING, DATE NEEDS TO BE NORMAL')
         cursor = mysql.connection.cursor()
         cursor.execute('''
         INSERT INTO team_vods

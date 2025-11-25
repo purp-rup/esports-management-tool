@@ -43,7 +43,7 @@ function loadTeamVods(teamID) {
                     <div class="vod-info">
                     <h4>${vod.title}</h4>
                     <p>${vod.opponent ? 'vs ' + vod.opponent : ' '}</p>
-                    <small>${new Date(vod.published_at).toLocaleDateString()}</small>
+                    <small>Match Date - ${new Date(vod.match_date).toLocaleDateString()}</small>
                 </div>
                 ${canDelete ? `<button onclick="deleteVod(${vod.id}, event)" class="btn-delete-vod">
                     <i class="fas fa-trash"></i>
