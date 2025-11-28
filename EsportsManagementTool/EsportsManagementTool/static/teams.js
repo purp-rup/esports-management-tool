@@ -332,6 +332,230 @@ function renderTeamsSidebar(teams) {
 }
 
 // ============================================
+// GAME GROUPING & COLLAPSIBLE FOLDERS
+// For "All Teams" view
+// ============================================
+
+/**
+ * Storage key for collapsed games
+ */
+const COLLAPSED_GAMES_KEY = 'teams_collapsed_games';
+
+/**
+ * Get set of collapsed game IDs from sessionStorage
+ * @returns {Set<string>}
+ */
+function getCollapsedGames() {
+    const stored = sessionStorage.getItem(COLLAPSED_GAMES_KEY);
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+}
+
+/**
+ * Save collapsed games to sessionStorage
+ * @param {Set<string>} collapsedGames
+ */
+function saveCollapsedGames(collapsedGames) {
+    sessionStorage.setItem(COLLAPSED_GAMES_KEY, JSON.stringify([...collapsedGames]));
+}
+
+/**
+ * Toggle collapse state for a game
+ * @param {string} gameId - ID of game to toggle
+ */
+function toggleGameCollapse(gameId) {
+    const collapsedGames = getCollapsedGames();
+
+    if (collapsedGames.has(gameId)) {
+        collapsedGames.delete(gameId);
+    } else {
+        collapsedGames.add(gameId);
+    }
+
+    saveCollapsedGames(collapsedGames);
+
+    // Re-render sidebar with updated collapse state
+    const sidebarList = document.getElementById('teamsSidebarList');
+    if (sidebarList && allTeamsData.length > 0) {
+        renderTeamsSidebarWithGroups(allTeamsData);
+    }
+}
+
+/**
+ * Render teams sidebar with game grouping (for "All Teams" view)
+ * Groups teams by game and adds collapse/expand functionality
+ *
+ * @param {Array} teams - Array of team objects to render
+ */
+function renderTeamsSidebarWithGroups(teams) {
+    const sidebarList = document.getElementById('teamsSidebarList');
+    sidebarList.innerHTML = '';
+
+    // Set data attribute for CSS targeting
+    const sidebar = document.querySelector('.teams-sidebar');
+    if (sidebar) {
+        sidebar.setAttribute('data-view', currentView || 'all');
+    }
+
+    // If not in "all" view, use standard rendering
+    if (currentView !== 'all') {
+        originalRenderTeamsSidebar(teams);
+        return;
+    }
+
+    // Group teams by game
+    const gameGroups = {};
+    teams.forEach(team => {
+        const gameId = team.gameID;
+        const gameTitle = team.GameTitle || 'Unknown Game';
+
+        if (!gameGroups[gameId]) {
+            gameGroups[gameId] = {
+                gameId: gameId,
+                gameTitle: gameTitle,
+                teams: []
+            };
+        }
+        gameGroups[gameId].teams.push(team);
+    });
+
+    // Sort game groups alphabetically by game title
+    const sortedGroups = Object.values(gameGroups).sort((a, b) => {
+        return a.gameTitle.localeCompare(b.gameTitle);
+    });
+
+    // Get collapsed state
+    const collapsedGames = getCollapsedGames();
+
+    // Render each game group (now in alphabetical order)
+    sortedGroups.forEach(group => {
+        const isCollapsed = collapsedGames.has(group.gameId.toString());
+
+        if (isCollapsed) {
+            // Render collapsed folder
+            renderCollapsedGameFolder(group, sidebarList);
+        } else {
+            // Render expanded game group
+            renderExpandedGameGroup(group, sidebarList);
+        }
+    });
+}
+
+/**
+ * Render a collapsed game folder
+ * Shows just the game name and team count
+ *
+ * @param {Object} group - Game group object
+ * @param {HTMLElement} container - Container to append to
+ */
+function renderCollapsedGameFolder(group, container) {
+    const folderDiv = document.createElement('div');
+    folderDiv.className = 'game-folder-collapsed';
+    folderDiv.setAttribute('data-game-id', group.gameId);
+
+    // Check if any team in this group is selected
+    const hasSelectedTeam = group.teams.some(t => t.TeamID === currentSelectedTeamId);
+    if (hasSelectedTeam) {
+        folderDiv.classList.add('active');
+    }
+
+    const teamCount = group.teams.length;
+    const teamWord = teamCount === 1 ? 'team' : 'teams';
+
+    folderDiv.innerHTML = `
+        <div class="game-folder-info" onclick="event.stopPropagation(); toggleGameCollapse('${group.gameId}')">
+            <div class="game-folder-icon">
+                <i class="fas fa-gamepad"></i>
+            </div>
+            <div class="game-folder-details">
+                <div class="game-folder-name">${group.gameTitle}</div>
+                <div class="game-folder-count">${teamCount} ${teamWord}</div>
+            </div>
+        </div>
+        <button class="game-folder-expand-btn"
+                onclick="event.stopPropagation(); toggleGameCollapse('${group.gameId}')"
+                title="Expand ${group.gameTitle} teams">
+            <i class="fas fa-chevron-down"></i>
+        </button>
+    `;
+
+    container.appendChild(folderDiv);
+}
+
+/**
+ * Render an expanded game group with all teams
+ * Adds collapse button to first team
+ *
+ * @param {Object} group - Game group object
+ * @param {HTMLElement} container - Container to append to
+ */
+function renderExpandedGameGroup(group, container) {
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'game-group';
+    groupDiv.setAttribute('data-game-id', group.gameId);
+
+    group.teams.forEach((team, index) => {
+        const teamItem = document.createElement('div');
+        teamItem.className = 'team-sidebar-item';
+        teamItem.setAttribute('data-team-id', team.TeamID);
+        teamItem.setAttribute('data-gm-id', team.gm_id || '');
+
+        // Check if selected
+        if (team.TeamID === currentSelectedTeamId) {
+            teamItem.classList.add('active');
+        }
+
+        // Check if current user is the GM for THIS specific game
+        const isGameManager = team.gm_id && team.gm_id === window.currentUserId;
+
+        // Add collapse button to FIRST team in the group
+        const collapseBtn = index === 0 ? `
+            <button class="team-collapse-btn"
+                    onclick="event.stopPropagation(); toggleGameCollapse('${group.gameId}')"
+                    title="Collapse ${group.gameTitle} teams">
+                <i class="fas fa-chevron-up"></i>
+            </button>
+        ` : '';
+
+        // Build team item HTML
+        teamItem.innerHTML = `
+            ${collapseBtn}
+            <div class="team-sidebar-content" onclick="selectTeam('${team.TeamID}')">
+                <div class="team-sidebar-name">${team.teamName}</div>
+                <div class="team-sidebar-game">${team.GameTitle || 'Unknown Game'}</div>
+                <div class="team-sidebar-meta">
+                    <span><i class="fas fa-users"></i> ${team.member_count || 0}</span>
+                    <span><i class="fas fa-trophy"></i> ${team.teamMaxSize}</span>
+                </div>
+            </div>
+            ${isGameManager ? `
+                <button class="team-edit-btn"
+                        onclick="event.stopPropagation(); openEditTeamModal('${team.TeamID}', '${team.teamName.replace(/'/g, "\\'")}', ${team.teamMaxSize}, '${team.TeamSizes || ''}')"
+                        title="Edit team">
+                    <i class="fas fa-edit"></i>
+                </button>
+            ` : ''}
+        `;
+
+        groupDiv.appendChild(teamItem);
+    });
+
+    container.appendChild(groupDiv);
+}
+
+/**
+ * Override the original renderTeamsSidebar to use grouping when appropriate
+ */
+const originalRenderTeamsSidebar = renderTeamsSidebar;
+renderTeamsSidebar = function(teams) {
+    // Use grouped rendering for "all" view, standard for others
+    if (currentView === 'all') {
+        renderTeamsSidebarWithGroups(teams);
+    } else {
+        originalRenderTeamsSidebar(teams);
+    }
+};
+
+// ============================================
 // TEAM SELECTION & DETAILS
 // ============================================
 
@@ -1247,3 +1471,4 @@ window.filterAvailableMembers = filterAvailableMembers;
 window.loadNextScheduledEvent = loadNextScheduledEvent;
 window.openEditTeamModal = openEditTeamModal;
 window.closeEditTeamModal = closeEditTeamModal;
+window.toggleGameCollapse = toggleGameCollapse;
