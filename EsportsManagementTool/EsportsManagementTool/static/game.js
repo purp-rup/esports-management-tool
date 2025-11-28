@@ -459,12 +459,18 @@ async function loadGameNextScheduledEvent(gameId) {
         if (data.success && data.event) {
             const event = data.event;
 
+            // Add a badge to show if it's from a schedule or a regular event
+            const sourceBadge = event.source === 'scheduled'
+                ? '<span class="event-source-badge scheduled">Recurring</span>'
+                : '<span class="event-source-badge regular">One-time</span>';
+
             // Format similar to team scheduled event card
             container.innerHTML = `
                 <div class="game-next-event-card" onclick="openEventModal(${event.id})">
                     <div class="game-next-event-header">
                         <i class="fas fa-calendar-plus"></i>
                         <h4>Next Community Event</h4>
+                        ${sourceBadge}
                     </div>
                     <div class="game-next-event-content">
                         <div class="game-next-event-time">
