@@ -7,7 +7,6 @@ Needs doing:
             Remember Me button on login
             Forgot password button on login
 
-            Show next community event if next_scheduled_community_event or if general event has game attached to it
             Allow editing match scores as soon as event-start-time passes, not event-end-time.
             Organize teams in teams sidebar by game, not by most recently created. Should follow same order as community order in communities tab
 
@@ -17,4 +16,7 @@ Needs doing:
             discord.js
             dashboard.js
             badges.js
+            modals.js
+            notifications.js
+            profile-edit.js
 
