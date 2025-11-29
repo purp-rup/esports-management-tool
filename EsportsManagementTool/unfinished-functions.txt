@@ -9,9 +9,9 @@ Needs doing:
 
             No modal appears to show description when clicking on match results??
             Viewing other profiles.
+            Tournament "next-community-event" card doesn't have proper color scheme
 
             Organizing Files (remaining):
-            game.js
             scheduled-events.js
             events.js (restructure to remove duplication)
             All Py files
