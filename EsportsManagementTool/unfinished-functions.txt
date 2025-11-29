@@ -8,11 +8,11 @@ Needs doing:
             Forgot password button on login
 
             Allow editing match scores as soon as event-start-time passes, not event-end-time.
+            Edit-event modal supports only one game per event, not multiple.
 
             Organizing Files (remaining):
             game.js
             scheduled-events.js
-            vods.js
             events.js
             All Py files
 

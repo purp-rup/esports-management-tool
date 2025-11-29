@@ -54,7 +54,10 @@ const MODAL_CLOSE_HANDLERS = {
     'changePasswordModal': closeChangePasswordModal,
 
     // Scheduled events
-    'createScheduledEventModal': closeCreateScheduledEventModal
+    'createScheduledEventModal': closeCreateScheduledEventModal,
+
+    //VOD Modal
+    'showAddVodModal': closeAddVodModal
 };
 
 // ============================================

@@ -559,6 +559,8 @@ def get_user_managed_game(user_id, game_id=None):
 """
 Method to search users in Admin Panel based on input from user in search bar.
 """
+
+
 @app.route('/admin/search-users')
 @login_required
 @roles_required('admin')
@@ -574,10 +576,15 @@ def search_users():
             # If empty search, return all users (or first 50)
             cursor.execute("""
                 SELECT u.id, u.firstname, u.lastname, u.username, u.email, 
-                       u.date, u.is_active, u.last_seen,
-                       p.is_admin, p.is_gm, p.is_player
+                       u.date,
+                       COALESCE(ua.is_active, 0) as is_active,
+                       ua.last_seen,
+                       COALESCE(p.is_admin, 0) as is_admin, 
+                       COALESCE(p.is_gm, 0) as is_gm, 
+                       COALESCE(p.is_player, 0) as is_player
                 FROM users u
                 LEFT JOIN permissions p ON u.id = p.userid
+                LEFT JOIN user_activity ua ON u.id = ua.userid
                 ORDER BY u.firstname, u.lastname
                 LIMIT 50
             """)
@@ -586,10 +593,15 @@ def search_users():
             search_pattern = f"%{search_query}%"
             cursor.execute("""
                 SELECT u.id, u.firstname, u.lastname, u.username, u.email, 
-                       u.date, u.is_active, u.last_seen,
-                       p.is_admin, p.is_gm, p.is_player
+                       u.date,
+                       COALESCE(ua.is_active, 0) as is_active,
+                       ua.last_seen,
+                       COALESCE(p.is_admin, 0) as is_admin, 
+                       COALESCE(p.is_gm, 0) as is_gm, 
+                       COALESCE(p.is_player, 0) as is_player
                 FROM users u
                 LEFT JOIN permissions p ON u.id = p.userid
+                LEFT JOIN user_activity ua ON u.id = ua.userid
                 WHERE u.firstname LIKE %s
                    OR u.lastname LIKE %s
                    OR u.username LIKE %s
@@ -604,19 +616,36 @@ def search_users():
         # Format dates for display
         formatted_users = []
         for user in users:
+            # Handle registration date
+            date_registered = 'Unknown'
+            if user.get('date'):
+                try:
+                    date_registered = user['date'].strftime('%B %d, %Y')
+                except Exception as e:
+                    print(f"Error formatting date: {e}")
+                    date_registered = str(user['date'])
+
+            # Handle last_seen
+            last_seen = 'Never logged in'
+            if user.get('last_seen'):
+                try:
+                    last_seen = user['last_seen'].strftime('%B %d, %Y; %I:%M %p')
+                except Exception as e:
+                    print(f"Error formatting last_seen: {e}")
+                    last_seen = str(user['last_seen'])
+
             formatted_users.append({
                 'id': user['id'],
                 'firstname': user['firstname'],
                 'lastname': user['lastname'],
                 'username': user['username'],
                 'email': user['email'],
-                'date_registered': user['date'].strftime('%B %d, %Y') if user['date'] else 'Unknown',
-                'is_active': user['is_active'] == 1,
-                'last_seen': user['last_seen'].strftime('%B %d, %Y; %I:%M %p') if user[
-                    'last_seen'] else 'Never logged in',
-                'is_admin': user['is_admin'] == 1,
-                'is_gm': user['is_gm'] == 1,
-                'is_player': user['is_player'] == 1
+                'date_registered': date_registered,
+                'is_active': bool(user.get('is_active', 0)),
+                'last_seen': last_seen,
+                'is_admin': bool(user.get('is_admin', 0)),
+                'is_gm': bool(user.get('is_gm', 0)),
+                'is_player': bool(user.get('is_player', 0))
             })
 
         return jsonify({
@@ -625,10 +654,12 @@ def search_users():
         })
 
     except Exception as e:
+        import traceback
         print(f"Error searching users: {str(e)}")
+        print(traceback.format_exc())
         return jsonify({
             'success': False,
-            'message': 'Failed to search users'
+            'message': f'Failed to search users: {str(e)}'
         }), 500
 
     finally:

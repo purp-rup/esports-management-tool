@@ -733,7 +733,7 @@
    Modal for adding members to team
    -------------------------------------------- */
 #addTeamMembersModal .modal-content {
-    max-width: 700px;
+    max-width: 600px;
 }
 
 #addTeamMembersModal .modal-body {
