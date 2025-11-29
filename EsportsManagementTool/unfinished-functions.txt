@@ -7,12 +7,12 @@ Needs doing:
             Remember Me button on login
             Forgot password button on login
 
-            Allow editing match scores as soon as event-start-time passes, not event-end-time.
-            Edit-event modal supports only one game per event, not multiple.
+            No modal appears to show description when clicking on match results??
+            Viewing other profiles.
 
             Organizing Files (remaining):
             game.js
             scheduled-events.js
-            events.js
+            events.js (restructure to remove duplication)
             All Py files
 

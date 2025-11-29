@@ -819,71 +819,6 @@ function updateEventButtons(event) {
     }
 }
 
-/**
- * Submit event edit
- */
-async function submitEventEdit() {
-    const formMessage = document.getElementById('editFormMessage');
-    const submitBtn = document.querySelector('#editEventFormData .btn-primary');
-
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-
-    const locationSelect = document.getElementById('editLocation');
-    const customLocationInput = document.getElementById('editCustomLocation');
-    const locationValue = locationSelect.value === 'other' ? customLocationInput.value : locationSelect.value;
-
-    const formData = {
-        event_id: currentEventId,
-        event_name: document.getElementById('editEventName').value,
-        event_type: document.getElementById('editEventType').value,
-        game: document.getElementById('editGame').value,
-        event_date: document.getElementById('editDate').value,
-        start_time: document.getElementById('editStartTime').value,
-        end_time: document.getElementById('editEndTime').value,
-        location: locationValue,
-        description: document.getElementById('editDescription').value
-    };
-
-    try {
-        const response = await fetch('/api/event/edit', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData)
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            formMessage.textContent = data.message;
-            formMessage.className = 'form-message success';
-            formMessage.style.display = 'block';
-
-            setTimeout(() => {
-                closeEventModal();
-                window.location.reload();
-            }, 1500);
-        } else {
-            formMessage.textContent = data.message || 'Failed to update event';
-            formMessage.className = 'form-message error';
-            formMessage.style.display = 'block';
-
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
-        }
-    } catch (error) {
-        console.error('Error updating event:', error);
-        formMessage.textContent = 'An error occurred while updating the event';
-        formMessage.className = 'form-message error';
-        formMessage.style.display = 'block';
-
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
-    }
-}
-
 // ============================================
 // DELETE EVENT
 // ============================================
@@ -1403,7 +1338,7 @@ function toggleEditMode() {
 }
 
 /**
- * Create edit form
+ * Create edit form with multi-game tag system
  */
 function createEditForm() {
     const editForm = document.getElementById('eventEditForm');
@@ -1437,43 +1372,57 @@ function createEditForm() {
                        value="${event.name}" required>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="editEventType">Event Type</label>
-                    <select id="editEventType" name="eventType" required onchange="handleEditEventTypeChange()">
-                        <option value="Event" ${event.event_type === 'Event' ? 'selected' : ''}>Event</option>
-                        <option value="Match" ${event.event_type === 'Match' ? 'selected' : ''}>Match</option>
-                        <option value="Practice" ${event.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
-                        <option value="Tournament" ${event.event_type === 'Tournament' ? 'selected' : ''}>Tournament</option>
-                        <option value="Misc" ${event.event_type === 'Misc' ? 'selected' : ''}>Misc</option>
-                    </select>
-                </div>
-
-                <div class="form-group" id="editGameGroup">
-                    <label for="editGame">Game (Optional)</label>
-                    <select id="editGame" name="game">
-                        <option value="">Select game</option>
-                    </select>
-                    <div id="editGameLoadingIndicator" style="display: none; font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                        <i class="fas fa-spinner fa-spin"></i> Loading games...
-                    </div>
-                </div>
+            <div class="form-group">
+                <label for="editEventType">Event Type</label>
+                <select id="editEventType" name="eventType" required onchange="handleEditEventTypeChange()">
+                    <option value="Event" ${event.event_type === 'Event' ? 'selected' : ''}>Event</option>
+                    <option value="Match" ${event.event_type === 'Match' ? 'selected' : ''}>Match</option>
+                    <option value="Practice" ${event.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
+                    <option value="Tournament" ${event.event_type === 'Tournament' ? 'selected' : ''}>Tournament</option>
+                    <option value="Misc" ${event.event_type === 'Misc' ? 'selected' : ''}>Misc</option>
+                </select>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="editDate">Date</label>
-                    <input type="date" id="editDate" name="eventDate"
-                           value="${event.date_raw}" required>
+            <!-- Multi-Game Tag Selector -->
+            <div class="form-group" id="editGameFieldGroup">
+                <label for="editGameDropdown">Games (Optional)</label>
+                <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
+                    Select games from the dropdown - they'll appear as tags below
                 </div>
 
-                <div class="form-group">
+                <!-- Selected games display area -->
+                <div id="editSelectedGamesContainer" class="selected-games-container">
+                    <!-- Selected game tags will appear here -->
+                </div>
+
+                <!-- Dropdown for selecting games -->
+                <select id="editGameDropdown" class="game-dropdown-single">
+                    <option value="">+ Add a game</option>
+                    <!-- Games will be loaded dynamically via JavaScript -->
+                </select>
+
+                <div id="editGameLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading games...
+                </div>
+
+                <!-- Hidden input to store selected games as JSON -->
+                <input type="hidden" id="editSelectedGamesInput" name="games" value="[]">
+            </div>
+
+            <div class="form-group">
+                <label for="editDate">Date</label>
+                <input type="date" id="editDate" name="eventDate"
+                       value="${event.date_raw}" required>
+            </div>
+
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group" style="margin: 0;">
                     <label for="editStartTime">Start Time</label>
                     <input type="time" id="editStartTime" name="startTime"
                            value="${convertTo24Hour(event.start_time)}" required>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" style="margin: 0;">
                     <label for="editEndTime">End Time</label>
                     <input type="time" id="editEndTime" name="endTime"
                            value="${convertTo24Hour(event.end_time)}" required>
@@ -1519,9 +1468,167 @@ function createEditForm() {
         </form>
     `;
 
-    loadGamesForEditDropdown();
+    // Initialize edit game tags with existing games
+    loadGamesForEditTagSelector(event.game);
     setupEditLocationDropdown(event.location);
     handleEditEventTypeChange();
+}
+
+/**
+ * Load games for the edit tag selector and pre-populate with existing games
+ */
+async function loadGamesForEditTagSelector(currentGames) {
+    const dropdown = document.getElementById('editGameDropdown');
+    const loadingIndicator = document.getElementById('editGameLoadingIndicator');
+
+    if (!dropdown) {
+        console.warn('editGameDropdown element not found');
+        return;
+    }
+
+    // Show loading indicator
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'block';
+    }
+
+    try {
+        const games = await loadGamesList();
+
+        // Clear existing options except placeholder
+        dropdown.innerHTML = '<option value="">+ Add a game</option>';
+
+        if (games.length === 0) {
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "No games available";
+            option.disabled = true;
+            dropdown.appendChild(option);
+            return;
+        }
+
+        // Populate dropdown
+        games.forEach(game => {
+            const option = document.createElement('option');
+            option.value = game.GameTitle;
+            option.textContent = game.GameTitle;
+            dropdown.appendChild(option);
+        });
+
+        // Parse existing games and add them as tags
+        selectedGames = [];
+        if (currentGames && currentGames !== 'N/A' && currentGames.trim() !== '') {
+            const gamesList = currentGames.split(',').map(g => g.trim());
+            gamesList.forEach(game => {
+                if (game) {
+                    selectedGames.push(game);
+                }
+            });
+        }
+        updateEditGameTagsDisplay();
+        updateEditHiddenGamesInput();
+
+        // Initialize the tag selector event listener
+        initializeEditGameTagSelector();
+
+    } catch (error) {
+        console.error('Error populating edit game dropdown:', error);
+        dropdown.innerHTML = '<option value="">Error loading games</option>';
+    } finally {
+        // Hide loading indicator
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+        }
+
+        // Force enable the dropdown
+        dropdown.removeAttribute('disabled');
+        dropdown.disabled = false;
+        dropdown.style.pointerEvents = 'auto';
+        dropdown.style.opacity = '1';
+        dropdown.style.cursor = 'pointer';
+
+        console.log('Edit dropdown fully enabled');
+    }
+}
+
+/**
+ * Initialize game tag selector event listener for edit form
+ */
+function initializeEditGameTagSelector() {
+    const dropdown = document.getElementById('editGameDropdown');
+    if (!dropdown) return;
+
+    // Remove any existing event listeners to prevent duplicates
+    const clone = dropdown.cloneNode(true);
+    dropdown.replaceWith(clone);
+
+    // Get fresh reference to the replaced element
+    const newDropdown = document.getElementById('editGameDropdown');
+    if (!newDropdown) return;
+
+    newDropdown.addEventListener('change', function() {
+        const selectedGame = this.value;
+        if (selectedGame && !selectedGames.includes(selectedGame)) {
+            addEditGameTag(selectedGame);
+        }
+        // Reset dropdown to placeholder
+        this.value = '';
+    });
+}
+
+/**
+ * Add a game tag to the edit selected games
+ */
+function addEditGameTag(gameTitle) {
+    if (selectedGames.includes(gameTitle)) return;
+
+    selectedGames.push(gameTitle);
+    updateEditGameTagsDisplay();
+    updateEditHiddenGamesInput();
+}
+
+/**
+ * Remove a game tag from edit selected games
+ */
+function removeEditGameTag(gameTitle) {
+    selectedGames = selectedGames.filter(game => game !== gameTitle);
+    updateEditGameTagsDisplay();
+    updateEditHiddenGamesInput();
+}
+
+/**
+ * Update the visual display of selected game tags in edit form
+ */
+function updateEditGameTagsDisplay() {
+    const container = document.getElementById('editSelectedGamesContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    selectedGames.forEach(game => {
+        const tag = document.createElement('div');
+        tag.className = 'game-tag';
+        tag.innerHTML = `
+            <i class="fas fa-gamepad game-tag-icon"></i>
+            <span>${game}</span>
+            <button type="button"
+                    class="game-tag-remove"
+                    onclick="removeEditGameTag('${game.replace(/'/g, "\\'")}')"
+                    title="Remove ${game}">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(tag);
+    });
+}
+
+/**
+ * Update the hidden input with selected games as JSON for edit form
+ */
+function updateEditHiddenGamesInput() {
+    const hiddenInput = document.getElementById('editSelectedGamesInput');
+    if (hiddenInput) {
+        hiddenInput.value = JSON.stringify(selectedGames);
+    }
 }
 
 /**
@@ -1568,14 +1675,87 @@ function setupEditLocationDropdown(currentLocation) {
  */
 function handleEditEventTypeChange() {
     const eventType = document.getElementById('editEventType').value;
-    const gameGroup = document.querySelector('#editGame').closest('.form-group');
-    const gameSelect = document.getElementById('editGame');
+    const gameFieldGroup = document.getElementById('editGameFieldGroup');
 
     if (eventType === 'Misc') {
-        gameGroup.style.display = 'none';
-        gameSelect.value = '';
+        // Hide game field for Misc events
+        gameFieldGroup.style.display = 'none';
+        // Clear selected games
+        selectedGames = [];
+        updateEditGameTagsDisplay();
+        updateEditHiddenGamesInput();
     } else {
-        gameGroup.style.display = 'block';
+        // Show game field for other event types
+        gameFieldGroup.style.display = 'block';
+    }
+}
+
+/**
+ * Submit event edit with multi-game support
+ */
+async function submitEventEdit() {
+    const formMessage = document.getElementById('editFormMessage');
+    const submitBtn = document.querySelector('#editEventFormData .btn-primary');
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    const locationSelect = document.getElementById('editLocation');
+    const customLocationInput = document.getElementById('editCustomLocation');
+    const locationValue = locationSelect.value === 'other' ? customLocationInput.value : locationSelect.value;
+
+    // Get games as JSON string
+    const gamesInput = document.getElementById('editSelectedGamesInput');
+    const gamesJson = gamesInput ? gamesInput.value : '[]';
+
+    const formData = {
+        event_id: currentEventId,
+        event_name: document.getElementById('editEventName').value,
+        event_type: document.getElementById('editEventType').value,
+        games: gamesJson,  // Send as JSON string
+        event_date: document.getElementById('editDate').value,
+        start_time: document.getElementById('editStartTime').value,
+        end_time: document.getElementById('editEndTime').value,
+        location: locationValue,
+        description: document.getElementById('editDescription').value
+    };
+
+    try {
+        const response = await fetch('/api/event/edit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            formMessage.textContent = data.message;
+            formMessage.className = 'form-message success';
+            formMessage.style.display = 'block';
+
+            setTimeout(() => {
+                closeEventModal();
+                window.location.reload();
+            }, 1500);
+        } else {
+            formMessage.textContent = data.message || 'Failed to update event';
+            formMessage.className = 'form-message error';
+            formMessage.style.display = 'block';
+
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+        }
+    } catch (error) {
+        console.error('Error updating event:', error);
+        formMessage.textContent = 'An error occurred while updating the event';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
     }
 }
 
@@ -1625,3 +1805,6 @@ window.handleEditEventTypeChange = handleEditEventTypeChange;
 window.addGameTag = addGameTag;
 window.removeGameTag = removeGameTag;
 window.clearSelectedGames = clearSelectedGames;
+window.addEditGameTag = addEditGameTag;
+window.removeEditGameTag = removeEditGameTag;
+window.handleEditEventTypeChange = handleEditEventTypeChange;

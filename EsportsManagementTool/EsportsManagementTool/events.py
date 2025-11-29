@@ -434,7 +434,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
     @login_required
     def edit_event():
         """
-        Edit an existing event
+        Edit an existing event with multi-game support
         - Admins can edit any event
         - Game Managers can only edit events they created
         """
@@ -481,17 +481,56 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 cursor.close()
                 return jsonify({'success': False, 'message': 'You do not have permission to edit this event'}), 403
 
+            # Parse games JSON
+            import json
+            games_json = data.get('games', '[]')
+            selected_games = json.loads(games_json) if isinstance(games_json, str) else games_json
+
+            # Build game display string
+            game_display = ', '.join(selected_games) if selected_games else None
+
+            # Get primary game_id (first selected game)
+            primary_game_id = None
+            if selected_games:
+                first_game_title = selected_games[0]
+                cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (first_game_title,))
+                game_result = cursor.fetchone()
+                if game_result:
+                    primary_game_id = game_result['gameID']
+
             # Update the event
             cursor.execute("""
                 UPDATE generalevents
-                SET EventName = %s, EventType = %s, Game = %s, Date = %s,
+                SET EventName = %s, EventType = %s, Game = %s, game_id = %s, Date = %s,
                     StartTime = %s, EndTime = %s, Location = %s, Description = %s
                 WHERE EventID = %s
             """, (
-                data['event_name'], data['event_type'], data['game'] if data['game'] else None,
-                data['event_date'], data['start_time'], data['end_time'],
-                data['location'], data['description'], event_id
+                data['event_name'],
+                data['event_type'],
+                game_display,
+                primary_game_id,
+                data['event_date'],
+                data['start_time'],
+                data['end_time'],
+                data['location'],
+                data['description'],
+                event_id
             ))
+
+            # Delete existing game associations
+            cursor.execute('DELETE FROM event_games WHERE event_id = %s', (event_id,))
+
+            # Insert new game associations
+            if selected_games:
+                for game_title in selected_games:
+                    cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (game_title,))
+                    game_result = cursor.fetchone()
+                    if game_result:
+                        game_id = game_result['gameID']
+                        cursor.execute(
+                            'INSERT IGNORE INTO event_games (event_id, game_id) VALUES (%s, %s)',
+                            (event_id, game_id)
+                        )
 
             mysql.connection.commit()
             cursor.close()
