@@ -8,19 +8,11 @@ Needs doing:
             Forgot password button on login
 
             Allow editing match scores as soon as event-start-time passes, not event-end-time.
-            Adjust format for teams folders (titles too long cause issues)
-            Games with one team should not be collapsable (icon doesn't appear)
 
-            Organizing Files (Done):
-            all css
-            admin-panel.js
-            discord.js
-            dashboard.js
-            badges.js
-            modals.js
-            notifications.js
-            profile-edit.js
-            teams.js
-            team-stats.js
-            suspensions.js
+            Organizing Files (remaining):
+            game.js
+            scheduled-events.js
+            vods.js
+            events.js
+            All Py files
 

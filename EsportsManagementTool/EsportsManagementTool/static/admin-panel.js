@@ -70,20 +70,105 @@ function attachAdminEventListeners() {
 // ============================================
 
 /**
- * Filter users in the user list based on search input
- * Performs case-insensitive search on user display text
- * Shows/hides user items based on match
+ * Filter users via server-side search
+ * Performs database query for matching users
+ * Debounced to avoid excessive API calls
  */
-function filterUsers() {
-    const input = document.getElementById('userSearch');
-    const filter = input.value.toLowerCase();
-    const items = document.getElementById('userItems').getElementsByTagName('li');
+let searchTimeout = null;
 
-    // Iterate through all user items and hide those that don't match
-    for (let i = 0; i < items.length; i++) {
-        const text = items[i].textContent || items[i].innerText;
-        items[i].style.display = text.toLowerCase().includes(filter) ? '' : 'none';
+async function filterUsers() {
+    const input = document.getElementById('userSearch');
+    const searchQuery = input.value.trim();
+    const userItemsContainer = document.getElementById('userItems');
+
+    // Clear previous timeout to debounce search
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
     }
+
+    // Show loading state
+    userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Searching...</li>';
+
+    // Debounce: wait 300ms after user stops typing
+    searchTimeout = setTimeout(async () => {
+        try {
+            // Fetch filtered users from server
+            const response = await fetch(`/admin/search-users?query=${encodeURIComponent(searchQuery)}`);
+            const data = await response.json();
+
+            if (data.success) {
+                if (data.users.length === 0) {
+                    // Show empty state
+                    userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: var(--text-secondary);">No users found</li>';
+                } else {
+                    // Render filtered users
+                    renderUserItems(data.users);
+                }
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (error) {
+            console.error('Error searching users:', error);
+            userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: #f44336;">Error loading users. Please try again.</li>';
+        }
+    }, 300); // 300ms debounce delay
+}
+
+/**
+ * Render user items in the list
+ * @param {Array} users - Array of user objects from server
+ */
+function renderUserItems(users) {
+    const userItemsContainer = document.getElementById('userItems');
+    userItemsContainer.innerHTML = '';
+
+    users.forEach(user => {
+        const li = document.createElement('li');
+        li.className = 'user-item';
+
+        // Set data attributes for user details panel
+        li.setAttribute('data-userid', user.id);
+        li.setAttribute('data-username', user.username);
+        li.setAttribute('data-firstname', user.firstname);
+        li.setAttribute('data-lastname', user.lastname);
+        li.setAttribute('data-email', user.email);
+        li.setAttribute('data-date', user.date_registered);
+        li.setAttribute('data-active', user.is_active ? 'true' : 'false');
+        li.setAttribute('data-last-seen', user.last_seen);
+        li.setAttribute('data-is-admin', user.is_admin ? '1' : '0');
+        li.setAttribute('data-is-gm', user.is_gm ? '1' : '0');
+        li.setAttribute('data-is-player', user.is_player ? '1' : '0');
+
+        // Build role badges
+        const roles = [];
+        if (user.is_admin) roles.push('Admin');
+        if (user.is_gm) roles.push('Game Manager');
+        if (user.is_player) roles.push('Player');
+
+        const badgesHTML = buildUniversalRoleBadges({
+            userId: user.id,
+            roles: roles,
+            contextGameId: null
+        });
+
+        // Build user item HTML
+        li.innerHTML = `
+            <div>
+                <strong>${user.firstname} ${user.lastname}</strong>
+                <p>@${user.username} — ${user.email}</p>
+                <div style="margin-top: 0.25rem; display: flex; gap: 0.5rem; align-items: center;">
+                    ${badgesHTML}
+                </div>
+            </div>
+        `;
+
+        // Add click handler
+        li.addEventListener('click', async function() {
+            await handleUserItemClick(this);
+        });
+
+        userItemsContainer.appendChild(li);
+    });
 }
 
 // ============================================

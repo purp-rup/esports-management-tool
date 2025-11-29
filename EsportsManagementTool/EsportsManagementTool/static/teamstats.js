@@ -120,40 +120,18 @@ async function loadStatsTab(teamId, gameId) {
 function renderStatsContent() {
     const statsPanel = document.getElementById('statsTabContent');
 
-    // Check user permissions for management features
-    const isGM = window.userPermissions?.is_gm || false;
-    const isAdmin = window.userPermissions?.is_admin || false;
-    const canManage = isGM || isAdmin;
-
-    // ========================================
-    // CALCULATE STATISTICS
-    // ========================================
-    // Parse wins and losses as integers to ensure proper calculation
+    // Calculate statistics
     const wins = parseInt(teamStats.wins) || 0;
     const losses = parseInt(teamStats.losses) || 0;
     const totalMatches = wins + losses;
 
-    // Calculate win percentage
     let winPercentage = '0';
     if (totalMatches > 0) {
         const rawPercentage = (wins / totalMatches) * 100;
-        // If it's a whole number, don't show decimals. Otherwise show 1 decimal place.
         winPercentage = (rawPercentage % 1 === 0) ? rawPercentage.toFixed(0) : rawPercentage.toFixed(1);
     }
 
-    // Debug logging for troubleshooting
-    console.log('📊 Stats Debug:', {
-        wins,
-        losses,
-        totalMatches,
-        winPercentage,
-        calculation: `${wins} / ${totalMatches} * 100 = ${winPercentage}`,
-        originalStats: teamStats
-    });
-
-    // ========================================
-    // BUILD STATS UI
-    // ========================================
+    // Build stats UI
     statsPanel.innerHTML = `
         <div class="stats-container">
             <!-- Stats Summary Cards -->
@@ -207,17 +185,28 @@ function renderStatsContent() {
             <div class="match-history-section">
                 <div class="section-header">
                     <h3><i class="fas fa-history"></i> Match History</h3>
-                    ${canManage ? `
-                        <button class="btn btn-primary btn-sm" onclick="openRecordResultModal()">
-                            <i class="fas fa-plus"></i> Record Result
-                        </button>
-                    ` : ''}
+                    <button id="recordResultBtn"
+                            class="btn btn-primary btn-sm"
+                            onclick="openRecordResultModal()"
+                            style="display: none;">
+                        <i class="fas fa-plus"></i> Record Result
+                    </button>
                 </div>
 
                 ${renderMatchHistory()}
             </div>
         </div>
     `;
+
+    // Check if current user is the GM for THIS game
+    const currentTeam = allTeamsData.find(t => t.TeamID === currentStatsTeamId);
+    const isGameManager = currentTeam && currentTeam.gm_id === window.currentUserId;
+
+    // Show button ONLY for the game's GM
+    const recordBtn = document.getElementById('recordResultBtn');
+    if (recordBtn && isGameManager) {
+        recordBtn.style.display = 'inline-flex';
+    }
 }
 
 /**
@@ -227,23 +216,22 @@ function renderStatsContent() {
  * @returns {string} HTML string for match history
  */
 function renderMatchHistory() {
-    // Show empty state if no matches
     if (!matchEvents || matchEvents.length === 0) {
         return `
             <div class="match-history-empty">
                 <i class="fas fa-calendar-times"></i>
                 <p>No match results recorded yet</p>
-                ${(window.userPermissions?.is_gm || window.userPermissions?.is_admin) ?
-                    '<small>Record your first match result to start tracking statistics</small>' : ''}
             </div>
         `;
     }
 
+    // Check if current user is the game manager
+    const currentTeam = allTeamsData.find(t => t.TeamID === currentStatsTeamId);
+    const isGameManager = currentTeam && currentTeam.gm_id === window.currentUserId;
+
     let html = '<div class="match-history-list">';
 
-    // Build match history items
     matchEvents.forEach(match => {
-        // Determine result styling and icon
         const resultClass = match.result ? match.result.toLowerCase() : 'pending';
         const resultIcon = match.result === 'win' ? 'fa-trophy' :
                           match.result === 'loss' ? 'fa-times-circle' :
@@ -252,13 +240,11 @@ function renderMatchHistory() {
 
         html += `
             <div class="match-history-item">
-                <!-- Match Date -->
                 <div class="match-date">
                     <i class="fas fa-calendar"></i>
                     ${match.date}
                 </div>
 
-                <!-- Match Info -->
                 <div class="match-info">
                     <div class="match-name">${match.name}</div>
                     ${match.location ? `
@@ -268,14 +254,12 @@ function renderMatchHistory() {
                     ` : ''}
                 </div>
 
-                <!-- Match Result Badge -->
                 <div class="match-result match-result-${resultClass}">
                     <i class="fas ${resultIcon}"></i>
                     ${resultText}
                 </div>
 
-                <!-- Edit Button (GM/Admin only) -->
-                ${(window.userPermissions?.is_gm || window.userPermissions?.is_admin) ? `
+                ${isGameManager ? `
                     <div class="match-actions">
                         <button class="btn-icon"
                                 onclick="editMatchResult(${match.event_id})"

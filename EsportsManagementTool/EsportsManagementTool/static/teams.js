@@ -412,6 +412,7 @@ function renderTeamsSidebarWithGroups(teams) {
             gameGroups[gameId] = {
                 gameId: gameId,
                 gameTitle: gameTitle,
+                hasGameImage: team.has_game_image,
                 teams: []
             };
         }
@@ -442,7 +443,7 @@ function renderTeamsSidebarWithGroups(teams) {
 
 /**
  * Render a collapsed game folder
- * Shows just the game name and team count
+ * Shows just the game name and team count with game logo
  *
  * @param {Object} group - Game group object
  * @param {HTMLElement} container - Container to append to
@@ -461,10 +462,26 @@ function renderCollapsedGameFolder(group, container) {
     const teamCount = group.teams.length;
     const teamWord = teamCount === 1 ? 'team' : 'teams';
 
+    // Build game icon HTML - use actual game image if available
+    let gameIconHTML;
+    if (group.gameId && group.hasGameImage) {
+        gameIconHTML = `
+            <img src="/game-image/${group.gameId}"
+                 alt="${group.gameTitle}"
+                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">
+                <i class="fas fa-gamepad"></i>
+            </div>
+        `;
+    } else {
+        gameIconHTML = '<i class="fas fa-gamepad"></i>';
+    }
+
     folderDiv.innerHTML = `
         <div class="game-folder-info" onclick="event.stopPropagation(); toggleGameCollapse('${group.gameId}')">
             <div class="game-folder-icon">
-                <i class="fas fa-gamepad"></i>
+                ${gameIconHTML}
             </div>
             <div class="game-folder-details">
                 <div class="game-folder-name">${group.gameTitle}</div>

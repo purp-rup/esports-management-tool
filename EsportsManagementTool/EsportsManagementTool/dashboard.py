@@ -557,6 +557,84 @@ def get_user_managed_game(user_id, game_id=None):
         return jsonify({'success': False, 'message': 'Failed to get managed game'}), 500
 
 """
+Method to search users in Admin Panel based on input from user in search bar.
+"""
+@app.route('/admin/search-users')
+@login_required
+@roles_required('admin')
+def search_users():
+    """Search users by name, username, or email"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Get search query from URL parameter
+        search_query = request.args.get('query', '').strip()
+
+        if not search_query:
+            # If empty search, return all users (or first 50)
+            cursor.execute("""
+                SELECT u.id, u.firstname, u.lastname, u.username, u.email, 
+                       u.date, u.is_active, u.last_seen,
+                       p.is_admin, p.is_gm, p.is_player
+                FROM users u
+                LEFT JOIN permissions p ON u.id = p.userid
+                ORDER BY u.firstname, u.lastname
+                LIMIT 50
+            """)
+        else:
+            # Search for matching users
+            search_pattern = f"%{search_query}%"
+            cursor.execute("""
+                SELECT u.id, u.firstname, u.lastname, u.username, u.email, 
+                       u.date, u.is_active, u.last_seen,
+                       p.is_admin, p.is_gm, p.is_player
+                FROM users u
+                LEFT JOIN permissions p ON u.id = p.userid
+                WHERE u.firstname LIKE %s
+                   OR u.lastname LIKE %s
+                   OR u.username LIKE %s
+                   OR u.email LIKE %s
+                   OR CONCAT(u.firstname, ' ', u.lastname) LIKE %s
+                ORDER BY u.firstname, u.lastname
+                LIMIT 50
+            """, (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern))
+
+        users = cursor.fetchall()
+
+        # Format dates for display
+        formatted_users = []
+        for user in users:
+            formatted_users.append({
+                'id': user['id'],
+                'firstname': user['firstname'],
+                'lastname': user['lastname'],
+                'username': user['username'],
+                'email': user['email'],
+                'date_registered': user['date'].strftime('%B %d, %Y') if user['date'] else 'Unknown',
+                'is_active': user['is_active'] == 1,
+                'last_seen': user['last_seen'].strftime('%B %d, %Y; %I:%M %p') if user[
+                    'last_seen'] else 'Never logged in',
+                'is_admin': user['is_admin'] == 1,
+                'is_gm': user['is_gm'] == 1,
+                'is_player': user['is_player'] == 1
+            })
+
+        return jsonify({
+            'success': True,
+            'users': formatted_users
+        })
+
+    except Exception as e:
+        print(f"Error searching users: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to search users'
+        }), 500
+
+    finally:
+        cursor.close()
+
+"""
 Route allowing admins to remove user data from the site. This includes email, password, profile picture, etc.
 """
 @app.route('/admin/remove-user', methods=['POST'])
