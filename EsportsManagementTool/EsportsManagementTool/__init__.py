@@ -18,7 +18,6 @@ from datetime import datetime, timedelta
 from functools import wraps
 import pytz
 
-
 app = Flask(__name__)
 
 # =========================================
@@ -63,15 +62,18 @@ mail = Mail(app)
 # =========================================
 EST = pytz.timezone('America/New_York')  # EST/EDT timezone
 
+
 def get_current_time():
     """Get current time in EST"""
     return datetime.now(EST)
+
 
 def localize_datetime(dt):
     """Convert naive datetime to EST"""
     if dt.tzinfo is None:
         return EST.localize(dt)
     return dt.astimezone(EST)
+
 
 ##Set timezone, accounting for DST dynamically.
 @app.before_request
@@ -89,6 +91,7 @@ def set_mysql_timezone():
         cursor.execute(f"SET time_zone = '{offset_str}';")
         cursor.close()
 
+
 ##Template to display times.
 @app.template_filter('format_datetime')
 def format_datetime_filter(dt, format='%B %d, %Y at %I:%M %p'):
@@ -104,6 +107,7 @@ def format_datetime_filter(dt, format='%B %d, %Y at %I:%M %p'):
         dt = EST.localize(dt)
     return dt.strftime(format) + ' EST'
 
+
 @app.template_filter('to_est')
 def to_est_filter(dt):
     """Convert datetime to EST"""
@@ -113,11 +117,11 @@ def to_est_filter(dt):
         return EST.localize(dt)
     return dt.astimezone(EST)
 
+
 # For production, force HTTPS
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-
 
 # ============================================
 # ROLE-BASED SECURITY SYSTEM (the following was developed in part with CLaudeAI)
@@ -142,6 +146,7 @@ def login_required(f):
 
     return decorated_function
 
+
 """
 Method defining role hierarchy functionality.
 @param - required_roles is the necessary roles for the action attempting to be performed.
@@ -155,6 +160,7 @@ def roles_required(*required_roles):
         @roles_required('admin', 'gm')              # Admins OR GMs
         @roles_required('admin', 'gm', 'player')    # Any user with a role
     """
+
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -199,6 +205,7 @@ def roles_required(*required_roles):
 
     return decorator
 
+
 """
 Method that retrieves all roles a user has from the database.
 @param - user_id is the id of the user being checked.
@@ -222,6 +229,7 @@ def get_user_permissions(user_id):
     finally:
         cursor.close()
 
+
 """
 Method that checks if a user has a specific role for certain actions, including accessing admin panel, etc.
 @param - role_name is the title of the role being checked from the user.
@@ -243,6 +251,7 @@ def has_role(role_name):
 
     return role_map.get(role_name, 0) == 1
 
+
 """
 Method to show when a user was last seen active. Displays on Admin Panel.
 @param - user_id is the id of the user being changed.
@@ -263,6 +272,7 @@ def update_user_last_seen(user_id):
         cursor.close()
     except Exception as e:
         print(f"Error updating last_seen: {str(e)}")
+
 
 """
 Method to remove inactive users from the active users list in the database.
@@ -286,6 +296,7 @@ def cleanup_inactive_users():
     except Exception as e:
         print(f"Error cleaning up inactive users: {str(e)}")
 
+
 # ============================================
 # ROUTES (The following was developed in part with ClaudeAI
 # ============================================
@@ -293,7 +304,9 @@ def cleanup_inactive_users():
 # Home/Landing Page
 @app.route('/')
 def index():
+    """Landing page - calendar loads events via AJAX"""
     return render_template('index.html')
+
 
 """
 Method to send a verification email to newly registered users.
@@ -315,6 +328,7 @@ def send_verify_email(email, token):
     - 5 Brain Cells: SU Esports MGMT Tool Team.
     '''
     mail.send(msg)
+
 
 """
 Route to let users successfully verify their email through the email sent to their inbox.
@@ -340,6 +354,7 @@ def verify_email(token):
             return redirect(url_for('register'))
     finally:
         cursor.close()
+
 
 """
 Route to let users login on the login page.
@@ -425,6 +440,7 @@ def login():
 
     return render_template('login.html', msg=msg)
 
+
 """
 Route to let users logout of their account whenever they please.
 """
@@ -449,6 +465,7 @@ def logout():
     session.pop('username', None)
     flash('Successfully logged out.')
     return redirect(url_for('login'))
+
 
 """
 Route to allow users to register their account using email, password, and other fields.
@@ -522,6 +539,7 @@ def register():
 
     return render_template('register.html', msg=msg)
 
+
 # =======================================
 # IMPORTS THAT RELY ON INITIALIZATION
 # =======================================
@@ -545,17 +563,200 @@ EsportsManagementTool.suspensions.register_suspension_routes(app, mysql, roles_r
 # =====================================
 EsportsManagementTool.events.register_event_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
-# =====================================
-# REGISTER SCHEDULED EVENTS ROUTES
-# =====================================
-from EsportsManagementTool import scheduled_events
-scheduled_events.register_scheduled_events_routes(app, mysql, login_required, roles_required, get_user_permissions)
+# =======================================
+# CALENDAR API ENDPOINT FOR LANDING PAGE
+# =======================================
+@app.route('/api/calendar/events')
+def get_calendar_events():
+    """
+    Fetch events for the landing page calendar via AJAX.
+    Returns events based on user permissions.
+    """
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+
+    if not year or not month:
+        return jsonify({'error': 'Year and month parameters required'}), 400
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    events_by_date = {}
+
+    try:
+        if not session.get('loggedin'):
+            # Not logged in: only show public events
+            cursor.execute("""
+                SELECT ge.* 
+                FROM generalevents ge
+                LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+                WHERE YEAR(ge.Date) = %s AND MONTH(ge.Date) = %s
+                AND (
+                    ge.schedule_id IS NULL
+                    OR se.visibility = 'all_members'
+                )
+                ORDER BY ge.Date, ge.StartTime
+            """, (year, month))
+
+        else:
+            # Logged in: show events based on permissions
+            user_id = session.get('id')
+            cursor.execute("""
+                SELECT ge.* 
+                FROM generalevents ge
+                LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+                WHERE YEAR(ge.Date) = %s AND MONTH(ge.Date) = %s
+                AND (
+                    ge.schedule_id IS NULL
+                    OR se.created_by = %s
+                    OR se.visibility = 'all_members'
+                    OR (se.visibility = 'team' AND EXISTS (
+                        SELECT 1 FROM team_members tm 
+                        WHERE tm.team_id = se.team_id 
+                        AND tm.user_id = %s
+                    ))
+                    OR (se.visibility = 'game_players' AND EXISTS (
+                        SELECT 1 FROM team_members tm
+                        JOIN teams t ON tm.team_id = t.TeamID
+                        WHERE t.gameID = se.game_id
+                        AND tm.user_id = %s
+                    ))
+                    OR (se.visibility = 'game_community' AND EXISTS (
+                        SELECT 1 FROM in_communities ic
+                        WHERE ic.game_id = se.game_id
+                        AND ic.user_id = %s
+                    ))
+                )
+                ORDER BY ge.Date, ge.StartTime
+            """, (year, month, user_id, user_id, user_id, user_id))
+
+        events = cursor.fetchall()
+
+        # Group events by date and format
+        for event in events:
+            date_str = event['Date'].strftime('%Y-%m-%d')
+
+            # Handle timedelta for StartTime
+            if event['StartTime']:
+                total_seconds = int(event['StartTime'].total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+
+                # Check if all-day event
+                if event['EndTime']:
+                    end_total_seconds = int(event['EndTime'].total_seconds())
+                    end_hours = end_total_seconds // 3600
+                    end_minutes = (end_total_seconds % 3600) // 60
+                    is_all_day = (hours == 0 and minutes == 0 and end_hours == 23 and end_minutes == 59)
+                else:
+                    is_all_day = False
+
+                # Convert to 12-hour format
+                period = 'AM' if hours < 12 else 'PM'
+                display_hours = hours if hours == 0 else (hours if hours <= 12 else hours - 12)
+                if display_hours == 0:
+                    display_hours = 12
+
+                time_str = None if is_all_day else f"{display_hours}:{minutes:02d} {period}"
+            else:
+                time_str = None
+
+            event_obj = {
+                'id': event['EventID'],
+                'title': event['EventName'],
+                'time': time_str,
+                'description': event.get('Description', ''),
+                'event_type': event.get('EventType', 'event').lower(),
+                'location': event.get('Location', ''),
+                'date': date_str,
+                'start_time': str(event['StartTime']) if event.get('StartTime') else '',
+                'end_time': str(event['EndTime']) if event.get('EndTime') else '',
+                'game_name': None
+            }
+
+            if date_str not in events_by_date:
+                events_by_date[date_str] = []
+            events_by_date[date_str].append(event_obj)
+
+        return jsonify(events_by_date)
+
+    except Exception as e:
+        print(f"Error fetching calendar events: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to fetch events'}), 500
+    finally:
+        cursor.close()
+
+
+@app.route('/api/events/<int:event_id>')
+def get_event_details(event_id):
+    """
+    Fetch detailed information for a specific event.
+    Used by the event details modal.
+    """
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Fetch event from generalevents table
+        cursor.execute("""
+            SELECT * FROM generalevents WHERE EventID = %s
+        """, (event_id,))
+
+        event = cursor.fetchone()
+
+        if not event:
+            return jsonify({'error': 'Event not found'}), 404
+
+        # Format times
+        start_time_str = ''
+        end_time_str = ''
+
+        if event['StartTime']:
+            total_seconds = int(event['StartTime'].total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            start_time_str = f"{hours:02d}:{minutes:02d}"
+
+        if event['EndTime']:
+            total_seconds = int(event['EndTime'].total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            end_time_str = f"{hours:02d}:{minutes:02d}"
+
+        # Build response
+        event_data = {
+            'id': event['EventID'],
+            'title': event['EventName'],
+            'description': event.get('Description', ''),
+            'date': event['Date'].strftime('%Y-%m-%d'),
+            'start_time': start_time_str,
+            'end_time': end_time_str,
+            'location': event.get('Location', ''),
+            'event_type': event.get('EventType', 'event').lower(),
+            'game_name': event.get('Game', None)
+        }
+
+        return jsonify(event_data)
+
+    except Exception as e:
+        print(f"Error fetching event details: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to fetch event details'}), 500
+    finally:
+        cursor.close()
+
 
 # =====================================
 # REGISTER TEAM STATISTICS ROUTES
 # =====================================
 from EsportsManagementTool import team_stats
 team_stats.register_team_stats_routes(app, mysql, login_required, roles_required, get_user_permissions)
+
+# =====================================
+# REGISTER SCHEDULED EVENTS ROUTES
+# =====================================
+from EsportsManagementTool import scheduled_events
+scheduled_events.register_scheduled_events_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
 # =====================================
 # EXPORT TIMEZONE FUNCTIONS
