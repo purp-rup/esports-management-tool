@@ -3,238 +3,14 @@
 {% block title %}Home - Stockton Esports{% endblock %}
 
 {% block extra_css %}
-<style>
-    /* Textured background */
-    body {
-        background:
-            repeating-linear-gradient(
-                45deg,
-                #0a0a0a,
-                #0a0a0a 10px,
-                #0d0d0d 10px,
-                #0d0d0d 20px
-            ),
-            radial-gradient(circle at 20% 50%, rgba(121, 189, 233, 0.03) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, rgba(121, 189, 233, 0.03) 0%, transparent 50%),
-            #0a0a0a;
-    }
-
-    /* Hero Section - Full viewport height minus navbar */
-    .hero {
-        min-height: calc(100vh - 73px); /* Subtract navbar height */
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 2rem;
-        position: relative;
-    }
-
-    .hero-content {
-        max-width: 800px;
-    }
-
-    .hero h1 {
-        font-size: 4rem;
-        margin-bottom: 1.5rem;
-        line-height: 1.1;
-    }
-
-    .hero-gradient {
-        color: var(--stockton-blue);
-    }
-
-    .hero p {
-        font-size: 1.25rem;
-        color: var(--text-secondary);
-        max-width: 600px;
-        margin: 0 auto 2rem;
-        line-height: 1.6;
-    }
-
-    .hero-actions {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-
-    .btn-large {
-        padding: 1rem 2rem;
-        font-size: 1rem;
-    }
-
-    /* Scroll indicator */
-    .scroll-indicator {
-        position: absolute;
-        bottom: 2rem;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.5rem;
-        color: var(--text-secondary);
-        font-size: 0.875rem;
-        animation: bounce 2s infinite;
-    }
-
-    .scroll-arrow {
-        font-size: 2rem;
-        color: var(--stockton-blue);
-    }
-
-    @keyframes bounce {
-        0%, 20%, 50%, 80%, 100% {
-            transform: translateX(-50%) translateY(0);
-        }
-        40% {
-            transform: translateX(-50%) translateY(-10px);
-        }
-        60% {
-            transform: translateX(-50%) translateY(-5px);
-        }
-    }
-
-    /* Features Section */
-    .features {
-        padding: 6rem 2rem;
-        background: var(--card-bg);
-        border-top: 1px solid var(--border-color);
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .features-header {
-        text-align: center;
-        margin-bottom: 4rem;
-    }
-
-    .features-header h2 {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .features-header p {
-        color: var(--text-secondary);
-        font-size: 1.125rem;
-        max-width: 600px;
-        margin: 0 auto;
-    }
-
-    .features-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 2rem;
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-
-    .feature-card {
-        background: var(--dark-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 2rem;
-        transition: all 0.3s;
-    }
-
-    .feature-card:hover {
-        transform: translateY(-4px);
-        border-color: var(--stockton-blue);
-        box-shadow: 0 8px 16px rgba(121, 189, 233, 0.1);
-    }
-
-    .feature-icon {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-        display: block;
-    }
-
-    .feature-card h3 {
-        font-size: 1.5rem;
-        margin-bottom: 0.75rem;
-    }
-
-    .feature-card p {
-        color: var(--text-secondary);
-        line-height: 1.6;
-    }
-
-    /* Stats Section */
-    .stats {
-        background: var(--dark-bg);
-        padding: 4rem 2rem;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 3rem;
-        max-width: 1000px;
-        margin: 0 auto;
-        text-align: center;
-    }
-
-    .stat-item h3 {
-        font-size: 3rem;
-        color: var(--stockton-blue);
-        margin-bottom: 0.5rem;
-    }
-
-    .stat-item p {
-        color: var(--text-secondary);
-        font-size: 1rem;
-    }
-
-    /* CTA Section */
-    .cta {
-        text-align: center;
-        padding: 6rem 2rem;
-        background: var(--card-bg);
-        border-top: 1px solid var(--border-color);
-        margin-bottom: 0;
-    }
-
-    .cta h2 {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .cta p {
-        font-size: 1.125rem;
-        color: var(--text-secondary);
-        max-width: 600px;
-        margin: 0 auto 2rem;
-    }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-        .hero h1 {
-            font-size: 2.5rem;
-        }
-
-        .hero p {
-            font-size: 1rem;
-        }
-
-        .features-header h2,
-        .cta h2 {
-            font-size: 2rem;
-        }
-
-        .stat-item h3 {
-            font-size: 2rem;
-        }
-
-        .scroll-indicator {
-            bottom: 1rem;
-        }
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='modals.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
 {% endblock %}
 
 {% block content %}
-<!-- Hero Section - Full viewport -->
+<!-- Hero Section -->
 <section class="hero">
     <div class="hero-content">
         <h1>
@@ -255,12 +31,124 @@
         </div>
     </div>
 
-    <!-- Scroll indicator -->
     <div class="scroll-indicator">
         <span>Scroll to explore</span>
         <div class="scroll-arrow">↓</div>
     </div>
 </section>
+
+<!-- Calendar Section -->
+<section class="calendar-section">
+    <div class="container">
+        <div class="features-header">
+            <h2>Upcoming Events</h2>
+            <p>Stay up to date with matches, practices, and community events</p>
+        </div>
+
+        <div class="calendar-container">
+            <!-- Calendar Navigation -->
+            <div class="calendar-navigation">
+                <a href="#" class="nav-button" id="prevMonth">
+                    <i class="fas fa-chevron-left"></i>
+                    <span>Previous</span>
+                </a>
+                <h2 class="calendar-month-year" id="currentMonthYear"></h2>
+                <a href="#" class="nav-button" id="nextMonth">
+                    <span>Next</span>
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+
+            <!-- Calendar Main -->
+            <div class="calendar-main">
+                <div class="calendar-wrapper">
+                    <!-- Calendar Header -->
+                    <div class="calendar-header">
+                        <div class="calendar-day-name">SUN</div>
+                        <div class="calendar-day-name">MON</div>
+                        <div class="calendar-day-name">TUE</div>
+                        <div class="calendar-day-name">WED</div>
+                        <div class="calendar-day-name">THU</div>
+                        <div class="calendar-day-name">FRI</div>
+                        <div class="calendar-day-name">SAT</div>
+                    </div>
+
+                    <!-- Calendar Grid -->
+                    <div class="calendar-grid" id="calendarGrid">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="calendar-sidebar">
+                <div class="sidebar-card">
+                    <h3><i class="fas fa-palette"></i> Event Types</h3>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <div class="legend-color tournament"></div>
+                            <span class="legend-label">Tournament</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color match"></div>
+                            <span class="legend-label">Match</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color practice"></div>
+                            <span class="legend-label">Practice</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color event"></div>
+                            <span class="legend-label">Event</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color misc"></div>
+                            <span class="legend-label">Miscellaneous</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-card">
+                    <h3><i class="fas fa-calendar-day"></i> Today's Events</h3>
+                    <div class="today-events-list" id="todayEventsList">
+                        <p style="color: var(--text-secondary); font-size: 0.875rem;">No events today</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Event Details Modal -->
+<div id="eventDetailsModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <div class="modal-header">
+            <h2 id="eventModalTitle">Event Details</h2>
+            <button class="modal-close" onclick="closeEventModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="eventModalBody">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Day Events Modal -->
+<div id="dayEventsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="dayModalTitle">Events</h2>
+            <button class="modal-close" onclick="closeDayModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="dayModalBody"></div>
+    </div>
+</div>
 
 <!-- Features Section -->
 <section class="features">
@@ -274,55 +162,37 @@
             <div class="feature-card">
                 <span class="feature-icon">📅</span>
                 <h3>Visual Calendar</h3>
-                <p>
-                    Stay on top of matches, practices, and community events with customizable alerts
-                    and an intuitive calendar interface.
-                </p>
+                <p>Stay on top of matches, practices, and community events with customizable alerts and an intuitive calendar interface.</p>
             </div>
 
             <div class="feature-card">
                 <span class="feature-icon">👥</span>
                 <h3>Team Management</h3>
-                <p>
-                    Game Managers can easily create and manage rosters, schedules, and send
-                    match reminders to keep teams coordinated.
-                </p>
+                <p>Game Managers can easily create and manage rosters, schedules, and send match reminders to keep teams coordinated.</p>
             </div>
 
             <div class="feature-card">
                 <span class="feature-icon">🎥</span>
                 <h3>VOD Review</h3>
-                <p>
-                    Upload and annotate match recordings to provide structured feedback
-                    and help players improve their gameplay.
-                </p>
+                <p>Upload and annotate match recordings to provide structured feedback and help players improve their gameplay.</p>
             </div>
 
             <div class="feature-card">
                 <span class="feature-icon">📊</span>
                 <h3>Analytics Dashboard</h3>
-                <p>
-                    Track team data, event statistics, and community engagement with
-                    comprehensive analytics and insights.
-                </p>
+                <p>Track team data, event statistics, and community engagement with comprehensive analytics and insights.</p>
             </div>
 
             <div class="feature-card">
                 <span class="feature-icon">💬</span>
                 <h3>Centralized Communication</h3>
-                <p>
-                    Replace fragmented tools with a single platform that combines scheduling,
-                    communication, and management features.
-                </p>
+                <p>Replace fragmented tools with a single platform that combines scheduling, communication, and management features.</p>
             </div>
 
             <div class="feature-card">
                 <span class="feature-icon">🎮</span>
                 <h3>Community Events</h3>
-                <p>
-                    Enhance engagement through better event visibility, attendance tracking,
-                    and customizable notifications.
-                </p>
+                <p>Enhance engagement through better event visibility, attendance tracking, and customizable notifications.</p>
             </div>
         </div>
     </div>
@@ -357,23 +227,31 @@
     <div class="container">
         {% if session.loggedin %}
             <h2>Welcome Back, {{ session.username }}!</h2>
-            <p>
-                Your dashboard is ready and waiting. Check your upcoming events, manage your teams,
-                and stay connected with the Stockton Esports community.
-            </p>
+            <p>Your dashboard is ready and waiting. Check your upcoming events, manage your teams, and stay connected with the Stockton Esports community.</p>
             <div class="hero-actions">
                 <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-large">Go to Dashboard</a>
             </div>
         {% else %}
             <h2>Ready to Level Up?</h2>
-            <p>
-                Join the Stockton Esports community today and be part of something bigger.
-                Whether you're a competitor or a casual player, there's a place for you here.
-            </p>
+            <p>Join the Stockton Esports community today and be part of something bigger. Whether you're a competitor or a casual player, there's a place for you here.</p>
             <div class="hero-actions">
                 <a href="{{ url_for('register') }}" class="btn btn-primary btn-large">Create Account</a>
             </div>
         {% endif %}
     </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Set user login status for calendar functionality
+    {% if session.loggedin %}
+    window.currentUserId = {{ session.id }};
+    {% endif %}
+</script>
+<!-- Load landing-calendar.js FIRST to define modal close handlers -->
+<script src="{{ url_for('static', filename='landing-calendar.js') }}"></script>
+<!-- Then load modals.js which references those handlers -->
+<script src="{{ url_for('static', filename='modals.js') }}"></script>
+<!-- DO NOT load events.js - it conflicts with landing calendar functions -->
 {% endblock %}

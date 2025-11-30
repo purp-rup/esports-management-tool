@@ -1,0 +1,291 @@
+/* ============================================
+   LANDING PAGE STYLES
+   ORGANIZED BY CLAUDEAI
+   ============================================ */
+
+/* Calendar Section Styling */
+.calendar-section {
+    padding: 4rem 2rem;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.calendar-section .features-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.calendar-section .features-header h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.calendar-section .features-header p {
+    color: var(--text-secondary);
+    font-size: 1.125rem;
+}
+
+/* Adjust calendar container for landing page */
+.calendar-section .calendar-container {
+    max-width: 100%;
+}
+
+/* Make calendar responsive on landing page */
+@media (max-width: 1024px) {
+    .calendar-section .calendar-sidebar {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Event Details Modal - Icon Coloring (matches dashboard structure) */
+.event-card-details[data-event-type="tournament"] .event-detail-icon {
+    background: var(--event-tournament-light);
+    color: var(--event-tournament);
+}
+
+.event-card-details[data-event-type="match"] .event-detail-icon {
+    background: var(--event-match-light);
+    color: var(--event-match);
+}
+
+.event-card-details[data-event-type="practice"] .event-detail-icon {
+    background: var(--event-practice-light);
+    color: var(--event-practice);
+}
+
+.event-card-details[data-event-type="event"] .event-detail-icon {
+    background: var(--event-event-light);
+    color: var(--event-event);
+}
+
+.event-card-details[data-event-type="misc"] .event-detail-icon {
+    background: var(--event-misc-light);
+    color: var(--event-misc);
+}
+
+/* Textured background */
+body {
+    background:
+        repeating-linear-gradient(
+            45deg,
+            #0a0a0a,
+            #0a0a0a 10px,
+            #0d0d0d 10px,
+            #0d0d0d 20px
+        ),
+        radial-gradient(circle at 20% 50%, rgba(121, 189, 233, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(121, 189, 233, 0.03) 0%, transparent 50%),
+        #0a0a0a;
+}
+
+/* Hero Section */
+.hero {
+    min-height: calc(100vh - 73px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    position: relative;
+}
+
+.hero-content {
+    max-width: 800px;
+}
+
+.hero h1 {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.1;
+}
+
+.hero-gradient {
+    color: var(--stockton-blue);
+}
+
+.hero p {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto 2rem;
+    line-height: 1.6;
+}
+
+.hero-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-large {
+    padding: 1rem 2rem;
+    font-size: 1rem;
+}
+
+.scroll-indicator {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    animation: bounce 2s infinite;
+}
+
+.scroll-arrow {
+    font-size: 2rem;
+    color: var(--stockton-blue);
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+    40% {
+        transform: translateX(-50%) translateY(-10px);
+    }
+    60% {
+        transform: translateX(-50%) translateY(-5px);
+    }
+}
+
+/* Features Section */
+.features {
+    padding: 6rem 2rem;
+    background: var(--dark-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.features-header {
+    text-align: center;
+    margin-bottom: 4rem;
+}
+
+.features-header h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.features-header p {
+    color: var(--text-secondary);
+    font-size: 1.125rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.feature-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+    transition: all 0.3s;
+}
+
+.feature-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--stockton-blue);
+    box-shadow: 0 8px 16px rgba(121, 189, 233, 0.1);
+}
+
+.feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.feature-card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.feature-card p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* Stats Section */
+.stats {
+    background: var(--card-bg);
+    padding: 4rem 2rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 3rem;
+    max-width: 1000px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.stat-item h3 {
+    font-size: 3rem;
+    color: var(--stockton-blue);
+    margin-bottom: 0.5rem;
+}
+
+.stat-item p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+/* CTA Section */
+.cta {
+    text-align: center;
+    padding: 6rem 2rem;
+    background: var(--dark-bg);
+    margin-bottom: 0;
+}
+
+.cta h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.cta p {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto 2rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .hero h1 {
+        font-size: 2.5rem;
+    }
+
+    .hero p {
+        font-size: 1rem;
+    }
+
+    .features-header h2,
+    .cta h2,
+    .calendar-section .features-header h2 {
+        font-size: 2rem;
+    }
+
+    .stat-item h3 {
+        font-size: 2rem;
+    }
+
+    .scroll-indicator {
+        bottom: 1rem;
+    }
+}
