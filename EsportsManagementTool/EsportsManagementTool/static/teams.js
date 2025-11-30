@@ -634,6 +634,14 @@ async function loadTeamDetails(teamId) {
             const team = data.team;
 
             // ========================================
+            // SHOW/HIDE ADD VOD BUTTON BASED ON PERMS
+            // ========================================
+            const addVodBtn = document.querySelector('.btn[onclick="showAddVodModal()"]');
+            if (addVodBtn) {
+                addVodBtn.style.display = team.can_manage ? 'inline-flex' : 'none';
+            }
+
+            // ========================================
             // UPDATE HEADER
             // ========================================
             document.getElementById('teamDetailTitle').textContent = team.title;

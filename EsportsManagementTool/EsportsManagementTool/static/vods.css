@@ -317,3 +317,44 @@
         margin: 5% auto;
     }
 }
+
+/* --------------------------------------------
+   VOD PLAYER MODAL
+   -------------------------------------------- */
+#vodPlayerModal .modal-content {
+    max-width: 1000px;
+    width: 90%;
+}
+
+.vod-player-container {
+    width: 100%;
+}
+
+#vodPlayerFrame {
+    width: 100%;
+    height: 500px;
+    border-radius: 8px;
+}
+
+#vodPlayerInfo {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+#vodPlayerMeta {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    #vodPlayerModal .modal-content {
+        max-width: 95%;
+        width: 95%;
+    }
+
+    #vodPlayerFrame {
+        height: 250px;
+    }
+}

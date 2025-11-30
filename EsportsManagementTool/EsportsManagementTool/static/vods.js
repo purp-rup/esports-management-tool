@@ -63,9 +63,6 @@ function loadTeamVods(teamID) {
             if (vodsEmpty) vodsEmpty.style.display = 'none';
             if (videoPlayerContainer) videoPlayerContainer.style.display = 'block';
 
-            // Auto-play first video by default
-            playVideo(vods[0]);
-
             // Render each VOD as a clickable card
             vods.forEach(vod => {
                 const vodItem = createVodElement(vod);
@@ -139,15 +136,27 @@ function createVodElement(vod) {
  */
 function playVideo(vod) {
     // Update iframe source with YouTube embed URL
-    const player = document.getElementById('video-player');
+    const modal = document.getElementById('vodPlayerModal');
+    const player = document.getElementById('vodPlayerFrame');
+    const title = document.getElementById('vodPlayerTitle');
+    const meta = document.getElementById('vodPlayerMeta')
+
     player.src = `https://www.youtube.com/embed/${vod.youtube_video_id}`;
+    title.textContent = vod.title;
+    meta.textContent = `${vod.opponent ? 'vs ' + vod.opponent : ''} * ${new Date(vod.match_date || vod.published_at).toLocaleDateString()}`;
 
-    // Update video title
-    document.getElementById('video-title').textContent = vod.title;
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
 
-    // Update video metadata (opponent info)
-    document.getElementById('video-meta').textContent =
-        `${vod.opponent ? 'vs ' + vod.opponent : ' '}`;
+function closeVodPlayerModal() {
+    const modal = document.getElementById('vodPlayerModal');
+    const player = document.getElementById('vodPlayerFrame');
+
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+
+    player.src ='';
 }
 
 // ============================================

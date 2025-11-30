@@ -33,8 +33,33 @@ def get_team_vods(team_id):
 
 @app.route('/api/vods/team/<string:team_id>/add', methods=['POST'])
 @login_required
-@roles_required('admin', 'gm')
 def add_team_vod(team_id):
+    # Checking permissions to upload beforehand
+    user_id = session.get('id')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Check if the user is admin or the GM for the specific game
+    cursor.execute('''
+        SELECT p.is_admin, g.gm_id
+        FROM permissions p
+        LEFT JOIN teams t on t.teamID = %s
+        LEFT JOIN games g on t.gameID = g.gameID
+        WHERE p.userid = %s
+        ''', (team_id, user_id))
+
+    user_data = cursor.fetchone()
+
+    if not user_data:
+        cursor.close()
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    is_admin = user_data['is_admin']
+    is_team_gm = (user_data['gm_id'] == user_id)
+
+    if not (is_admin or is_team_gm):
+        cursor.close()
+        return jsonify({'error': 'Only admins or the Game Manager can add VODs!'}), 403
+
     # Adding a VOD to a team
     data = request.get_json()
     youtube_video_id = data.get('youtube_video_id')
@@ -42,7 +67,7 @@ def add_team_vod(team_id):
     if not youtube_video_id:
         return jsonify({'error': 'YouTube video ID required!'}), 400
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
     cursor.execute('''
                    SELECT id
                    FROM team_vods
@@ -98,8 +123,32 @@ def add_team_vod(team_id):
 @login_required
 @roles_required('admin', 'gm')
 def delete_vod(vod_id):
+    user_id = session.get('id')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    cursor.execute('''
+        SELECT p.is_admin, g.gm_id
+        FROM team_vods v
+        JOIN teams t on v.teamID = t.teamID
+        JOIN games g on t.gameID = g.gameID
+        LEFT JOIN permissions p on p.userid = %s
+        WHERE v.id = %s
+        ''', (user_id, vod_id))
+
+    result = cursor.fetchone()
+
+    if not result:
+        cursor.close()
+        return jsonify({'error': 'VOD not found'}), 404
+
+    is_admin = result['is_admin']
+    is_game_gm = (result['gm_id'] == user_id)
+
+    if not (is_admin or is_game_gm):
+        cursor.close()
+        return jsonify({'error': 'Only admins or the game manager can delete VODs!'}), 403
+
     # Deleting a VOD
-    cursor = mysql.connection.cursor()
     cursor.execute('DELETE FROM team_vods WHERE id = %s', (vod_id,))
     mysql.connection.commit()
     cursor.close()

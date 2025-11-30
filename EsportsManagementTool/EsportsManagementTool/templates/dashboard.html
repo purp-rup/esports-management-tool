@@ -1177,21 +1177,6 @@
                                     {% endif %}
                                 </div>
 
-                                <div id="video-player-container" style="display: none;">
-                                    <iframe id="video-player"
-                                            width="100%"
-                                            height="500"
-                                            src=""
-                                            frameborder="0"
-                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                            allowfullscreen>
-                                    </iframe>
-                                    <div id="current-video-info">
-                                        <h4 id="video-title"></h4>
-                                        <p id="video-meta"></p>
-                                    </div>
-                                </div>
-
                                 <div class="vods-list" id="vods-list"></div>
 
                                 <div id="vods-empty" class="tab-empty-state" style="display: none;">
@@ -1974,6 +1959,33 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- VOD Player Modal -->
+<div id="vodPlayerModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="vodPlayerTitle">Video</h2>
+            <button class="modal-close" onclick="closeVodPlayerModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="vod-player-container">
+                <iframe id="vodPlayerFrame"
+                        width="100%"
+                        height="500"
+                        src=""
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen>
+                </iframe>
+                <div id="vodPlayerInfo">
+                    <p id="vodPlayerMeta"></p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
