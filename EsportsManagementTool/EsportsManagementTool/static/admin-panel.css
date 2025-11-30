@@ -96,6 +96,9 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  max-height: 475px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .user-item {
@@ -143,16 +146,12 @@
   background-color: #2196F3;
   color: white;
   gap: 0.25rem;
+  margin-left: -0.2rem;
 }
 
 .role-badge.player {
   background-color: #e3d500;
   color: white;
-}
-
-/* Adjacent badge spacing */
-.role-badge.admin + .role-badge.gm {
-  margin-left: -0.25rem;
 }
 
 /* GM badge with image icon */

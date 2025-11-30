@@ -4,7 +4,7 @@ Handles match results and team performance tracking
 """
 
 from flask import request, jsonify, session
-from datetime import datetime
+from datetime import datetime, time
 import MySQLdb.cursors
 
 
@@ -36,7 +36,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                     JOIN games g ON t.gameID = g.GameID
                     WHERE t.TeamID = %s
                 """, (team_id,))
-                
+
                 team = cursor.fetchone()
                 if not team:
                     return jsonify({
@@ -52,12 +52,13 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                     FROM match_results
                     WHERE team_id = %s
                 """, (team_id,))
-                
+
                 stats = cursor.fetchone()
                 wins = int(stats['wins']) if stats['wins'] is not None else 0
                 losses = int(stats['losses']) if stats['losses'] is not None else 0
 
                 # Get match history with results
+                # Now includes matches where start time has passed
                 cursor.execute("""
                     SELECT 
                         ge.EventID as event_id,
@@ -75,7 +76,10 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                     LEFT JOIN users u ON mr.recorded_by = u.id
                     WHERE ge.EventType = 'Match'
                     AND ge.team_id = %s
-                    AND ge.Date <= CURDATE()
+                    AND (
+                        ge.Date < CURDATE()
+                        OR (ge.Date = CURDATE() AND ge.StartTime <= CURTIME())
+                    )
                     ORDER BY ge.Date DESC, ge.StartTime DESC
                     LIMIT 50
                 """, (team_id, team_id))
@@ -125,12 +129,13 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
     def get_match_events(team_id):
         """
         Get past match events for a team that can have results recorded
+        Now includes matches where start time has passed (not just date)
         """
         try:
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             try:
-                # Get match events (past matches only)
+                # Get match events where start time has passed
                 cursor.execute("""
                     SELECT 
                         ge.EventID as event_id,
@@ -143,7 +148,10 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                     LEFT JOIN match_results mr ON ge.EventID = mr.event_id AND mr.team_id = %s
                     WHERE ge.EventType = 'Match'
                     AND ge.team_id = %s
-                    AND ge.Date <= CURDATE()
+                    AND (
+                        ge.Date < CURDATE()
+                        OR (ge.Date = CURDATE() AND ge.StartTime <= CURTIME())
+                    )
                     ORDER BY ge.Date DESC, ge.StartTime DESC
                 """, (team_id, team_id))
 
@@ -183,6 +191,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
         """
         Record a win/loss result for a match
         Only GMs for the specific game can record results
+        Now allows recording as soon as start time passes
         """
         try:
             data = request.get_json()
@@ -208,7 +217,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                 cursor.execute("""
                     SELECT gameID FROM teams WHERE TeamID = %s
                 """, (data['team_id'],))
-                
+
                 team = cursor.fetchone()
                 if not team:
                     return jsonify({
@@ -222,7 +231,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                 cursor.execute("""
                     SELECT gm_id FROM games WHERE GameID = %s
                 """, (game_id,))
-                
+
                 game = cursor.fetchone()
                 if not game or game['gm_id'] != user_id:
                     return jsonify({
@@ -232,11 +241,11 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
 
                 # Verify event exists and is a match
                 cursor.execute("""
-                    SELECT EventType, Date 
+                    SELECT EventType, Date, StartTime 
                     FROM generalevents 
                     WHERE EventID = %s AND team_id = %s
                 """, (data['event_id'], data['team_id']))
-                
+
                 event = cursor.fetchone()
                 if not event:
                     return jsonify({
@@ -250,12 +259,41 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                         'message': 'Can only record results for Match events'
                     }), 400
 
-                # Check if event is in the past
-                if event['Date'] > datetime.now().date():
+                # Check if start time has passed
+                from datetime import datetime, date, time, timedelta
+
+                current_datetime = datetime.now()
+                event_date = event['Date']
+                event_start_time = event['StartTime']
+
+                # Ensure event_date is a date object
+                if isinstance(event_date, datetime):
+                    event_date = event_date.date()
+
+                # If event is on a future date, cannot record
+                if event_date > current_datetime.date():
                     return jsonify({
                         'success': False,
-                        'message': 'Cannot record results for future matches'
+                        'message': 'Cannot record results for matches that haven\'t started yet'
                     }), 400
+
+                # If event is today and has a start time, check if it has passed
+                if event_date == current_datetime.date() and event_start_time:
+                    # Handle timedelta (MySQL TIME field can return as timedelta)
+                    if isinstance(event_start_time, timedelta):
+                        total_seconds = int(event_start_time.total_seconds())
+                        hours = total_seconds // 3600
+                        minutes = (total_seconds % 3600) // 60
+                        seconds = total_seconds % 60
+                        event_start_time = time(hours, minutes, seconds)
+
+                    # Now compare times
+                    current_time = current_datetime.time()
+                    if event_start_time > current_time:
+                        return jsonify({
+                            'success': False,
+                            'message': 'Cannot record results for matches that haven\'t started yet'
+                        }), 400
 
                 # Insert or update match result
                 cursor.execute("""

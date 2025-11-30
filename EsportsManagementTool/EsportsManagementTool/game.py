@@ -1,7 +1,7 @@
 from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, has_role, mysql
 from flask import request, redirect, url_for, session, flash, jsonify
 import MySQLdb.cursors
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import send_file
 from io import BytesIO
 from EsportsManagementTool import get_current_time, localize_datetime, EST
@@ -428,6 +428,184 @@ def get_game_community_details(game_id):
     except Exception as e:
         print(f"Error getting game details: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load game details'}), 500
+
+"""
+Method to retrieve the next event to be shown in a game's community tab.
+"""
+@app.route('/api/games/<int:game_id>/next-scheduled-event', methods=['GET'])
+@login_required
+def get_next_game_community_event(game_id):
+    """
+    Get the next upcoming event for a game community
+    Includes both scheduled events AND regular events assigned to this game
+    Returns whichever event is sooner
+    """
+
+    def format_time_to_12hr(time_value):
+        """Convert time object or timedelta to 12-hour format string"""
+        if not time_value:
+            return None
+
+        # Handle timedelta (from MySQL TIME type)
+        if isinstance(time_value, timedelta):
+            total_seconds = int(time_value.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+        else:
+            # Handle time object
+            hours = time_value.hour
+            minutes = time_value.minute
+
+        # Convert to 12-hour format
+        period = "AM" if hours < 12 else "PM"
+        display_hour = hours % 12
+        if display_hour == 0:
+            display_hour = 12
+
+        return f"{display_hour}:{minutes:02d} {period}"
+
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            # Get current date/time
+            now = get_current_time()
+            current_date = now.date()
+
+            print(f"\n=== Loading next event for game {game_id} ===")
+            print(f"Current date: {current_date}")
+
+            # Query 1: Get next scheduled event with game_community visibility
+            cursor.execute("""
+                SELECT 
+                    ge.EventID as id,
+                    ge.EventName as name,
+                    ge.Date as date,
+                    ge.StartTime as start_time,
+                    ge.EndTime as end_time,
+                    ge.EventType as event_type,
+                    ge.Description as description,
+                    'scheduled' as source
+                FROM generalevents ge
+                JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+                WHERE se.game_id = %s
+                AND se.visibility = 'game_community'
+                AND ge.Date >= %s
+                AND ge.is_scheduled = TRUE
+                ORDER BY ge.Date ASC, ge.StartTime ASC
+                LIMIT 1
+            """, (game_id, current_date))
+
+            scheduled_event = cursor.fetchone()
+            print(f"Scheduled event found: {scheduled_event['name'] if scheduled_event else 'None'}")
+
+            # Query 2: Get next regular event assigned to this game
+            cursor.execute("""
+                SELECT 
+                    ge.EventID as id,
+                    ge.EventName as name,
+                    ge.Date as date,
+                    ge.StartTime as start_time,
+                    ge.EndTime as end_time,
+                    ge.EventType as event_type,
+                    ge.Description as description,
+                    'regular' as source
+                FROM generalevents ge
+                JOIN event_games eg ON ge.EventID = eg.event_id
+                WHERE eg.game_id = %s
+                AND ge.Date >= %s
+                AND (ge.is_scheduled IS NULL OR ge.is_scheduled = FALSE)
+                ORDER BY ge.Date ASC, ge.StartTime ASC
+                LIMIT 1
+            """, (game_id, current_date))
+
+            regular_event = cursor.fetchone()
+            print(f"Regular event found: {regular_event['name'] if regular_event else 'None'}")
+
+            # Determine which event is sooner
+            next_event = None
+
+            if scheduled_event and regular_event:
+                # Compare dates and times
+                # Handle timedelta for start_time (MySQL TIME type)
+                if isinstance(scheduled_event['start_time'], timedelta):
+                    scheduled_time = (datetime.min + scheduled_event['start_time']).time()
+                else:
+                    scheduled_time = scheduled_event['start_time']
+
+                if isinstance(regular_event['start_time'], timedelta):
+                    regular_time = (datetime.min + regular_event['start_time']).time()
+                else:
+                    regular_time = regular_event['start_time']
+
+                scheduled_datetime = datetime.combine(scheduled_event['date'], scheduled_time)
+                regular_datetime = datetime.combine(regular_event['date'], regular_time)
+
+                print(f"Comparing: scheduled={scheduled_datetime} vs regular={regular_datetime}")
+                next_event = scheduled_event if scheduled_datetime <= regular_datetime else regular_event
+                print(f"Selected: {next_event['name']} ({next_event['source']})")
+
+            elif scheduled_event:
+                next_event = scheduled_event
+                print(f"Only scheduled event available: {next_event['name']}")
+            elif regular_event:
+                next_event = regular_event
+                print(f"Only regular event available: {next_event['name']}")
+
+            if not next_event:
+                print("No upcoming events found")
+                return jsonify({
+                    'success': True,
+                    'event': None
+                }), 200
+
+            # Format the event for frontend
+            start_time_display = format_time_to_12hr(next_event['start_time'])
+            end_time_display = format_time_to_12hr(next_event['end_time'])
+
+            # Check if all-day event
+            is_all_day = False
+            if isinstance(next_event['start_time'], timedelta):
+                start_seconds = int(next_event['start_time'].total_seconds())
+                end_seconds = int(next_event['end_time'].total_seconds())
+                is_all_day = (start_seconds == 0 and end_seconds == 86340)
+            else:
+                is_all_day = (next_event['start_time'].hour == 0 and
+                              next_event['start_time'].minute == 0 and
+                              next_event['end_time'].hour == 23 and
+                              next_event['end_time'].minute == 59)
+
+            formatted_event = {
+                'id': next_event['id'],
+                'name': next_event['name'],
+                'date': next_event['date'].strftime('%B %d, %Y'),
+                'start_time': start_time_display,
+                'end_time': end_time_display,
+                'event_type': next_event['event_type'],
+                'description': next_event['description'] or '',
+                'is_all_day': is_all_day,
+                'source': next_event['source']
+            }
+
+            print(f"Returning formatted event: {formatted_event}")
+            print("=" * 50 + "\n")
+
+            return jsonify({
+                'success': True,
+                'event': formatted_event
+            }), 200
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"❌ Error getting next community event: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Failed to load next event: {str(e)}'
+        }), 500
 
 """
 Route to allow users to join a community.

@@ -91,7 +91,7 @@ function openCreateScheduledEventModal() {
 }
 
 /**
- * Close the scheduled event modal
+ * Close create scheduled event modal
  */
 function closeCreateScheduledEventModal() {
     const modal = document.getElementById('createScheduledEventModal');

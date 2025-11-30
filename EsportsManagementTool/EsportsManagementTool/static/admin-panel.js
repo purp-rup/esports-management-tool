@@ -1,11 +1,24 @@
 /**
  * admin-panel.js
- * Handles all admin panel functionality including user management, role assignment, and game creation
+ * ============================================================================
+ * Handles all admin panel functionality including:
+ * - User management and search
+ * - Role assignment and removal
+ * - Game creation and deletion
+ * - User details display
+ * - Suspension management integration
+ * - ORGANZIED BY CLAUDEAI
+ * ============================================================================
  */
 
 // ============================================
 // GLOBAL STATE
 // ============================================
+
+/**
+ * Currently selected user ID in the admin panel
+ * @type {number|null}
+ */
 let selectedUserId = null;
 
 // ============================================
@@ -13,21 +26,27 @@ let selectedUserId = null;
 // ============================================
 
 /**
- * Initialize admin panel module
+ * Initialize the admin panel module
+ * Sets up event listeners and refreshes user list badges
+ * Called on page load
  */
 function initializeAdminPanel() {
     console.log('Admin panel module initialized');
+
+    // Attach all event listeners for admin functionality
     attachAdminEventListeners();
 
     // Refresh user list badges after GM mappings load
+    // This ensures badges reflect the most current role information
     refreshUserListBadges();
 }
 
 /**
  * Attach all admin-related event listeners
+ * Uses event delegation where possible for better performance
  */
 function attachAdminEventListeners() {
-    // User item click handlers
+    // User item click handlers - shows user details panel
     const userItems = document.querySelectorAll('.user-item');
     const detailsPanel = document.getElementById('userDetailsPanel');
 
@@ -39,7 +58,7 @@ function attachAdminEventListeners() {
         });
     }
 
-    // Create game form submission
+    // Create game form submission handler
     const createGameForm = document.getElementById('createGameForm');
     if (createGameForm) {
         createGameForm.addEventListener('submit', handleCreateGameSubmit);
@@ -47,25 +66,119 @@ function attachAdminEventListeners() {
 }
 
 // ============================================
-// USER SEARCH
+// USER SEARCH & FILTERING
 // ============================================
 
 /**
- * Filter users in the user list
+ * Filter users via server-side search
+ * Performs database query for matching users
+ * Debounced to avoid excessive API calls
  */
-function filterUsers() {
-    const input = document.getElementById('userSearch');
-    const filter = input.value.toLowerCase();
-    const items = document.getElementById('userItems').getElementsByTagName('li');
+let searchTimeout = null;
 
-    for (let i = 0; i < items.length; i++) {
-        const text = items[i].textContent || items[i].innerText;
-        items[i].style.display = text.toLowerCase().includes(filter) ? '' : 'none';
+async function filterUsers() {
+    const input = document.getElementById('userSearch');
+    const searchQuery = input.value.trim();
+    const userItemsContainer = document.getElementById('userItems');
+
+    // Clear previous timeout to debounce search
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
     }
+
+    // Show loading state
+    userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Searching...</li>';
+
+    // Debounce: wait 300ms after user stops typing
+    searchTimeout = setTimeout(async () => {
+        try {
+            // Fetch filtered users from server
+            const response = await fetch(`/admin/search-users?query=${encodeURIComponent(searchQuery)}`);
+            const data = await response.json();
+
+            if (data.success) {
+                if (data.users.length === 0) {
+                    // Show empty state
+                    userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: var(--text-secondary);">No users found</li>';
+                } else {
+                    // Render filtered users
+                    renderUserItems(data.users);
+                }
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (error) {
+            console.error('Error searching users:', error);
+            userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: #f44336;">Error loading users. Please try again.</li>';
+        }
+    }, 300); // 300ms debounce delay
 }
 
 /**
+ * Render user items in the list
+ * @param {Array} users - Array of user objects from server
+ */
+function renderUserItems(users) {
+    const userItemsContainer = document.getElementById('userItems');
+    userItemsContainer.innerHTML = '';
+
+    users.forEach(user => {
+        const li = document.createElement('li');
+        li.className = 'user-item';
+
+        // Set data attributes for user details panel
+        li.setAttribute('data-userid', user.id);
+        li.setAttribute('data-username', user.username);
+        li.setAttribute('data-firstname', user.firstname);
+        li.setAttribute('data-lastname', user.lastname);
+        li.setAttribute('data-email', user.email);
+        li.setAttribute('data-date', user.date_registered);
+        li.setAttribute('data-active', user.is_active ? 'true' : 'false');
+        li.setAttribute('data-last-seen', user.last_seen);
+        li.setAttribute('data-is-admin', user.is_admin ? '1' : '0');
+        li.setAttribute('data-is-gm', user.is_gm ? '1' : '0');
+        li.setAttribute('data-is-player', user.is_player ? '1' : '0');
+
+        // Build role badges
+        const roles = [];
+        if (user.is_admin) roles.push('Admin');
+        if (user.is_gm) roles.push('Game Manager');
+        if (user.is_player) roles.push('Player');
+
+        const badgesHTML = buildUniversalRoleBadges({
+            userId: user.id,
+            roles: roles,
+            contextGameId: null
+        });
+
+        // Build user item HTML
+        li.innerHTML = `
+            <div>
+                <strong>${user.firstname} ${user.lastname}</strong>
+                <p>@${user.username} — ${user.email}</p>
+                <div style="margin-top: 0.25rem; display: flex; gap: 0.5rem; align-items: center;">
+                    ${badgesHTML}
+                </div>
+            </div>
+        `;
+
+        // Add click handler
+        li.addEventListener('click', async function() {
+            await handleUserItemClick(this);
+        });
+
+        userItemsContainer.appendChild(li);
+    });
+}
+
+// ============================================
+// BADGE GENERATION
+// ============================================
+
+/**
  * Build role badges for a user from their data attributes
+ * @param {HTMLElement} item - The user list item element
+ * @returns {string} HTML string containing role badges
  */
 function buildBadgesFromUserItem(item) {
     const userid = parseInt(item.dataset.userid);
@@ -73,13 +186,13 @@ function buildBadgesFromUserItem(item) {
     const isGm = item.dataset.isGm === '1';
     const isPlayer = item.dataset.isPlayer === '1';
 
-    // Build roles array
+    // Build roles array based on data attributes
     const roles = [];
     if (isAdmin) roles.push('Admin');
     if (isGm) roles.push('Game Manager');
     if (isPlayer) roles.push('Player');
 
-    // Generate badges with icons
+    // Generate badges with icons using the universal badge builder
     return buildUniversalRoleBadges({
         userId: userid,
         roles: roles,
@@ -89,19 +202,21 @@ function buildBadgesFromUserItem(item) {
 
 /**
  * Refresh badges in the user list after GM mappings are loaded
+ * This ensures all user items display the most current role information
+ * Async to wait for GM mappings if they haven't loaded yet
  */
 async function refreshUserListBadges() {
-    // Wait for GM mappings to load
+    // Wait for GM mappings to load if the function exists and mappings aren't loaded
     if (typeof loadGMGameMappings === 'function' && !gmMappingsLoaded) {
         await loadGMGameMappings();
     }
 
-    // Update each user item's badges
+    // Update each user item's badges with fresh data
     const userItems = document.querySelectorAll('.user-item');
     userItems.forEach(item => {
         const badgesHTML = buildBadgesFromUserItem(item);
 
-        // Find the badge container in this user item
+        // Find the badge container in this user item (identified by inline style)
         const badgeContainer = item.querySelector('[style*="margin-top: 0.25rem"]');
         if (badgeContainer) {
             badgeContainer.innerHTML = badgesHTML;
@@ -114,9 +229,12 @@ async function refreshUserListBadges() {
 // ============================================
 
 /**
- * Handle user item click to show details
+ * Handle user item click to display user details
+ * Fetches user data from data attributes and displays in details panel
+ * @param {HTMLElement} item - The clicked user list item
  */
 async function handleUserItemClick(item) {
+    // Extract user data from data attributes
     const userid = item.dataset.userid;
     const username = item.dataset.username;
     const firstname = item.dataset.firstname;
@@ -126,16 +244,18 @@ async function handleUserItemClick(item) {
     const isActive = item.dataset.active === 'true';
     const lastSeen = item.dataset.lastSeen;
 
+    // Store selected user ID for reference by other functions
     selectedUserId = userid;
 
-    // Ensure GM mappings are loaded
+    // Ensure GM mappings are loaded before generating badges
     if (typeof loadGMGameMappings === 'function' && !gmMappingsLoaded) {
         await loadGMGameMappings();
     }
 
-    // Use the shared badge builder function
+    // Generate role badges using the shared badge builder
     const roleBadges = buildBadgesFromUserItem(item);
 
+    // Build and inject the user details panel HTML
     const detailsPanel = document.getElementById('userDetailsPanel');
     detailsPanel.innerHTML = `
         <h3>User Details</h3>
@@ -184,12 +304,12 @@ async function handleUserItemClick(item) {
         </div>
     `;
 
-    // Highlight selected user
+    // Highlight the selected user in the list
     const userItems = document.querySelectorAll('.user-item');
     userItems.forEach(u => u.classList.remove('active'));
     item.classList.add('active');
 
-    // Attach role change handler
+    // Attach role change handler to the "Go" button
     const goBtn = document.getElementById('roleGoBtn');
     if (goBtn) {
         goBtn.addEventListener('click', function() {
@@ -197,7 +317,7 @@ async function handleUserItemClick(item) {
         });
     }
 
-    // Update with suspension info (if suspensions.js is loaded)
+    // Update with suspension info if suspensions module is loaded
     if (typeof updateUserDetailsWithSuspension === 'function') {
         await updateUserDetailsWithSuspension(userid);
     }
@@ -208,27 +328,33 @@ async function handleUserItemClick(item) {
 // ============================================
 
 /**
- * Handle role assignment/removal
+ * Handle role assignment or removal for a user
+ * Makes API call to update user roles and displays status message
+ * @param {string} username - Username of the user to update
  */
 async function handleRoleChange(username) {
+    // Get form elements
     const actionSelect = document.getElementById('roleActionSelect');
     const roleSelect = document.getElementById('roleTypeSelect');
     const goBtn = document.getElementById('roleGoBtn');
     const statusMessage = document.getElementById('roleStatusMessage');
 
+    // Validate elements exist
     if (!actionSelect || !roleSelect) return;
 
+    // Get selected action and role
     const action = actionSelect.value;  // 'assign' or 'remove'
     const role = roleSelect.value;      // 'Admin' or 'Game Manager'
 
-    // Disable button during request
+    // Disable button during request to prevent duplicate submissions
     goBtn.disabled = true;
     goBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
-    // Hide previous messages
+    // Hide any previous status messages
     statusMessage.style.display = 'none';
 
     try {
+        // Make API request to manage role
         const response = await fetch('/admin/manage-role', {
             method: 'POST',
             headers: {
@@ -243,11 +369,11 @@ async function handleRoleChange(username) {
 
         const data = await response.json();
 
-        // Show status message
+        // Show status message container
         statusMessage.style.display = 'block';
 
         if (data.success) {
-            // Success message
+            // Display success message with green styling
             statusMessage.style.backgroundColor = '#d4edda';
             statusMessage.style.color = '#155724';
             statusMessage.style.border = '1px solid #c3e6cb';
@@ -255,12 +381,12 @@ async function handleRoleChange(username) {
                 <i class="fas fa-check-circle"></i> ${data.message}
             `;
 
-            // Refresh the page after 2 seconds to show updated stats
+            // Reload page after 2 seconds to show updated stats and badges
             setTimeout(() => {
                 window.location.reload();
             }, 2000);
         } else {
-            // Error message
+            // Display error message with red styling
             statusMessage.style.backgroundColor = '#f8d7da';
             statusMessage.style.color = '#721c24';
             statusMessage.style.border = '1px solid #f5c6cb';
@@ -269,6 +395,7 @@ async function handleRoleChange(username) {
             `;
         }
     } catch (error) {
+        // Handle network or other errors
         console.error('Error managing role:', error);
         statusMessage.style.display = 'block';
         statusMessage.style.backgroundColor = '#f8d7da';
@@ -278,7 +405,7 @@ async function handleRoleChange(username) {
             <i class="fas fa-exclamation-circle"></i> Failed to update role. Please try again.
         `;
     } finally {
-        // Re-enable button
+        // Re-enable button with original icon
         goBtn.disabled = false;
         goBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
     }
@@ -289,19 +416,26 @@ async function handleRoleChange(username) {
 // ============================================
 
 /**
- * Confirm user deletion with warning dialog
+ * Display confirmation modal for user deletion
+ * Shows strong warning about permanent deletion with checkbox confirmation
+ * @param {number} userId - User ID to delete
+ * @param {string} username - Username for display
+ * @param {string} fullName - Full name for display
  */
 function confirmRemoveUser(userId, username, fullName) {
-    // Create custom confirmation modal with strong warning
+    // Create custom confirmation modal with strong warning styling
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'block';
+    modal.id = 'removeUserModal';
+
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header" style="background-color: #d32f2f; color: white;">
                 <h2><i class="fas fa-exclamation-triangle"></i> Permanently Delete User</h2>
             </div>
             <div class="modal-body">
+                <!-- Warning Banner -->
                 <div style="background-color: #fff3cd; border-left: 4px solid #ff9800; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
                     <strong style="color: #d32f2f;"><i class="fas fa-exclamation-circle"></i> WARNING:</strong>
                     <p style="color: #856404; margin-top: 0.5rem; margin-bottom: 0;">
@@ -313,6 +447,7 @@ function confirmRemoveUser(userId, username, fullName) {
                     You are about to permanently delete:
                 </p>
 
+                <!-- User Info Display -->
                 <div style="background-color: #000000; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
                     <p style="margin: 0.25rem 0;"><strong>Name:</strong> ${fullName}</p>
                     <p style="margin: 0.25rem 0;"><strong>Username:</strong> @${username}</p>
@@ -322,6 +457,7 @@ function confirmRemoveUser(userId, username, fullName) {
                     This will delete all associated data including:
                 </p>
 
+                <!-- Data Deletion List -->
                 <ul style="color: var(--text-secondary); font-size: 0.875rem; margin-left: 1.5rem; margin-bottom: 1rem;">
                     <li>User account and profile</li>
                     <li>Permissions and roles</li>
@@ -329,6 +465,7 @@ function confirmRemoveUser(userId, username, fullName) {
                     <li>Their life essence</li>
                 </ul>
 
+                <!-- Confirmation Checkbox -->
                 <div style="background-color: #ffebee; border: 1px solid #ef5350; padding: 1rem; border-radius: 4px; margin-top: 1rem;">
                     <label style="display: flex; align-items: center; cursor: pointer;">
                         <input type="checkbox" id="confirmDeleteCheckbox" style="margin-right: 0.5rem;">
@@ -349,11 +486,9 @@ function confirmRemoveUser(userId, username, fullName) {
         </div>
     `;
 
+    // Add modal to DOM and prevent body scrolling
     document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
-
-    // Store modal reference
-    modal.id = 'removeUserModal';
 
     // Enable delete button only when checkbox is checked
     const checkbox = document.getElementById('confirmDeleteCheckbox');
@@ -363,7 +498,7 @@ function confirmRemoveUser(userId, username, fullName) {
         deleteBtn.disabled = !this.checked;
     });
 
-    // Close on background click
+    // Close modal on background click
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
             closeRemoveUserModal();
@@ -372,7 +507,7 @@ function confirmRemoveUser(userId, username, fullName) {
 }
 
 /**
- * Close the remove user modal
+ * Close the remove user modal and restore scrolling
  */
 function closeRemoveUserModal() {
     const modal = document.getElementById('removeUserModal');
@@ -383,7 +518,11 @@ function closeRemoveUserModal() {
 }
 
 /**
- * Execute user deletion
+ * Execute user deletion after confirmation
+ * Makes API call to delete user and refreshes page on success
+ * @param {number} userId - User ID to delete
+ * @param {string} username - Username for display (unused but kept for consistency)
+ * @param {string} fullName - Full name for display (unused but kept for consistency)
  */
 async function removeUser(userId, username, fullName) {
     const deleteBtn = document.getElementById('confirmDeleteBtn');
@@ -394,6 +533,7 @@ async function removeUser(userId, username, fullName) {
     deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
 
     try {
+        // Make API request to delete user
         const response = await fetch('/admin/remove-user', {
             method: 'POST',
             headers: {
@@ -411,21 +551,22 @@ async function removeUser(userId, username, fullName) {
             // Show success message
             alert(`✓ ${data.message}`);
 
-            // Reload page to refresh user list
+            // Reload page to refresh user list and stats
             window.location.reload();
         } else {
             // Show error message
             alert(`Error: ${data.message}`);
 
-            // Re-enable button
+            // Re-enable button with original text
             deleteBtn.disabled = false;
             deleteBtn.innerHTML = originalText;
         }
     } catch (error) {
+        // Handle network or other errors
         console.error('Error removing user:', error);
         alert('An error occurred while removing the user. Please try again.');
 
-        // Re-enable button
+        // Re-enable button with original text
         deleteBtn.disabled = false;
         deleteBtn.innerHTML = originalText;
     }
@@ -436,18 +577,19 @@ async function removeUser(userId, username, fullName) {
 // ============================================
 
 /**
- * Open create game modal
+ * Open the create game modal
+ * Resets form and displays modal
  */
 function openCreateGameModal() {
     const modal = document.getElementById('createGameModal');
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
 
-    // Reset form
+    // Reset form to clear any previous data
     document.getElementById('createGameForm').reset();
     document.getElementById('gameFormMessage').style.display = 'none';
 
-    // Reset image preview
+    // Reset image preview if it exists
     const imagePreview = document.getElementById('imagePreview');
     if (imagePreview) {
         imagePreview.style.display = 'none';
@@ -455,7 +597,7 @@ function openCreateGameModal() {
 }
 
 /**
- * Close create game modal
+ * Close the create game modal and restore scrolling
  */
 function closeCreateGameModal() {
     const modal = document.getElementById('createGameModal');
@@ -465,31 +607,40 @@ function closeCreateGameModal() {
 
 /**
  * Handle create game form submission
+ * Validates team sizes, submits form data, and refreshes game lists
+ * @param {Event} e - Form submit event
  */
 async function handleCreateGameSubmit(e) {
     e.preventDefault();
 
+    // Get form elements
     const submitBtn = e.target.querySelector('button[type="submit"]');
     const submitBtnText = document.getElementById('submitGameBtnText');
     const submitBtnSpinner = document.getElementById('submitGameBtnSpinner');
     const formMessage = document.getElementById('gameFormMessage');
 
+    // Show loading state
     submitBtn.disabled = true;
     submitBtnText.style.display = 'none';
     submitBtnSpinner.style.display = 'inline-block';
 
+    // Build form data
     const formData = new FormData(e.target);
 
+    // Collect selected team sizes from checkboxes
     const teamSizeCheckboxes = document.querySelectorAll('input[name="teamSize"]:checked');
     const teamSizes = Array.from(teamSizeCheckboxes).map(cb => parseInt(cb.value));
 
+    // Add team sizes to form data as JSON
     formData.append('team_sizes', JSON.stringify(teamSizes));
 
+    // Validate that at least one team size is selected
     if (teamSizes.length === 0) {
         formMessage.textContent = 'Please select at least one team size';
         formMessage.className = 'form-message error';
         formMessage.style.display = 'block';
 
+        // Reset button state
         submitBtn.disabled = false;
         submitBtnText.style.display = 'inline';
         submitBtnSpinner.style.display = 'none';
@@ -497,6 +648,7 @@ async function handleCreateGameSubmit(e) {
     }
 
     try {
+        // Submit form data to create game
         const response = await fetch('/create-game', {
             method: 'POST',
             body: formData
@@ -505,11 +657,12 @@ async function handleCreateGameSubmit(e) {
         const data = await response.json();
 
         if (response.ok && data.success) {
+            // Show success message
             formMessage.textContent = data.message || 'Game created successfully!';
             formMessage.className = 'form-message success';
             formMessage.style.display = 'block';
 
-            // Clear the games cache
+            // Clear the games cache if function exists
             if (typeof clearGamesCache === 'function') {
                 clearGamesCache();
             }
@@ -517,12 +670,12 @@ async function handleCreateGameSubmit(e) {
             // Refresh all game dropdowns on the page
             await refreshAllGameDropdowns();
 
-            // If on the communities/rosters tab, reload games
+            // Reload games list if on communities/rosters tab
             if (typeof loadGames === 'function') {
                 await loadGames();
             }
 
-            // Close modal after brief delay
+            // Close modal after brief delay to show success message
             setTimeout(() => {
                 closeCreateGameModal();
                 formMessage.style.display = 'none';
@@ -533,10 +686,12 @@ async function handleCreateGameSubmit(e) {
             throw new Error(data.message || 'Failed to create game');
         }
     } catch (error) {
+        // Show error message
         formMessage.textContent = error.message || 'Failed to create game. Please try again.';
         formMessage.className = 'form-message error';
         formMessage.style.display = 'block';
 
+        // Reset button state
         submitBtn.disabled = false;
         submitBtnText.style.display = 'inline';
         submitBtnSpinner.style.display = 'none';
@@ -548,7 +703,9 @@ async function handleCreateGameSubmit(e) {
 // ============================================
 
 /**
- * Confirm game deletion
+ * Confirm game deletion with native browser dialog
+ * @param {number} gameId - Game ID to delete
+ * @param {string} gameTitle - Game title for display
  */
 function confirmDeleteGame(gameId, gameTitle) {
     if (!confirm(`Are you sure you want to delete "${gameTitle}"?\n\nThis action cannot be undone and may affect associated events.`)) {
@@ -560,9 +717,13 @@ function confirmDeleteGame(gameId, gameTitle) {
 
 /**
  * Delete game from database
+ * Makes API call and refreshes game lists on success
+ * @param {number} gameId - Game ID to delete
+ * @param {string} gameTitle - Game title for display
  */
 async function deleteGame(gameId, gameTitle) {
     try {
+        // Make API request to delete game
         const response = await fetch('/delete-game', {
             method: 'POST',
             headers: {
@@ -574,24 +735,27 @@ async function deleteGame(gameId, gameTitle) {
         const data = await response.json();
 
         if (data.success) {
-            // Clear the games cache
+            // Clear the games cache if function exists
             if (typeof clearGamesCache === 'function') {
                 clearGamesCache();
             }
 
+            // Show success message
             alert(`"${gameTitle}" has been deleted successfully!`);
 
             // Refresh all game dropdowns on the page
             await refreshAllGameDropdowns();
 
-            // If on the communities/rosters tab, reload games
+            // Reload games list if on communities/rosters tab
             if (typeof loadGames === 'function') {
                 await loadGames();
             }
         } else {
+            // Show error message
             alert(`Error: ${data.message}`);
         }
     } catch (error) {
+        // Handle network or other errors
         console.error('Error deleting game:', error);
         alert('An error occurred while deleting the game. Please try again.');
     }
@@ -599,16 +763,19 @@ async function deleteGame(gameId, gameTitle) {
 
 /**
  * Refresh all game dropdowns on the current page
+ * Loops through common dropdown IDs and refreshes if they exist
+ * Used after game creation/deletion to update all dropdowns
  */
 async function refreshAllGameDropdowns() {
     // List of all game dropdown IDs that might exist on the page
+    // Each includes the select element ID and its loading indicator ID
     const dropdownIds = [
         { selectId: 'game', loadingId: 'gameLoadingIndicator' },           // Create event modal
         { selectId: 'editGame', loadingId: 'editGameLoadingIndicator' },   // Edit event modal
         { selectId: 'gameFilter', loadingId: 'gameFilterLoadingIndicator' } // Events filter
     ];
 
-    // Refresh each dropdown that exists
+    // Refresh each dropdown that exists on the page
     for (const dropdown of dropdownIds) {
         const selectElement = document.getElementById(dropdown.selectId);
         if (selectElement && typeof populateGameDropdown === 'function') {
@@ -621,7 +788,12 @@ async function refreshAllGameDropdowns() {
 // EXPORT FUNCTIONS TO GLOBAL SCOPE
 // ============================================
 
-// Make functions available globally for onclick handlers
+/**
+ * Make all functions globally accessible for:
+ * - onclick handlers in HTML
+ * - Other modules that need to call these functions
+ * - Event handlers attached dynamically
+ */
 window.initializeAdminPanel = initializeAdminPanel;
 window.filterUsers = filterUsers;
 window.handleRoleChange = handleRoleChange;

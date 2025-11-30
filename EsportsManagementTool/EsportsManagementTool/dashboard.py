@@ -557,6 +557,115 @@ def get_user_managed_game(user_id, game_id=None):
         return jsonify({'success': False, 'message': 'Failed to get managed game'}), 500
 
 """
+Method to search users in Admin Panel based on input from user in search bar.
+"""
+
+
+@app.route('/admin/search-users')
+@login_required
+@roles_required('admin')
+def search_users():
+    """Search users by name, username, or email"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Get search query from URL parameter
+        search_query = request.args.get('query', '').strip()
+
+        if not search_query:
+            # If empty search, return all users (or first 50)
+            cursor.execute("""
+                SELECT u.id, u.firstname, u.lastname, u.username, u.email, 
+                       u.date,
+                       COALESCE(ua.is_active, 0) as is_active,
+                       ua.last_seen,
+                       COALESCE(p.is_admin, 0) as is_admin, 
+                       COALESCE(p.is_gm, 0) as is_gm, 
+                       COALESCE(p.is_player, 0) as is_player
+                FROM users u
+                LEFT JOIN permissions p ON u.id = p.userid
+                LEFT JOIN user_activity ua ON u.id = ua.userid
+                ORDER BY u.firstname, u.lastname
+                LIMIT 50
+            """)
+        else:
+            # Search for matching users
+            search_pattern = f"%{search_query}%"
+            cursor.execute("""
+                SELECT u.id, u.firstname, u.lastname, u.username, u.email, 
+                       u.date,
+                       COALESCE(ua.is_active, 0) as is_active,
+                       ua.last_seen,
+                       COALESCE(p.is_admin, 0) as is_admin, 
+                       COALESCE(p.is_gm, 0) as is_gm, 
+                       COALESCE(p.is_player, 0) as is_player
+                FROM users u
+                LEFT JOIN permissions p ON u.id = p.userid
+                LEFT JOIN user_activity ua ON u.id = ua.userid
+                WHERE u.firstname LIKE %s
+                   OR u.lastname LIKE %s
+                   OR u.username LIKE %s
+                   OR u.email LIKE %s
+                   OR CONCAT(u.firstname, ' ', u.lastname) LIKE %s
+                ORDER BY u.firstname, u.lastname
+                LIMIT 50
+            """, (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern))
+
+        users = cursor.fetchall()
+
+        # Format dates for display
+        formatted_users = []
+        for user in users:
+            # Handle registration date
+            date_registered = 'Unknown'
+            if user.get('date'):
+                try:
+                    date_registered = user['date'].strftime('%B %d, %Y')
+                except Exception as e:
+                    print(f"Error formatting date: {e}")
+                    date_registered = str(user['date'])
+
+            # Handle last_seen
+            last_seen = 'Never logged in'
+            if user.get('last_seen'):
+                try:
+                    last_seen = user['last_seen'].strftime('%B %d, %Y; %I:%M %p')
+                except Exception as e:
+                    print(f"Error formatting last_seen: {e}")
+                    last_seen = str(user['last_seen'])
+
+            formatted_users.append({
+                'id': user['id'],
+                'firstname': user['firstname'],
+                'lastname': user['lastname'],
+                'username': user['username'],
+                'email': user['email'],
+                'date_registered': date_registered,
+                'is_active': bool(user.get('is_active', 0)),
+                'last_seen': last_seen,
+                'is_admin': bool(user.get('is_admin', 0)),
+                'is_gm': bool(user.get('is_gm', 0)),
+                'is_player': bool(user.get('is_player', 0))
+            })
+
+        return jsonify({
+            'success': True,
+            'users': formatted_users
+        })
+
+    except Exception as e:
+        import traceback
+        print(f"Error searching users: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'Failed to search users: {str(e)}'
+        }), 500
+
+    finally:
+        cursor.close()
+
+"""
 Route allowing admins to remove user data from the site. This includes email, password, profile picture, etc.
 """
 @app.route('/admin/remove-user', methods=['POST'])

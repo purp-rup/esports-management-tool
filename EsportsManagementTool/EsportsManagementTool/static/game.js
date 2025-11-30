@@ -1,16 +1,35 @@
-// DISCLAIMER: CODE REWRITTEN AND ORGANIZED BY CLAUDE
+/**
+ * game.js
+ * ============================================================================
+ * Handles general game functionality including:
+ * - Game loading and display
+ * - Game details modal
+ * - Game dropdowns for event creation
+ * - Team creation
+ * - Image preview for admin panel
+ *
+ * ORGANIZED BY CLAUDE AI
+ * ============================================================================
+ */
 
 // ============================================
-// GAMES MODULE
-// Handles all game community functionality
+// GLOBAL STATE
 // ============================================
 
-// Store current game ID for modal
+/**
+ * Currently selected game ID for modal operations
+ * @type {number|null}
+ */
 let currentGameId = null;
-let currentGameIdForGM = null;
+
+// ============================================
+// MODULE INITIALIZATION
+// ============================================
 
 /**
  * Initialize games module
+ * Sets up event listeners and loads initial data
+ * Called on DOMContentLoaded
  */
 function initializeGamesModule() {
     console.log('Games module initialized');
@@ -21,6 +40,7 @@ function initializeGamesModule() {
         rostersTab.addEventListener('click', loadGames);
     }
 
+    // Handle mobile dropdown tab selection
     const tabDropdownForRosters = document.getElementById('tabDropdown');
     if (tabDropdownForRosters) {
         tabDropdownForRosters.addEventListener('change', function(e) {
@@ -30,28 +50,24 @@ function initializeGamesModule() {
         });
     }
 
-    // Load communities in profile tab
-    const profileTab = document.querySelector('[data-tab="profile"]');
-    if (profileTab) {
-        profileTab.addEventListener('click', loadMyCommunities);
-    }
-
-    // Set up game image preview
+    // Set up game image preview for admin panel
     setupGameImagePreview();
 }
 
 /**
- * Set up game image preview functionality
+ * Set up game image preview functionality for admin game creation
+ * Shows preview when admin uploads a game image
  */
 function setupGameImagePreview() {
     const gameImageInput = document.getElementById('gameImage');
     const imagePreview = document.getElementById('imagePreview');
     const previewImg = document.getElementById('previewImg');
 
-    if (gameImageInput) {
+    if (gameImageInput && imagePreview && previewImg) {
         gameImageInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
+                // Read file and display preview
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     previewImg.src = event.target.result;
@@ -59,40 +75,49 @@ function setupGameImagePreview() {
                 };
                 reader.readAsDataURL(file);
             } else {
+                // No file selected, hide preview
                 imagePreview.style.display = 'none';
             }
         });
     }
 }
 
+// ============================================
+// GAME LOADING & DISPLAY
+// ============================================
+
 /**
- * Load games from database
+ * Load all games from database
+ * Fetches games and displays them in the rosters grid
+ * Shows loading state while fetching
  */
 async function loadGames() {
     const loadingDiv = document.getElementById('rostersLoading');
     const gridDiv = document.getElementById('rostersGrid');
     const emptyDiv = document.getElementById('rostersEmpty');
 
-    // Show loading state
+    // Show loading state, hide other states
     loadingDiv.style.display = 'block';
     gridDiv.style.display = 'none';
     emptyDiv.style.display = 'none';
 
     try {
+        // Fetch games from API
         const response = await fetch('/games');
         const data = await response.json();
 
         if (data.success && data.games && data.games.length > 0) {
-            // Display games
+            // Display games in grid
             displayGames(data.games);
             loadingDiv.style.display = 'none';
             gridDiv.style.display = 'block';
         } else {
-            // Show empty state
+            // No games available, show empty state
             loadingDiv.style.display = 'none';
             emptyDiv.style.display = 'block';
         }
     } catch (error) {
+        // Handle errors and show empty state
         console.error('Error loading games:', error);
         loadingDiv.style.display = 'none';
         emptyDiv.style.display = 'block';
@@ -100,111 +125,141 @@ async function loadGames() {
 }
 
 /**
- * Display games in grid
- * Assumes backend returns member_count, team_count, is_member, and is_game_manager
+ * Display games in grid layout
+ * Creates game cards with stats, actions, and membership status
+ * @param {Array} games - Array of game objects from API
  */
 async function displayGames(games) {
     const gridDiv = document.getElementById('rostersGrid');
     gridDiv.className = 'rosters-grid';
     gridDiv.innerHTML = '';
 
-    // Check if current user is admin
+    // Check if current user is admin for delete permissions
     const isAdmin = window.userPermissions?.is_admin || false;
 
     for (const game of games) {
-        const teamSizes = game.TeamSizes ? game.TeamSizes.split(',').map(s => s.trim()) : [];
-
-        
-        const memberCount = game.member_count || 0;
-        const teamCount = game.team_count || 0;
-        const isMember = game.is_member || false;
-        const isGameManager = game.is_game_manager || false;
-
-        // Determine if we have an image or use icon
-        let iconHTML;
-        if (game.ImageURL) {
-            iconHTML = `<img src="${game.ImageURL}"
-                             alt="${game.GameTitle}"
-                             class="roster-game-image"
-                             onerror="this.onerror=null; this.parentElement.innerHTML='<i class=&quot;fas fa-gamepad&quot;></i>';">`;
-        } else {
-            iconHTML = `<i class="fas fa-gamepad"></i>`;
-        }
-
-        // Delete button for admins
-        const deleteButtonHTML = isAdmin ? `
-            <button class="game-delete-btn"
-                    onclick="confirmDeleteGame(${game.GameID}, '${game.GameTitle.replace(/'/g, "\\'")}')"
-                    title="Delete game">
-                <i class="fas fa-trash"></i>
-            </button>
-        ` : '';
-
-        // Join/Leave button
-        const joinButtonHTML = isMember ? `
-            <button class="btn btn-secondary" onclick="confirmLeaveGame(${game.GameID}, '${game.GameTitle.replace(/'/g, "\\'")}')">
-                <i class="fas fa-sign-out-alt"></i> Leave Community
-            </button>
-        ` : `
-            <button class="btn btn-success" onclick="confirmJoinGame(${game.GameID}, '${game.GameTitle.replace(/'/g, "\\'")}')">
-                <i class="fas fa-user-plus"></i> Join Community
-            </button>
-        `;
-
-        // Create Team button - ONLY show if user is the GM for THIS specific game
-        const createTeamButtonHTML = isGameManager ? `
-            <button class="btn btn-primary" onclick="openCreateTeamModal(${game.GameID}, '${game.GameTitle.replace(/'/g, "\\'")}', '${game.TeamSizes}')">
-                <i class="fas fa-plus"></i> Create Team
-            </button>
-        ` : '';
-
-        const memberBadge = isMember ? `
-            <span class="member-badge">
-                <i class="fas fa-check-circle"></i> Joined
-            </span>
-        ` : '';
-
-        const card = document.createElement('div');
-        card.className = 'roster-card';
-        card.innerHTML = `
-            ${deleteButtonHTML}
-            <div class="roster-card-header">
-                <div class="roster-icon">
-                    ${iconHTML}
-                </div>
-                <h3 class="roster-card-title">
-                    ${game.GameTitle}
-                    ${memberBadge}
-                </h3>
-            </div>
-            <p class="roster-card-description">${game.Description}</p>
-
-            <div class="roster-card-meta">
-                <div class="roster-stat">
-                    <i class="fas fa-users roster-stat-icon"></i>
-                    <div class="roster-stat-number">${memberCount}</div>
-                    <div class="roster-stat-label">Members</div>
-                </div>
-                <div class="roster-stat">
-                    <i class="fas fa-shield-alt roster-stat-icon"></i>
-                    <div class="roster-stat-number">${teamCount}</div>
-                    <div class="roster-stat-label">Teams</div>
-                </div>
-            </div>
-
-            <div class="roster-card-actions">
-                <button class="btn btn-primary" onclick="openGameDetailsModal(${game.GameID})">
-                    <i class="fas fa-eye"></i> View Details
-                </button>
-                ${joinButtonHTML}
-                ${createTeamButtonHTML}
-            </div>
-        `;
+        const card = createGameCard(game, isAdmin);
         gridDiv.appendChild(card);
     }
 }
+
+/**
+ * Create a game card element
+ * @param {Object} game - Game object from API
+ * @param {boolean} isAdmin - Whether current user is admin
+ * @returns {HTMLElement} The created game card element
+ */
+function createGameCard(game, isAdmin) {
+    const card = document.createElement('div');
+    card.className = 'roster-card';
+
+    // Extract game data
+    const memberCount = game.member_count || 0;
+    const teamCount = game.team_count || 0;
+    const isMember = game.is_member || false;
+    const isGameManager = game.is_game_manager || false;
+
+    // Build game icon (image or fallback icon)
+    const iconHTML = game.ImageURL
+        ? `<img src="${game.ImageURL}"
+                alt="${game.GameTitle}"
+                class="roster-game-image"
+                onerror="this.onerror=null; this.parentElement.innerHTML='<i class=&quot;fas fa-gamepad&quot;></i>';">`
+        : `<i class="fas fa-gamepad"></i>`;
+
+    // Delete button (admin only)
+    const deleteButtonHTML = isAdmin
+        ? `<button class="game-delete-btn"
+                    onclick="confirmDeleteGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')"
+                    title="Delete game">
+                <i class="fas fa-trash"></i>
+           </button>`
+        : '';
+
+    // Join/Leave button based on membership status
+    const joinButtonHTML = isMember
+        ? `<button class="btn btn-secondary"
+                    onclick="confirmLeaveGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')">
+                <i class="fas fa-sign-out-alt"></i> Leave Community
+           </button>`
+        : `<button class="btn btn-success"
+                    onclick="confirmJoinGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')">
+                <i class="fas fa-user-plus"></i> Join Community
+           </button>`;
+
+    // Create Team button (only for GMs of this specific game)
+    const createTeamButtonHTML = isGameManager
+        ? `<button class="btn btn-primary"
+                    onclick="openCreateTeamModal(${game.GameID}, '${escapeHtml(game.GameTitle)}', '${game.TeamSizes}')">
+                <i class="fas fa-plus"></i> Create Team
+           </button>`
+        : '';
+
+    // Member badge for joined communities
+    const memberBadge = isMember
+        ? `<span class="member-badge">
+                <i class="fas fa-check-circle"></i> Joined
+           </span>`
+        : '';
+
+    // Build complete card HTML
+    card.innerHTML = `
+        ${deleteButtonHTML}
+        <div class="roster-card-header">
+            <div class="roster-icon">
+                ${iconHTML}
+            </div>
+            <h3 class="roster-card-title">
+                ${game.GameTitle}
+                ${memberBadge}
+            </h3>
+        </div>
+        <p class="roster-card-description">${game.Description}</p>
+
+        <div class="roster-card-meta">
+            <div class="roster-stat">
+                <i class="fas fa-users roster-stat-icon"></i>
+                <div class="roster-stat-number">${memberCount}</div>
+                <div class="roster-stat-label">Members</div>
+            </div>
+            <div class="roster-stat">
+                <i class="fas fa-shield-alt roster-stat-icon"></i>
+                <div class="roster-stat-number">${teamCount}</div>
+                <div class="roster-stat-label">Teams</div>
+            </div>
+        </div>
+
+        <div class="roster-card-actions">
+            <button class="btn btn-primary" onclick="openGameDetailsModal(${game.GameID})">
+                <i class="fas fa-eye"></i> View Details
+            </button>
+            ${joinButtonHTML}
+            ${createTeamButtonHTML}
+        </div>
+    `;
+
+    return card;
+}
+
+/**
+ * Escape HTML special characters to prevent XSS
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text
+ */
+function escapeHtml(text) {
+    const map = {
+        "'": "\\'",
+        '"': '&quot;',
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;'
+    };
+    return text.replace(/['&<>"]/g, m => map[m]);
+}
+
 /**
  * Load games for dropdown in event creation
+ * Populates dropdown with available games from database
  */
 async function loadGamesForDropdown() {
     const gameSelect = document.getElementById('game');
@@ -221,6 +276,7 @@ async function loadGamesForDropdown() {
     gameSelect.disabled = true;
 
     try {
+        // Fetch games list from API
         const response = await fetch('/api/games-list');
         const data = await response.json();
 
@@ -250,6 +306,7 @@ async function loadGamesForDropdown() {
             gameSelect.innerHTML = '<option value="">Error loading games</option>';
         }
     } catch (error) {
+        // Handle network or other errors
         console.error('Error fetching games:', error);
         gameSelect.innerHTML = '<option value="">Error loading games</option>';
     } finally {
@@ -266,7 +323,9 @@ async function loadGamesForDropdown() {
 // ============================================
 
 /**
- * Open game details modal with GM assignment functionality
+ * Open game details modal
+ * Fetches and displays comprehensive game information
+ * @param {number} gameId - Game ID to display details for
  */
 async function openGameDetailsModal(gameId) {
     currentGameId = gameId;
@@ -274,146 +333,210 @@ async function openGameDetailsModal(gameId) {
     const loading = document.getElementById('gameDetailsLoading');
     const content = document.getElementById('gameDetailsContent');
 
+    // Show modal and loading state
     modal.style.display = 'block';
     loading.style.display = 'block';
     content.style.display = 'none';
     document.body.style.overflow = 'hidden';
 
     try {
+        // Fetch game details from API
         const response = await fetch(`/api/game/${gameId}/details`);
         const data = await response.json();
 
         if (data.success) {
             const game = data.game;
 
-            // Update modal title
+            // Update modal header with game title
             document.getElementById('gameDetailsModalTitle').textContent = game.title;
             document.getElementById('gameDetailsTitle').textContent = game.title;
             document.getElementById('gameDetailsDescription').textContent = game.description;
+
+            // Update stats
             document.getElementById('gameDetailsMemberCount').textContent = game.member_count;
             document.getElementById('gameDetailsTeamCount').textContent = game.team_count;
 
-            // Update icon
-            const iconDiv = document.getElementById('gameDetailsIcon');
-            if (game.image_url) {
-                iconDiv.innerHTML = `<img src="${game.image_url}" alt="${game.title}" class="game-details-image">`;
-            } else {
-                iconDiv.innerHTML = '<i class="fas fa-gamepad"></i>';
-            }
+            // Update game icon/image
+            updateGameIcon(game);
 
             // Populate members list
-            const membersList = document.getElementById('gameMembersList');
-            const noMembers = document.getElementById('gameNoMembers');
-            const searchInput = document.getElementById('memberSearch');
+            populateMembersList(game.members, gameId);
 
-            if (game.members.length > 0) {
-                membersList.innerHTML = '';
-                membersList.style.display = 'block';
-                noMembers.style.display = 'none';
+            // Update join/leave buttons
+            updateActionButtons(game, gameId);
 
-                // Show search input
-                if (searchInput) {
-                    searchInput.style.display = 'block';
-                    searchInput.value = ''; // Clear previous search
-                }
-
-                game.members.forEach(member => {
-                    const memberItem = document.createElement('div');
-                    const isAssignedGM = member.is_game_manager;
-
-                    memberItem.className = 'member-item' + (isAssignedGM ? ' assigned-gm' : '');
-                    memberItem.setAttribute('data-username', member.username.toLowerCase());
-                    memberItem.setAttribute('data-name', member.name.toLowerCase());
-
-                    // Profile picture or initials
-                    let profilePicHTML;
-                    if (member.profile_picture) {
-                        profilePicHTML = `<img src="${member.profile_picture}" alt="${member.name}" class="member-avatar">`;
-                    } else {
-                        const initials = member.name.split(' ').map(n => n[0]).join('');
-                        profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
-                    }
-
-                    // Build role badges using shared function
-                    const badgesHTML = buildUniversalRoleBadges({
-                        userId: member.id,
-                        roles: member.roles || [],
-                        contextGameId: gameId  // Pass the game ID for context highlighting
-                    });
-
-                    memberItem.innerHTML = `
-                        ${profilePicHTML}
-                        <div class="member-info">
-                            <div class="member-name">${member.name}</div>
-                            <div class="member-username">@${member.username}</div>
-                        </div>
-                        <div style="display: flex; gap: 0.5rem; align-items: center;">
-                            ${badgesHTML}
-                        </div>
-                    `;
-                    membersList.appendChild(memberItem);
-                });
-            } else {
-                membersList.style.display = 'none';
-                noMembers.style.display = 'block';
-            }
-
-            // Update action buttons
-            const joinBtn = document.getElementById('gameDetailsJoinBtn');
-            const leaveBtn = document.getElementById('gameDetailsLeaveBtn');
-
-            if (game.is_member) {
-                if (joinBtn) joinBtn.style.display = 'none';
-                if (leaveBtn) {
-                    leaveBtn.style.display = 'inline-flex';
-                    leaveBtn.onclick = () => confirmLeaveGame(gameId, game.title);
-                }
-            } else {
-                if (leaveBtn) leaveBtn.style.display = 'none';
-                if (joinBtn) {
-                    joinBtn.style.display = 'inline-flex';
-                    joinBtn.onclick = () => confirmJoinGame(gameId, game.title);
-                }
-            }
-
-            // Add GM assignment button for admins IN HEADER
-            const gmButtonContainer = document.getElementById('gmButtonContainer');
-            const isAdmin = window.userPermissions?.is_admin || false;
-
-            if (isAdmin && gmButtonContainer) {
-                gmButtonContainer.innerHTML = ''; // Clear existing
-
-                if (game.assigned_gm_id) {
-                    // Show "Remove GM" button
-                    gmButtonContainer.innerHTML = `
-                        <button class="btn-header-action btn-remove-gm-header" onclick="removeGameManager(${gameId})" title="Remove Game Manager">
-                            <i class="fas fa-user-minus"></i>
-                        </button>
-                    `;
-                } else {
-                    // Show "Assign GM" button
-                    gmButtonContainer.innerHTML = `
-                        <button class="btn-header-action btn-assign-gm-header" onclick="openAssignGMModal(${gameId})" title="Assign Game Manager">
-                            <i class="fas fa-user-shield"></i>
-                        </button>
-                    `;
-                }
-            }
+            // Add GM assignment button for admins
+            updateGMAssignmentButton(game, gameId);
 
             // Show content, hide loading
             loading.style.display = 'none';
             content.style.display = 'block';
-            //Loads next schedule event.
+
+            // Load next scheduled event
             await loadGameNextScheduledEvent(gameId);
         } else {
             throw new Error(data.message || 'Failed to load game details');
         }
     } catch (error) {
+        // Handle errors and show error message
         console.error('Error loading game details:', error);
         loading.innerHTML = `
             <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ff5252;"></i>
             <p style="color: var(--text-secondary); margin-top: 1rem;">Failed to load game details</p>
         `;
+    }
+}
+
+/**
+ * Update game icon in details modal
+ * @param {Object} game - Game object
+ */
+function updateGameIcon(game) {
+    const iconDiv = document.getElementById('gameDetailsIcon');
+    if (game.image_url) {
+        iconDiv.innerHTML = `<img src="${game.image_url}" alt="${game.title}" class="game-details-image">`;
+    } else {
+        iconDiv.innerHTML = '<i class="fas fa-gamepad"></i>';
+    }
+}
+
+/**
+ * Populate members list in game details modal
+ * @param {Array} members - Array of member objects
+ * @param {number} gameId - Current game ID for context
+ */
+function populateMembersList(members, gameId) {
+    const membersList = document.getElementById('gameMembersList');
+    const noMembers = document.getElementById('gameNoMembers');
+    const searchInput = document.getElementById('memberSearch');
+
+    if (members.length > 0) {
+        membersList.innerHTML = '';
+        membersList.style.display = 'block';
+        noMembers.style.display = 'none';
+
+        // Show search input
+        if (searchInput) {
+            searchInput.style.display = 'block';
+            searchInput.value = ''; // Clear previous search
+        }
+
+        // Create member item for each member
+        members.forEach(member => {
+            const memberItem = createMemberItem(member, gameId);
+            membersList.appendChild(memberItem);
+        });
+    } else {
+        // No members, show empty state
+        membersList.style.display = 'none';
+        noMembers.style.display = 'block';
+        if (searchInput) {
+            searchInput.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Create a member item element
+ * @param {Object} member - Member object
+ * @param {number} gameId - Current game ID for context highlighting
+ * @returns {HTMLElement} The created member item element
+ */
+function createMemberItem(member, gameId) {
+    const memberItem = document.createElement('div');
+    const isAssignedGM = member.is_game_manager;
+
+    memberItem.className = 'member-item' + (isAssignedGM ? ' assigned-gm' : '');
+    memberItem.setAttribute('data-username', member.username.toLowerCase());
+    memberItem.setAttribute('data-name', member.name.toLowerCase());
+
+    // Profile picture or initials
+    let profilePicHTML;
+    if (member.profile_picture) {
+        profilePicHTML = `<img src="${member.profile_picture}" alt="${member.name}" class="member-avatar">`;
+    } else {
+        const initials = member.name.split(' ').map(n => n[0]).join('');
+        profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
+    }
+
+    // Build role badges using shared function
+    const badgesHTML = buildUniversalRoleBadges({
+        userId: member.id,
+        roles: member.roles || [],
+        contextGameId: gameId  // Pass the game ID for context highlighting
+    });
+
+    memberItem.innerHTML = `
+        ${profilePicHTML}
+        <div class="member-info">
+            <div class="member-name">${member.name}</div>
+            <div class="member-username">@${member.username}</div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            ${badgesHTML}
+        </div>
+    `;
+
+    return memberItem;
+}
+
+/**
+ * Update join/leave action buttons based on membership status
+ * @param {Object} game - Game object
+ * @param {number} gameId - Game ID
+ */
+function updateActionButtons(game, gameId) {
+    const joinBtn = document.getElementById('gameDetailsJoinBtn');
+    const leaveBtn = document.getElementById('gameDetailsLeaveBtn');
+
+    if (game.is_member) {
+        // User is a member, show leave button
+        if (joinBtn) joinBtn.style.display = 'none';
+        if (leaveBtn) {
+            leaveBtn.style.display = 'inline-flex';
+            leaveBtn.onclick = () => confirmLeaveGame(gameId, game.title);
+        }
+    } else {
+        // User is not a member, show join button
+        if (leaveBtn) leaveBtn.style.display = 'none';
+        if (joinBtn) {
+            joinBtn.style.display = 'inline-flex';
+            joinBtn.onclick = () => confirmJoinGame(gameId, game.title);
+        }
+    }
+}
+
+/**
+ * Update GM assignment button in modal header (admin only)
+ * @param {Object} game - Game object
+ * @param {number} gameId - Game ID
+ */
+function updateGMAssignmentButton(game, gameId) {
+    const gmButtonContainer = document.getElementById('gmButtonContainer');
+    const isAdmin = window.userPermissions?.is_admin || false;
+
+    if (isAdmin && gmButtonContainer) {
+        gmButtonContainer.innerHTML = ''; // Clear existing
+
+        if (game.assigned_gm_id) {
+            // Show "Remove GM" button
+            gmButtonContainer.innerHTML = `
+                <button class="btn-header-action btn-remove-gm-header"
+                        onclick="removeGameManager(${gameId})"
+                        title="Remove Game Manager">
+                    <i class="fas fa-user-minus"></i>
+                </button>
+            `;
+        } else {
+            // Show "Assign GM" button
+            gmButtonContainer.innerHTML = `
+                <button class="btn-header-action btn-assign-gm-header"
+                        onclick="openAssignGMModal(${gameId})"
+                        title="Assign Game Manager">
+                    <i class="fas fa-user-shield"></i>
+                </button>
+            `;
+        }
     }
 }
 
@@ -429,6 +552,8 @@ function closeGameDetailsModal() {
 
 /**
  * Load next scheduled event for game community
+ * Displays the upcoming event in the game details modal
+ * @param {number} gameId - Game ID to load event for
  */
 async function loadGameNextScheduledEvent(gameId) {
     const container = document.getElementById('gameNextScheduledEventContainer');
@@ -459,25 +584,33 @@ async function loadGameNextScheduledEvent(gameId) {
         if (data.success && data.event) {
             const event = data.event;
 
-            // Format similar to team scheduled event card
+            // Add a badge to show if it's from a schedule or a regular event
+            const sourceBadge = event.source === 'scheduled'
+                ? '<span class="event-source-badge scheduled">Recurring</span>'
+                : '<span class="event-source-badge regular">One-time</span>';
+
+            // Format event card
             container.innerHTML = `
                 <div class="game-next-event-card" onclick="openEventModal(${event.id})">
                     <div class="game-next-event-header">
                         <i class="fas fa-calendar-plus"></i>
                         <h4>Next Community Event</h4>
+                        ${sourceBadge}
                     </div>
                     <div class="game-next-event-content">
                         <div class="game-next-event-time">
-                            ${event.is_all_day ?
-                                '<i class="fas fa-calendar"></i> All Day' :
-                                `<i class="fas fa-clock"></i> ${event.start_time}`
+                            ${event.is_all_day
+                                ? '<i class="fas fa-calendar"></i> All Day'
+                                : `<i class="fas fa-clock"></i> ${event.start_time}`
                             }
                         </div>
                         <div class="game-next-event-title">${event.name}</div>
                         <div class="game-next-event-date">
                             <i class="fas fa-calendar-day"></i> ${event.date}
                         </div>
-                        <span class="game-next-event-type ${event.event_type.toLowerCase()}">${event.event_type}</span>
+                        <span class="game-next-event-type ${event.event_type.toLowerCase()}">
+                            ${event.event_type}
+                        </span>
                     </div>
                 </div>
             `;
@@ -491,6 +624,7 @@ async function loadGameNextScheduledEvent(gameId) {
             `;
         }
     } catch (error) {
+        // Handle errors
         console.error('Error loading game next scheduled event:', error);
         container.innerHTML = `
             <div class="game-next-event-empty">
@@ -503,6 +637,7 @@ async function loadGameNextScheduledEvent(gameId) {
 
 /**
  * Filter members in the game details modal
+ * Searches by username or full name
  */
 function filterMembers() {
     const searchInput = document.getElementById('memberSearch');
@@ -513,6 +648,7 @@ function filterMembers() {
         const username = item.getAttribute('data-username');
         const name = item.getAttribute('data-name');
 
+        // Show item if username or name matches search
         if (username.includes(filter) || name.includes(filter)) {
             item.style.display = 'flex';
         } else {
@@ -522,365 +658,15 @@ function filterMembers() {
 }
 
 // ============================================
-// GM ASSIGNMENT FUNCTIONS
-// ============================================
-
-/**
- * Open assign GM modal
- */
-async function openAssignGMModal(gameId) {
-    currentGameIdForGM = gameId;
-    const modal = document.getElementById('assignGMModal');
-    const loading = document.getElementById('gmListLoading');
-    const container = document.getElementById('gmListContainer');
-    const empty = document.getElementById('gmListEmpty');
-    const gmList = document.getElementById('gmList');
-
-    modal.style.display = 'block';
-    loading.style.display = 'block';
-    container.style.display = 'none';
-    empty.style.display = 'none';
-    document.body.style.overflow = 'hidden';
-
-    try {
-        const response = await fetch(`/api/game/${gameId}/available-gms`);
-        const data = await response.json();
-
-        if (data.success && data.game_managers.length > 0) {
-            gmList.innerHTML = '';
-
-            data.game_managers.forEach(gm => {
-                const gmItem = document.createElement('div');
-                gmItem.className = 'gm-selection-item';
-                gmItem.onclick = () => confirmAssignGM(gameId, gm.id, gm.name);
-
-                let profilePicHTML;
-                if (gm.profile_picture) {
-                    profilePicHTML = `<img src="${gm.profile_picture}" alt="${gm.name}" class="member-avatar">`;
-                } else {
-                    const initials = gm.name.split(' ').map(n => n[0]).join('');
-                    profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
-                }
-
-                gmItem.innerHTML = `
-                    ${profilePicHTML}
-                    <div class="member-info">
-                        <div class="member-name">${gm.name}</div>
-                        <div class="member-username">@${gm.username}</div>
-                    </div>
-                    <i class="fas fa-chevron-right" style="margin-left: auto; color: var(--text-secondary);"></i>
-                `;
-
-                gmList.appendChild(gmItem);
-            });
-
-            loading.style.display = 'none';
-            container.style.display = 'block';
-        } else {
-            loading.style.display = 'none';
-            empty.style.display = 'block';
-        }
-    } catch (error) {
-        console.error('Error loading GMs:', error);
-        loading.innerHTML = '<p style="color: #ff5252;">Failed to load Game Managers</p>';
-    }
-}
-
-/**
- * Close assign GM modal
- */
-function closeAssignGMModal() {
-    const modal = document.getElementById('assignGMModal');
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-    currentGameIdForGM = null;
-}
-
-/**
- * Confirm GM assignment
- */
-async function confirmAssignGM(gameId, gmUserId, gmName) {
-    if (!confirm(`Assign ${gmName} as the Game Manager for this community?`)) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`/api/game/${gameId}/assign-gm`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ gm_user_id: gmUserId })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            alert(data.message);
-            closeAssignGMModal();
-            // Refresh the game details modal
-            openGameDetailsModal(gameId);
-        } else {
-            alert('Error: ' + data.message);
-        }
-    } catch (error) {
-        console.error('Error assigning GM:', error);
-        alert('Failed to assign Game Manager');
-    }
-    await refreshGMGameMappings();
-}
-
-/**
- * Remove GM assignment
- */
-async function removeGameManager(gameId) {
-    if (!confirm('Remove the Game Manager assignment from this community?')) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`/api/game/${gameId}/remove-gm`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            alert(data.message);
-            // Refresh the game details modal
-            openGameDetailsModal(gameId);
-        } else {
-            alert('Error: ' + data.message);
-        }
-    } catch (error) {
-        console.error('Error removing GM:', error);
-        alert('Failed to remove Game Manager');
-    }
-    await refreshGMGameMappings();
-}
-
-// ============================================
-// JOIN/LEAVE GAME COMMUNITY
-// ============================================
-
-/**
- * Confirm joining a game community
- */
-function confirmJoinGame(gameId, gameTitle) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.display = 'block';
-    modal.id = 'confirmJoinModal';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
-                <h2><i class="fas fa-user-plus"></i> Join Community</h2>
-            </div>
-            <div class="modal-body">
-                <p>Would you like to join the <strong>${gameTitle}</strong> community?</p>
-                <ul style="margin: 1rem 0; padding-left: 1.5rem; color: var(--text-primary); line-height: 1.6;">
-                    <li>You can be assigned to a team</li>
-                    <li>You can view this game's schedule</li>
-                    <li>You can view exclusive events</li>
-                </ul>
-                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 1rem;">
-                    You can always leave later if you change your mind.
-                </p>
-            </div>
-            <div class="form-actions">
-                <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
-                <button class="btn btn-success" onclick="joinGame(${gameId}, '${gameTitle.replace(/'/g, "\\'")}')">
-                    <i class="fas fa-check"></i> Join
-                </button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) closeConfirmModal();
-    });
-}
-
-/**
- * Confirm leaving a game community
- */
-function confirmLeaveGame(gameId, gameTitle) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.display = 'block';
-    modal.id = 'confirmJoinModal';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header" style="background-color: #ff9800;">
-                <h2><i class="fas fa-sign-out-alt"></i> Leave Community</h2>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to leave the <strong>${gameTitle}</strong> community?</p>
-                <ul style="margin: 1rem 0; padding-left: 1.5rem; color: var(--text-primary); line-height: 1.6;">
-                    <li>You'll no longer be able to join a team</li>
-                    <li>You won't see this game's schedule</li>
-                    <li>You won't see this game's exclusive events</li>
-                </ul>
-                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 1rem;">
-                    You can always rejoin if you change your mind
-                </p>
-            </div>
-            <div class="form-actions">
-                <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
-                <button class="btn btn-warning" onclick="leaveGame(${gameId}, '${gameTitle.replace(/'/g, "\\'")}')">
-                    <i class="fas fa-sign-out-alt"></i> Leave
-                </button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) closeConfirmModal();
-    });
-}
-
-/**
- * Close confirmation modal
- */
-function closeConfirmModal() {
-    const modal = document.getElementById('confirmJoinModal');
-    if (modal) {
-        modal.remove();
-    }
-}
-
-/**
- * Join a game community
- */
-async function joinGame(gameId, gameTitle) {
-    closeConfirmModal();
-
-    try {
-        const response = await fetch(`/api/game/${gameId}/join`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            alert(data.message);
-
-            // Close game details modal if open
-            closeGameDetailsModal();
-
-            // Reload games to update UI
-            loadGames();
-        } else {
-            alert(`Error: ${data.message}`);
-        }
-    } catch (error) {
-        console.error('Error joining community:', error);
-        alert('Failed to join community. Please try again.');
-    }
-}
-
-/**
- * Leave a game community
- */
-async function leaveGame(gameId, gameTitle) {
-    closeConfirmModal();
-
-    try {
-        const response = await fetch(`/api/game/${gameId}/leave`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            alert(data.message);
-
-            // Close game details modal if open
-            closeGameDetailsModal();
-
-            // Reload games to update UI
-            loadGames();
-        } else {
-            alert(`Error: ${data.message}`);
-        }
-    } catch (error) {
-        console.error('Error leaving community:', error);
-        alert('Failed to leave community. Please try again.');
-    }
-}
-
-// ============================================
-// MY COMMUNITIES (PROFILE TAB)
-// ============================================
-
-/**
- * Load user's communities for profile tab
- */
-async function loadMyCommunities() {
-    const loading = document.getElementById('myCommunitiesLoading');
-    const grid = document.getElementById('myCommunitiesGrid');
-    const empty = document.getElementById('myCommunitiesEmpty');
-
-    loading.style.display = 'block';
-    grid.style.display = 'none';
-    empty.style.display = 'none';
-
-    try {
-        const response = await fetch('/api/user/communities');
-        const data = await response.json();
-
-        if (data.success && data.communities.length > 0) {
-            grid.innerHTML = '';
-
-            data.communities.forEach(community => {
-                const card = document.createElement('div');
-                card.className = 'community-card-small';
-
-                let iconHTML;
-                if (community.image_url) {
-                    iconHTML = `<img src="${community.image_url}" alt="${community.title}" class="community-icon-small">`;
-                } else {
-                    iconHTML = '<i class="fas fa-gamepad"></i>';
-                }
-
-                card.innerHTML = `
-                    <div class="community-icon-container">${iconHTML}</div>
-                    <div class="community-info-small">
-                        <h4>${community.title}</h4>
-                        <p class="community-meta">
-                            <i class="fas fa-users"></i> ${community.member_count} members
-                        </p>
-                        <p class="community-joined">Joined ${community.joined_at}</p>
-                    </div>
-                    <button class="btn btn-sm btn-primary" onclick="openGameDetailsModal(${community.id})">
-                        <i class="fas fa-eye"></i> View
-                    </button>
-                `;
-                grid.appendChild(card);
-            });
-
-            loading.style.display = 'none';
-            grid.style.display = 'grid';
-        } else {
-            loading.style.display = 'none';
-            empty.style.display = 'block';
-        }
-    } catch (error) {
-        console.error('Error loading communities:', error);
-        loading.style.display = 'none';
-        empty.style.display = 'block';
-    }
-}
-
-// ============================================
-// CREATE TEAM MODAL
+// TEAM CREATION
 // ============================================
 
 /**
  * Open create team modal
+ * Shows form for GMs to create a new team
+ * @param {number} gameID - Game ID to create team for
+ * @param {string} gameTitle - Game title for display
+ * @param {string} teamSizes - Comma-separated team sizes
  */
 function openCreateTeamModal(gameID, gameTitle, teamSizes) {
     const modal = document.getElementById('createTeamModal');
@@ -900,40 +686,49 @@ function openCreateTeamModal(gameID, gameTitle, teamSizes) {
     if (modalTitle) modalTitle.textContent = gameTitle;
 
     // Populate team size radio buttons
+    populateTeamSizeOptions(teamSizes);
+}
+
+/**
+ * Populate team size options in create team modal
+ * @param {string} teamSizes - Comma-separated team sizes
+ */
+function populateTeamSizeOptions(teamSizes) {
     const sizeContainer = document.getElementById('teamSizesContainer');
-    if (sizeContainer) {
-        sizeContainer.innerHTML = '';
-        sizeContainer.className = 'team-size-options';
+    if (!sizeContainer) return;
 
-        const sizes = teamSizes.split(',').map(s => s.trim());
-        sizes.forEach((size, index) => {
-            const optionDiv = document.createElement('div');
-            optionDiv.className = 'team-size-option';
+    sizeContainer.innerHTML = '';
+    sizeContainer.className = 'team-size-options';
 
-            const radioId = `teamSize${size}`;
-            const isFirst = index === 0;
-            const playerText = size === '1' ? 'player' : 'players';
+    const sizes = teamSizes.split(',').map(s => s.trim());
 
-            optionDiv.innerHTML = `
-                <input type="radio"
-                       name="team_sizes"
-                       value="${size}"
-                       id="${radioId}"
-                       ${isFirst ? 'checked' : ''}>
-                <label for="${radioId}">
-                    <div class="size-content">
-                        <i class="fas fa-users size-icon"></i>
-                        <div class="size-text">
-                            <span class="size-number">${size} ${size === '1' ? 'Player' : 'Players'}</span>
-                            <span class="size-description">Maximum ${size} ${playerText} per team</span>
-                        </div>
+    sizes.forEach((size, index) => {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'team-size-option';
+
+        const radioId = `teamSize${size}`;
+        const isFirst = index === 0;
+        const playerText = size === '1' ? 'player' : 'players';
+
+        optionDiv.innerHTML = `
+            <input type="radio"
+                   name="team_sizes"
+                   value="${size}"
+                   id="${radioId}"
+                   ${isFirst ? 'checked' : ''}>
+            <label for="${radioId}">
+                <div class="size-content">
+                    <i class="fas fa-users size-icon"></i>
+                    <div class="size-text">
+                        <span class="size-number">${size} ${size === '1' ? 'Player' : 'Players'}</span>
+                        <span class="size-description">Maximum ${size} ${playerText} per team</span>
                     </div>
-                </label>
-            `;
+                </div>
+            </label>
+        `;
 
-            sizeContainer.appendChild(optionDiv);
-        });
-    }
+        sizeContainer.appendChild(optionDiv);
+    });
 }
 
 /**
@@ -947,6 +742,7 @@ function closeCreateTeamModal() {
 
 /**
  * Setup create team form submission
+ * Handles form validation and API submission
  */
 function setupCreateTeamForm() {
     const createTeamForm = document.getElementById('createTeamForm');
@@ -960,6 +756,7 @@ function setupCreateTeamForm() {
         const submitBtnSpinner = document.getElementById('submitTeamBtnSpinner');
         const formMessage = document.getElementById('teamFormMessage');
 
+        // Show loading state
         submitBtn.disabled = true;
         submitBtnText.style.display = 'none';
         submitBtnSpinner.style.display = 'inline-block';
@@ -967,6 +764,7 @@ function setupCreateTeamForm() {
         const formData = new FormData(createTeamForm);
         const gameID = document.getElementById('gameIDField').value;
 
+        // Validate team size selection
         const selectedSize = document.querySelector('input[name="team_sizes"]:checked');
         if (!selectedSize) {
             formMessage.textContent = 'Please select a team size.';
@@ -980,6 +778,7 @@ function setupCreateTeamForm() {
         }
 
         try {
+            // Submit team creation request
             const response = await fetch(`/api/create-team/${gameID}`, {
                 method: 'POST',
                 body: formData
@@ -988,19 +787,25 @@ function setupCreateTeamForm() {
             const data = await response.json();
 
             if (response.ok && data.success) {
+                // Show success message
                 formMessage.textContent = data.message || 'Team created successfully! Refreshing...';
                 formMessage.className = 'form-message success';
                 formMessage.style.display = 'block';
 
-                setTimeout(() => { window.location.reload(); }, 1500);
+                // Reload page after brief delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
             } else {
                 throw new Error(data.message || 'Failed to create team');
             }
         } catch (error) {
+            // Show error message
             formMessage.textContent = error.message || 'Failed to create team. Please try again.';
             formMessage.className = 'form-message error';
             formMessage.style.display = 'block';
 
+            // Reset button state
             submitBtn.disabled = false;
             submitBtnText.style.display = 'inline';
             submitBtnSpinner.style.display = 'none';
@@ -1017,5 +822,26 @@ document.addEventListener('DOMContentLoaded', function() {
     setupCreateTeamForm();
 });
 
-//Global Exports
+// ============================================
+// EXPORT FUNCTIONS TO GLOBAL SCOPE
+// ============================================
+
+// Core module functions
+window.initializeGamesModule = initializeGamesModule;
+window.setupGameImagePreview = setupGameImagePreview;
+
+// Game loading and display
+window.loadGames = loadGames;
+window.displayGames = displayGames;
+window.loadGamesForDropdown = loadGamesForDropdown;
+
+// Game details modal
+window.openGameDetailsModal = openGameDetailsModal;
+window.closeGameDetailsModal = closeGameDetailsModal;
 window.loadGameNextScheduledEvent = loadGameNextScheduledEvent;
+window.filterMembers = filterMembers;
+
+// Team creation
+window.openCreateTeamModal = openCreateTeamModal;
+window.closeCreateTeamModal = closeCreateTeamModal;
+window.setupCreateTeamForm = setupCreateTeamForm;

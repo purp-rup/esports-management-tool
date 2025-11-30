@@ -415,6 +415,24 @@
     font-size: 0.875rem;
 }
 
+.event-source-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.event-source-badge.scheduled {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+}
+
+.event-source-badge.regular {
+    background-color: rgba(33, 150, 243, 0.2);
+    color: #2196F3;
+}
+
 /* --------------------------------------------
    MEMBERS SECTION
    Member list in game details modal

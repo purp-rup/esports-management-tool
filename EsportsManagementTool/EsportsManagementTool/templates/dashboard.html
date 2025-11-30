@@ -1508,7 +1508,7 @@
                         <p>{{ gms }}</p>
                     </div>
                 </div>
-                <!-- NEW: Players Card -->
+                <!-- Players Card -->
                 <div class="summary-card">
                     <div class="summary-icon"><i class="fa-solid fa-gamepad"></i></div>
                     <div>
@@ -1523,7 +1523,10 @@
                 <!-- Left column: user list -->
                 <div class="user-list">
                     <h3>User Management</h3>
-                    <input type="text" id="userSearch" placeholder="Search users..." class="search-input" onkeyup="filterUsers()">
+                    <input type="text" id="userSearch"
+                           placeholder="Search users..."
+                           class="search-input"
+                           oninput="filterUsers()">
 
                     <ul class="user-items" id="userItems">
                         {% if user_list %}
@@ -2046,10 +2049,11 @@
 <script src="{{ url_for('static', filename='admin-panel.js') }}"></script>
 <script src="{{ url_for('static', filename='notifications.js') }}"></script>
 <script src="{{ url_for('static', filename='game.js') }}"></script>
-<script src="{{ url_for('static', filename='modals.js') }}"></script>
+<script src="{{ url_for('static', filename='communities.js') }}"></script>
 <script src="{{ url_for('static', filename='scheduled-events.js') }}"></script>
 <script src="{{ url_for('static', filename='teamstats.js') }}"></script>
 <script src="{{ url_for('static', filename='vods.js') }}"></script>
+<script src="{{ url_for('static', filename='modals.js') }}"></script>
 <!-- Must load last -->
 <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 

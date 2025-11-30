@@ -1,21 +1,73 @@
 /**
- * Teams Management JavaScript
- * Supports role-based view switching with persistence
+ * teams.js
+ * ============================================================================
+ * TEAMS MANAGEMENT SYSTEM - PART 1 OF 2
+ * ============================================================================
+ * Comprehensive team management functionality:
+ * - Role-based view switching (All Teams, Teams I Manage, Teams I Play On)
+ * - Team sidebar with filtering and selection
+ * - Team details display with tabs (Roster, Schedule, Stats, VODs)
+ * - Team member management (add/remove)
+ * - Team editing (name, max size)
+ * - Team deletion
+ * - Next scheduled event display
+ * - Integration with scheduled events and statistics
+ * - Session-based view persistence
+ * ============================================================================
  */
 
+// ============================================
+// GLOBAL STATE
+// ============================================
+
+/**
+ * Currently selected team ID
+ * @type {string|null}
+ */
 let currentSelectedTeamId = null;
+
+/**
+ * All teams data from current view
+ * @type {Array}
+ */
 let allTeamsData = [];
+
+/**
+ * Available views for current user based on permissions
+ * Structure: [{ value: 'all', label: 'All Teams' }, ...]
+ * @type {Array<Object>}
+ */
 let availableViews = [];
+
+/**
+ * Current active view
+ * @type {string|null}
+ */
 let currentView = null;
 
-// Session storage key for view persistence
+/**
+ * Session storage key for view persistence
+ * Allows users to return to their preferred view
+ * @type {string}
+ */
 const VIEW_STORAGE_KEY = 'teams_selected_view';
+
+// ============================================
+// VIEW SWITCHER INITIALIZATION
+// ============================================
 
 /**
  * Initialize view switcher on page load
+ * Fetches available views based on user permissions and sets up UI
+ *
+ * View options depend on user role:
+ * - Admin: All Teams, Teams I Manage, Teams I Play On
+ * - GM: Teams I Manage, Teams I Play On
+ * - Player: Teams I Play On only
  */
 async function initializeViewSwitcher() {
     try {
+        // Fetch available views from backend
         const response = await fetch('/api/teams/available-views');
         const data = await response.json();
 
@@ -27,7 +79,7 @@ async function initializeViewSwitcher() {
             const validStoredView = availableViews.find(v => v.value === storedView);
             currentView = validStoredView ? storedView : availableViews[0].value;
 
-            // Show switcher only if user has multiple views
+            // Show switcher only if user has multiple view options
             if (data.has_multiple) {
                 renderViewSwitcher();
             } else {
@@ -44,6 +96,7 @@ async function initializeViewSwitcher() {
 
 /**
  * Render the view switcher dropdown
+ * Populates dropdown with available views and sets current selection
  */
 function renderViewSwitcher() {
     const viewSwitcher = document.getElementById('teamViewSwitcher');
@@ -57,7 +110,7 @@ function renderViewSwitcher() {
     // Clear existing options
     viewSelect.innerHTML = '';
 
-    // Add options
+    // Add view options
     availableViews.forEach(view => {
         const option = document.createElement('option');
         option.value = view.value;
@@ -71,12 +124,13 @@ function renderViewSwitcher() {
     // Show the switcher
     viewSwitcher.classList.remove('hidden');
 
-    // Attach change event
+    // Attach change event handler
     viewSelect.onchange = handleViewChange;
 }
 
 /**
  * Hide the view switcher
+ * Used when user only has one view option available
  */
 function hideViewSwitcher() {
     const viewSwitcher = document.getElementById('teamViewSwitcher');
@@ -87,16 +141,20 @@ function hideViewSwitcher() {
 
 /**
  * Handle view change from dropdown
+ * Updates current view and reloads teams list
+ *
+ * @param {Event} event - Change event from select dropdown
  */
 function handleViewChange(event) {
     const newView = event.target.value;
+
     if (newView !== currentView) {
         currentView = newView;
 
-        // Persist the selection
+        // Persist the selection in session storage
         sessionStorage.setItem(VIEW_STORAGE_KEY, newView);
 
-        // Reset selected team and reload
+        // Reset selected team and show welcome state
         currentSelectedTeamId = null;
         document.getElementById('teamsWelcomeState').style.display = 'flex';
         document.getElementById('teamsDetailContent').style.display = 'none';
@@ -106,8 +164,13 @@ function handleViewChange(event) {
     }
 }
 
+// ============================================
+// TEAM LOADING & SIDEBAR
+// ============================================
+
 /**
  * Load teams based on user role and selected view
+ * Fetches teams from API and renders sidebar
  */
 async function loadTeams() {
     const sidebarLoading = document.getElementById('teamsSidebarLoading');
@@ -120,7 +183,7 @@ async function loadTeams() {
         await initializeViewSwitcher();
     }
 
-    // Show loading
+    // Show loading state
     sidebarLoading.style.display = 'block';
     sidebarList.style.display = 'none';
     sidebarEmpty.style.display = 'none';
@@ -135,18 +198,24 @@ async function loadTeams() {
         const data = await response.json();
 
         if (data.success && data.teams && data.teams.length > 0) {
+            // Store teams data
             allTeamsData = data.teams;
 
-            // Update subtitle based on current view with team count
+            // Update subtitle with view label and team count
             if (sidebarSubtitle) {
                 const viewLabel = getSubtitleForView(currentView, data.teams.length);
                 sidebarSubtitle.textContent = viewLabel;
             }
 
+            // Render teams in sidebar
             renderTeamsSidebar(data.teams);
+
+            // Show teams list
             sidebarLoading.style.display = 'none';
             sidebarList.style.display = 'flex';
         } else {
+            // No teams found for current view
+
             // Update subtitle to show zero count
             if (sidebarSubtitle) {
                 const viewLabel = getSubtitleForView(currentView, 0);
@@ -159,6 +228,7 @@ async function loadTeams() {
                 sidebarEmpty.innerHTML = `<i class="fas fa-users"></i><p>${emptyMessage}</p>`;
             }
 
+            // Show empty state
             sidebarLoading.style.display = 'none';
             sidebarEmpty.style.display = 'block';
         }
@@ -171,8 +241,11 @@ async function loadTeams() {
 
 /**
  * Get subtitle text based on current view
+ * Includes team count in parentheses
+ *
  * @param {string} view - Current view mode
  * @param {number} count - Number of teams in current view
+ * @returns {string} Formatted subtitle text
  */
 function getSubtitleForView(view, count = 0) {
     const viewObj = availableViews.find(v => v.value === view);
@@ -200,22 +273,26 @@ function getSubtitleForView(view, count = 0) {
 
 /**
  * Get empty state message based on current view
+ * Provides context-appropriate messaging
+ *
+ * @param {string} view - Current view mode
+ * @returns {string} Empty state message
  */
 function getEmptyMessageForView(view) {
-    switch (view) {
-        case 'all':
-            return 'No teams have been created yet.';
-        case 'manage':
-            return 'You are not managing any teams yet.';
-        case 'play':
-            return 'You are not a member of any teams yet.';
-        default:
-            return 'No teams available.';
-    }
+    const messages = {
+        all: 'No teams have been created yet.',
+        manage: 'You are not managing any teams yet.',
+        play: 'You are not a member of any teams yet.'
+    };
+
+    return messages[view] || 'No teams available.';
 }
 
 /**
  * Render teams in sidebar
+ * Creates team items with edit button for GMs
+ *
+ * @param {Array} teams - Array of team objects to render
  */
 function renderTeamsSidebar(teams) {
     const sidebarList = document.getElementById('teamsSidebarList');
@@ -225,12 +302,13 @@ function renderTeamsSidebar(teams) {
         const teamItem = document.createElement('div');
         teamItem.className = 'team-sidebar-item';
         teamItem.setAttribute('data-team-id', team.TeamID);
-        teamItem.setAttribute('data-gm-id', team.gm_id || ''); // Store GM ID for permission check
+        teamItem.setAttribute('data-gm-id', team.gm_id || '');
 
         // Check if current user is the GM for THIS specific game
         const isGameManager = team.gm_id && team.gm_id === window.currentUserId;
 
-        // Only add click handler to the main area, not the edit button
+        // Build team item HTML
+        // Only the main content area triggers team selection, not edit button
         teamItem.innerHTML = `
             <div class="team-sidebar-content" onclick="selectTeam('${team.TeamID}')">
                 <div class="team-sidebar-name">${team.teamName}</div>
@@ -253,19 +331,267 @@ function renderTeamsSidebar(teams) {
     });
 }
 
+// ============================================
+// GAME GROUPING & COLLAPSIBLE FOLDERS
+// For "All Teams" view
+// ============================================
+
+/**
+ * Storage key for collapsed games
+ */
+const COLLAPSED_GAMES_KEY = 'teams_collapsed_games';
+
+/**
+ * Get set of collapsed game IDs from sessionStorage
+ * @returns {Set<string>}
+ */
+function getCollapsedGames() {
+    const stored = sessionStorage.getItem(COLLAPSED_GAMES_KEY);
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+}
+
+/**
+ * Save collapsed games to sessionStorage
+ * @param {Set<string>} collapsedGames
+ */
+function saveCollapsedGames(collapsedGames) {
+    sessionStorage.setItem(COLLAPSED_GAMES_KEY, JSON.stringify([...collapsedGames]));
+}
+
+/**
+ * Toggle collapse state for a game
+ * @param {string} gameId - ID of game to toggle
+ */
+function toggleGameCollapse(gameId) {
+    const collapsedGames = getCollapsedGames();
+
+    if (collapsedGames.has(gameId)) {
+        collapsedGames.delete(gameId);
+    } else {
+        collapsedGames.add(gameId);
+    }
+
+    saveCollapsedGames(collapsedGames);
+
+    // Re-render sidebar with updated collapse state
+    const sidebarList = document.getElementById('teamsSidebarList');
+    if (sidebarList && allTeamsData.length > 0) {
+        renderTeamsSidebarWithGroups(allTeamsData);
+    }
+}
+
+/**
+ * Render teams sidebar with game grouping (for "All Teams" view)
+ * Groups teams by game and adds collapse/expand functionality
+ *
+ * @param {Array} teams - Array of team objects to render
+ */
+function renderTeamsSidebarWithGroups(teams) {
+    const sidebarList = document.getElementById('teamsSidebarList');
+    sidebarList.innerHTML = '';
+
+    // Set data attribute for CSS targeting
+    const sidebar = document.querySelector('.teams-sidebar');
+    if (sidebar) {
+        sidebar.setAttribute('data-view', currentView || 'all');
+    }
+
+    // If not in "all" view, use standard rendering
+    if (currentView !== 'all') {
+        originalRenderTeamsSidebar(teams);
+        return;
+    }
+
+    // Group teams by game
+    const gameGroups = {};
+    teams.forEach(team => {
+        const gameId = team.gameID;
+        const gameTitle = team.GameTitle || 'Unknown Game';
+
+        if (!gameGroups[gameId]) {
+            gameGroups[gameId] = {
+                gameId: gameId,
+                gameTitle: gameTitle,
+                hasGameImage: team.has_game_image,
+                teams: []
+            };
+        }
+        gameGroups[gameId].teams.push(team);
+    });
+
+    // Sort game groups alphabetically by game title
+    const sortedGroups = Object.values(gameGroups).sort((a, b) => {
+        return a.gameTitle.localeCompare(b.gameTitle);
+    });
+
+    // Get collapsed state
+    const collapsedGames = getCollapsedGames();
+
+    // Render each game group (now in alphabetical order)
+    sortedGroups.forEach(group => {
+        const isCollapsed = collapsedGames.has(group.gameId.toString());
+
+        if (isCollapsed) {
+            // Render collapsed folder
+            renderCollapsedGameFolder(group, sidebarList);
+        } else {
+            // Render expanded game group
+            renderExpandedGameGroup(group, sidebarList);
+        }
+    });
+}
+
+/**
+ * Render a collapsed game folder
+ * Shows just the game name and team count with game logo
+ *
+ * @param {Object} group - Game group object
+ * @param {HTMLElement} container - Container to append to
+ */
+function renderCollapsedGameFolder(group, container) {
+    const folderDiv = document.createElement('div');
+    folderDiv.className = 'game-folder-collapsed';
+    folderDiv.setAttribute('data-game-id', group.gameId);
+
+    // Check if any team in this group is selected
+    const hasSelectedTeam = group.teams.some(t => t.TeamID === currentSelectedTeamId);
+    if (hasSelectedTeam) {
+        folderDiv.classList.add('active');
+    }
+
+    const teamCount = group.teams.length;
+    const teamWord = teamCount === 1 ? 'team' : 'teams';
+
+    // Build game icon HTML - use actual game image if available
+    let gameIconHTML;
+    if (group.gameId && group.hasGameImage) {
+        gameIconHTML = `
+            <img src="/game-image/${group.gameId}"
+                 alt="${group.gameTitle}"
+                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">
+                <i class="fas fa-gamepad"></i>
+            </div>
+        `;
+    } else {
+        gameIconHTML = '<i class="fas fa-gamepad"></i>';
+    }
+
+    folderDiv.innerHTML = `
+        <div class="game-folder-info" onclick="event.stopPropagation(); toggleGameCollapse('${group.gameId}')">
+            <div class="game-folder-icon">
+                ${gameIconHTML}
+            </div>
+            <div class="game-folder-details">
+                <div class="game-folder-name">${group.gameTitle}</div>
+                <div class="game-folder-count">${teamCount} ${teamWord}</div>
+            </div>
+        </div>
+        <button class="game-folder-expand-btn"
+                onclick="event.stopPropagation(); toggleGameCollapse('${group.gameId}')"
+                title="Expand ${group.gameTitle} teams">
+            <i class="fas fa-chevron-down"></i>
+        </button>
+    `;
+
+    container.appendChild(folderDiv);
+}
+
+/**
+ * Render an expanded game group with all teams
+ * Adds collapse button to first team
+ *
+ * @param {Object} group - Game group object
+ * @param {HTMLElement} container - Container to append to
+ */
+function renderExpandedGameGroup(group, container) {
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'game-group';
+    groupDiv.setAttribute('data-game-id', group.gameId);
+
+    group.teams.forEach((team, index) => {
+        const teamItem = document.createElement('div');
+        teamItem.className = 'team-sidebar-item';
+        teamItem.setAttribute('data-team-id', team.TeamID);
+        teamItem.setAttribute('data-gm-id', team.gm_id || '');
+
+        // Check if selected
+        if (team.TeamID === currentSelectedTeamId) {
+            teamItem.classList.add('active');
+        }
+
+        // Check if current user is the GM for THIS specific game
+        const isGameManager = team.gm_id && team.gm_id === window.currentUserId;
+
+        // Add collapse button to FIRST team in the group
+        const collapseBtn = index === 0 ? `
+            <button class="team-collapse-btn"
+                    onclick="event.stopPropagation(); toggleGameCollapse('${group.gameId}')"
+                    title="Collapse ${group.gameTitle} teams">
+                <i class="fas fa-chevron-up"></i>
+            </button>
+        ` : '';
+
+        // Build team item HTML
+        teamItem.innerHTML = `
+            ${collapseBtn}
+            <div class="team-sidebar-content" onclick="selectTeam('${team.TeamID}')">
+                <div class="team-sidebar-name">${team.teamName}</div>
+                <div class="team-sidebar-game">${team.GameTitle || 'Unknown Game'}</div>
+                <div class="team-sidebar-meta">
+                    <span><i class="fas fa-users"></i> ${team.member_count || 0}</span>
+                    <span><i class="fas fa-trophy"></i> ${team.teamMaxSize}</span>
+                </div>
+            </div>
+            ${isGameManager ? `
+                <button class="team-edit-btn"
+                        onclick="event.stopPropagation(); openEditTeamModal('${team.TeamID}', '${team.teamName.replace(/'/g, "\\'")}', ${team.teamMaxSize}, '${team.TeamSizes || ''}')"
+                        title="Edit team">
+                    <i class="fas fa-edit"></i>
+                </button>
+            ` : ''}
+        `;
+
+        groupDiv.appendChild(teamItem);
+    });
+
+    container.appendChild(groupDiv);
+}
+
+/**
+ * Override the original renderTeamsSidebar to use grouping when appropriate
+ */
+const originalRenderTeamsSidebar = renderTeamsSidebar;
+renderTeamsSidebar = function(teams) {
+    // Use grouped rendering for "all" view, standard for others
+    if (currentView === 'all') {
+        renderTeamsSidebarWithGroups(teams);
+    } else {
+        originalRenderTeamsSidebar(teams);
+    }
+};
+
+// ============================================
+// TEAM SELECTION & DETAILS
+// ============================================
+
 /**
  * Select a team from sidebar
+ * Updates UI and loads team details
+ *
+ * @param {string} teamId - ID of team to select
  */
 async function selectTeam(teamId) {
     currentSelectedTeamId = teamId;
 
-    // Update sidebar selection
+    // Update sidebar selection styling
     document.querySelectorAll('.team-sidebar-item').forEach(item => {
         item.classList.remove('active');
     });
     document.querySelector(`[data-team-id="${teamId}"]`)?.classList.add('active');
 
-    // Hide welcome, show details
+    // Hide welcome state, show details
     document.getElementById('teamsWelcomeState').style.display = 'none';
     document.getElementById('teamsDetailContent').style.display = 'block';
 
@@ -294,7 +620,106 @@ async function selectTeam(teamId) {
 }
 
 /**
- * Method to load the next scheduled event onto the next-scheduled-event-card for each team.
+ * Load detailed team information
+ * Fetches and displays team data including header, stats, and roster
+ *
+ * @param {string} teamId - ID of team to load
+ */
+async function loadTeamDetails(teamId) {
+    try {
+        const response = await fetch(`/api/teams/${teamId}/details`);
+        const data = await response.json();
+
+        if (data.success) {
+            const team = data.team;
+
+            // ========================================
+            // UPDATE HEADER
+            // ========================================
+            document.getElementById('teamDetailTitle').textContent = team.title;
+            document.getElementById('teamDetailGame').textContent = `Game: ${team.game_title || 'Unknown'}`;
+
+            // Update team icon with game image
+            const teamIconLarge = document.querySelector('.team-icon-large');
+            if (teamIconLarge) {
+                if (team.game_icon_url) {
+                    teamIconLarge.innerHTML = `<img src="${team.game_icon_url}"
+                                                     alt="${team.game_title}"
+                                                     style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;"
+                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fas fa-shield-alt\\'></i>';">`;
+                } else {
+                    teamIconLarge.innerHTML = '<i class="fas fa-shield-alt"></i>';
+                }
+            }
+
+            // ========================================
+            // UPDATE STATS
+            // ========================================
+            document.getElementById('teamStatMembers').textContent = team.member_count || 0;
+            document.getElementById('teamStatMaxSize').textContent = team.team_max_size || 0;
+
+            // ========================================
+            // LOAD NEXT SCHEDULED EVENT
+            // ========================================
+            if (team.game_id) {
+                loadNextScheduledEvent(teamId, team.game_id);
+            } else {
+                // Show empty state if no game_id
+                const container = document.getElementById('nextScheduledEventContainer');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="next-scheduled-event-empty">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <p>Team has no associated game</p>
+                        </div>
+                    `;
+                }
+            }
+
+            // ========================================
+            // CONFIGURE ACTION BUTTONS
+            // ========================================
+            // Show/hide buttons based on user permissions
+            const isAdmin = window.userPermissions?.is_admin || false;
+            const isGM = window.userPermissions?.is_gm || false;
+
+            const addPlayerBtn = document.getElementById('addPlayerBtn');
+            const deleteTeamBtn = document.getElementById('deleteTeamBtn');
+
+            if (addPlayerBtn) {
+                addPlayerBtn.style.display = (isAdmin || isGM) ? 'inline-flex' : 'none';
+                addPlayerBtn.onclick = openAddTeamMembersModal;
+            }
+
+            if (deleteTeamBtn) {
+                deleteTeamBtn.style.display = (isAdmin || isGM) ? 'inline-flex' : 'none';
+            }
+
+            // Initialize schedule button if function exists (from scheduled-events.js)
+            if (typeof initScheduleButton === 'function') {
+                await initScheduleButton(teamId, team.game_id);
+            }
+
+            // ========================================
+            // LOAD ROSTER TAB (DEFAULT)
+            // ========================================
+            loadRosterTab(team.members || []);
+        }
+    } catch (error) {
+        console.error('Error loading team details:', error);
+    }
+}
+
+// ============================================
+// NEXT SCHEDULED EVENT
+// ============================================
+
+/**
+ * Load the next scheduled event for a team
+ * Displays upcoming event card or empty state
+ *
+ * @param {string} teamId - ID of team
+ * @param {string} gameId - ID of game (for filtering events)
  */
 async function loadNextScheduledEvent(teamId, gameId) {
     const container = document.getElementById('nextScheduledEventContainer');
@@ -337,7 +762,7 @@ async function loadNextScheduledEvent(teamId, gameId) {
         if (data.success && data.event) {
             const event = data.event;
 
-            // Format similar to "Today's Events" on calendar
+            // Display event card (format similar to calendar's "Today's Events")
             container.innerHTML = `
                 <div class="next-scheduled-event-card" onclick="openEventModal(${event.id})">
                     <div class="next-event-header">
@@ -360,7 +785,7 @@ async function loadNextScheduledEvent(teamId, gameId) {
                 </div>
             `;
         } else {
-            // No scheduled events
+            // No scheduled events found
             container.innerHTML = `
                 <div class="next-scheduled-event-empty">
                     <i class="fas fa-calendar-times"></i>
@@ -380,126 +805,71 @@ async function loadNextScheduledEvent(teamId, gameId) {
     }
 }
 
-/**
- * Load detailed team information
- */
-async function loadTeamDetails(teamId) {
-    try {
-        const response = await fetch(`/api/teams/${teamId}/details`);
-        const data = await response.json();
-
-        if (data.success) {
-            const team = data.team;
-
-            // Update header
-            document.getElementById('teamDetailTitle').textContent = team.title;
-            document.getElementById('teamDetailGame').textContent = `Game: ${team.game_title || 'Unknown'}`;
-
-            // Update team icon with game image
-            const teamIconLarge = document.querySelector('.team-icon-large');
-            if (teamIconLarge) {
-                if (team.game_icon_url) {
-                    teamIconLarge.innerHTML = `<img src="${team.game_icon_url}"
-                                                     alt="${team.game_title}"
-                                                     style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;"
-                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fas fa-shield-alt\\'></i>';">`;
-                } else {
-                    teamIconLarge.innerHTML = '<i class="fas fa-shield-alt"></i>';
-                }
-            }
-
-            // Update stats
-            document.getElementById('teamStatMembers').textContent = team.member_count || 0;
-            document.getElementById('teamStatMaxSize').textContent = team.team_max_size || 0;
-
-            // Load next scheduled event card with correct game_id
-            if (team.game_id) {
-                loadNextScheduledEvent(teamId, team.game_id);
-            } else {
-                // Show empty state if no game_id
-                const container = document.getElementById('nextScheduledEventContainer');
-                if (container) {
-                    container.innerHTML = `
-                        <div class="next-scheduled-event-empty">
-                            <i class="fas fa-exclamation-circle"></i>
-                            <p>Team has no associated game</p>
-                        </div>
-                    `;
-                }
-            }
-
-            // Show/hide action buttons based on permissions
-            const isAdmin = window.userPermissions?.is_admin || false;
-            const isGM = window.userPermissions?.is_gm || false;
-
-            const addPlayerBtn = document.getElementById('addPlayerBtn');
-            const deleteTeamBtn = document.getElementById('deleteTeamBtn');
-
-            if (addPlayerBtn) {
-                addPlayerBtn.style.display = (isAdmin || isGM) ? 'inline-flex' : 'none';
-                addPlayerBtn.onclick = openAddTeamMembersModal;
-            }
-
-            if (deleteTeamBtn) {
-                deleteTeamBtn.style.display = (isAdmin || isGM) ? 'inline-flex' : 'none';
-            }
-
-            if (typeof initScheduleButton === 'function') {
-                await initScheduleButton(teamId, team.game_id);
-            }
-
-            // Load roster (default tab)
-            loadRosterTab(team.members || []);
-        }
-    } catch (error) {
-        console.error('Error loading team details:', error);
-    }
-}
+// ============================================
+// ROSTER TAB
+// ============================================
 
 /**
- * Load roster tab with members
+ * Load roster tab with team members
+ * Displays member cards with avatars, badges, and remove buttons
+ *
+ * @param {Array} members - Array of team member objects
  */
 function loadRosterTab(members) {
     const rosterList = document.getElementById('rosterMembersList');
     const rosterEmpty = document.getElementById('rosterEmpty');
 
+    // Show empty state if no members
     if (members.length === 0) {
         rosterList.style.display = 'none';
         rosterEmpty.style.display = 'block';
         return;
     }
 
+    // Show roster list
     rosterList.style.display = 'grid';
     rosterEmpty.style.display = 'none';
     rosterList.innerHTML = '';
 
+    // Check if current user can manage team
     const isAdmin = window.userPermissions?.is_admin || false;
     const isGM = window.userPermissions?.is_gm || false;
     const canManage = isAdmin || isGM;
 
+    // Create member card for each member
     members.forEach(member => {
         const memberCard = document.createElement('div');
         memberCard.className = 'roster-member-card';
+
+        // Add data attributes for search filtering
         memberCard.setAttribute('data-member-name', member.name.toLowerCase());
         memberCard.setAttribute('data-member-username', member.username.toLowerCase());
 
+        // ========================================
+        // BUILD AVATAR
+        // ========================================
         let avatarHTML;
         if (member.profile_picture) {
             avatarHTML = `<img src="${member.profile_picture}" alt="${member.name}" class="roster-member-avatar">`;
         } else {
+            // Use initials as fallback
             const initials = member.name.split(' ').map(n => n[0]).join('');
             avatarHTML = `<div class="roster-member-initials">${initials}</div>`;
         }
 
+        // ========================================
+        // BUILD ROLE BADGES
+        // ========================================
         let badgesHTML = '';
         if (typeof buildUniversalRoleBadges === 'function') {
             badgesHTML = buildUniversalRoleBadges({
                 userId: member.id,
                 roles: member.roles || [],
                 contextGameId: null,
-                excludeRoles: ['Player']
+                excludeRoles: ['Player'] // Don't show Player badge for team rosters
             });
         } else if (typeof buildRoleBadges === 'function') {
+            // Fallback to legacy badge function
             badgesHTML = buildRoleBadges({
                 roles: member.roles || [],
                 isAssignedGM: false,
@@ -507,6 +877,9 @@ function loadRosterTab(members) {
             });
         }
 
+        // ========================================
+        // BUILD REMOVE BUTTON (IF PERMITTED)
+        // ========================================
         const removeBtn = canManage ? `
             <button class="btn-icon-danger"
                     onclick="event.stopPropagation(); confirmRemoveMemberNew('${member.id}', '${member.name.replace(/'/g, "\\'")}')"
@@ -515,6 +888,9 @@ function loadRosterTab(members) {
             </button>
         ` : '';
 
+        // ========================================
+        // ASSEMBLE MEMBER CARD
+        // ========================================
         memberCard.innerHTML = `
             ${avatarHTML}
             <div class="roster-member-info">
@@ -532,7 +908,8 @@ function loadRosterTab(members) {
 }
 
 /**
- * Filter roster members by search
+ * Filter roster members by search input
+ * Searches both name and username
  */
 function filterRosterMembers() {
     const searchInput = document.getElementById('rosterSearchInput');
@@ -543,6 +920,7 @@ function filterRosterMembers() {
         const name = card.getAttribute('data-member-name');
         const username = card.getAttribute('data-member-username');
 
+        // Show card if name or username matches search
         if (name.includes(filter) || username.includes(filter)) {
             card.style.display = 'flex';
         } else {
@@ -551,123 +929,13 @@ function filterRosterMembers() {
     });
 }
 
-/**
- * Handle team tab switching
- */
-document.addEventListener('DOMContentLoaded', function() {
-    // Tab switching
-    document.querySelectorAll('.team-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            const targetTab = this.getAttribute('data-team-tab');
-
-            document.querySelectorAll('.team-tab').forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-
-            document.querySelectorAll('.team-tab-panel').forEach(panel => panel.classList.remove('active'));
-            document.getElementById(`${targetTab}TabContent`)?.classList.add('active');
-
-            // Load schedule data when Schedule tab is clicked (handled here, but rest of schedule tab code is in scheduled-events.js).
-            if (targetTab === 'schedule' && currentSelectedTeamId) {
-                loadScheduleTab(currentSelectedTeamId);
-            }
-                //Load stats when Stats tab is clicked
-            if (targetTab === 'stats' && currentSelectedTeamId) {
-                const team = allTeamsData.find(t => t.TeamID === currentSelectedTeamId);
-                if (team && team.gameID) {
-                    loadStatsTab(currentSelectedTeamId, team.gameID);
-                }
-            }
-
-            // Load data for VODs when tab is clicked
-            if (targetTab === 'vods' && currentSelectedTeamId) {
-                loadTeamVods(currentSelectedTeamId);
-            }
-        });
-    });
-
-    // Load teams when Teams tab is clicked
-    const teamsTab = document.querySelector('[data-tab="teams"]');
-    if (teamsTab) {
-        teamsTab.addEventListener('click', loadTeams);
-    }
-});
-
-/**
- * Confirm and delete selected team
- */
-function confirmDeleteSelectedTeam() {
-    if (!currentSelectedTeamId) return;
-
-    const teamName = document.getElementById('teamDetailTitle').textContent;
-    if (confirm(`Are you sure you want to delete "${teamName}"?\n\nThis action cannot be undone.`)) {
-        deleteTeamNew(currentSelectedTeamId);
-    }
-}
-
-/**
- * Delete team
- */
-async function deleteTeamNew(teamId) {
-    try {
-        const response = await fetch('/delete-team', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ team_id: teamId })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            alert(data.message);
-            currentSelectedTeamId = null;
-            document.getElementById('teamsWelcomeState').style.display = 'flex';
-            document.getElementById('teamsDetailContent').style.display = 'none';
-            loadTeams();
-        } else {
-            alert(`Error: ${data.message}`);
-        }
-    } catch (error) {
-        console.error('Error deleting team:', error);
-        alert('Failed to delete team');
-    }
-}
-
-/**
- * Confirm and remove member
- */
-function confirmRemoveMemberNew(memberId, memberName) {
-    if (confirm(`Remove "${memberName}" from this team?`)) {
-        removeMemberNew(memberId, memberName);
-    }
-}
-
-/**
- * Remove member from current team
- */
-async function removeMemberNew(memberId, memberName) {
-    try {
-        const response = await fetch(`/api/teams/${currentSelectedTeamId}/remove-member`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ member_id: memberId })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            alert(`"${memberName}" removed successfully`);
-            selectTeam(currentSelectedTeamId);
-        } else {
-            alert(`Error: ${data.message}`);
-        }
-    } catch (error) {
-        console.error('Error removing member:', error);
-        alert('Failed to remove member');
-    }
-}
+// ============================================
+// TEAM MEMBER MANAGEMENT
+// ============================================
 
 /**
  * Open add team members modal
+ * Loads available members who can be added to the team
  */
 function openAddTeamMembersModal() {
     if (!currentSelectedTeamId) {
@@ -686,11 +954,13 @@ function openAddTeamMembersModal() {
     const empty = document.getElementById('noAvailableMembers');
     const teamName = document.getElementById('teamDetailTitle')?.textContent || 'Team';
 
+    // Update modal title with team name
     const teamNameElement = document.getElementById('addMembersTeamName');
     if (teamNameElement) {
         teamNameElement.textContent = teamName;
     }
 
+    // Show modal with loading state
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
 
@@ -698,6 +968,7 @@ function openAddTeamMembersModal() {
     if (list) list.style.display = 'none';
     if (empty) empty.style.display = 'none';
 
+    // Fetch available members
     fetch(`/api/teams/${currentSelectedTeamId}/available-members`)
         .then(response => response.json())
         .then(data => {
@@ -718,7 +989,10 @@ function openAddTeamMembersModal() {
 }
 
 /**
- * Display available members
+ * Display available members in add modal
+ * Creates selectable list with checkboxes
+ *
+ * @param {Array} members - Array of available member objects
  */
 function displayAvailableMembersNew(members) {
     const list = document.getElementById('availableMembersList');
@@ -727,6 +1001,8 @@ function displayAvailableMembersNew(members) {
     members.forEach(member => {
         const memberItem = document.createElement('div');
         memberItem.className = 'member-item';
+
+        // Add data attributes for search filtering
         memberItem.setAttribute('data-username', member.username.toLowerCase());
         memberItem.setAttribute('data-name', member.name.toLowerCase());
 
@@ -742,6 +1018,9 @@ function displayAvailableMembersNew(members) {
             }
         };
 
+        // ========================================
+        // BUILD PROFILE PICTURE/INITIALS
+        // ========================================
         let profilePicHTML;
         if (member.profile_picture) {
             profilePicHTML = `<img src="${member.profile_picture}" alt="${member.name}" class="member-avatar">`;
@@ -750,6 +1029,9 @@ function displayAvailableMembersNew(members) {
             profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
         }
 
+        // ========================================
+        // BUILD ROLE BADGES
+        // ========================================
         let badgesHTML = '';
         if (typeof buildUniversalRoleBadges === 'function') {
             badgesHTML = buildUniversalRoleBadges({
@@ -766,6 +1048,9 @@ function displayAvailableMembersNew(members) {
             });
         }
 
+        // ========================================
+        // ASSEMBLE MEMBER ITEM
+        // ========================================
         memberItem.innerHTML = `
             <input type="checkbox"
                    id="member_${member.id}"
@@ -785,6 +1070,7 @@ function displayAvailableMembersNew(members) {
 
 /**
  * Add selected members to team
+ * Submits selected member IDs to backend
  */
 async function addSelectedMembersToTeam() {
     const checkboxes = document.querySelectorAll('#availableMembersList input[type="checkbox"]:checked');
@@ -807,6 +1093,7 @@ async function addSelectedMembersToTeam() {
         if (data.success) {
             alert(data.message);
             closeAddTeamMembersModal();
+            // Reload team to show new members
             selectTeam(currentSelectedTeamId);
         } else {
             alert(`Error: ${data.message}`);
@@ -829,7 +1116,80 @@ function closeAddTeamMembersModal() {
 }
 
 /**
+ * Filter available members by search input
+ */
+function filterAvailableMembers() {
+    const searchInput = document.getElementById('addMemberSearch');
+    if (!searchInput) return;
+
+    const filter = searchInput.value.toLowerCase();
+    const memberItems = document.querySelectorAll('#availableMembersList .member-item');
+
+    memberItems.forEach(item => {
+        const username = item.getAttribute('data-username');
+        const name = item.getAttribute('data-name');
+
+        if (username.includes(filter) || name.includes(filter)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+/**
+ * Confirm and remove member from team
+ *
+ * @param {string} memberId - ID of member to remove
+ * @param {string} memberName - Name of member for confirmation
+ */
+function confirmRemoveMemberNew(memberId, memberName) {
+    if (confirm(`Remove "${memberName}" from this team?`)) {
+        removeMemberNew(memberId, memberName);
+    }
+}
+
+/**
+ * Remove member from current team
+ *
+ * @param {string} memberId - ID of member to remove
+ * @param {string} memberName - Name of member for success message
+ */
+async function removeMemberNew(memberId, memberName) {
+    try {
+        const response = await fetch(`/api/teams/${currentSelectedTeamId}/remove-member`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ member_id: memberId })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`"${memberName}" removed successfully`);
+            // Reload team to show updated roster
+            selectTeam(currentSelectedTeamId);
+        } else {
+            alert(`Error: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Error removing member:', error);
+        alert('Failed to remove member');
+    }
+}
+
+// ============================================
+// TEAM EDITING
+// ============================================
+
+/**
  * Open edit team modal
+ * Loads team details and available team sizes
+ *
+ * @param {string} teamId - ID of team to edit
+ * @param {string} teamName - Current team name
+ * @param {number} currentMaxSize - Current max team size
+ * @param {string} availableSizes - Comma-separated available sizes (fallback)
  */
 async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSizes) {
     const modal = document.getElementById('editTeamModal');
@@ -848,13 +1208,12 @@ async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSize
     document.getElementById('editTeamForm').reset();
     formMessage.style.display = 'none';
 
-    // Set values
+    // Set basic values
     modalTitle.textContent = teamName;
     teamIdField.value = teamId;
     teamTitleInput.value = teamName;
 
-    // Get available team sizes for this game
-    // We need to fetch the team details to get the game's available sizes
+    // Fetch team and game details to get available sizes
     try {
         const response = await fetch(`/api/teams/${teamId}/details`);
         const data = await response.json();
@@ -862,7 +1221,7 @@ async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSize
         if (data.success) {
             const team = data.team;
 
-            // Get game details to fetch available team sizes
+            // Get game details for available team sizes
             const gameResponse = await fetch(`/api/game/${team.game_id}/details`);
             const gameData = await gameResponse.json();
 
@@ -925,7 +1284,8 @@ function closeEditTeamModal() {
 }
 
 /**
- * Setup edit team form submission
+ * Setup edit team form submission handler
+ * Called on page load
  */
 function setupEditTeamForm() {
     const editTeamForm = document.getElementById('editTeamForm');
@@ -939,10 +1299,12 @@ function setupEditTeamForm() {
         const submitBtnSpinner = document.getElementById('updateTeamBtnSpinner');
         const formMessage = document.getElementById('editTeamFormMessage');
 
+        // Show loading state
         submitBtn.disabled = true;
         submitBtnText.style.display = 'none';
         submitBtnSpinner.style.display = 'inline-block';
 
+        // Get form values
         const teamId = document.getElementById('editTeamID').value;
         const teamTitle = document.getElementById('editTeamTitle').value;
 
@@ -999,34 +1361,121 @@ function setupEditTeamForm() {
     });
 }
 
-// Initialize edit form on DOM load
+// ============================================
+// TEAM DELETION
+// ============================================
+
+/**
+ * Confirm and delete selected team
+ */
+function confirmDeleteSelectedTeam() {
+    if (!currentSelectedTeamId) return;
+
+    const teamName = document.getElementById('teamDetailTitle').textContent;
+    if (confirm(`Are you sure you want to delete "${teamName}"?\n\nThis action cannot be undone.`)) {
+        deleteTeamNew(currentSelectedTeamId);
+    }
+}
+
+/**
+ * Delete team
+ *
+ * @param {string} teamId - ID of team to delete
+ */
+async function deleteTeamNew(teamId) {
+    try {
+        const response = await fetch('/delete-team', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ team_id: teamId })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message);
+            // Reset selection and show welcome state
+            currentSelectedTeamId = null;
+            document.getElementById('teamsWelcomeState').style.display = 'flex';
+            document.getElementById('teamsDetailContent').style.display = 'none';
+            // Reload teams list
+            loadTeams();
+        } else {
+            alert(`Error: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Error deleting team:', error);
+        alert('Failed to delete team');
+    }
+}
+
+// ============================================
+// TAB SWITCHING
+// ============================================
+
+/**
+ * Initialize tab switching and other event listeners
+ */
 document.addEventListener('DOMContentLoaded', function() {
+
+    // ========================================
+    // TAB SWITCHING
+    // ========================================
+    document.querySelectorAll('.team-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const targetTab = this.getAttribute('data-team-tab');
+
+            // Update active tab styling
+            document.querySelectorAll('.team-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            // Update active panel
+            document.querySelectorAll('.team-tab-panel').forEach(panel => panel.classList.remove('active'));
+            document.getElementById(`${targetTab}TabContent`)?.classList.add('active');
+
+            // Load tab-specific data when needed
+            if (targetTab === 'schedule' && currentSelectedTeamId) {
+                // Load schedule data (handled by scheduled-events.js)
+                loadScheduleTab(currentSelectedTeamId);
+            }
+
+            if (targetTab === 'stats' && currentSelectedTeamId) {
+                // Load stats data
+                const team = allTeamsData.find(t => t.TeamID === currentSelectedTeamId);
+                if (team && team.gameID) {
+                    loadStatsTab(currentSelectedTeamId, team.gameID);
+                }
+            }
+
+            if (targetTab === 'vods' && currentSelectedTeamId) {
+                // Load VODs data
+                loadTeamVods(currentSelectedTeamId);
+            }
+        });
+    });
+
+    // ========================================
+    // TEAMS TAB CLICK
+    // ========================================
+    // Load teams when Teams tab is clicked in main navigation
+    const teamsTab = document.querySelector('[data-tab="teams"]');
+    if (teamsTab) {
+        teamsTab.addEventListener('click', loadTeams);
+    }
+
+    // ========================================
+    // SETUP EDIT FORM
+    // ========================================
     setupEditTeamForm();
 });
 
+// ============================================
+// EXPORT FUNCTIONS TO GLOBAL SCOPE
+// ============================================
+
 /**
- * Filter available members
+ * Export all functions for use by other modules and HTML onclick handlers
  */
-function filterAvailableMembers() {
-    const searchInput = document.getElementById('addMemberSearch');
-    if (!searchInput) return;
-
-    const filter = searchInput.value.toLowerCase();
-    const memberItems = document.querySelectorAll('#availableMembersList .member-item');
-
-    memberItems.forEach(item => {
-        const username = item.getAttribute('data-username');
-        const name = item.getAttribute('data-name');
-
-        if (username.includes(filter) || name.includes(filter)) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
-        }
-    });
-}
-
-// Export functions to window object
 window.loadTeams = loadTeams;
 window.selectTeam = selectTeam;
 window.filterRosterMembers = filterRosterMembers;
@@ -1039,3 +1488,4 @@ window.filterAvailableMembers = filterAvailableMembers;
 window.loadNextScheduledEvent = loadNextScheduledEvent;
 window.openEditTeamModal = openEditTeamModal;
 window.closeEditTeamModal = closeEditTeamModal;
+window.toggleGameCollapse = toggleGameCollapse;

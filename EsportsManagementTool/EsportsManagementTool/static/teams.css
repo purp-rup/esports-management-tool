@@ -733,7 +733,7 @@
    Modal for adding members to team
    -------------------------------------------- */
 #addTeamMembersModal .modal-content {
-    max-width: 700px;
+    max-width: 600px;
 }
 
 #addTeamMembersModal .modal-body {
@@ -941,6 +941,209 @@
     EDIT BUTTON
     Edit button and edit team modal
     ------------------------------------------- */
+
+/* --------------------------------------------
+   GAME GROUPING & COLLAPSIBLE FOLDERS
+   For "All Teams" view organization
+   -------------------------------------------- */
+
+/* Game group container */
+.game-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+/* Collapse/expand button on first team card */
+.team-collapse-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: transparent;
+    border: 2px solid var(--border-color);
+    color: var(--text-secondary);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+    padding: 0;
+}
+
+.team-collapse-btn:hover {
+    background: rgba(121, 189, 233, 0.15);
+    border-color: var(--stockton-blue);
+    color: var(--stockton-blue);
+    transform: scale(1.05);
+}
+
+.team-collapse-btn:active {
+    transform: scale(0.95);
+}
+
+.team-collapse-btn i {
+    font-size: 0.75rem;
+    pointer-events: none;
+}
+
+/* Collapsed game folder */
+.game-folder-collapsed {
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    position: relative;
+    min-width: 0;
+}
+
+.game-folder-collapsed:hover {
+    background: var(--hover-bg);
+    border-color: var(--stockton-blue);
+    transform: translateX(4px);
+}
+
+.game-folder-collapsed.active {
+    background: rgba(121, 189, 233, 0.1);
+    border-color: var(--stockton-blue);
+    border-left-width: 4px;
+}
+
+.game-folder-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.game-folder-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1rem;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Ensure fallback icon is centered */
+.game-folder-icon > div {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    border-radius: 8px;
+}
+
+.game-folder-details {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.game-folder-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.game-folder-count {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.125rem;
+    white-space: nowrap;
+}
+
+.game-folder-expand-btn {
+    background: transparent;
+    border: 2px solid var(--border-color);
+    color: var(--text-secondary);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    margin-left: 0;
+}
+
+.game-folder-expand-btn:hover {
+    background: rgba(121, 189, 233, 0.15);
+    border-color: var(--stockton-blue);
+    color: var(--stockton-blue);
+}
+
+.game-folder-expand-btn i {
+    font-size: 0.75rem;
+}
+
+/* Hide game groups when not in "all" view */
+.teams-sidebar:not([data-view="all"]) .game-group {
+    display: contents;
+}
+
+.teams-sidebar:not([data-view="all"]) .team-collapse-btn {
+    display: none;
+}
+
+/* Animation for collapsing/expanding */
+.game-group-collapsing {
+    animation: collapseOut 0.3s ease-out forwards;
+}
+
+.game-group-expanding {
+    animation: expandIn 0.3s ease-out forwards;
+}
+
+@keyframes collapseOut {
+    from {
+        opacity: 1;
+        max-height: 1000px;
+    }
+    to {
+        opacity: 0;
+        max-height: 0;
+        margin: 0;
+        overflow: hidden;
+    }
+}
+
+@keyframes expandIn {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 1000px;
+    }
+}
 
 /* --------------------------------------------
    ANIMATIONS
