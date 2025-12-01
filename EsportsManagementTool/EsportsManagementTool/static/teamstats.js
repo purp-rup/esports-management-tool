@@ -239,7 +239,9 @@ function renderMatchHistory() {
         const resultText = match.result ? match.result.toUpperCase() : 'PENDING';
 
         html += `
-            <div class="match-history-item">
+            <div class="match-history-item" 
+                 onclick="openMatchDetailsModal(${match.event_id})"
+                 style="cursor: pointer;">
                 <div class="match-date">
                     <i class="fas fa-calendar"></i>
                     ${match.date}
@@ -260,7 +262,7 @@ function renderMatchHistory() {
                 </div>
 
                 ${isGameManager ? `
-                    <div class="match-actions">
+                    <div class="match-actions" onclick="event.stopPropagation()">
                         <button class="btn-icon"
                                 onclick="editMatchResult(${match.event_id})"
                                 title="Edit result">
@@ -616,6 +618,204 @@ function resetSubmitButton(btn, textSpan, spinner) {
     if (textSpan) textSpan.style.display = 'inline';
     if (spinner) spinner.style.display = 'none';
 }
+/**
+ * Open match details modal
+ * Shows full information about a specific match
+ * 
+ * @param {number} eventId - ID of the match event to display
+ */
+async function openMatchDetailsModal(eventId) {
+    const modal = document.getElementById('matchDetailsModal');
+    if (!modal) {
+        console.error('Match details modal not found');
+        return;
+    }
+
+    const loadingDiv = document.getElementById('matchDetailsLoading');
+    const contentDiv = document.getElementById('matchDetailsContent');
+    const editBtn = document.getElementById('editMatchDetailsBtn');
+
+    // Show modal with loading state
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    loadingDiv.style.display = 'block';
+    contentDiv.style.display = 'none';
+
+    try {
+        // Find match in current data
+        const match = matchEvents.find(m => m.event_id === eventId);
+        
+        if (!match) {
+            throw new Error('Match not found');
+        }
+
+        // Format date nicely
+        const matchDate = new Date(match.date + 'T00:00:00');
+        const formattedDate = matchDate.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        });
+
+        // Format time
+        let timeDisplay = 'Time not set';
+        if (match.start_time) {
+            timeDisplay = match.start_time;
+        }
+
+        // Determine result display
+        let resultHTML = '';
+        if (match.result) {
+            const resultClass = match.result.toLowerCase();
+            const resultIcon = match.result === 'win' ? 'fa-trophy' : 'fa-times-circle';
+            resultHTML = `
+                <span class="match-detail-result ${resultClass}">
+                    <i class="fas ${resultIcon}"></i>
+                    ${match.result.toUpperCase()}
+                </span>
+            `;
+        } else {
+            resultHTML = `
+                <span class="match-detail-result pending">
+                    <i class="fas fa-clock"></i>
+                    PENDING
+                </span>
+            `;
+        }
+
+        // Build metadata section
+        let metadataHTML = '';
+        if (match.result && match.recorded_by) {
+            metadataHTML = `
+                <div class="match-detail-section full-width">
+                    <div class="match-detail-label">
+                        <i class="fas fa-info-circle"></i>
+                        Recording Information
+                    </div>
+                    <div class="match-detail-metadata">
+                        <div class="match-detail-metadata-item">
+                            <i class="fas fa-user"></i>
+                            <span>Recorded by ${match.recorded_by}</span>
+                        </div>
+                        <div class="match-detail-metadata-item">
+                            <i class="fas fa-clock"></i>
+                            <span>Recorded on ${new Date(match.recorded_at).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Build notes section
+        let notesHTML = '';
+        if (match.notes && match.notes.trim()) {
+            notesHTML = `
+                <div class="match-detail-section full-width">
+                    <div class="match-detail-label">
+                        <i class="fas fa-sticky-note"></i>
+                        Notes
+                    </div>
+                    <div class="match-detail-notes">
+                        ${match.notes}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update modal title
+        document.getElementById('matchDetailsTitle').textContent = match.name;
+
+        // Populate content
+        contentDiv.innerHTML = `
+            <div class="match-details-grid">
+                <div class="match-detail-section">
+                    <div class="match-detail-label">
+                        <i class="fas fa-calendar-day"></i>
+                        Date
+                    </div>
+                    <div class="match-detail-value">${formattedDate}</div>
+                </div>
+
+                <div class="match-detail-section">
+                    <div class="match-detail-label">
+                        <i class="fas fa-clock"></i>
+                        Time
+                    </div>
+                    <div class="match-detail-value">${timeDisplay}</div>
+                </div>
+
+                <div class="match-detail-section">
+                    <div class="match-detail-label">
+                        <i class="fas fa-map-marker-alt"></i>
+                        Location
+                    </div>
+                    <div class="match-detail-value">${match.location || 'Not specified'}</div>
+                </div>
+
+                <div class="match-detail-section">
+                    <div class="match-detail-label">
+                        <i class="fas fa-flag-checkered"></i>
+                        Result
+                    </div>
+                    <div class="match-detail-value">
+                        ${resultHTML}
+                    </div>
+                </div>
+
+                ${notesHTML}
+                ${metadataHTML}
+            </div>
+        `;
+
+        // Show/hide edit button based on permissions
+        const currentTeam = allTeamsData.find(t => t.TeamID === currentStatsTeamId);
+        const isGameManager = currentTeam && currentTeam.gm_id === window.currentUserId;
+        
+        if (editBtn && isGameManager && match.result) {
+            editBtn.style.display = 'flex';
+            editBtn.onclick = () => {
+                closeMatchDetailsModal();
+                editMatchResult(eventId);
+            };
+        } else if (editBtn) {
+            editBtn.style.display = 'none';
+        }
+
+        // Hide loading, show content
+        loadingDiv.style.display = 'none';
+        contentDiv.style.display = 'block';
+
+    } catch (error) {
+        console.error('Error loading match details:', error);
+        contentDiv.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                <i class="fas fa-exclamation-circle" style="font-size: 3rem; margin-bottom: 1rem; color: #ff5252;"></i>
+                <p>Failed to load match details</p>
+                <small>${error.message}</small>
+            </div>
+        `;
+        loadingDiv.style.display = 'none';
+        contentDiv.style.display = 'block';
+    }
+}
+
+/**
+ * Close match details modal
+ */
+function closeMatchDetailsModal() {
+    const modal = document.getElementById('matchDetailsModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
 
 // ============================================
 // EXPORT FUNCTIONS TO GLOBAL SCOPE
@@ -630,3 +830,4 @@ window.closeRecordResultModal = closeRecordResultModal;
 window.handleResultSelection = handleResultSelection;
 window.submitMatchResult = submitMatchResult;
 window.editMatchResult = editMatchResult;
+
