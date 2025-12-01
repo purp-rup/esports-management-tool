@@ -154,6 +154,7 @@ function playVideo(vod) {
     const modal = document.getElementById('vodPlayerModal');
     const title = document.getElementById('vodPlayerTitle');
     const meta = document.getElementById('vodPlayerMeta');
+    const playerContainer = document.getElementById('vodPlayerFrame');
 
     window.currentVod = vod;
 
@@ -171,15 +172,19 @@ function playVideo(vod) {
     }
 
     if (player) {
-        player.loadVideoById(vod.youtube_video_id);
-    } else {
-        player = new YT.Player('vodPlayerFrame', {
-            videoId: vod.youtube_video_id,
-            playerVars: {
-                autoplay: 1
-            }
-        });
+        player.destroy();
+        player = null;
     }
+
+    playerContainer.innerHTML = '';
+
+    player = new YT.Player('vodPlayerFrame', {
+        videoId: vod.youtube_video_id,
+        playerVars: {
+            autplay: 1
+        }
+    });
+
     loadVodComments(vod.id);
 }
 
