@@ -1802,7 +1802,6 @@
         </div>
         <div class="modal-body">
             <p class="modal-subtitle">Record the outcome of a past match</p>
-
             <form id="recordMatchResultForm" class="event-form-modal" onsubmit="submitMatchResult(event)">
                 <!-- Match Selection -->
                 <div class="form-group">
@@ -1861,6 +1860,36 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Match Details Modal -->
+<div id="matchDetailsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="matchDetailsTitle">Match Details</h2>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button id="editMatchDetailsBtn"
+                        class="btn-icon-action btn-icon-edit"
+                        style="display: none;"
+                        title="Edit Result">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="modal-close" onclick="closeMatchDetailsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div id="matchDetailsLoading" class="loading-spinner" style="text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading match details...</p>
+            </div>
+
+            <div id="matchDetailsContent" style="display: none;">
+                <!-- Match details will be populated here -->
+            </div>
         </div>
     </div>
 </div>
