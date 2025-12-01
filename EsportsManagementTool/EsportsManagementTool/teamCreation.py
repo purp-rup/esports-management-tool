@@ -655,6 +655,22 @@ def team_details(team_id):
             team_max = team['teamMaxSize']
             game_id = team['gameID']
 
+            # Checking if a user can manage given team
+            user_id = session.get('id')
+            cursor.execute('''
+                SELECT p.is_admin, g.gm_id
+                FROM permissions p
+                LEFT JOIN games g on g.GameID = %s
+                WHERE p.userid = %s
+                ''', (game_id, user_id))
+
+            perm_check = cursor.fetchone()
+            can_manage = False
+            if perm_check:
+                is_admin = perm_check['is_admin']
+                is_game_gm = (perm_check['gm_id'] == user_id)
+                can_manage = (is_admin or is_game_gm)
+
             try:
                 cursor.execute(f"SELECT 1 FROM team_members WHERE user_id = %s AND team_id = %s",
                                (session['id'], team_id))
@@ -731,7 +747,8 @@ def team_details(team_id):
                                      'is_member': is_member,
                                      'game_id': game_id,  # FIX: Include game_id in response
                                      'game_title': game_title,
-                                     'game_icon_url': game_icon_url}}), 200
+                                     'game_icon_url': game_icon_url,
+                                     'can_manage': can_manage}}), 200
         finally:
             cursor.close()
 

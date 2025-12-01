@@ -33,8 +33,33 @@ def get_team_vods(team_id):
 
 @app.route('/api/vods/team/<string:team_id>/add', methods=['POST'])
 @login_required
-@roles_required('admin', 'gm')
 def add_team_vod(team_id):
+    # Checking permissions to upload beforehand
+    user_id = session.get('id')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Check if the user is admin or the GM for the specific game
+    cursor.execute('''
+        SELECT p.is_admin, g.gm_id
+        FROM permissions p
+        LEFT JOIN teams t on t.teamID = %s
+        LEFT JOIN games g on t.gameID = g.gameID
+        WHERE p.userid = %s
+        ''', (team_id, user_id))
+
+    user_data = cursor.fetchone()
+
+    if not user_data:
+        cursor.close()
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    is_admin = user_data['is_admin']
+    is_team_gm = (user_data['gm_id'] == user_id)
+
+    if not (is_admin or is_team_gm):
+        cursor.close()
+        return jsonify({'error': 'Only admins or the Game Manager can add VODs!'}), 403
+
     # Adding a VOD to a team
     data = request.get_json()
     youtube_video_id = data.get('youtube_video_id')
@@ -42,7 +67,7 @@ def add_team_vod(team_id):
     if not youtube_video_id:
         return jsonify({'error': 'YouTube video ID required!'}), 400
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
     cursor.execute('''
                    SELECT id
                    FROM team_vods
@@ -98,8 +123,32 @@ def add_team_vod(team_id):
 @login_required
 @roles_required('admin', 'gm')
 def delete_vod(vod_id):
+    user_id = session.get('id')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    cursor.execute('''
+        SELECT p.is_admin, g.gm_id
+        FROM team_vods v
+        JOIN teams t on v.teamID = t.teamID
+        JOIN games g on t.gameID = g.gameID
+        LEFT JOIN permissions p on p.userid = %s
+        WHERE v.id = %s
+        ''', (user_id, vod_id))
+
+    result = cursor.fetchone()
+
+    if not result:
+        cursor.close()
+        return jsonify({'error': 'VOD not found'}), 404
+
+    is_admin = result['is_admin']
+    is_game_gm = (result['gm_id'] == user_id)
+
+    if not (is_admin or is_game_gm):
+        cursor.close()
+        return jsonify({'error': 'Only admins or the game manager can delete VODs!'}), 403
+
     # Deleting a VOD
-    cursor = mysql.connection.cursor()
     cursor.execute('DELETE FROM team_vods WHERE id = %s', (vod_id,))
     mysql.connection.commit()
     cursor.close()
@@ -140,3 +189,128 @@ def search_videos(query):
     )
     response = request.execute()
     return jsonify(response)
+
+
+#----------------------------------------
+# VOD COMMENTS SECTION - ADDENDED TO VODS
+#----------------------------------------
+
+@app.route('/api/vods/<int:vod_id>/comments')
+@login_required
+def get_vod_comments(vod_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    cursor.execute('''
+        SELECT c.*, u.username, u.firstname, u.lastname, u.profile_picture
+        FROM vod_comments c
+        JOIN users u on c.user_id = u.id
+        WHERE c.vod_id = %s
+        ORDER BY c.created_at ASC
+        ''', (vod_id,))
+
+    comments = cursor.fetchall()
+    cursor.close()
+
+    for comment in comments:
+        if comment.get('created_at'):
+            comment['created_at'] = localize_datetime(comment['created_at']).isoformat()
+
+    return jsonify({'success': True, 'comments': comments})
+
+@app.route('/api/vods/<int:vod_id>/comments', methods=['POST'])
+@login_required
+def add_vod_comment(vod_id):
+    user_id = session.get('id')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Check if the user is the GM for specified game
+    cursor.execute('''
+        SELECT p.is_admin, g.gm_id
+        FROM team_vods v
+        JOIN teams t on v.teamID = t.teamID
+        JOIN games g ON t.gameID = g.GameID
+        LEFT JOIN permissions p on p.userid = %s
+        WHERE v.id = %s
+        ''', (user_id, vod_id))
+
+    result = cursor.fetchone()
+
+    if not result:
+        cursor.close()
+        return jsonify({'error': 'VOD not found!'}), 404
+
+    is_admin = result['is_admin']
+    is_game_gm = (result['gm_id'] == user_id)
+
+    if not (is_admin or is_game_gm):
+        cursor.close()
+        return jsonify({'error': 'Only admins or the game manager can leave comments!'}), 403
+
+    # Get comment data
+    data = request.get_json()
+    comment_text = data.get('comment_text', '').strip()
+    timestamp_seconds = data.get('timestamp_seconds')
+
+    if not comment_text:
+        cursor.close()
+        return jsonify({'error': 'Comment text required!'}), 400
+
+    # Inserting comment
+    cursor.execute('''
+        INSERT INTO vod_comments
+        (vod_id, user_id, comment_text, timestamp_seconds, created_at)
+        VALUES (%s, %s, %s, %s, %s)
+        ''', (vod_id, user_id, comment_text, timestamp_seconds, get_current_time()))
+
+    mysql.connection.commit()
+    comment_id = cursor.lastrowid
+    cursor.close()
+
+    return jsonify({'success': True, 'comment_id': comment_id}), 201
+
+
+@app.route('/api/vods/comments/<int:comment_id>', methods=['DELETE'])
+@login_required
+def delete_vod_comment(comment_id):
+    user_id = session.get('id')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Check permissions
+    cursor.execute('''
+        SELECT c.user_id, p.is_admin, g.gm_id
+        FROM vod_comments c
+        JOIN team_vods v ON c.vod_id = v.id
+        JOIN teams t ON v.teamID = t.TeamID
+        JOIN games g ON t.gameID = g.GameID
+        LEFT JOIN permissions p on p.userid = %s
+        WHERE c.id = %s
+        ''', (user_id, comment_id))
+
+    result = cursor.fetchone()
+
+    if not result:
+        cursor.close()
+        return jsonify({'error': 'Comment not found!'}), 404
+
+    is_admin = result['is_admin']
+    is_game_gm = (result['gm_id'] == user_id)
+    is_own_comment = (result['user_id'] == user_id)
+
+    if not (is_admin or is_game_gm or is_own_comment):
+        cursor.close()
+        return jsonify({'error': 'Permission denied!'}), 403
+
+    cursor.execute('DELETE FROM vod_comments WHERE id = %s', (comment_id,))
+    mysql.connection.commit()
+    cursor.close()
+
+    return jsonify({'success': True})
+
+
+
+
+
+
+
+
+
