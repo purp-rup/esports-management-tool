@@ -634,6 +634,12 @@ async function loadTeamDetails(teamId) {
             const team = data.team;
 
             // ========================================
+            // STORE CAN_MANAGE GLOBALLY FOR VODS
+            // ========================================
+            window.currentTeamCanManage = team.can_manage;
+
+
+            // ========================================
             // SHOW/HIDE ADD VOD BUTTON BASED ON PERMS
             // ========================================
             const addVodBtn = document.querySelector('.btn[onclick="showAddVodModal()"]');

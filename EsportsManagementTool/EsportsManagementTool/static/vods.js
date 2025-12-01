@@ -108,8 +108,7 @@ function createVodElement(vod) {
     vodItem.className = 'vod-item';
 
     // Check if user has permission to delete VODs (admin or GM)
-    const canDelete = window.userPermissions &&
-                     (window.userPermissions.is_admin || window.userPermissions.is_gm);
+    const canDelete = window.currentTeamCanManage || false;
 
     // Build VOD card HTML with conditional delete button
     vodItem.innerHTML = `
@@ -165,7 +164,7 @@ function playVideo(vod) {
     document.body.style.overflow = 'hidden';
 
     const commentForm = document.getElementById('vodCommentForm');
-    if (commentForm && (window.userPermissions?.is_admin || window.userPermissions?.is_gm)) {
+    if (commentForm && window.currentTeamCanManage) {
         commentForm.style.display = 'block';
     } else if (commentForm) {
         commentForm.style.display = 'none';
