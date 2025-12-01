@@ -1125,9 +1125,6 @@
                         <button class="team-tab" data-team-tab="vods">
                             <i class="fas fa-video"></i> VODs
                         </button>
-                        <button class="team-tab" data-team-tab="comments">
-                            <i class="fas fa-comments"></i> Comments
-                        </button>
                     </div>
 
                     <!-- Tab Content -->
@@ -1186,14 +1183,6 @@
                             </div>
                         </div>
 
-                        <!-- Comments Tab -->
-                        <div id="commentsTabContent" class="team-tab-panel">
-                            <div class="tab-coming-soon">
-                                <i class="fas fa-comments"></i>
-                                <h3>Comments Coming Soon</h3>
-                                <p>Team discussion and announcements will be available here</p>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </main>
@@ -2003,17 +1992,34 @@
         </div>
         <div class="modal-body">
             <div class="vod-player-container">
-                <iframe id="vodPlayerFrame"
-                        width="100%"
-                        height="500"
-                        src=""
-                        frameborder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowfullscreen>
-                </iframe>
+                <div id="vodPlayerFrame"></div>
                 <div id="vodPlayerInfo">
                     <p id="vodPlayerMeta"></p>
                 </div>
+            </div>
+
+            <!-- Comments Section -->
+            <div class="vod-comments-section">
+                <h3>Feedback</h3>
+
+                <!-- Add Comments Form -->
+                <div id="vodCommentForm" style="display: none;">
+                    <textarea id="commentText" placeholder="Add feedback..."></textarea>
+                    <div class="comment-actions">
+                        <button onclick="addTimestampToComment()" class="btn btn-secondary">
+                            <i class="fas fa-clock"></i> Add Timestamp
+                        </button>
+                        <button onclick="submitVodComment()" class="btn btn-primary">
+                            Post Comment
+                        </button>
+                    </div>
+                    <div id="currentTimestamp" style="display: none; margin-top: 0.5rem; color: var(--stockton-blue);">
+                        <i class="fas fa-video"></i> <span id="timestampDisplay"></span>
+                    </div>
+                </div>
+
+                <!-- Comments List -->
+                <div id="vodCommentsList"></div>
             </div>
         </div>
     </div>

@@ -9,6 +9,20 @@
  * - YouTube video ID extraction from URLs
  * ============================================================================
  */
+// ============================================
+// YOUTUBE IFRAME API INITIALIZATION
+// ============================================
+
+// Load YouTube IFrame API
+var tag = document.createElement('script');
+tag.src = "https://www.youtube.com/iframe_api";
+var firstScriptTag = document.getElementsByTagName('script')[0];
+firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+var player;
+
+function onYouTubeIframeAPIReady() {}
+
 
 // ============================================
 // GLOBAL STATE
@@ -20,6 +34,7 @@
  * @type {number|null}
  */
 let currentTeamIdForVods = null;
+let currentCommentTimestamp = null;
 
 // ============================================
 // VOD LOADING & DISPLAY
@@ -137,16 +152,35 @@ function createVodElement(vod) {
 function playVideo(vod) {
     // Update iframe source with YouTube embed URL
     const modal = document.getElementById('vodPlayerModal');
-    const player = document.getElementById('vodPlayerFrame');
     const title = document.getElementById('vodPlayerTitle');
-    const meta = document.getElementById('vodPlayerMeta')
+    const meta = document.getElementById('vodPlayerMeta');
 
-    player.src = `https://www.youtube.com/embed/${vod.youtube_video_id}`;
+    window.currentVod = vod;
+
     title.textContent = vod.title;
     meta.textContent = `${vod.opponent ? 'vs ' + vod.opponent : ''} * ${new Date(vod.match_date || vod.published_at).toLocaleDateString()}`;
 
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
+
+    const commentForm = document.getElementById('vodCommentForm');
+    if (commentForm && (window.userPermissions?.is_admin || window.userPermissions?.is_gm)) {
+        commentForm.style.display = 'block';
+    } else if (commentForm) {
+        commentForm.style.display = 'none';
+    }
+
+    if (player) {
+        player.loadVideoById(vod.youtube_video_id);
+    } else {
+        player = new YT.Player('vodPlayerFrame', {
+            videoId: vod.youtube_video_id,
+            playerVars: {
+                autoplay: 1
+            }
+        });
+    }
+    loadVodComments(vod.id);
 }
 
 function closeVodPlayerModal() {
@@ -372,6 +406,130 @@ function deleteVod(vodId, event) {
             alert('Error deleting VOD. Please try again.');
         });
 }
+
+// ============================================
+// ADD TIMESTAMP TO COMMENTS
+// ===========================================
+function addTimestampToComment() {
+    if (player && player.getCurrentTime) {
+        const seconds = Math.floor(player.getCurrentTime());
+        currentCommentTimestamp = seconds;
+
+        // Format timestamp
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        const formatted = `${minutes}:${secs.toString().padStart(2, '0')}`;
+
+        document.getElementById('currentTimestamp').style.display = 'block';
+        document.getElementById('timestampDisplay').textContent = formatted;
+    }
+}
+
+// ============================================
+// SUBMIT VOD COMMENTS WITH TIMESTAMP
+// ============================================
+function submitVodComment() {
+    const commentText = document.getElementById('commentText').value.trim();
+
+    if (!commentText) {
+        alert('Please enter a comment!');
+        return;
+    }
+
+    const data = {
+        comment_text: commentText,
+        timestamp_seconds: currentCommentTimestamp
+    };
+
+    fetch(`/api/vods/${window.currentVod.id}/comments`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                document.getElementById('commentText').value = '';
+                currentCommentTimestamp = null;
+                document.getElementById('currentTimestamp').style.display = 'none';
+
+                loadVodComments(window.currentVod.id);
+            } else {
+                alert(result.error || 'Failed to post comment!');
+            }
+        })
+        .catch(error => {
+            console.error('Error posting comment:', error);
+            alert('Error posting comment!')
+        });
+}
+
+// ============================================
+// LOAD AND DISPLAY COMMENTS
+// ============================================
+function loadVodComments(vodId) {
+    fetch(`/api/vods/${vodId}/comments`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayVodComments(data.comments);
+            }
+        });
+}
+
+function displayVodComments(comments) {
+    const commentsList = document.getElementById('vodCommentsList');
+
+    if (comments.length === 0) {
+        commentsList.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No feedback yet.</p>';
+        return;
+    }
+
+    commentsList.innerHTML = '';
+
+    comments.forEach(comment => {
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'vod-comment';
+
+        let timestampHTML = '';
+        if (comment.timestamp_seconds !== null) {
+            const minutes = Math.floor(comment.timestamp_seconds / 60);
+            const secs = comment.timestamp_seconds % 60;
+            const formatted = `${minutes}:${secs.toString().padStart(2, '0')}`;
+
+            timestampHTML = `
+                <button class="comment-timestamp" onclick="seekToTimestamp(${comment.timestamp_seconds})">
+                    <i class="fas fa-play-circle"></i> ${formatted}
+                </button>
+            `;
+        }
+
+        const profilePic = comment.profile_picture
+            ? `<img src="/static/uploads/avatars/${comment.profile_picture}" alt="${comment.firstname}">`
+            : `<div class="comment-avatar-initials">${comment.firstname[0]}${comment.lastname[0]}</div>`;
+
+        commentDiv.innerHTML = `
+            <div class="comment-header">
+                ${profilePic}
+                <div>
+                    <strong>${comment.firstname} ${comment.lastname}</strong>
+                    <small>${new Date(comment.created_at).toLocaleDateString()}</small>
+                </div>
+            </div>
+            ${timestampHTML}
+            <p>${comment.comment_text}</p>
+        `;
+
+        commentsList.appendChild(commentDiv);
+    });
+}
+
+function seekToTimestamp(seconds) {
+    if (player && player.seekTo) {
+        player.seekTo(seconds, true);
+    }
+}
+
 
 // ============================================
 // EXPORT FUNCTIONS TO GLOBAL SCOPE
