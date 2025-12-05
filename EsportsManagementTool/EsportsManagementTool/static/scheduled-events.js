@@ -1,237 +1,86 @@
 /**
- * Simple Scheduled Events - Fixed Version
+ * ============================================
+ * SCHEDULED-EVENTS.JS
+ * ORGANIZED BY CLAUDEAI
+ * ============================================
+ *
+ * Manages recurring scheduled events for teams
+ * Features:
+ * - Create recurring events (Weekly, Biweekly, Monthly, Once)
+ * - View and manage team schedules
+ * - Edit existing schedules
+ * - Delete schedules with cascading event deletion
+ * - Permission-based visibility (Team, Game Players, Game Community)
  */
 
+// ============================================
+// GLOBAL STATE MANAGEMENT
+// ============================================
+
+/**
+ * Global state for scheduled events module
+ * Tracks current context and loaded data
+ */
+const ScheduleState = {
+    /** Currently selected team ID */
+    currentTeamId: null,
+
+    /** Currently selected game ID */
+    currentGameId: null,
+
+    /** Loaded schedules for current team */
+    currentSchedules: [],
+
+    /**
+     * Reset state to defaults
+     */
+    reset() {
+        this.currentTeamId = null;
+        this.currentGameId = null;
+        this.currentSchedules = [];
+    },
+
+    /**
+     * Set current context
+     * @param {number} teamId - Team ID
+     * @param {number} gameId - Game ID
+     */
+    setContext(teamId, gameId) {
+        this.currentTeamId = teamId;
+        this.currentGameId = gameId;
+    },
+
+    /**
+     * Find schedule by ID
+     * @param {number} scheduleId - Schedule ID to find
+     * @returns {Object|null} Schedule object or null if not found
+     */
+    findSchedule(scheduleId) {
+        return this.currentSchedules.find(s => s.schedule_id === scheduleId) || null;
+    }
+};
+
+// Legacy global variables for backwards compatibility
 let currentScheduleTeamId = null;
 let currentScheduleGameId = null;
 let currentSchedules = [];
 
-/**
- * Initialize scheduled events button visibility when team is selected
- */
-async function initScheduleButton(teamId, gameId) {
-    console.log('initScheduleButton called:', { teamId, gameId });
-
-    currentScheduleTeamId = teamId;
-    currentScheduleGameId = gameId;
-
-    const createScheduleBtn = document.getElementById('createScheduleBtn');
-    if (!createScheduleBtn) {
-        console.log('createScheduleBtn element not found');
-        return;
-    }
-
-    const isGM = window.userPermissions?.is_gm || false;
-    console.log('User is GM:', isGM);
-
-    if (isGM && gameId) {
-        // Check if GM manages THIS specific game
-        try {
-            // Get the current user's ID from window object
-            const userId = window.currentUserId;
-            console.log('Current user ID:', userId);
-
-            // Fixed: Use actual user ID instead of placeholder
-            const response = await fetch(`/api/user/${userId}/managed-game`);
-            const data = await response.json();
-            console.log('API response:', data);
-
-            // Check if the user manages a game AND if it matches the current game
-            if (data.success && data.manages_game && data.game_id === gameId) {
-                console.log('✓ User manages this game - showing button');
-                createScheduleBtn.style.display = 'flex';
-            } else {
-                console.log('✗ User does not manage this game or game ID mismatch');
-                console.log('  Managed game ID:', data.game_id, 'Current game ID:', gameId);
-                createScheduleBtn.style.display = 'none';
-            }
-        } catch (error) {
-            console.error('Error checking GM status:', error);
-            createScheduleBtn.style.display = 'none';
-        }
-    } else {
-        console.log('User is not a GM or no gameId provided');
-        createScheduleBtn.style.display = 'none';
-    }
-}
+// ============================================
+// INITIALIZATION & SETUP
+// ============================================
 
 /**
- * Open the scheduled event modal
+ * Initialize DOM event listeners when page loads
+ * Attaches form submission and dropdown change handlers
  */
-function openCreateScheduledEventModal() {
-    if (!currentScheduleTeamId) {
-        alert('Please select a team first');
-        return;
-    }
-
-    const modal = document.getElementById('createScheduledEventModal');
-    if (!modal) {
-        console.error('Scheduled event modal not found');
-        return;
-    }
-
-    // Reset form
-    const form = document.getElementById('createScheduledEventForm');
-    if (form) {
-        form.reset();
-    }
-
-    // Clear any previous messages
-    const messageDiv = document.getElementById('scheduledEventMessage');
-    if (messageDiv) {
-        messageDiv.style.display = 'none';
-    }
-
-    // Update visibility labels before showing modal
-    updateVisibilityLabels(currentScheduleTeamId, currentScheduleGameId);
-
-    // Show modal
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-}
-
-/**
- * Close create scheduled event modal
- */
-function closeCreateScheduledEventModal() {
-    const modal = document.getElementById('createScheduledEventModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-}
-
-// Attach event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('createScheduledEventForm');
-    if (form) {
-        form.addEventListener('submit', handleScheduledEventSubmit);
-    }
-});
-
-/**
- * Handle frequency change - show/hide date vs day of week
- */
-function handleFrequencyChange() {
-    const frequency = document.getElementById('scheduledFrequency').value;
-    const dayOfWeekGroup = document.getElementById('scheduledDayOfWeekGroup');
-    const specificDateGroup = document.getElementById('scheduledSpecificDateGroup');
-    const dayOfWeekSelect = document.getElementById('scheduledDayOfWeek');
-    const specificDateInput = document.getElementById('scheduledSpecificDate');
-    const endDateGroup = document.querySelector('label[for="scheduledEndDate"]').parentElement;
-    const endDateInput = document.getElementById('scheduledEndDate'); // ADD THIS
-
-    if (frequency === 'Once') {
-        // Hide day of week, show specific date
-        dayOfWeekGroup.style.display = 'none';
-        specificDateGroup.style.display = 'block';
-
-        // Update required attributes
-        dayOfWeekSelect.removeAttribute('required');
-        specificDateInput.setAttribute('required', 'required');
-
-        // Hide end date (not needed for one-time events)
-        endDateGroup.style.display = 'none';
-        endDateInput.removeAttribute('required'); // ADD THIS LINE
-    } else {
-        // Show day of week, hide specific date
-        dayOfWeekGroup.style.display = 'block';
-        specificDateGroup.style.display = 'none';
-
-        // Update required attributes
-        dayOfWeekSelect.setAttribute('required', 'required');
-        specificDateInput.removeAttribute('required');
-
-        // Show end date
-        endDateGroup.style.display = 'block';
-        endDateInput.setAttribute('required', 'required'); // ADD THIS LINE
-    }
-}
-
-/**
- * Handle form submission
- */
-async function handleScheduledEventSubmit(event) {
-    event.preventDefault();
-
-    const submitBtn = event.target.querySelector('button[type="submit"]');
-    const btnText = submitBtn.querySelector('.btn-text');
-    const btnSpinner = submitBtn.querySelector('.btn-spinner');
-    const messageDiv = document.getElementById('scheduledEventMessage');
-    const locationSelect = document.getElementById('scheduledLocation');
-    const customLocationInput = document.getElementById('scheduledCustomLocation');
-    const location = locationSelect.value === 'other' ? customLocationInput.value : locationSelect.value;
-
-    // Disable submit button
-    submitBtn.disabled = true;
-    btnText.style.display = 'none';
-    btnSpinner.style.display = 'inline-block';
-    messageDiv.style.display = 'none';
-
-    const formData = {
-        team_id: currentScheduleTeamId,
-        event_name: document.getElementById('scheduledEventName').value,
-        event_type: document.getElementById('scheduledEventType').value,
-        frequency: document.getElementById('scheduledFrequency').value,
-        //day_of_week: parseInt(document.getElementById('scheduledDayOfWeek').value),
-        start_time: document.getElementById('scheduledStartTime').value,
-        end_time: document.getElementById('scheduledEndTime').value,
-        visibility: document.getElementById('scheduledVisibility').value,
-        //end_date: document.getElementById('scheduledEndDate').value,
-        description: document.getElementById('scheduledDescription').value,
-        location: location
-    };
-
-    // Add day_of_week OR specific_date depending on frequency
-    if (formData.frequency === 'Once') {
-        formData.specific_date = document.getElementById('scheduledSpecificDate').value;
-        // Don't send day_of_week at all
-        formData.end_date = formData.specific_date; // Same as event date
-    } else {
-        formData.day_of_week = document.getElementById('scheduledDayOfWeek').value;
-        // Don't send specific_date at all
-        formData.end_date = document.getElementById('scheduledEndDate').value;
+    // Create scheduled event form submission
+    const createForm = document.getElementById('createScheduledEventForm');
+    if (createForm) {
+        createForm.addEventListener('submit', handleScheduledEventSubmit);
     }
 
-    try {
-        const response = await fetch('/api/scheduled-events/create', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData)
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            messageDiv.textContent = data.message;
-            messageDiv.className = 'form-message success';
-            messageDiv.style.display = 'block';
-
-            setTimeout(() => {
-                closeCreateScheduledEventModal();
-                // Reload team details
-                if (typeof selectTeam === 'function') {
-                    selectTeam(currentScheduleTeamId);
-                }
-            }, 1500);
-        } else {
-            throw new Error(data.message);
-        }
-    } catch (error) {
-        messageDiv.textContent = error.message || 'Failed to create scheduled event';
-        messageDiv.className = 'form-message error';
-        messageDiv.style.display = 'block';
-
-        submitBtn.disabled = false;
-        btnText.style.display = 'inline';
-        btnSpinner.style.display = 'none';
-    }
-}
-
-// Handle location dropdown change
-document.addEventListener('DOMContentLoaded', function() {
+    // Location dropdown for create form
     const locationSelect = document.getElementById('scheduledLocation');
     const customLocationGroup = document.getElementById('scheduledCustomLocationGroup');
     const customLocationInput = document.getElementById('scheduledCustomLocation');
@@ -251,7 +100,70 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /**
- * Load schedule tab with all scheduled events for the team
+ * Initialize schedule button visibility based on team selection
+ * Shows "Schedule Event" button only if user is GM for the team's game
+ *
+ * @param {number} teamId - ID of the selected team
+ * @param {number} gameId - ID of the team's game
+ */
+async function initScheduleButton(teamId, gameId) {
+    console.log('initScheduleButton called:', { teamId, gameId });
+
+    // Update state
+    ScheduleState.setContext(teamId, gameId);
+    currentScheduleTeamId = teamId; // Legacy
+    currentScheduleGameId = gameId; // Legacy
+
+    const createScheduleBtn = document.getElementById('createScheduleBtn');
+    if (!createScheduleBtn) {
+        console.log('createScheduleBtn element not found');
+        return;
+    }
+
+    // Check user permissions
+    const isGM = window.userPermissions?.is_gm || false;
+    console.log('User is GM:', isGM);
+
+    if (!isGM || !gameId) {
+        console.log('User is not a GM or no gameId provided');
+        createScheduleBtn.style.display = 'none';
+        return;
+    }
+
+    // Check if GM manages THIS specific game
+    try {
+        const userId = window.currentUserId;
+        console.log('Current user ID:', userId, 'Game ID:', gameId);
+
+        const response = await fetch(`/api/user/${userId}/manages-game/${gameId}`);
+        const data = await response.json();
+        console.log('API response:', data);
+
+        if (data.success && data.manages_game) {
+            console.log('✓ User manages this game - showing button');
+            createScheduleBtn.style.display = 'flex';
+
+            // Update visibility dropdown labels with team/game names
+            await updateVisibilityLabels(teamId, gameId);
+        } else {
+            console.log('✗ User does not manage this game');
+            createScheduleBtn.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error checking GM status:', error);
+        createScheduleBtn.style.display = 'none';
+    }
+}
+
+// ============================================
+// DATA LOADING & API CALLS
+// ============================================
+
+/**
+ * Load all scheduled events for a specific team
+ * Fetches schedule data and renders it in the schedule tab
+ *
+ * @param {number} teamId - ID of the team to load schedules for
  */
 async function loadScheduleTab(teamId) {
     const schedulePanel = document.getElementById('scheduleTabContent');
@@ -274,9 +186,11 @@ async function loadScheduleTab(teamId) {
         const data = await response.json();
 
         if (data.success && data.schedules && data.schedules.length > 0) {
-            currentSchedules = data.schedules;
+            ScheduleState.currentSchedules = data.schedules;
+            currentSchedules = data.schedules; // Legacy
             renderScheduleCards(data.schedules);
         } else {
+            // Show empty state
             schedulePanel.innerHTML = `
                 <div class="schedule-empty">
                     <i class="fas fa-calendar-times"></i>
@@ -298,7 +212,50 @@ async function loadScheduleTab(teamId) {
 }
 
 /**
- * Render schedule cards in a two-column grid
+ * Update visibility dropdown labels with team and game names
+ * Makes visibility options more user-friendly by showing actual names
+ *
+ * @param {number} teamId - Team ID
+ * @param {number} gameId - Game ID
+ */
+async function updateVisibilityLabels(teamId, gameId) {
+    try {
+        const response = await fetch(`/api/teams/${teamId}/details`);
+        const data = await response.json();
+
+        if (data.success) {
+            const teamName = data.team.title;
+            const gameName = data.team.game_title;
+
+            // Update the dropdown options with dynamic names
+            const teamOption = document.getElementById('visibilityTeamOption');
+            const playersOption = document.getElementById('visibilityPlayersOption');
+            const communityOption = document.getElementById('visibilityCommunityOption');
+
+            if (teamOption) {
+                teamOption.textContent = `${teamName} only`;
+            }
+            if (playersOption) {
+                playersOption.textContent = `Players for ${gameName}`;
+            }
+            if (communityOption) {
+                communityOption.textContent = `Community Members for ${gameName}`;
+            }
+        }
+    } catch (error) {
+        console.error('Error updating visibility labels:', error);
+    }
+}
+
+// ============================================
+// RENDERING FUNCTIONS
+// ============================================
+
+/**
+ * Render schedule cards in a two-column grid layout
+ * Displays all schedules for the current team
+ *
+ * @param {Array} schedules - Array of schedule objects to render
  */
 function renderScheduleCards(schedules) {
     const schedulePanel = document.getElementById('scheduleTabContent');
@@ -357,8 +314,83 @@ function renderScheduleCards(schedules) {
     schedulePanel.innerHTML = html;
 }
 
+// ============================================
+// UTILITY & HELPER FUNCTIONS
+// ============================================
+
 /**
- * Format visibility setting for display
+ * Build dynamic frequency text based on schedule settings
+ * Formats schedule frequency in a human-readable way
+ *
+ * @param {Object} schedule - Schedule object
+ * @returns {string} Formatted frequency text
+ *
+ * @example
+ * // Returns: "Weekly / Monday / 3:00 PM - 5:00 PM until 2025-12-31"
+ * buildFrequencyText({ frequency: 'Weekly', day_of_week_name: 'Monday', ... })
+ */
+function buildFrequencyText(schedule) {
+    const startTime = schedule.start_time;
+    const endTime = schedule.end_time;
+    const timeRange = `${startTime} - ${endTime}`;
+
+    if (schedule.frequency === 'Once') {
+        // Format: "2025-12-25 from 3:00 PM - 5:00 PM"
+        return `${schedule.specific_date} from ${timeRange}`;
+    } else if (schedule.frequency === 'Monthly') {
+        // Format: "Monthly / Monday / 3:00 PM - 5:00 PM until 2025-12-31"
+        return `Monthly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
+    } else if (schedule.frequency === 'Biweekly') {
+        // Format: "Biweekly / Monday / 3:00 PM - 5:00 PM until 2025-12-31"
+        return `Biweekly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
+    } else if (schedule.frequency === 'Weekly') {
+        // Format: "Weekly / Monday / 3:00 PM - 5:00 PM until 2025-12-31"
+        return `Weekly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
+    } else {
+        // Fallback for unknown frequencies
+        return `${schedule.frequency} - ${schedule.day_of_week_name || 'N/A'}`;
+    }
+}
+
+/**
+ * Build dynamic visibility text with game/team context
+ * Converts visibility setting to user-friendly text with context
+ *
+ * @param {Object} schedule - Schedule object with visibility and game info
+ * @returns {string} Formatted visibility text
+ *
+ * @example
+ * // Returns: "League of Legends Community"
+ * buildVisibilityText({ visibility: 'game_community', game_title: 'League of Legends' })
+ */
+function buildVisibilityText(schedule) {
+    const gameName = schedule.game_title;
+
+    switch (schedule.visibility) {
+        case 'game_community':
+            return `${gameName} Community`;
+
+        case 'game_players':
+            return `${gameName} Players`;
+
+        case 'team':
+            // Use team name if available, otherwise show generic message
+            if (schedule.team_name) {
+                return `${schedule.team_name} for ${gameName}`;
+            }
+            return `Team-specific for ${gameName}`;
+
+        default:
+            return formatVisibility(schedule.visibility);
+    }
+}
+
+/**
+ * Format visibility setting for display (fallback)
+ * Converts internal visibility codes to readable text
+ *
+ * @param {string} visibility - Visibility setting code
+ * @returns {string} Formatted visibility text
  */
 function formatVisibility(visibility) {
     const visibilityMap = {
@@ -369,11 +401,203 @@ function formatVisibility(visibility) {
     return visibilityMap[visibility] || visibility;
 }
 
+// ============================================
+// CREATE SCHEDULE MODAL
+// ============================================
+
 /**
- * Method to build the elements within the schedule modal. Including adding a game icon.
+ * Open the create scheduled event modal
+ * Resets form and prepares modal for new schedule creation
+ */
+function openCreateScheduledEventModal() {
+    if (!ScheduleState.currentTeamId && !currentScheduleTeamId) {
+        alert('Please select a team first');
+        return;
+    }
+
+    const modal = document.getElementById('createScheduledEventModal');
+    if (!modal) {
+        console.error('Scheduled event modal not found');
+        return;
+    }
+
+    // Reset form to defaults
+    const form = document.getElementById('createScheduledEventForm');
+    if (form) {
+        form.reset();
+    }
+
+    // Clear any previous messages
+    const messageDiv = document.getElementById('scheduledEventMessage');
+    if (messageDiv) {
+        messageDiv.style.display = 'none';
+    }
+
+    // Update visibility labels before showing modal
+    const teamId = ScheduleState.currentTeamId || currentScheduleTeamId;
+    const gameId = ScheduleState.currentGameId || currentScheduleGameId;
+    updateVisibilityLabels(teamId, gameId);
+
+    // Show modal
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Close create scheduled event modal
+ */
+function closeCreateScheduledEventModal() {
+    const modal = document.getElementById('createScheduledEventModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
+/**
+ * Handle frequency dropdown change
+ * Shows/hides appropriate date fields based on frequency selection
+ * - Once: Shows specific date, hides day of week and end date
+ * - Recurring: Shows day of week and end date, hides specific date
+ */
+function handleFrequencyChange() {
+    const frequency = document.getElementById('scheduledFrequency').value;
+    const dayOfWeekGroup = document.getElementById('scheduledDayOfWeekGroup');
+    const specificDateGroup = document.getElementById('scheduledSpecificDateGroup');
+    const dayOfWeekSelect = document.getElementById('scheduledDayOfWeek');
+    const specificDateInput = document.getElementById('scheduledSpecificDate');
+    const endDateGroup = document.querySelector('label[for="scheduledEndDate"]').parentElement;
+    const endDateInput = document.getElementById('scheduledEndDate');
+
+    if (frequency === 'Once') {
+        // One-time event: show specific date only
+        dayOfWeekGroup.style.display = 'none';
+        specificDateGroup.style.display = 'block';
+        endDateGroup.style.display = 'none';
+
+        // Update required attributes
+        dayOfWeekSelect.removeAttribute('required');
+        specificDateInput.setAttribute('required', 'required');
+        endDateInput.removeAttribute('required');
+    } else {
+        // Recurring event: show day of week and end date
+        dayOfWeekGroup.style.display = 'block';
+        specificDateGroup.style.display = 'none';
+        endDateGroup.style.display = 'block';
+
+        // Update required attributes
+        dayOfWeekSelect.setAttribute('required', 'required');
+        specificDateInput.removeAttribute('required');
+        endDateInput.setAttribute('required', 'required');
+    }
+}
+
+/**
+ * Handle create scheduled event form submission
+ * Validates and submits new schedule to server
+ *
+ * @param {Event} event - Form submit event
+ */
+async function handleScheduledEventSubmit(event) {
+    event.preventDefault();
+
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnSpinner = submitBtn.querySelector('.btn-spinner');
+    const messageDiv = document.getElementById('scheduledEventMessage');
+
+    // Handle location (custom or preset)
+    const locationSelect = document.getElementById('scheduledLocation');
+    const customLocationInput = document.getElementById('scheduledCustomLocation');
+    const location = locationSelect.value === 'other'
+        ? customLocationInput.value
+        : locationSelect.value;
+
+    // Set loading state
+    submitBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnSpinner.style.display = 'inline-block';
+    messageDiv.style.display = 'none';
+
+    // Build form data object
+    const teamId = ScheduleState.currentTeamId || currentScheduleTeamId;
+    const formData = {
+        team_id: teamId,
+        event_name: document.getElementById('scheduledEventName').value,
+        event_type: document.getElementById('scheduledEventType').value,
+        frequency: document.getElementById('scheduledFrequency').value,
+        start_time: document.getElementById('scheduledStartTime').value,
+        end_time: document.getElementById('scheduledEndTime').value,
+        visibility: document.getElementById('scheduledVisibility').value,
+        description: document.getElementById('scheduledDescription').value,
+        location: location
+    };
+
+    // Add frequency-specific fields
+    if (formData.frequency === 'Once') {
+        // One-time event: use specific date
+        formData.specific_date = document.getElementById('scheduledSpecificDate').value;
+        formData.end_date = formData.specific_date; // Same as event date
+    } else {
+        // Recurring event: use day of week and end date
+        formData.day_of_week = document.getElementById('scheduledDayOfWeek').value;
+        formData.end_date = document.getElementById('scheduledEndDate').value;
+    }
+
+    try {
+        const response = await fetch('/api/scheduled-events/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Show success message
+            messageDiv.textContent = data.message;
+            messageDiv.className = 'form-message success';
+            messageDiv.style.display = 'block';
+
+            setTimeout(() => {
+                closeCreateScheduledEventModal();
+
+                // Reload team details if function exists
+                if (typeof selectTeam === 'function') {
+                    selectTeam(teamId);
+                }
+            }, 1500);
+        } else {
+            throw new Error(data.message);
+        }
+    } catch (error) {
+        // Show error message
+        messageDiv.textContent = error.message || 'Failed to create scheduled event';
+        messageDiv.className = 'form-message error';
+        messageDiv.style.display = 'block';
+
+        // Reset button state
+        submitBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnSpinner.style.display = 'none';
+    }
+}
+
+// ============================================
+// VIEW SCHEDULE MODAL
+// ============================================
+
+/**
+ * Open schedule details modal in view mode
+ * Displays full information about a specific schedule
+ *
+ * @param {number} scheduleId - ID of the schedule to display
  */
 function openScheduleModal(scheduleId) {
-    const schedule = currentSchedules.find(s => s.schedule_id === scheduleId);
+    const schedule = ScheduleState.findSchedule(scheduleId) ||
+                     currentSchedules.find(s => s.schedule_id === scheduleId);
 
     if (!schedule) {
         console.error('Schedule not found:', scheduleId);
@@ -386,11 +610,30 @@ function openScheduleModal(scheduleId) {
         return;
     }
 
-    // Set title
+    // Set modal title
     document.getElementById('scheduleModalTitle').textContent = schedule.event_name;
 
     // Handle game icon in header
+    renderGameIcon(schedule);
+
+    // Build modal body content
+    renderScheduleDetails(schedule);
+
+    // Configure action buttons (edit/delete) based on permissions
+    configureScheduleButtons(scheduleId);
+
+    // Show modal
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Render game icon in modal header
+ * @param {Object} schedule - Schedule object with game info
+ */
+function renderGameIcon(schedule) {
     const gameIconContainer = document.getElementById('scheduleModalGameIcon');
+
     if (schedule.game_id && gameIconContainer) {
         gameIconContainer.innerHTML = `
             <img src="/game-image/${schedule.game_id}"
@@ -404,8 +647,13 @@ function openScheduleModal(scheduleId) {
     } else if (gameIconContainer) {
         gameIconContainer.style.display = 'none';
     }
+}
 
-    // Build modal body (without game icon header now)
+/**
+ * Render schedule details in modal body
+ * @param {Object} schedule - Schedule object
+ */
+function renderScheduleDetails(schedule) {
     const modalBody = document.getElementById('scheduleModalBody');
     const eventTypeClass = schedule.event_type.toLowerCase();
 
@@ -462,25 +710,30 @@ function openScheduleModal(scheduleId) {
             </div>
         </div>
     `;
+}
 
-    // Show/hide edit and delete buttons based on permissions
+/**
+ * Configure edit and delete buttons based on user permissions
+ * @param {number} scheduleId - Schedule ID for button actions
+ */
+function configureScheduleButtons(scheduleId) {
     const editBtn = document.getElementById('editScheduleBtn');
     const deleteBtn = document.getElementById('deleteScheduleBtn');
     const isAdmin = window.userPermissions?.is_admin || false;
     const isGM = window.userPermissions?.is_gm || false;
 
+    // Show/hide buttons based on permissions
+    const canModify = isAdmin || isGM;
+
     if (editBtn) {
-        editBtn.style.display = (isAdmin || isGM) ? 'flex' : 'none';
+        editBtn.style.display = canModify ? 'flex' : 'none';
         editBtn.onclick = () => openEditScheduleMode(scheduleId);
     }
 
     if (deleteBtn) {
-        deleteBtn.style.display = (isAdmin || isGM) ? 'flex' : 'none';
+        deleteBtn.style.display = canModify ? 'flex' : 'none';
         deleteBtn.onclick = () => confirmDeleteSchedule(scheduleId);
     }
-
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
 }
 
 /**
@@ -494,55 +747,19 @@ function closeScheduleModal() {
     }
 }
 
-/**
- * Confirm and delete schedule
- */
-function confirmDeleteSchedule(scheduleId) {
-    const schedule = currentSchedules.find(s => s.schedule_id === scheduleId);
-
-    if (!schedule) {
-        console.error('Schedule not found');
-        return;
-    }
-
-    if (confirm(`Are you sure you want to delete the schedule "${schedule.event_name}"?\n\nAll events created by the schedule will be deleted as well`)) {
-        deleteSchedule(scheduleId);
-    }
-}
+// ============================================
+// EDIT SCHEDULE MODAL
+// ============================================
 
 /**
- * Delete a schedule
- */
-async function deleteSchedule(scheduleId) {
-    try {
-        const response = await fetch(`/api/scheduled-events/${scheduleId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            alert(data.message);
-            closeScheduleModal();
-            // Reload schedule tab
-            loadScheduleTab(currentSelectedTeamId);
-        } else {
-            alert(`Error: ${data.message}`);
-        }
-    } catch (error) {
-        console.error('Error deleting schedule:', error);
-        alert('Failed to delete schedule');
-    }
-}
-
-/**
- * Open edit mode for a schedule
+ * Switch schedule modal to edit mode
+ * Replaces view content with editable form
+ *
+ * @param {number} scheduleId - ID of schedule to edit
  */
 function openEditScheduleMode(scheduleId) {
-    const schedule = currentSchedules.find(s => s.schedule_id === scheduleId);
+    const schedule = ScheduleState.findSchedule(scheduleId) ||
+                     currentSchedules.find(s => s.schedule_id === scheduleId);
 
     if (!schedule) {
         console.error('Schedule not found:', scheduleId);
@@ -551,6 +768,18 @@ function openEditScheduleMode(scheduleId) {
 
     const modalBody = document.getElementById('scheduleModalBody');
     const eventTypeClass = schedule.event_type.toLowerCase();
+
+    // Determine if location is a preset or custom
+    const presetLocations = [
+        'Campus Center',
+        'Campus Center Coffee House',
+        'Campus Center Event Room',
+        'D-108',
+        'Esports Lab (Commons Building 80)',
+        'Lakeside Lodge',
+        'Online'
+    ];
+    const isCustomLocation = !presetLocations.includes(schedule.location);
 
     // Build edit form
     modalBody.innerHTML = `
@@ -600,16 +829,16 @@ function openEditScheduleMode(scheduleId) {
                     <option value="Esports Lab (Commons Building 80)" ${schedule.location === 'Esports Lab (Commons Building 80)' ? 'selected' : ''}>Esports Lab (Commons Building 80)</option>
                     <option value="Lakeside Lodge" ${schedule.location === 'Lakeside Lodge' ? 'selected' : ''}>Lakeside Lodge</option>
                     <option value="Online" ${schedule.location === 'Online' ? 'selected' : ''}>Online</option>
-                    <option value="other" ${!['Campus Center', 'Campus Center Coffee House', 'Campus Center Event Room', 'D-108', 'Esports Lab (Commons Building 80)', 'Lakeside Lodge', 'Online'].includes(schedule.location) ? 'selected' : ''}>Other</option>
+                    <option value="other" ${isCustomLocation ? 'selected' : ''}>Other</option>
                 </select>
             </div>
 
-            <div class="form-group" id="editCustomLocationGroup" style="display: ${!['Campus Center', 'Campus Center Coffee House', 'Campus Center Event Room', 'D-108', 'Esports Lab (Commons Building 80)', 'Lakeside Lodge', 'Online'].includes(schedule.location) ? 'block' : 'none'};">
+            <div class="form-group" id="editCustomLocationGroup" style="display: ${isCustomLocation ? 'block' : 'none'};">
                 <label for="editCustomLocation">Custom Location</label>
                 <input type="text"
                        id="editCustomLocation"
                        name="custom_location"
-                       value="${!['Campus Center', 'Campus Center Coffee House', 'Campus Center Event Room', 'D-108', 'Esports Lab (Commons Building 80)', 'Lakeside Lodge', 'Online'].includes(schedule.location) ? schedule.location : ''}">
+                       value="${isCustomLocation ? schedule.location : ''}">
             </div>
 
             <div class="form-group">
@@ -633,7 +862,22 @@ function openEditScheduleMode(scheduleId) {
         </form>
     `;
 
-    // Add location change handler
+    // Attach location dropdown handler
+    setupEditLocationHandler();
+
+    // Attach form submit handler
+    document.getElementById('editScheduleForm').addEventListener('submit', handleEditScheduleSubmit);
+
+    // Hide edit/delete buttons while in edit mode
+    document.getElementById('editScheduleBtn').style.display = 'none';
+    document.getElementById('deleteScheduleBtn').style.display = 'none';
+}
+
+/**
+ * Setup location dropdown handler for edit form
+ * Shows/hides custom location input based on selection
+ */
+function setupEditLocationHandler() {
     const locationSelect = document.getElementById('editScheduleLocation');
     const customLocationGroup = document.getElementById('editCustomLocationGroup');
     const customLocationInput = document.getElementById('editCustomLocation');
@@ -648,17 +892,11 @@ function openEditScheduleMode(scheduleId) {
             customLocationInput.value = '';
         }
     });
-
-    // Add form submit handler
-    document.getElementById('editScheduleForm').addEventListener('submit', handleEditScheduleSubmit);
-
-    // Hide edit/delete buttons while in edit mode
-    document.getElementById('editScheduleBtn').style.display = 'none';
-    document.getElementById('deleteScheduleBtn').style.display = 'none';
 }
 
 /**
  * Cancel edit mode and return to view mode
+ * @param {number} scheduleId - Schedule ID to reload in view mode
  */
 function cancelEditSchedule(scheduleId) {
     openScheduleModal(scheduleId);
@@ -666,6 +904,9 @@ function cancelEditSchedule(scheduleId) {
 
 /**
  * Handle edit schedule form submission
+ * Updates schedule with new values
+ *
+ * @param {Event} event - Form submit event
  */
 async function handleEditScheduleSubmit(event) {
     event.preventDefault();
@@ -675,16 +916,21 @@ async function handleEditScheduleSubmit(event) {
     const btnSpinner = submitBtn.querySelector('.btn-spinner');
     const messageDiv = document.getElementById('editScheduleMessage');
 
+    // Set loading state
     submitBtn.disabled = true;
     btnText.style.display = 'none';
     btnSpinner.style.display = 'inline-block';
     messageDiv.style.display = 'none';
 
+    // Get schedule ID and location
     const scheduleId = document.getElementById('editScheduleId').value;
     const locationSelect = document.getElementById('editScheduleLocation');
     const customLocationInput = document.getElementById('editCustomLocation');
-    const location = locationSelect.value === 'other' ? customLocationInput.value : locationSelect.value;
+    const location = locationSelect.value === 'other'
+        ? customLocationInput.value
+        : locationSelect.value;
 
+    // Build update data object
     const formData = {
         schedule_id: scheduleId,
         event_name: document.getElementById('editScheduleName').value,
@@ -706,13 +952,15 @@ async function handleEditScheduleSubmit(event) {
         const data = await response.json();
 
         if (data.success) {
+            // Show success message
             messageDiv.textContent = data.message;
             messageDiv.className = 'form-message success';
             messageDiv.style.display = 'block';
 
             setTimeout(() => {
                 closeScheduleModal();
-                // Reload the schedule tab
+
+                // Reload the schedule tab if function exists
                 if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
                     loadScheduleTab(currentSelectedTeamId);
                 }
@@ -721,150 +969,82 @@ async function handleEditScheduleSubmit(event) {
             throw new Error(data.message);
         }
     } catch (error) {
+        // Show error message
         messageDiv.textContent = error.message || 'Failed to update schedule';
         messageDiv.className = 'form-message error';
         messageDiv.style.display = 'block';
 
+        // Reset button state
         submitBtn.disabled = false;
         btnText.style.display = 'inline';
         btnSpinner.style.display = 'none';
     }
 }
 
+// ============================================
+// DELETE SCHEDULE
+// ============================================
+
 /**
- * Initialize schedule button visibility when team is selected
+ * Confirm schedule deletion with user
+ * Shows confirmation dialog before deleting
+ *
+ * @param {number} scheduleId - ID of schedule to delete
  */
-async function initScheduleButton(teamId, gameId) {
-    console.log('initScheduleButton called:', { teamId, gameId });
+function confirmDeleteSchedule(scheduleId) {
+    const schedule = ScheduleState.findSchedule(scheduleId) ||
+                     currentSchedules.find(s => s.schedule_id === scheduleId);
 
-    currentScheduleTeamId = teamId;
-    currentScheduleGameId = gameId;
-
-    const createScheduleBtn = document.getElementById('createScheduleBtn');
-    if (!createScheduleBtn) {
-        console.log('createScheduleBtn element not found');
+    if (!schedule) {
+        console.error('Schedule not found');
         return;
     }
 
-    const isGM = window.userPermissions?.is_gm || false;
-    console.log('User is GM:', isGM);
+    const confirmMessage = `Are you sure you want to delete the schedule "${schedule.event_name}"?\n\nAll events created by this schedule will be deleted as well.`;
 
-    if (isGM && gameId) {
-        // Check if GM manages THIS specific game
-        try {
-            const userId = window.currentUserId;
-            console.log('Current user ID:', userId, 'Game ID:', gameId);
-
-            // Use the new route with game_id parameter
-            const response = await fetch(`/api/user/${userId}/manages-game/${gameId}`);
-            const data = await response.json();
-            console.log('API response:', data);
-
-            if (data.success && data.manages_game) {
-                console.log('✓ User manages this game - showing button');
-                createScheduleBtn.style.display = 'flex';
-
-                // Update visibility dropdown labels with team/game names
-                updateVisibilityLabels(teamId, gameId);
-            } else {
-                console.log('✗ User does not manage this game');
-                createScheduleBtn.style.display = 'none';
-            }
-        } catch (error) {
-            console.error('Error checking GM status:', error);
-            createScheduleBtn.style.display = 'none';
-        }
-    } else {
-        console.log('User is not a GM or no gameId provided');
-        createScheduleBtn.style.display = 'none';
+    if (confirm(confirmMessage)) {
+        deleteSchedule(scheduleId);
     }
 }
 
 /**
- * Update visibility dropdown labels with team and game names
+ * Delete a schedule and all its associated events
+ *
+ * @param {number} scheduleId - ID of schedule to delete
  */
-async function updateVisibilityLabels(teamId, gameId) {
+async function deleteSchedule(scheduleId) {
     try {
-        // Get team and game info
-        const response = await fetch(`/api/teams/${teamId}/details`);
+        const response = await fetch(`/api/scheduled-events/${scheduleId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
         const data = await response.json();
 
         if (data.success) {
-            const teamName = data.team.title;
-            const gameName = data.team.game_title;
+            alert(data.message);
+            closeScheduleModal();
 
-            // Update the dropdown options
-            const teamOption = document.getElementById('visibilityTeamOption');
-            const playersOption = document.getElementById('visibilityPlayersOption');
-            const communityOption = document.getElementById('visibilityCommunityOption');
-
-            if (teamOption) {
-                teamOption.textContent = `${teamName} only`;
+            // Reload schedule tab if function exists
+            if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
+                loadScheduleTab(currentSelectedTeamId);
             }
-            if (playersOption) {
-                playersOption.textContent = `Players for ${gameName}`;
-            }
-            if (communityOption) {
-                communityOption.textContent = `Community Members for ${gameName}`;
-            }
+        } else {
+            alert(`Error: ${data.message}`);
         }
     } catch (error) {
-        console.error('Error updating visibility labels:', error);
+        console.error('Error deleting schedule:', error);
+        alert('Failed to delete schedule');
     }
 }
 
-/**
- * Build dynamic frequency text based on schedule settings
- */
-function buildFrequencyText(schedule) {
-    const startTime = schedule.start_time;
-    const endTime = schedule.end_time;
-    const timeRange = `${startTime} - ${endTime}`;
+// ============================================
+// GLOBAL EXPORTS
+// ============================================
+// Export functions to window object for HTML onclick handlers
 
-    if (schedule.frequency === 'Once') {
-        // Once on {date} from {start time - end time}
-        return `${schedule.specific_date} from ${timeRange}`;
-    } else if (schedule.frequency === 'Monthly') {
-        // Once a month on {day of week} from {start-time - end-time} until {last generation day}
-        return `Monthly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
-    } else if (schedule.frequency === 'Biweekly') {
-        // Every other week on {day-of-week} from {start-time - end-time} until {last generation day}
-        return `Biweekly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
-    } else if (schedule.frequency === 'Weekly') {
-        // Every week on {day-of-week} from {start-time - end-time} until {last generation day}
-        return `Weekly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
-    } else {
-        // Fallback
-        return `${schedule.frequency} - ${schedule.day_of_week_name || 'N/A'}`;
-    }
-}
-
-/**
- * Build dynamic visibility text with game/team context
- */
-function buildVisibilityText(schedule) {
-    const gameName = schedule.game_title;
-
-    switch (schedule.visibility) {
-        case 'game_community':
-            return `${gameName} Community`;
-
-        case 'game_players':
-            return `${gameName} Players`;
-
-        case 'team':
-            // Use team name if available, otherwise show generic message
-            if (schedule.team_name) {
-                return `${schedule.team_name} for ${gameName}`;
-            }
-            return `Team-specific for ${gameName}`;
-
-        default:
-            return formatVisibility(schedule.visibility);
-    }
-}
-
-// Export functions to global scope
 window.openCreateScheduledEventModal = openCreateScheduledEventModal;
 window.closeCreateScheduledEventModal = closeCreateScheduledEventModal;
 window.initScheduleButton = initScheduleButton;

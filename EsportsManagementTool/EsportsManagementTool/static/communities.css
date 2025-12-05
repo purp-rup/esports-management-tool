@@ -394,6 +394,12 @@
     border: 1px solid rgba(234, 179, 8, 0.3);
 }
 
+.game-next-event-type.tournament {
+    background: rgba(167, 139, 250, 0.1);
+    color: #8b5cf6;
+    border: 1px solid rgba(167, 139, 250, 0.3);
+}
+
 /* Empty state for no events */
 .game-next-event-empty {
     text-align: center;

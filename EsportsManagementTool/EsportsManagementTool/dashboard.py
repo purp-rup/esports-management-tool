@@ -429,6 +429,15 @@ def manage_role():
             # Update the permissions table
             query = f"UPDATE permissions SET {role_column} = %s WHERE userid = %s"
             cursor.execute(query, (new_value, user_id))
+
+            # If removing Game Manager role, clear their game associations**
+            if action == 'remove' and role == 'Game Manager':
+                cursor.execute("""
+                    UPDATE games 
+                    SET gm_id = NULL 
+                    WHERE gm_id = %s
+                """, (user_id,))
+
             mysql.connection.commit()
 
             # Prepare success message
@@ -753,7 +762,7 @@ def remove_user():
             cursor.execute("DELETE FROM user_activity WHERE userid = %s", (user_id,))
 
             # 8. Delete from suspensions (if exists)
-            cursor.execute("DELETE FROM suspensions WHERE userid = %s", (user_id,))
+            cursor.execute("DELETE FROM user_suspensions WHERE user_id = %s", (user_id,))
 
             # 9. Optional: Update or delete events created by user
             cursor.execute("UPDATE generalevents SET created_by = NULL WHERE created_by = %s", (user_id,))
