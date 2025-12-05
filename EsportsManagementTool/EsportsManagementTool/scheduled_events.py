@@ -114,6 +114,9 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                         'message': 'You do not have permission to create schedules for this team'
                     }), 403
 
+                # Only store team_id for team-specific schedules
+                schedule_team_id = data['team_id'] if data['visibility'] == 'team' else None
+
                 # Insert scheduled event
                 cursor.execute("""
                     INSERT INTO scheduled_events 
@@ -122,7 +125,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                      location, schedule_end_date, created_by)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
-                    data['team_id'],
+                    schedule_team_id,
                     game_id,
                     data['event_name'],
                     data['event_type'],
@@ -209,9 +212,10 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                     WHERE se.is_active = TRUE
                     AND se.game_id = %s
                     AND (
-                        se.team_id = %s
-                        OR se.visibility = 'game_players'
-                        OR se.visibility = 'game_community'
+                        -- Team-specific events: match team_id
+                        (se.visibility = 'team' AND se.team_id = %s)
+                        -- Broad visibility: show for ALL teams in this game
+                        OR se.visibility IN ('game_players', 'game_community')
                     )
                     AND se.visibility != 'all_members'
                     ORDER BY se.created_at DESC
@@ -555,9 +559,8 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
         while current_date <= end_generation_date:
             # Check if this date matches the schedule's day of week
             python_weekday = current_date.weekday()
-            our_day_of_week = (python_weekday + 1) % 7
 
-            if our_day_of_week == schedule['day_of_week']:
+            if python_weekday == schedule['day_of_week']:
                 # Check frequency
                 should_generate = check_frequency_match(
                     current_date,
@@ -659,6 +662,11 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
                 game_display = f"{game_title} ({team_result['teamName']})"
 
         # ============================================
+        # Only set team_id for team-specific events
+        # ============================================
+        event_team_id = schedule['team_id'] if schedule['visibility'] == 'team' else None
+
+        # ============================================
         # Correct column order and value mapping
         # ============================================
         cursor.execute("""
@@ -679,7 +687,7 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
             schedule['location'] or 'TBD',                                # Location
             schedule['created_by'],                                        # created_by
             schedule['schedule_id'],                                       # schedule_id
-            schedule['team_id'],                                          # team_id
+            event_team_id,                                                # team_id - NOW CONDITIONAL
             schedule['visibility']                                         # visibility
         ))
 
@@ -694,8 +702,8 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
 
             print(f"   ✅ Linked event {event_id} to game_id {schedule['game_id']}")
 
-        # Add team member associations
-        if schedule['team_id']:
+        # Add team member associations ONLY for team-specific events
+        if schedule['team_id'] and schedule['visibility'] == 'team':
             cursor.execute("""
                 SELECT user_id 
                 FROM team_members 

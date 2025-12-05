@@ -7,12 +7,8 @@ Needs doing:
             Remember Me button on login
             Forgot password button on login
 
-            No modal appears to show description when clicking on match results??
             Viewing other profiles.
-            Tournament "next-community-event" card doesn't have proper color scheme
 
             Organizing Files (remaining):
-            scheduled-events.js
-            events.js (restructure to remove duplication)
             All Py files
 

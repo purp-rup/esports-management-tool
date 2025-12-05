@@ -1,24 +1,62 @@
-// DISCLAIMER: CODE REWRITTEN AND ORGANIZED BY CLAUDE
-
 /**
- * events.js
+ * ============================================
+ * EVENTS.JS - REFACTORED & CONSOLIDATED
+ * ORGANIZED BY CLAUDEAI
+ * ============================================
  * Handles all event-related functionality for the dashboard
  * Including: event loading, filtering, CRUD operations, modals, and notifications
+ *
  */
 
 // ============================================
-// GLOBAL STATE
+// GLOBAL STATE MANAGEMENT
 // ============================================
-let currentEventId = null;
-let currentEventData = null;
-let currentDeleteEventId = null;
-let currentDeleteEventName = '';
-let currentUserPermissions = { is_admin: false, is_gm: false };
-let gamesListCache = null;
-let selectedGames = [];
 
-// Store events data for day modal access
-let eventsData = {};
+/**
+ * Centralized state object for all event-related data
+ * Prevents global variable sprawl and makes state management clearer
+ */
+const EventState = {
+    // Current modal context
+    currentEventId: null,
+    currentEventData: null,
+
+    // Delete confirmation
+    currentDeleteEventId: null,
+    currentDeleteEventName: '',
+
+    // User permissions
+    permissions: {
+        is_admin: false,
+        is_gm: false
+    },
+
+    // Games cache and selection
+    gamesListCache: null,
+    selectedGames: [],
+
+    // Calendar day modal data
+    eventsData: {},
+
+    /**
+     * Reset state to defaults
+     */
+    reset() {
+        this.currentEventId = null;
+        this.currentEventData = null;
+        this.currentDeleteEventId = null;
+        this.currentDeleteEventName = '';
+        this.selectedGames = [];
+    },
+
+    /**
+     * Update user permissions
+     */
+    setPermissions(isAdmin, isGm) {
+        this.permissions.is_admin = isAdmin;
+        this.permissions.is_gm = isGm;
+    }
+};
 
 // ============================================
 // INITIALIZATION
@@ -26,39 +64,34 @@ let eventsData = {};
 
 /**
  * Initialize events module when DOM is ready
+ * @param {Object} eventsDataFromServer - Pre-loaded events data from server
  */
 function initializeEventsModule(eventsDataFromServer) {
-    eventsData = eventsDataFromServer || {};
-
-    // Attach event listeners
+    EventState.eventsData = eventsDataFromServer || {};
     attachEventListeners();
-
     console.log('Events module initialized');
 }
 
 /**
  * Attach all event-related listeners
+ * Centralized listener management for easier maintenance
  */
 function attachEventListeners() {
     // Events tab click
     const eventsTab = document.querySelector('[data-tab="events"]');
     if (eventsTab) {
-        eventsTab.addEventListener('click', function() {
-            setTimeout(loadEvents, 100);
-        });
+        eventsTab.addEventListener('click', () => setTimeout(loadEvents, 100));
     }
 
-    // Delete modal background click
+    // Delete modal background click (close on backdrop)
     const deleteModal = document.getElementById('deleteEventConfirmModal');
     if (deleteModal) {
-        deleteModal.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeDeleteConfirmModal();
-            }
+        deleteModal.addEventListener('click', (e) => {
+            if (e.target === deleteModal) closeDeleteConfirmModal();
         });
     }
 
-    // Create event form submission
+    // Create event form submission (debugging removed)
     const createEventForm = document.getElementById('createEventForm');
     if (createEventForm) {
         createEventForm.addEventListener('submit', handleCreateEventSubmit);
@@ -72,53 +105,34 @@ function attachEventListeners() {
 }
 
 // ============================================
-// EVENT LOADING & FILTERING
+// API & DATA LOADING
 // ============================================
 
 /**
- * Load events from the server
+ * Load events from the server with optional filtering
+ * Handles loading states and error cases
  */
 function loadEvents() {
-    const loadingDiv = document.getElementById('eventsLoading');
-    const containerDiv = document.getElementById('eventsContainer');
-    const emptyStateDiv = document.getElementById('eventsEmptyState');
+    const elements = {
+        loading: document.getElementById('eventsLoading'),
+        container: document.getElementById('eventsContainer'),
+        emptyState: document.getElementById('eventsEmptyState')
+    };
 
     // Show loading state
-    loadingDiv.style.display = 'block';
-    containerDiv.style.display = 'none';
-    emptyStateDiv.style.display = 'none';
-
-    // Get current filter value
-    const filterSelect = document.getElementById('eventFilter');
-    const filterValue = filterSelect ? filterSelect.value : 'all';
-
-    // Get event type filter if applicable
-    const typeFilterSelect = document.getElementById('eventTypeFilter');
-    const eventType = (filterValue === 'type' && typeFilterSelect) ? typeFilterSelect.value : '';
-
-    // Get game filter if applicable
-    const gameFilterSelect = document.getElementById('gameFilter');
-    const gameFilter = (filterValue === 'game' && gameFilterSelect) ? gameFilterSelect.value : '';
+    setElementDisplay(elements.loading, 'block');
+    setElementDisplay(elements.container, 'none');
+    setElementDisplay(elements.emptyState, 'none');
 
     // Build query parameters
-    let queryParams = `filter=${filterValue}`;
-    if (eventType) {
-        queryParams += `&event_type=${eventType}`;
-    }
-    if (gameFilter) {
-        queryParams += `&game=${encodeURIComponent(gameFilter)}`;
-    }
+    const queryParams = buildEventFilterParams();
 
-    // Fetch events with filter parameters
+    // Fetch events
     fetch(`/api/events?${queryParams}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                currentUserPermissions = {
-                    is_admin: data.is_admin,
-                    is_gm: data.is_gm
-                };
-
+                EventState.setPermissions(data.is_admin, data.is_gm);
                 renderEvents(data.events, data.is_admin, data.is_gm);
             } else {
                 console.error('Failed to load events:', data.message);
@@ -130,16 +144,42 @@ function loadEvents() {
             showEventsError();
         })
         .finally(() => {
-            loadingDiv.style.display = 'none';
+            setElementDisplay(elements.loading, 'none');
         });
 }
 
 /**
- * Load games from API (only once, then cached)
+ * Build query parameters for event filtering
+ * @returns {string} URL-encoded query string
+ */
+function buildEventFilterParams() {
+    const filterSelect = document.getElementById('eventFilter');
+    const filterValue = filterSelect?.value || 'all';
+
+    let params = `filter=${filterValue}`;
+
+    // Add event type filter if applicable
+    if (filterValue === 'type') {
+        const typeFilter = document.getElementById('eventTypeFilter')?.value;
+        if (typeFilter) params += `&event_type=${typeFilter}`;
+    }
+
+    // Add game filter if applicable
+    if (filterValue === 'game') {
+        const gameFilter = document.getElementById('gameFilter')?.value;
+        if (gameFilter) params += `&game=${encodeURIComponent(gameFilter)}`;
+    }
+
+    return params;
+}
+
+/**
+ * Load games list from API (cached after first load)
+ * @returns {Promise<Array>} Array of game objects
  */
 async function loadGamesList() {
-    if (gamesListCache) {
-        return gamesListCache; // Return cached data
+    if (EventState.gamesListCache) {
+        return EventState.gamesListCache;
     }
 
     try {
@@ -147,8 +187,8 @@ async function loadGamesList() {
         const data = await response.json();
 
         if (data.success && data.games) {
-            gamesListCache = data.games;
-            return gamesListCache;
+            EventState.gamesListCache = data.games;
+            return EventState.gamesListCache;
         } else {
             console.error('Failed to load games list');
             return [];
@@ -159,65 +199,250 @@ async function loadGamesList() {
     }
 }
 
-/* ----------------------------------------------------
-    GAME TAG SYSTEM FOR EVENT CREATION
-    Creates a nice game selection window for multiple games
-    --------------------------------------------------- */
 /**
- * Initialize game tag selector event listener
+ * Clear the games cache (useful if games are added/updated)
  */
-function initializeGameTagSelector() {
-    const dropdown = document.getElementById('gameDropdown');
-    if (!dropdown) return;
+function clearGamesCache() {
+    EventState.gamesListCache = null;
+}
 
-    // Remove any existing event listeners to prevent duplicates
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+
+/**
+ * Set element display style (with null check)
+ * @param {HTMLElement|null} element - Element to modify
+ * @param {string} displayValue - Display value ('block', 'none', etc.)
+ */
+function setElementDisplay(element, displayValue) {
+    if (element) element.style.display = displayValue;
+}
+
+/**
+ * Escape single quotes in strings for safe HTML attribute use
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string
+ */
+function escapeQuotes(str) {
+    return str.replace(/'/g, "\\'");
+}
+
+/**
+ * Convert 12-hour time format to 24-hour format for input[type="time"]
+ * @param {string} time12h - Time in 12-hour format (e.g., "2:30 PM")
+ * @returns {string} Time in 24-hour format (e.g., "14:30")
+ */
+function convertTo24Hour(time12h) {
+    if (!time12h) return '';
+
+    const [time, period] = time12h.split(' ');
+    let [hours, minutes] = time.split(':');
+
+    hours = parseInt(hours);
+
+    if (period === 'PM' && hours !== 12) {
+        hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+    }
+
+    return `${hours.toString().padStart(2, '0')}:${minutes}`;
+}
+
+/**
+ * Check if current user can delete an event
+ * @param {Object} event - Event object
+ * @returns {boolean} True if user can delete
+ */
+function canUserDeleteEvent(event) {
+    const is_admin = window.userPermissions?.is_admin || EventState.permissions.is_admin;
+    const is_gm = window.userPermissions?.is_gm || EventState.permissions.is_gm;
+    const sessionUserId = window.currentUserId || 0;
+    return is_admin || (is_gm && event.created_by === sessionUserId);
+}
+
+/**
+ * Check if current user can edit an event
+ * @param {Object} event - Event object
+ * @returns {boolean} True if user can edit
+ */
+function canUserEditEvent(event) {
+    const is_admin = window.userPermissions?.is_admin || EventState.permissions.is_admin;
+    const is_gm = window.userPermissions?.is_gm || EventState.permissions.is_gm;
+    const sessionUserId = window.currentUserId || 0;
+    return is_admin || (is_gm && event.created_by === sessionUserId);
+}
+
+// ============================================
+// GAME TAG SYSTEM - UNIFIED FOR CREATE & EDIT
+// ============================================
+// This section consolidates all game selection logic
+// Both create and edit modals use the same tag system
+
+/**
+ * Game tag configuration object
+ * Defines element IDs for different contexts (create vs edit)
+ */
+const GameTagConfig = {
+    create: {
+        dropdown: 'gameDropdown',
+        container: 'selectedGamesContainer',
+        hiddenInput: 'selectedGamesInput',
+        loadingIndicator: 'gameLoadingIndicator'
+    },
+    edit: {
+        dropdown: 'editGameDropdown',
+        container: 'editSelectedGamesContainer',
+        hiddenInput: 'editSelectedGamesInput',
+        loadingIndicator: 'editGameLoadingIndicator'
+    }
+};
+
+/**
+ * Initialize game tag selector for a specific context
+ * @param {string} context - Either 'create' or 'edit'
+ * @param {string} preSelectedGames - Comma-separated list of games to pre-select (for edit)
+ */
+async function initializeGameTagSelector(context = 'create', preSelectedGames = '') {
+    const config = GameTagConfig[context];
+    if (!config) {
+        console.error(`Invalid context: ${context}`);
+        return;
+    }
+
+    const dropdown = document.getElementById(config.dropdown);
+    const loadingIndicator = document.getElementById(config.loadingIndicator);
+
+    if (!dropdown) {
+        console.warn(`${config.dropdown} element not found`);
+        return;
+    }
+
+    // Show loading indicator
+    setElementDisplay(loadingIndicator, 'block');
+
+    try {
+        // Load games list
+        const games = await loadGamesList();
+
+        // Populate dropdown
+        dropdown.innerHTML = '<option value="">+ Add a game</option>';
+
+        if (games.length === 0) {
+            dropdown.innerHTML += '<option value="" disabled>No games available</option>';
+        } else {
+            games.forEach(game => {
+                const option = document.createElement('option');
+                option.value = game.GameTitle;
+                option.textContent = game.GameTitle;
+                dropdown.appendChild(option);
+            });
+        }
+
+        // Parse and add pre-selected games (for edit mode)
+        if (preSelectedGames && preSelectedGames !== 'N/A') {
+            EventState.selectedGames = preSelectedGames
+                .split(',')
+                .map(g => g.trim())
+                .filter(g => g);
+        } else {
+            EventState.selectedGames = [];
+        }
+
+        // Update display
+        updateGameTagsDisplay(context);
+        updateHiddenGamesInput(context);
+
+        // Attach change listener
+        attachGameDropdownListener(dropdown, context);
+        updateDropdownOptions(context);
+
+    } catch (error) {
+        console.error('Error initializing game tag selector:', error);
+        dropdown.innerHTML = '<option value="">Error loading games</option>';
+    } finally {
+        // Hide loading and ensure dropdown is enabled
+        setElementDisplay(loadingIndicator, 'none');
+        enableDropdown(dropdown);
+    }
+}
+
+/**
+ * Attach change listener to game dropdown
+ * @param {HTMLElement} dropdown - The dropdown element
+ * @param {string} context - Either 'create' or 'edit'
+ */
+function attachGameDropdownListener(dropdown, context) {
+    // Remove existing listener by cloning
     const clone = dropdown.cloneNode(true);
     dropdown.replaceWith(clone);
 
-    // Get fresh reference to the replaced element
-    const newDropdown = document.getElementById('gameDropdown');
+    // Get fresh reference
+    const newDropdown = document.getElementById(GameTagConfig[context].dropdown);
     if (!newDropdown) return;
 
     newDropdown.addEventListener('change', function() {
         const selectedGame = this.value;
-        if (selectedGame && !selectedGames.includes(selectedGame)) {
-            addGameTag(selectedGame);
+        if (selectedGame && !EventState.selectedGames.includes(selectedGame)) {
+            addGameTag(selectedGame, context);
         }
-        // Reset dropdown to placeholder
-        this.value = '';
+        this.value = ''; // Reset to placeholder
     });
 }
 
 /**
- * Add a game tag to the selected games
+ * Enable a dropdown element (removes all disabled states)
+ * @param {HTMLElement} dropdown - Dropdown to enable
  */
-function addGameTag(gameTitle) {
-    if (selectedGames.includes(gameTitle)) return;
+function enableDropdown(dropdown) {
+    if (!dropdown) return;
 
-    selectedGames.push(gameTitle);
-    updateGameTagsDisplay();
-    updateHiddenGamesInput();
+    dropdown.removeAttribute('disabled');
+    dropdown.disabled = false;
+    dropdown.style.pointerEvents = 'auto';
+    dropdown.style.opacity = '1';
+    dropdown.style.cursor = 'pointer';
+}
+
+/**
+ * Add a game tag to the selected games
+ * @param {string} gameTitle - Title of game to add
+ * @param {string} context - Either 'create' or 'edit'
+ */
+function addGameTag(gameTitle, context = 'create') {
+    if (EventState.selectedGames.includes(gameTitle)) return;
+
+    EventState.selectedGames.push(gameTitle);
+    updateGameTagsDisplay(context);
+    updateHiddenGamesInput(context);
+    updateDropdownOptions(context);
 }
 
 /**
  * Remove a game tag from selected games
+ * @param {string} gameTitle - Title of game to remove
+ * @param {string} context - Either 'create' or 'edit'
  */
-function removeGameTag(gameTitle) {
-    selectedGames = selectedGames.filter(game => game !== gameTitle);
-    updateGameTagsDisplay();
-    updateHiddenGamesInput();
+function removeGameTag(gameTitle, context = 'create') {
+    EventState.selectedGames = EventState.selectedGames.filter(game => game !== gameTitle);
+    updateGameTagsDisplay(context);
+    updateHiddenGamesInput(context);
+    updateDropdownOptions(context);
 }
 
 /**
  * Update the visual display of selected game tags
+ * @param {string} context - Either 'create' or 'edit'
  */
-function updateGameTagsDisplay() {
-    const container = document.getElementById('selectedGamesContainer');
+function updateGameTagsDisplay(context = 'create') {
+    const config = GameTagConfig[context];
+    const container = document.getElementById(config.container);
     if (!container) return;
 
     container.innerHTML = '';
 
-    selectedGames.forEach(game => {
+    EventState.selectedGames.forEach(game => {
         const tag = document.createElement('div');
         tag.className = 'game-tag';
         tag.innerHTML = `
@@ -225,7 +450,7 @@ function updateGameTagsDisplay() {
             <span>${game}</span>
             <button type="button"
                     class="game-tag-remove"
-                    onclick="removeGameTag('${game.replace(/'/g, "\\'")}')"
+                    onclick="removeGameTag('${escapeQuotes(game)}', '${context}')"
                     title="Remove ${game}">
                 <i class="fas fa-times"></i>
             </button>
@@ -235,27 +460,62 @@ function updateGameTagsDisplay() {
 }
 
 /**
- * Update the hidden input with selected games as JSON
+ * Update dropdown options to hide already-selected games
+ * @param {string} context - Either 'create' or 'edit'
  */
-function updateHiddenGamesInput() {
-    const hiddenInput = document.getElementById('selectedGamesInput');
+function updateDropdownOptions(context = 'create') {
+    const config = GameTagConfig[context];
+    const dropdown = document.getElementById(config.dropdown);
+    if (!dropdown) return;
+
+    // Get all options except the placeholder
+    const options = Array.from(dropdown.options);
+
+    options.forEach(option => {
+        if (option.value === '') return; // Skip placeholder
+
+        // Hide if already selected, show if not
+        if (EventState.selectedGames.includes(option.value)) {
+            option.style.display = 'none';
+            option.disabled = true;
+        } else {
+            option.style.display = '';
+            option.disabled = false;
+        }
+    });
+}
+
+/**
+ * Update the hidden input with selected games as JSON
+ * @param {string} context - Either 'create' or 'edit'
+ */
+function updateHiddenGamesInput(context = 'create') {
+    const config = GameTagConfig[context];
+    const hiddenInput = document.getElementById(config.hiddenInput);
     if (hiddenInput) {
-        hiddenInput.value = JSON.stringify(selectedGames);
+        hiddenInput.value = JSON.stringify(EventState.selectedGames);
     }
 }
 
 /**
  * Clear all selected games
+ * @param {string} context - Either 'create' or 'edit'
  */
-function clearSelectedGames() {
-    selectedGames = [];
-    updateGameTagsDisplay();
-    updateHiddenGamesInput();
+function clearSelectedGames(context = 'create') {
+    EventState.selectedGames = [];
+    updateGameTagsDisplay(context);
+    updateHiddenGamesInput(context);
+    updateDropdownOptions(context);
 }
 
+// ============================================
+// SINGLE-SELECT GAME DROPDOWN (FOR FILTERS)
+// ============================================
+
 /**
- * Populate a SINGLE SELECT dropdown with games (for edit/filter)
- * @param {string} selectId - ID of the select element to populate
+ * Populate a single-select dropdown with games
+ * Used for filtering, not for multi-select tag system
+ * @param {string} selectId - ID of the select element
  * @param {string} loadingIndicatorId - ID of loading indicator (optional)
  * @param {string} selectedGame - Game to pre-select (optional)
  */
@@ -265,39 +525,26 @@ async function populateGameDropdown(selectId, loadingIndicatorId = null, selecte
 
     const loadingIndicator = loadingIndicatorId ? document.getElementById(loadingIndicatorId) : null;
 
-    // Show loading indicator
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'block';
-    }
+    // Show loading
+    setElementDisplay(loadingIndicator, 'block');
     selectElement.disabled = true;
 
     try {
-        // Load games (uses cache if available)
         const games = await loadGamesList();
 
-        // Clear existing options
+        // Clear and populate
         selectElement.innerHTML = '<option value="">Select game</option>';
 
         if (games.length === 0) {
-            const option = document.createElement('option');
-            option.value = "";
-            option.textContent = "No games available";
-            option.disabled = true;
-            selectElement.appendChild(option);
+            selectElement.innerHTML += '<option value="" disabled>No games available</option>';
             return;
         }
 
-        // Populate dropdown
         games.forEach(game => {
             const option = document.createElement('option');
             option.value = game.GameTitle;
             option.textContent = game.GameTitle;
-
-            // Pre-select if specified
-            if (selectedGame && game.GameTitle === selectedGame) {
-                option.selected = true;
-            }
-
+            option.selected = (selectedGame && game.GameTitle === selectedGame);
             selectElement.appendChild(option);
         });
 
@@ -305,247 +552,131 @@ async function populateGameDropdown(selectId, loadingIndicatorId = null, selecte
         console.error('Error populating game dropdown:', error);
         selectElement.innerHTML = '<option value="">Error loading games</option>';
     } finally {
-        // Hide loading indicator
-        if (loadingIndicator) {
-            loadingIndicator.style.display = 'none';
-        }
+        setElementDisplay(loadingIndicator, 'none');
         selectElement.disabled = false;
     }
 }
 
 /**
- * Populate the TAG-BASED multi-select dropdown for create event modal
+ * Load games for filter dropdown
  */
-async function loadGamesForTagSelector() {
-    const dropdown = document.getElementById('gameDropdown');
-    const loadingIndicator = document.getElementById('gameLoadingIndicator');
-
-    if (!dropdown) {
-        console.warn('gameDropdown element not found');
-        return;
-    }
-
-    // Show loading indicator - DON'T disable dropdown
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'block';
-    }
-    // REMOVED: dropdown.disabled = true;
-
-    try {
-        const games = await loadGamesList();
-
-        // Clear existing options except placeholder
-        dropdown.innerHTML = '<option value="">+ Add a game</option>';
-
-        if (games.length === 0) {
-            const option = document.createElement('option');
-            option.value = "";
-            option.textContent = "No games available";
-            option.disabled = true;
-            dropdown.appendChild(option);
-            return;
-        }
-
-        // Populate dropdown
-        games.forEach(game => {
-            const option = document.createElement('option');
-            option.value = game.GameTitle;
-            option.textContent = game.GameTitle;
-            dropdown.appendChild(option);
-        });
-
-        // Initialize the tag selector event listener
-        initializeGameTagSelector();
-
-    } catch (error) {
-        console.error('Error populating game dropdown:', error);
-        dropdown.innerHTML = '<option value="">Error loading games</option>';
-    } finally {
-        // Hide loading indicator
-        if (loadingIndicator) {
-            loadingIndicator.style.display = 'none';
-        }
-
-        // FORCE enable the dropdown with all methods
-        dropdown.removeAttribute('disabled');
-        dropdown.disabled = false;
-        dropdown.style.pointerEvents = 'auto';
-        dropdown.style.opacity = '1';
-        dropdown.style.cursor = 'pointer';
-
-        console.log('Dropdown fully enabled');
-    }
+async function loadGamesForFilter() {
+    await populateGameDropdown('gameFilter', 'gameFilterLoadingIndicator');
 }
 
-/**
- * Clear the games cache (useful if games are added/updated)
- */
-function clearGamesCache() {
-    gamesListCache = null;
-}
+// ============================================
+// EVENT FILTERING
+// ============================================
 
 /**
  * Filter events based on dropdown selection
+ * Manages visibility of secondary filter dropdowns
  */
 function filterEvents() {
     const filterSelect = document.getElementById('eventFilter');
-    const filterValue = filterSelect ? filterSelect.value : 'all';
+    const filterValue = filterSelect?.value || 'all';
+
     const typeFilterContainer = document.getElementById('eventTypeFilterContainer');
     const typeFilterSelect = document.getElementById('eventTypeFilter');
     const gameFilterContainer = document.getElementById('gameFilterContainer');
     const gameFilterSelect = document.getElementById('gameFilter');
 
-    // Hide all secondary filters first
-    typeFilterContainer.style.display = 'none';
-    gameFilterContainer.style.display = 'none';
+    // Hide all secondary filters
+    setElementDisplay(typeFilterContainer, 'none');
+    setElementDisplay(gameFilterContainer, 'none');
 
-    // Show appropriate secondary filter based on selection
+    // Reset secondary filters
+    if (typeFilterSelect) typeFilterSelect.value = '';
+    if (gameFilterSelect) gameFilterSelect.value = '';
+
+    // Show appropriate secondary filter
     if (filterValue === 'type') {
-        typeFilterContainer.style.display = 'flex';
-        typeFilterSelect.value = ''; // Reset type filter
-        gameFilterSelect.value = ''; // Reset game filter
-        // Don't load events yet - wait for type selection
-        if (typeFilterSelect.value === '') {
-            return;
-        }
-    } else if (filterValue === 'game') {
-        gameFilterContainer.style.display = 'flex';
-        typeFilterSelect.value = ''; // Reset type filter
-        gameFilterSelect.value = ''; // Reset game filter
-        loadGamesForFilter(); // Load games into dropdown
-        // Don't load events yet - wait for game selection
+        setElementDisplay(typeFilterContainer, 'flex');
+        // Wait for type selection before loading
         return;
-    } else {
-        typeFilterSelect.value = ''; // Reset type filter
-        gameFilterSelect.value = ''; // Reset game filter
-        loadEvents(); // Load events with the main filter
+    } else if (filterValue === 'game') {
+        setElementDisplay(gameFilterContainer, 'flex');
+        loadGamesForFilter();
+        // Wait for game selection before loading
+        return;
     }
+
+    // Load events with main filter
+    loadEvents();
 }
 
 /**
- * Filter events by type
+ * Filter events by type (called when type dropdown changes)
  */
 function filterEventsByType() {
     const typeFilterSelect = document.getElementById('eventTypeFilter');
-    const selectedType = typeFilterSelect.value;
-
-    if (selectedType) {
-        loadEvents(); // Load events with type filter
+    if (typeFilterSelect?.value) {
+        loadEvents();
     }
 }
 
 /**
- * Filter events by game
+ * Filter events by game (called when game dropdown changes)
  */
 function filterEventsByGame() {
     const gameFilterSelect = document.getElementById('gameFilter');
-    const selectedGame = gameFilterSelect.value;
-
-    if (selectedGame) {
-        loadEvents(); // Load events with game filter
+    if (gameFilterSelect?.value) {
+        loadEvents();
     }
 }
 
+// ============================================
+// EVENT RENDERING
+// ============================================
+
 /**
  * Render events in the grid
+ * @param {Array} events - Array of event objects
+ * @param {boolean} isAdmin - Whether user is admin
+ * @param {boolean} isGm - Whether user is GM
  */
 function renderEvents(events, isAdmin, isGm) {
     const containerDiv = document.getElementById('eventsContainer');
     const emptyStateDiv = document.getElementById('eventsEmptyState');
 
     if (events.length === 0) {
-        containerDiv.style.display = 'none';
-        emptyStateDiv.style.display = 'block';
+        setElementDisplay(containerDiv, 'none');
+        setElementDisplay(emptyStateDiv, 'block');
         updateEmptyStateMessage();
         return;
     }
 
-    const gridHTML = '<div class="events-grid">' +
-        events.map(event => createEventCard(event, isAdmin, isGm)).join('') +
-        '</div>';
+    const gridHTML = `<div class="events-grid">${
+        events.map(event => createEventCard(event, isAdmin, isGm)).join('')
+    }</div>`;
 
     containerDiv.innerHTML = gridHTML;
-    containerDiv.style.display = 'block';
-    emptyStateDiv.style.display = 'none';
-}
-
-/**
- * Update empty state message based on filter
- */
-function updateEmptyStateMessage() {
-    const emptyStateDiv = document.getElementById('eventsEmptyState');
-    const filterSelect = document.getElementById('eventFilter');
-    const filterValue = filterSelect ? filterSelect.value : 'all';
-    const typeFilterSelect = document.getElementById('eventTypeFilter');
-    const gameFilterSelect = document.getElementById('gameFilter');
-
-    const emptyStateTitle = emptyStateDiv.querySelector('h3');
-    const emptyStateText = emptyStateDiv.querySelector('p');
-
-    if (filterValue === 'subscribed') {
-        emptyStateTitle.textContent = 'No Subscribed Events';
-        emptyStateText.textContent = 'You haven\'t subscribed to any events yet. Browse "All Events" and subscribe to events you\'re interested in.';
-    } else if (filterValue === 'upcoming') {
-        emptyStateTitle.textContent = 'No Upcoming Events';
-        emptyStateText.textContent = 'No events scheduled for the next 7 days. Check "All Events" to see all events.';
-    } else if (filterValue === 'upcoming14') {
-        emptyStateTitle.textContent = 'No Upcoming Events';
-        emptyStateText.textContent = 'No events scheduled for the next 14 days. Check "All Events" to see all events.';
-    } else if (filterValue === 'past30') {
-        emptyStateTitle.textContent = 'No Past Events';
-        emptyStateText.textContent = 'No events found in the last 30 days. Check "All Events" to see all events.';
-    } else if (filterValue === 'created_by_me') {
-        emptyStateTitle.textContent = 'No Events Created';
-        emptyStateText.textContent = 'You haven\'t created any events yet. Click "Create Event" to add your first event.';
-    } else if (filterValue === 'type' && typeFilterSelect && typeFilterSelect.value) {
-        const typeName = typeFilterSelect.options[typeFilterSelect.selectedIndex].text;
-        emptyStateTitle.textContent = `No ${typeName} Events`;
-        emptyStateText.textContent = `No ${typeName.toLowerCase()} events found. Try a different filter.`;
-    } else if (filterValue === 'game' && gameFilterSelect && gameFilterSelect.value) {
-        const gameName = gameFilterSelect.options[gameFilterSelect.selectedIndex].text;
-        emptyStateTitle.textContent = `No ${gameName} Events`;
-        emptyStateText.textContent = `No events found for ${gameName}. Try a different filter.`;
-    } else {
-        emptyStateTitle.textContent = 'No Events Found';
-        if (window.userPermissions && (window.userPermissions.is_admin || window.userPermissions.is_gm)) {
-            emptyStateText.textContent = 'Click "Create Event" to add your first event';
-        } else {
-            emptyStateText.textContent = 'Subscribe to events to see them here, or check back later';
-        }
-    }
-}
-
-//Method to get the event type for a created event.
-function getEventTypeClass(eventType) {
-    return (eventType || 'event').toLowerCase();
+    setElementDisplay(containerDiv, 'block');
+    setElementDisplay(emptyStateDiv, 'none');
 }
 
 /**
  * Create an event card HTML
+ * @param {Object} event - Event object
+ * @param {boolean} isAdmin - Whether user is admin
+ * @param {boolean} isGm - Whether user is GM
+ * @returns {string} HTML string for event card
  */
 function createEventCard(event, isAdmin, isGm) {
-    const sessionUserId = window.currentUserId || 0;
-    const canDelete = isAdmin || (isGm && event.created_by === sessionUserId);
-    const ongoingIndicator = event.is_ongoing ?
-        '<div class="event-ongoing-indicator" title="Event is currently ongoing"></div>' : '';
+    const canDelete = canUserDeleteEvent(event);
+    const ongoingIndicator = event.is_ongoing
+        ? '<div class="event-ongoing-indicator" title="Event is currently ongoing"></div>'
+        : '';
 
     const deleteButton = canDelete ? `
-        <button class="btn btn-secondary btn-delete" onclick="event.stopPropagation(); openDeleteConfirmModal(${event.id}, '${event.name.replace(/'/g, "\\'")}')">
+        <button class="btn btn-secondary btn-delete"
+                onclick="event.stopPropagation(); openDeleteConfirmModal(${event.id}, '${escapeQuotes(event.name)}')">
             <i class="fas fa-trash"></i>
         </button>
     ` : '';
 
     // Handle multiple games display
-    let gameDisplay = 'None';
-    if (event.game && event.game !== 'N/A') {
-        const games = event.game.split(', ');
-        if (games.length > 2) {
-            gameDisplay = `${games.slice(0, 2).join(', ')} +${games.length - 2} more`;
-        } else {
-            gameDisplay = event.game;
-        }
-    }
-
+    const gameDisplay = formatGameDisplay(event.game);
     const eventTypeClass = (event.event_type || 'event').toLowerCase();
     const scheduledClass = event.is_scheduled ? 'scheduled-event' : '';
 
@@ -560,49 +691,11 @@ function createEventCard(event, isAdmin, isGm) {
             </div>
 
             <div class="event-card-details">
-                <div class="event-detail-row">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-calendar"></i>
-                    </div>
-                    <span class="event-detail-label">Date:</span>
-                    <span class="event-detail-value">${event.date}</span>
-                </div>
-
-                ${event.start_time ? `
-                <div class="event-detail-row">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <span class="event-detail-label">Time:</span>
-                    <span class="event-detail-value">${event.start_time} - ${event.end_time}</span>
-                </div>
-                ` : ''}
-
-                <div class="event-detail-row">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-tag"></i>
-                    </div>
-                    <span class="event-detail-label">Type:</span>
-                    <span class="event-detail-value">
-                        <span class="event-type-badge" data-type="${eventTypeClass}">${event.event_type}</span>
-                    </span>
-                </div>
-
-                <div class="event-detail-row">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-gamepad"></i>
-                    </div>
-                    <span class="event-detail-label">Game:</span>
-                    <span class="event-detail-value">${gameDisplay}</span>
-                </div>
-
-                <div class="event-detail-row">
-                    <div class="event-detail-icon">
-                        <i class="fas fa-map-marker-alt"></i>
-                    </div>
-                    <span class="event-detail-label">Location:</span>
-                    <span class="event-detail-value">${event.location}</span>
-                </div>
+                ${createEventDetailRow('calendar', 'Date', event.date)}
+                ${event.start_time ? createEventDetailRow('clock', 'Time', `${event.start_time} - ${event.end_time}`) : ''}
+                ${createEventDetailRow('tag', 'Type', `<span class="event-type-badge" data-type="${eventTypeClass}">${event.event_type}</span>`)}
+                ${createEventDetailRow('gamepad', 'Game', gameDisplay)}
+                ${createEventDetailRow('map-marker-alt', 'Location', event.location)}
             </div>
 
             <div class="event-card-actions">
@@ -616,25 +709,145 @@ function createEventCard(event, isAdmin, isGm) {
 }
 
 /**
- * Show error state
+ * Create a detail row for event card
+ * @param {string} icon - FontAwesome icon name (without 'fa-' prefix)
+ * @param {string} label - Label text
+ * @param {string} value - Value HTML
+ * @returns {string} HTML string for detail row
+ */
+function createEventDetailRow(icon, label, value) {
+    return `
+        <div class="event-detail-row">
+            <div class="event-detail-icon">
+                <i class="fas fa-${icon}"></i>
+            </div>
+            <span class="event-detail-label">${label}:</span>
+            <span class="event-detail-value">${value}</span>
+        </div>
+    `;
+}
+
+/**
+ * Format game display (truncate if multiple games)
+ * @param {string} gameStr - Comma-separated game string
+ * @returns {string} Formatted game display string
+ */
+function formatGameDisplay(gameStr) {
+    if (!gameStr || gameStr === 'N/A') return 'None';
+
+    const games = gameStr.split(', ');
+    if (games.length > 2) {
+        return `${games.slice(0, 2).join(', ')} +${games.length - 2} more`;
+    }
+    return gameStr;
+}
+
+/**
+ * Update empty state message based on current filter
+ */
+function updateEmptyStateMessage() {
+    const emptyStateDiv = document.getElementById('eventsEmptyState');
+    const filterSelect = document.getElementById('eventFilter');
+    const filterValue = filterSelect?.value || 'all';
+
+    const emptyStateTitle = emptyStateDiv.querySelector('h3');
+    const emptyStateText = emptyStateDiv.querySelector('p');
+
+    if (!emptyStateTitle || !emptyStateText) return;
+
+    // Get filter-specific messages
+    const message = getEmptyStateMessage(filterValue);
+    emptyStateTitle.textContent = message.title;
+    emptyStateText.textContent = message.text;
+}
+
+/**
+ * Get empty state message based on filter type
+ * @param {string} filterValue - Current filter value
+ * @returns {Object} Object with title and text properties
+ */
+function getEmptyStateMessage(filterValue) {
+    const messages = {
+        subscribed: {
+            title: 'No Subscribed Events',
+            text: 'You haven\'t subscribed to any events yet. Browse "All Events" and subscribe to events you\'re interested in.'
+        },
+        upcoming: {
+            title: 'No Upcoming Events',
+            text: 'No events scheduled for the next 7 days. Check "All Events" to see all events.'
+        },
+        upcoming14: {
+            title: 'No Upcoming Events',
+            text: 'No events scheduled for the next 14 days. Check "All Events" to see all events.'
+        },
+        past30: {
+            title: 'No Past Events',
+            text: 'No events found in the last 30 days. Check "All Events" to see all events.'
+        },
+        created_by_me: {
+            title: 'No Events Created',
+            text: 'You haven\'t created any events yet. Click "Create Event" to add your first event.'
+        }
+    };
+
+    // Handle type filter
+    if (filterValue === 'type') {
+        const typeSelect = document.getElementById('eventTypeFilter');
+        const typeName = typeSelect?.options[typeSelect.selectedIndex]?.text || 'Selected';
+        return {
+            title: `No ${typeName} Events`,
+            text: `No ${typeName.toLowerCase()} events found. Try a different filter.`
+        };
+    }
+
+    // Handle game filter
+    if (filterValue === 'game') {
+        const gameSelect = document.getElementById('gameFilter');
+        const gameName = gameSelect?.options[gameSelect.selectedIndex]?.text || 'Selected Game';
+        return {
+            title: `No ${gameName} Events`,
+            text: `No events found for ${gameName}. Try a different filter.`
+        };
+    }
+
+    // Return specific message or default
+    if (messages[filterValue]) {
+        return messages[filterValue];
+    }
+
+    // Default message
+    const canCreate = window.userPermissions?.is_admin || window.userPermissions?.is_gm;
+    return {
+        title: 'No Events Found',
+        text: canCreate
+            ? 'Click "Create Event" to add your first event'
+            : 'Subscribe to events to see them here, or check back later'
+    };
+}
+
+/**
+ * Show error state when events fail to load
  */
 function showEventsError() {
     const containerDiv = document.getElementById('eventsContainer');
+    if (!containerDiv) return;
+
     containerDiv.innerHTML = `
         <div class="events-info-message">
             <i class="fas fa-exclamation-circle"></i>
             <p>Failed to load events. Please refresh the page to try again.</p>
         </div>
     `;
-    containerDiv.style.display = 'block';
+    setElementDisplay(containerDiv, 'block');
 }
 
 // ============================================
-// EVENT MODAL - VIEW & DETAILS
+// EVENT DETAILS MODAL - VIEW & MANAGEMENT
 // ============================================
 
 /**
  * Open event details modal
+ * @param {number} eventId - ID of event to display
  */
 async function openEventModal(eventId) {
     const modal = document.getElementById('eventDetailsModal');
@@ -643,41 +856,33 @@ async function openEventModal(eventId) {
     const deleteBtn = document.getElementById('deleteEventBtn');
     const titleElement = document.getElementById('eventDetailsTitle');
 
-    currentEventId = eventId;
+    EventState.currentEventId = eventId;
 
-    if (titleElement) {
-        titleElement.textContent = 'Loading...';
-    }
-
-    modal.style.display = 'block';
-    spinner.style.display = 'block';
-    content.style.display = 'none';
-    if (deleteBtn) deleteBtn.style.display = 'none';
-    document.body.style.overflow = 'hidden';
+    // Set initial loading state
+    if (titleElement) titleElement.textContent = 'Loading...';
+    setModalLoadingState(modal, spinner, content, deleteBtn, true);
 
     try {
+        // Fetch event details
         const response = await fetch(`/api/event/${eventId}`);
         if (!response.ok) throw new Error('Failed to fetch event details');
+
         const event = await response.json();
+        EventState.currentEventData = event;
 
-        currentEventData = event;
-
-        // Add event type as data attribute to modal for color styling
+        // Add event type for styling
         const eventTypeClass = (event.event_type || 'event').toLowerCase();
         modal.setAttribute('data-event-type', eventTypeClass);
 
-        if (titleElement) {
-            titleElement.textContent = event.name || 'Event Details';
-        }
+        // Update modal content
+        if (titleElement) titleElement.textContent = event.name || 'Event Details';
+        content.innerHTML = buildEventDetailsHTML(event);
 
-        const detailsHTML = buildEventDetailsHTML(event);
-        content.innerHTML = detailsHTML;
+        // Show content and update buttons
+        setModalLoadingState(modal, spinner, content, deleteBtn, false);
+        updateEventModalButtons(event);
 
-        spinner.style.display = 'none';
-        content.style.display = 'block';
-        if (deleteBtn) deleteBtn.style.display = 'flex';
-
-        updateEventButtons(event);
+        // Load notification section
         await loadNotificationSection(eventId);
 
     } catch (error) {
@@ -687,76 +892,55 @@ async function openEventModal(eventId) {
 }
 
 /**
+ * Set modal loading state
+ * @param {HTMLElement} modal - Modal element
+ * @param {HTMLElement} spinner - Spinner element
+ * @param {HTMLElement} content - Content element
+ * @param {HTMLElement} deleteBtn - Delete button element
+ * @param {boolean} isLoading - Whether modal is loading
+ */
+function setModalLoadingState(modal, spinner, content, deleteBtn, isLoading) {
+    modal.style.display = 'block';
+    setElementDisplay(spinner, isLoading ? 'block' : 'none');
+    setElementDisplay(content, isLoading ? 'none' : 'block');
+    setElementDisplay(deleteBtn, isLoading ? 'none' : 'flex');
+    document.body.style.overflow = 'hidden';
+}
+
+/**
  * Build event details HTML
+ * @param {Object} event - Event object
+ * @returns {string} HTML string for event details
  */
 function buildEventDetailsHTML(event) {
-    let html = '<div class="event-detail-grid">';
+    const sections = [];
 
-    // Date
-    html += `
-        <div class="event-detail-section">
-            <div class="event-detail-icon"><i class="fas fa-calendar-alt"></i></div>
-            <div class="event-detail-content">
-                <h3>Date</h3>
-                <p>${event.date}</p>
-            </div>
-        </div>
-    `;
+    // Date section
+    sections.push(createDetailSection('calendar-alt', 'Date', event.date));
 
-    // Time
+    // Time section (if exists)
     if (event.start_time) {
-        html += `
-            <div class="event-detail-section">
-                <div class="event-detail-icon"><i class="fas fa-clock"></i></div>
-                <div class="event-detail-content">
-                    <h3>Time</h3>
-                    <p>${event.start_time}${event.end_time ? ' - ' + event.end_time : ''}</p>
-                </div>
-            </div>
-        `;
+        const timeStr = `${event.start_time}${event.end_time ? ' - ' + event.end_time : ''}`;
+        sections.push(createDetailSection('clock', 'Time', timeStr));
     }
 
-    // Event Type
+    // Event Type section
     if (event.event_type) {
-        html += `
-            <div class="event-detail-section">
-                <div class="event-detail-icon"><i class="fas fa-tag"></i></div>
-                <div class="event-detail-content">
-                    <h3>Event Type</h3>
-                    <p>${event.event_type}</p>
-                </div>
-            </div>
-        `;
+        sections.push(createDetailSection('tag', 'Event Type', event.event_type));
     }
 
-    // Game
+    // Game section
     if (event.game) {
-        html += `
-            <div class="event-detail-section">
-                <div class="event-detail-icon"><i class="fas fa-gamepad"></i></div>
-                <div class="event-detail-content">
-                    <h3>Game</h3>
-                    <p>${event.game}</p>
-                </div>
-            </div>
-        `;
+        sections.push(createDetailSection('gamepad', 'Game', event.game));
     }
 
-    // Location
+    // Location section (full width)
     if (event.location) {
-        html += `
-            <div class="event-detail-section" style="grid-column: 1 / -1;">
-                <div class="event-detail-icon"><i class="fas fa-map-marker-alt"></i></div>
-                <div class="event-detail-content">
-                    <h3>Location</h3>
-                    <p>${event.location}</p>
-                </div>
-            </div>
-        `;
+        sections.push(createDetailSection('map-marker-alt', 'Location', event.location, true));
     }
 
-    // Description
-    html += `
+    // Description section (full width)
+    sections.push(`
         <div class="event-detail-section full-width">
             <div style="display: flex; gap: 0.75rem;">
                 <div class="event-detail-icon"><i class="fas fa-info-circle"></i></div>
@@ -766,11 +950,43 @@ function buildEventDetailsHTML(event) {
                 </div>
             </div>
         </div>
-    `;
+    `);
 
-    // Notification section
-    html += `
-        <div class="event-notification-section full-width" id="eventNotificationSection"
+    // Notification section (full width)
+    sections.push(createNotificationSection());
+
+    return `<div class="event-detail-grid">${sections.join('')}</div>`;
+}
+
+/**
+ * Create a detail section for event modal
+ * @param {string} icon - FontAwesome icon name
+ * @param {string} title - Section title
+ * @param {string} content - Section content
+ * @param {boolean} fullWidth - Whether section spans full width
+ * @returns {string} HTML string for detail section
+ */
+function createDetailSection(icon, title, content, fullWidth = false) {
+    const style = fullWidth ? ' style="grid-column: 1 / -1;"' : '';
+    return `
+        <div class="event-detail-section"${style}>
+            <div class="event-detail-icon"><i class="fas fa-${icon}"></i></div>
+            <div class="event-detail-content">
+                <h3>${title}</h3>
+                <p>${content}</p>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Create notification section HTML
+ * @returns {string} HTML string for notification section
+ */
+function createNotificationSection() {
+    return `
+        <div class="event-notification-section full-width"
+             id="eventNotificationSection"
              style="grid-column: 1 / -1;">
             <div class="notification-opt-in" style="width: 100%; display: flex; justify-content: center;">
                 <div class="notification-icon">
@@ -786,36 +1002,753 @@ function buildEventDetailsHTML(event) {
             </div>
         </div>
     `;
-
-    html += '</div>';
-    return html;
 }
 
 /**
  * Update edit/delete buttons based on permissions
+ * @param {Object} event - Event object
  */
-function updateEventButtons(event) {
+function updateEventModalButtons(event) {
     const editBtn = document.getElementById("editEventBtn");
     const deleteBtn = document.getElementById("deleteEventBtn");
 
-    const isAdmin = window.userPermissions ? window.userPermissions.is_admin : false;
-    const isGM = window.userPermissions ? window.userPermissions.is_gm : false;
-    const currentUserId = window.currentUserId || 0;
-
-    const titleElement = document.getElementById('eventDetailsTitle');
-
-    if (editBtn && currentEventData) {
-        if (isAdmin || (isGM && currentEventData.created_by === currentUserId)) {
-            editBtn.style.display = 'flex';
-        }
+    // Show edit button if user can edit
+    if (editBtn && canUserEditEvent(event)) {
+        editBtn.style.display = 'flex';
     }
 
-    if (deleteBtn && isAdmin) {
+    // Show delete button if user is admin
+    if (deleteBtn && EventState.permissions.is_admin) {
         deleteBtn.style.display = 'flex';
     }
+}
 
-    if (titleElement && currentEventData) {
-        titleElement.textContent = currentEventData.name;
+/**
+ * Handle event load error
+ * @param {HTMLElement} titleElement - Title element
+ * @param {HTMLElement} content - Content element
+ * @param {HTMLElement} spinner - Spinner element
+ */
+function handleEventLoadError(titleElement, content, spinner) {
+    if (titleElement) {
+        titleElement.textContent = 'Error Loading Event';
+    }
+
+    content.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+            <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ff5252; margin-bottom: 1rem;"></i>
+            <p>Failed to load event details. Please try again.</p>
+            <button class="btn btn-primary" onclick="closeEventModal()" style="margin-top: 1rem;">Close</button>
+        </div>
+    `;
+
+    setElementDisplay(spinner, 'none');
+    setElementDisplay(content, 'block');
+}
+
+/**
+ * Close event details modal
+ */
+function closeEventModal() {
+    const modal = document.getElementById('eventDetailsModal');
+    const deleteBtn = document.getElementById("deleteEventBtn");
+    const editBtn = document.getElementById("editEventBtn");
+    const content = document.getElementById("eventDetailsContent");
+    const editForm = document.getElementById("eventEditForm");
+
+    // Hide modal and its elements
+    setElementDisplay(modal, 'none');
+    setElementDisplay(deleteBtn, 'none');
+    setElementDisplay(editBtn, 'none');
+    setElementDisplay(content, 'none');
+    setElementDisplay(editForm, 'none');
+
+    document.body.style.overflow = "auto";
+    EventState.reset();
+}
+
+// ============================================
+// EVENT NOTIFICATIONS
+// ============================================
+
+/**
+ * Load notification section for an event
+ * @param {number} eventId - Event ID
+ */
+async function loadNotificationSection(eventId) {
+    const btn = document.getElementById('notificationBtn');
+    const btnText = document.getElementById('notificationBtnText');
+
+    if (!btn || !btnText) return;
+
+    try {
+        const response = await fetch(`/api/event/${eventId}/subscription-status`);
+        const data = await response.json();
+
+        // Check if notifications are enabled
+        if (!data.notifications_enabled) {
+            btn.disabled = true;
+            btn.classList.add('disabled');
+            btnText.textContent = 'Enable notifications in Profile';
+            return;
+        }
+
+        // Update subscription status
+        btn.disabled = false;
+        btn.classList.remove('disabled');
+        btn.classList.toggle('subscribed', data.subscribed);
+        btnText.textContent = data.subscribed ? 'Subscribed' : 'Subscribe';
+
+    } catch (err) {
+        console.error('Error fetching subscription status:', err);
+        btn.disabled = true;
+        btnText.textContent = 'Error';
+    }
+}
+
+/**
+ * Toggle event subscription
+ */
+async function toggleEventSubscription() {
+    const btn = document.getElementById('notificationBtn');
+    const btnText = document.getElementById('notificationBtnText');
+
+    if (!EventState.currentEventId) return;
+
+    try {
+        const response = await fetch(
+            `/api/event/${EventState.currentEventId}/toggle-subscription`,
+            { method: 'POST' }
+        );
+        const data = await response.json();
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        // Update button state
+        const isSubscribed = data.status === 'subscribed';
+        btn.classList.toggle('subscribed', isSubscribed);
+        btnText.textContent = isSubscribed ? 'Subscribed' : 'Subscribe';
+
+    } catch (err) {
+        console.error('Error toggling subscription:', err);
+        alert('Failed to toggle subscription.');
+    }
+}
+
+// ============================================
+// CREATE EVENT MODAL
+// ============================================
+
+/**
+ * Open create event modal
+ */
+function openCreateEventModal() {
+    const modal = document.getElementById('createEventModal');
+    const form = document.getElementById('createEventForm');
+    const customLocationGroup = document.getElementById('customLocationGroup');
+    const formMessage = document.getElementById('formMessage');
+
+    // Show modal
+    setElementDisplay(modal, 'block');
+    document.body.style.overflow = 'hidden';
+
+    // Reset form and state
+    form.reset();
+    setElementDisplay(customLocationGroup, 'none');
+    setElementDisplay(formMessage, 'none');
+    clearSelectedGames('create');
+
+    // Load games after modal is rendered
+    setTimeout(() => {
+        const dropdown = document.getElementById('gameDropdown');
+        if (dropdown) {
+            enableDropdown(dropdown);
+        }
+        initializeGameTagSelector('create');
+    }, 50);
+}
+
+/**
+ * Close create event modal
+ */
+function closeCreateEventModal() {
+    const modal = document.getElementById('createEventModal');
+    setElementDisplay(modal, 'none');
+    document.body.style.overflow = 'auto';
+}
+
+/**
+ * Handle location dropdown change
+ * Shows/hides custom location input
+ * @param {Event} e - Change event
+ */
+function handleLocationChange(e) {
+    const customLocationGroup = document.getElementById('customLocationGroup');
+    const customLocationInput = document.getElementById('customLocation');
+
+    if (e.target.value === 'other') {
+        setElementDisplay(customLocationGroup, 'block');
+        customLocationInput.required = true;
+    } else {
+        setElementDisplay(customLocationGroup, 'none');
+        customLocationInput.required = false;
+        customLocationInput.value = '';
+    }
+}
+
+/**
+ * Handle event type change - hide game field for Misc events
+ */
+function handleEventTypeChange() {
+    const eventType = document.getElementById('eventType')?.value;
+    const gameFieldGroup = document.getElementById('gameFieldGroup');
+
+    if (eventType === 'Misc') {
+        setElementDisplay(gameFieldGroup, 'none');
+        clearSelectedGames('create');
+    } else {
+        setElementDisplay(gameFieldGroup, 'block');
+    }
+}
+
+/**
+ * Toggle all-day event button
+ * Switches between "All Day?" and "All Day" states
+ * Manages time input states accordingly
+ */
+function toggleAllDayEvent() {
+    const allDayCheckbox = document.getElementById('allDayEvent');
+    const allDayButton = document.getElementById('allDayButton');
+    const startTimeInput = document.getElementById('startTime');
+    const endTimeInput = document.getElementById('endTime');
+
+    if (!allDayCheckbox || !allDayButton || !startTimeInput || !endTimeInput) return;
+
+    // Toggle checkbox state
+    allDayCheckbox.checked = !allDayCheckbox.checked;
+
+    if (allDayCheckbox.checked) {
+        // Activate all-day mode
+        allDayButton.textContent = 'ALL DAY';
+        allDayButton.classList.add('active');
+
+        // Set all-day times
+        startTimeInput.value = '00:00';
+        endTimeInput.value = '23:59';
+
+        // Make inputs read-only
+        startTimeInput.readOnly = true;
+        endTimeInput.readOnly = true;
+        startTimeInput.style.opacity = '0.5';
+        endTimeInput.style.opacity = '0.5';
+
+        // Remove required attribute
+        startTimeInput.removeAttribute('required');
+        endTimeInput.removeAttribute('required');
+    } else {
+        // Deactivate all-day mode
+        allDayButton.textContent = 'ALL DAY?';
+        allDayButton.classList.remove('active');
+
+        // Clear times
+        startTimeInput.value = '';
+        endTimeInput.value = '';
+
+        // Enable inputs
+        startTimeInput.readOnly = false;
+        endTimeInput.readOnly = false;
+        startTimeInput.style.opacity = '1';
+        endTimeInput.style.opacity = '1';
+
+        // Add required attribute back
+        startTimeInput.setAttribute('required', 'required');
+        endTimeInput.setAttribute('required', 'required');
+    }
+}
+
+/**
+ * Handle create event form submission
+ * @param {Event} e - Submit event
+ */
+async function handleCreateEventSubmit(e) {
+    e.preventDefault();
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const submitBtnText = document.getElementById('submitBtnText');
+    const submitBtnSpinner = document.getElementById('submitBtnSpinner');
+    const formMessage = document.getElementById('formMessage');
+
+    // Set loading state
+    submitBtn.disabled = true;
+    setElementDisplay(submitBtnText, 'none');
+    setElementDisplay(submitBtnSpinner, 'inline-block');
+
+    const formData = new FormData(e.target);
+
+    // Handle custom location
+    const location = formData.get('eventLocation');
+    if (location === 'other') {
+        formData.set('eventLocation', formData.get('customLocation'));
+    }
+    formData.delete('customLocation');
+
+    try {
+        const response = await fetch('/event-register', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // Direct manipulation
+            formMessage.textContent = data.message || 'Event created successfully! Refreshing calendar...';
+            formMessage.className = 'form-message success';
+            formMessage.style.display = 'block';
+
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            throw new Error(data.message || 'Failed to create event');
+        }
+    } catch (error) {
+        // Direct manipulation for error
+        formMessage.textContent = error.message || 'Failed to create event. Please try again.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+
+        // Reset button state
+        submitBtn.disabled = false;
+        setElementDisplay(submitBtnText, 'inline');
+        setElementDisplay(submitBtnSpinner, 'none');
+    }
+}
+
+// ============================================
+// DAY MODAL (CALENDAR VIEW)
+// ============================================
+
+/**
+ * Open day events modal (for calendar view)
+ * @param {string} date - Date string
+ * @param {string} dateTitle - Formatted date title
+ */
+function openDayModal(date, dateTitle) {
+    const modal = document.getElementById('dayEventsModal');
+    const modalTitle = document.getElementById('modalDayTitle');
+    const modalBody = document.getElementById('modalEventsList');
+
+    modalTitle.textContent = dateTitle;
+    const events = EventState.eventsData[date] || [];
+
+    // Clear and populate modal body
+    modalBody.innerHTML = '';
+
+    if (events.length > 0) {
+        events.forEach(event => {
+            const eventItem = createDayModalEventItem(event);
+            modalBody.appendChild(eventItem);
+        });
+    } else {
+        modalBody.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No events scheduled for this day.</p>';
+    }
+
+    setElementDisplay(modal, 'block');
+    document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Create event item for day modal
+ * @param {Object} event - Event object
+ * @returns {HTMLElement} Event item element
+ */
+function createDayModalEventItem(event) {
+    const eventItem = document.createElement('div');
+    eventItem.className = 'modal-event-item';
+    eventItem.onclick = (e) => {
+        e.stopPropagation();
+        closeDayModal();
+        openEventModal(event.id);
+    };
+
+    let eventHTML = '';
+    if (event.time) {
+        eventHTML += `<div class="modal-event-time"><i class="fas fa-clock"></i> ${event.time}</div>`;
+    }
+    eventHTML += `<div class="modal-event-title">${event.title}</div>`;
+    if (event.description) {
+        eventHTML += `<div class="modal-event-description">${event.description}</div>`;
+    }
+
+    eventItem.innerHTML = eventHTML;
+    return eventItem;
+}
+
+/**
+ * Close day modal
+ */
+function closeDayModal() {
+    const modal = document.getElementById('dayEventsModal');
+    setElementDisplay(modal, 'none');
+    document.body.style.overflow = 'auto';
+}
+
+// ============================================
+// EDIT EVENT MODAL
+// ============================================
+
+/**
+ * Toggle edit mode
+ * Switches from view mode to edit mode in the event modal
+ */
+function toggleEditMode() {
+    const content = document.getElementById('eventDetailsContent');
+    const editForm = document.getElementById('eventEditForm');
+    const editBtn = document.getElementById('editEventBtn');
+    const deleteBtn = document.getElementById('deleteEventBtn');
+    const titleElement = document.getElementById('eventDetailsTitle');
+
+    // Hide view mode, show edit mode
+    setElementDisplay(content, 'none');
+    setElementDisplay(editForm, 'block');
+    setElementDisplay(editBtn, 'none');
+    setElementDisplay(deleteBtn, 'none');
+
+    if (titleElement) {
+        titleElement.textContent = 'Edit Event';
+    }
+
+    createEditForm();
+}
+
+/**
+ * Create edit form with pre-populated data
+ */
+function createEditForm() {
+    const editForm = document.getElementById('eventEditForm');
+    if (!EventState.currentEventData) return;
+
+    const event = EventState.currentEventData;
+
+    editForm.innerHTML = `
+        <form id="editEventFormData" class="event-form-modal">
+            ${createEditFormFields(event)}
+            <div id="editFormMessage" class="form-message" style="display: none;"></div>
+            ${createFormActionButtons()}
+        </form>
+    `;
+
+    // Initialize edit form
+    initializeGameTagSelector('edit', event.game);
+    setupEditLocationDropdown(event.location);
+    handleEditEventTypeChange();
+}
+
+/**
+ * Create edit form fields
+ * @param {Object} event - Event object
+ * @returns {string} HTML string for form fields
+ */
+function createEditFormFields(event) {
+    return `
+        <div class="form-group">
+            <label for="editEventName">Event Name</label>
+            <input type="text" id="editEventName" name="eventName" value="${event.name}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="editEventType">Event Type</label>
+            <select id="editEventType" name="eventType" required onchange="handleEditEventTypeChange()">
+                ${createEventTypeOptions(event.event_type)}
+            </select>
+        </div>
+
+        ${createGameTagField('edit')}
+
+        <div class="form-group">
+            <label for="editDate">Date</label>
+            <input type="date" id="editDate" name="eventDate" value="${event.date_raw}" required>
+        </div>
+
+        ${createTimeFields(event)}
+
+        ${createLocationFields('edit', event.location)}
+
+        <div class="form-group">
+            <label for="editDescription">Description</label>
+            <textarea id="editDescription" name="eventDescription" required>${event.description}</textarea>
+        </div>
+    `;
+}
+
+/**
+ * Create event type options
+ * @param {string} selectedType - Currently selected type
+ * @returns {string} HTML string for options
+ */
+function createEventTypeOptions(selectedType) {
+    const types = ['Event', 'Match', 'Practice', 'Tournament', 'Misc'];
+    return types.map(type =>
+        `<option value="${type}" ${selectedType === type ? 'selected' : ''}>${type}</option>`
+    ).join('');
+}
+
+/**
+ * Create game tag field
+ * @param {string} context - 'create' or 'edit'
+ * @returns {string} HTML string for game tag field
+ */
+function createGameTagField(context) {
+    const prefix = context === 'edit' ? 'edit' : '';
+    const idPrefix = prefix ? `${prefix}` : '';
+    const capitalPrefix = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+
+    return `
+        <div class="form-group" id="${idPrefix}GameFieldGroup">
+            <label for="${idPrefix}GameDropdown">Games (Optional)</label>
+            <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
+                Select games from the dropdown - they'll appear as tags below
+            </div>
+
+            <div id="${idPrefix}SelectedGamesContainer" class="selected-games-container"></div>
+
+            <select id="${idPrefix}GameDropdown" class="game-dropdown-single">
+                <option value="">+ Add a game</option>
+            </select>
+
+            <div id="${idPrefix}GameLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                <i class="fas fa-spinner fa-spin"></i> Loading games...
+            </div>
+
+            <input type="hidden" id="${idPrefix}SelectedGamesInput" name="games" value="[]">
+        </div>
+    `;
+}
+
+/**
+ * Create time input fields
+ * @param {Object} event - Event object
+ * @returns {string} HTML string for time fields
+ */
+function createTimeFields(event) {
+    return `
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group" style="margin: 0;">
+                <label for="editStartTime">Start Time</label>
+                <input type="time" id="editStartTime" name="startTime"
+                       value="${convertTo24Hour(event.start_time)}" required>
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label for="editEndTime">End Time</label>
+                <input type="time" id="editEndTime" name="endTime"
+                       value="${convertTo24Hour(event.end_time)}" required>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Create location fields
+ * @param {string} context - 'create' or 'edit'
+ * @param {string} currentLocation - Current location value
+ * @returns {string} HTML string for location fields
+ */
+function createLocationFields(context, currentLocation = '') {
+    const prefix = context === 'edit' ? 'edit' : '';
+    const idPrefix = prefix ? `${prefix}` : '';
+
+    return `
+        <div class="form-group">
+            <label for="${idPrefix}Location">Location</label>
+            <select id="${idPrefix}Location" name="eventLocation" required>
+                <option value="">Select location</option>
+                <option value="Campus Center">Campus Center</option>
+                <option value="Campus Center Coffee House">Campus Center Coffee House</option>
+                <option value="Campus Center Event Room">Campus Center Event Room</option>
+                <option value="D-108">D-108</option>
+                <option value="Esports Lab (Commons Building 80)">Esports Lab (Commons Building 80)</option>
+                <option value="Lakeside Lodge">Lakeside Lodge</option>
+                <option value="Online">Online</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="${idPrefix}CustomLocationGroup" style="display: none;">
+            <label for="${idPrefix}CustomLocation">Custom Location</label>
+            <input type="text" id="${idPrefix}CustomLocation" name="customLocation" placeholder="Enter custom location">
+        </div>
+    `;
+}
+
+/**
+ * Create form action buttons
+ * @returns {string} HTML string for action buttons
+ */
+function createFormActionButtons() {
+    return `
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="cancelEdit()">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="button" class="btn btn-primary" onclick="submitEventEdit()">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+        </div>
+    `;
+}
+
+/**
+ * Setup edit location dropdown with current value
+ * @param {string} currentLocation - Current location
+ */
+function setupEditLocationDropdown(currentLocation) {
+    const presetLocations = [
+        'Campus Center',
+        'Campus Center Coffee House',
+        'Campus Center Event Room',
+        'D-108',
+        'Esports Lab (Commons Building 80)',
+        'Lakeside Lodge',
+        'Online'
+    ];
+
+    const locationSelect = document.getElementById('editLocation');
+    const customLocationGroup = document.getElementById('editCustomLocationGroup');
+    const customLocationInput = document.getElementById('editCustomLocation');
+
+    if (!locationSelect) return;
+
+    // Set current value
+    if (presetLocations.includes(currentLocation)) {
+        locationSelect.value = currentLocation;
+    } else {
+        locationSelect.value = 'other';
+        setElementDisplay(customLocationGroup, 'block');
+        customLocationInput.value = currentLocation;
+        customLocationInput.required = true;
+    }
+
+    // Add change listener
+    locationSelect.addEventListener('change', function() {
+        if (this.value === 'other') {
+            setElementDisplay(customLocationGroup, 'block');
+            customLocationInput.required = true;
+        } else {
+            setElementDisplay(customLocationGroup, 'none');
+            customLocationInput.required = false;
+            customLocationInput.value = '';
+        }
+    });
+}
+
+/**
+ * Handle event type change in edit form
+ */
+function handleEditEventTypeChange() {
+    const eventType = document.getElementById('editEventType')?.value;
+    const gameFieldGroup = document.getElementById('editGameFieldGroup');
+
+    if (eventType === 'Misc') {
+        setElementDisplay(gameFieldGroup, 'none');
+        clearSelectedGames('edit');
+    } else {
+        setElementDisplay(gameFieldGroup, 'block');
+    }
+}
+
+/**
+ * Submit event edit
+ */
+async function submitEventEdit() {
+    const formMessage = document.getElementById('editFormMessage');
+    const submitBtn = document.querySelector('#editEventFormData .btn-primary');
+
+    if (!submitBtn) return;
+
+    // Set loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    // Gather form data
+    const formData = gatherEditFormData();
+
+    try {
+        const response = await fetch('/api/event/edit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Direct manipulation
+            formMessage.textContent = data.message;
+            formMessage.className = 'form-message success';
+            formMessage.style.display = 'block';
+
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            throw new Error(data.message || 'Failed to update event');
+        }
+    } catch (error) {
+        console.error('Error updating event:', error);
+
+        // Direct manipulation for error
+        formMessage.textContent = error.message || 'An error occurred while updating the event';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+
+        // Reset button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+    }
+}
+
+/**
+ * Gather edit form data
+ * @returns {Object} Form data object
+ */
+function gatherEditFormData() {
+    const locationSelect = document.getElementById('editLocation');
+    const customLocationInput = document.getElementById('editCustomLocation');
+    const locationValue = locationSelect?.value === 'other'
+        ? customLocationInput?.value
+        : locationSelect?.value;
+
+    const gamesInput = document.getElementById('editSelectedGamesInput');
+
+    return {
+        event_id: EventState.currentEventId,
+        event_name: document.getElementById('editEventName')?.value,
+        event_type: document.getElementById('editEventType')?.value,
+        games: gamesInput?.value || '[]',
+        event_date: document.getElementById('editDate')?.value,
+        start_time: document.getElementById('editStartTime')?.value,
+        end_time: document.getElementById('editEndTime')?.value,
+        location: locationValue,
+        description: document.getElementById('editDescription')?.value
+    };
+}
+
+/**
+ * Cancel edit mode
+ */
+function cancelEdit() {
+    const content = document.getElementById('eventDetailsContent');
+    const editForm = document.getElementById('eventEditForm');
+
+    setElementDisplay(content, 'block');
+    setElementDisplay(editForm, 'none');
+
+    // Restore buttons if user has permissions
+    if (EventState.currentEventData) {
+        updateEventModalButtons(EventState.currentEventData);
     }
 }
 
@@ -825,10 +1758,12 @@ function updateEventButtons(event) {
 
 /**
  * Open delete confirmation modal
+ * @param {number} eventId - Event ID to delete
+ * @param {string} eventName - Event name for confirmation
  */
 function openDeleteConfirmModal(eventId, eventName) {
-    currentDeleteEventId = eventId;
-    currentDeleteEventName = eventName;
+    EventState.currentDeleteEventId = eventId;
+    EventState.currentDeleteEventName = eventName;
 
     document.getElementById('deleteEventName').textContent = eventName;
     document.getElementById('deleteEventConfirmModal').classList.add('active');
@@ -841,22 +1776,20 @@ function openDeleteConfirmModal(eventId, eventName) {
 function closeDeleteConfirmModal() {
     document.getElementById('deleteEventConfirmModal').classList.remove('active');
     document.body.style.overflow = 'auto';
-    currentDeleteEventId = null;
-    currentDeleteEventName = '';
+    EventState.currentDeleteEventId = null;
+    EventState.currentDeleteEventName = '';
 }
 
 /**
  * Confirm event deletion
  */
 async function confirmDeleteEvent() {
-    if (!currentDeleteEventId) return;
+    if (!EventState.currentDeleteEventId) return;
 
     try {
-        const response = await fetch(`/api/events/${currentDeleteEventId}`, {
+        const response = await fetch(`/api/events/${EventState.currentDeleteEventId}`, {
             method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Content-Type': 'application/json' }
         });
 
         const data = await response.json();
@@ -875,10 +1808,10 @@ async function confirmDeleteEvent() {
 }
 
 /**
- * Delete event (legacy function for calendar)
+ * Delete event (legacy function for calendar compatibility)
  */
 async function deleteEvent() {
-    if (!currentEventId) {
+    if (!EventState.currentEventId) {
         alert("Event ID not found.");
         return;
     }
@@ -890,10 +1823,8 @@ async function deleteEvent() {
     try {
         const response = await fetch('/delete-event', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ event_id: currentEventId })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event_id: EventState.currentEventId })
         });
 
         const data = await response.json();
@@ -912,899 +1843,50 @@ async function deleteEvent() {
 }
 
 // ============================================
-// GAMES DROPDOWN MANAGEMENT
+// GLOBAL EXPORTS
 // ============================================
+// Export all public functions to the global window object
+// This maintains compatibility with existing HTML onclick handlers
+// and other external references
 
-/**
- * Load games for create event modal dropdown
- */
-async function loadGamesForDropdown() {
-    await populateGameDropdown('game', 'gameLoadingIndicator');
-}
-
-/**
- * Load games for edit event modal dropdown
- */
-async function loadGamesForEditDropdown() {
-    const currentGame = currentEventData ? currentEventData.game : null;
-    await populateGameDropdown('editGame', 'editGameLoadingIndicator', currentGame);
-}
-
-/**
- * Load games for the game filter dropdown
- */
-async function loadGamesForFilter() {
-    await populateGameDropdown('gameFilter', 'gameFilterLoadingIndicator');
-}
-
-    const isGM = window.userPermissions ? window.userPermissions.is_gm : false;
-    const currentUserId = window.currentUserId || 0;
-    const editBtn = document.getElementById("editEventBtn");
-    const isAdmin = window.userPermissions ? window.userPermissions.is_admin : false;
-    const deleteBtn = document.getElementById("deleteEventBtn");
-
-    if (editBtn) {
-        if (isAdmin || (isGM && event.created_by === currentUserId)) {
-            editBtn.style.display = "flex";
-        } else {
-            editBtn.style.display = "none";
-        }
-    }
-
-    if (deleteBtn && isAdmin) {
-        deleteBtn.style.display = "flex";
-    }
-
-/**
- * Handle event load error
- */
-function handleEventLoadError(titleElement, content, spinner) {
-    if (titleElement) {
-        titleElement.textContent = 'Error Loading Event';
-    }
-
-    content.innerHTML = `
-        <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-            <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ff5252; margin-bottom: 1rem;"></i>
-            <p>Failed to load event details. Please try again.</p>
-            <button class="btn btn-primary" onclick="closeEventModal()" style="margin-top: 1rem;">Close</button>
-        </div>
-    `;
-    spinner.style.display = 'none';
-    content.style.display = 'block';
-}
-
-/**
- * Close event modal
- */
-function closeEventModal() {
-    const modal = document.getElementById('eventDetailsModal');
-    const deleteBtn = document.getElementById("deleteEventBtn");
-    const editBtn = document.getElementById("editEventBtn");
-    const content = document.getElementById("eventDetailsContent");
-    const editForm = document.getElementById("eventEditForm");
-
-    modal.style.display = "none";
-    if (deleteBtn) deleteBtn.style.display = "none";
-    if (editBtn) editBtn.style.display = "none";
-    if (content) content.style.display = "none";
-    if (editForm) editForm.style.display = "none";
-
-    document.body.style.overflow = "auto";
-    currentEventId = null;
-    currentEventData = null;
-}
-
-// ============================================
-// EVENT NOTIFICATIONS
-// ============================================
-
-/**
- * Load notification section for an event
- */
-async function loadNotificationSection(eventId) {
-    const btn = document.getElementById('notificationBtn');
-    const btnText = document.getElementById('notificationBtnText');
-
-    if (!btn || !btnText) return;
-
-    try {
-        const response = await fetch(`/api/event/${eventId}/subscription-status`);
-        const data = await response.json();
-
-        if (!data.notifications_enabled) {
-            btn.disabled = true;
-            btn.classList.add('disabled');
-            btnText.textContent = 'Enable notifications in Profile';
-            return;
-        }
-
-        btn.disabled = false;
-        btn.classList.remove('disabled');
-
-        if (data.subscribed) {
-            btnText.textContent = 'Subscribed';
-            btn.classList.add('subscribed');
-        } else {
-            btnText.textContent = 'Subscribe';
-            btn.classList.remove('subscribed');
-        }
-
-    } catch (err) {
-        console.error('Error fetching subscription status:', err);
-        btn.disabled = true;
-        btnText.textContent = 'Error';
-    }
-}
-
-/**
- * Toggle event subscription
- */
-async function toggleEventSubscription() {
-    const btn = document.getElementById('notificationBtn');
-    const btnText = document.getElementById('notificationBtnText');
-
-    if (!currentEventId) return;
-
-    try {
-        const response = await fetch(`/api/event/${currentEventId}/toggle-subscription`, {
-            method: 'POST'
-        });
-        const data = await response.json();
-
-        if (data.error) {
-            alert(data.error);
-            return;
-        }
-
-        if (data.status === 'subscribed') {
-            btnText.textContent = 'Subscribed';
-            btn.classList.add('subscribed');
-        } else {
-            btnText.textContent = 'Subscribe';
-            btn.classList.remove('subscribed');
-        }
-
-    } catch (err) {
-        console.error('Error toggling subscription:', err);
-        alert('Failed to toggle subscription.');
-    }
-}
-
-// ============================================
-// DAY MODAL (Calendar)
-// ============================================
-
-/**
- * Open day events modal
- */
-function openDayModal(date, dateTitle) {
-    const modal = document.getElementById('dayEventsModal');
-    const modalTitle = document.getElementById('modalDayTitle');
-    const modalBody = document.getElementById('modalEventsList');
-
-    modalTitle.textContent = dateTitle;
-    const events = eventsData[date] || [];
-    modalBody.innerHTML = '';
-
-    if (events.length > 0) {
-        events.forEach(event => {
-            const eventItem = document.createElement('div');
-            eventItem.className = 'modal-event-item';
-            eventItem.onclick = (e) => {
-                e.stopPropagation();
-                closeDayModal();
-                openEventModal(event.id);
-            };
-
-            let eventHTML = '';
-            if (event.time) {
-                eventHTML += `<div class="modal-event-time"><i class="fas fa-clock"></i> ${event.time}</div>`;
-            }
-            eventHTML += `<div class="modal-event-title">${event.title}</div>`;
-            if (event.description) {
-                eventHTML += `<div class="modal-event-description">${event.description}</div>`;
-            }
-
-            eventItem.innerHTML = eventHTML;
-            modalBody.appendChild(eventItem);
-        });
-    } else {
-        modalBody.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No events scheduled for this day.</p>';
-    }
-
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-}
-
-/**
- * Close day modal
- */
-function closeDayModal() {
-    const modal = document.getElementById('dayEventsModal');
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-}
-
-// ============================================
-// CREATE EVENT
-// ============================================
-
-/**
- * Open create event modal
- */
-function openCreateEventModal() {
-    const modal = document.getElementById('createEventModal');
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-
-    document.getElementById('createEventForm').reset();
-    document.getElementById('customLocationGroup').style.display = 'none';
-    document.getElementById('formMessage').style.display = 'none';
-
-    // Clear selected games
-    clearSelectedGames();
-
-    // IMPORTANT: Wait for modal to be fully rendered before loading games
-    setTimeout(() => {
-        const dropdown = document.getElementById('gameDropdown');
-        if (dropdown) {
-            // Force enable before loading
-            dropdown.disabled = false;
-            dropdown.removeAttribute('disabled');
-            dropdown.style.pointerEvents = 'auto';
-            dropdown.style.opacity = '1';
-        }
-
-        // Load games for tag selector
-        loadGamesForTagSelector();
-    }, 50);
-}
-
-/**
- * Handle event type change - hide game field for Misc events
- */
-function handleEventTypeChange() {
-    const eventType = document.getElementById('eventType').value;
-    const gameFieldGroup = document.getElementById('gameFieldGroup');
-    const gameSelect = document.getElementById('game');
-
-    if (eventType === 'Misc') {
-        // Hide game field for Misc events
-        gameFieldGroup.style.display = 'none';
-        gameSelect.removeAttribute('required');
-        gameSelect.value = ''; // Clear selection
-    } else {
-        // Show game field for other event types
-        gameFieldGroup.style.display = 'block';
-    }
-}
-
-/**
- * Close create event modal
- */
-function closeCreateEventModal() {
-    const modal = document.getElementById('createEventModal');
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-}
-
-/**
- * Handle location dropdown change
- */
-function handleLocationChange(e) {
-    const customLocationGroup = document.getElementById('customLocationGroup');
-    const customLocationInput = document.getElementById('customLocation');
-
-    if (e.target.value === 'other') {
-        customLocationGroup.style.display = 'block';
-        customLocationInput.required = true;
-    } else {
-        customLocationGroup.style.display = 'none';
-        customLocationInput.required = false;
-        customLocationInput.value = '';
-    }
-}
-
-/**
- * Toggle all-day event button
- * When clicked, switches between blue "All Day?" and green "All Day"
- * Disables/enables time inputs accordingly
- */
-function toggleAllDayEvent() {
-    const allDayCheckbox = document.getElementById('allDayEvent');
-    const allDayButton = document.getElementById('allDayButton');
-    const startTimeInput = document.getElementById('startTime');
-    const endTimeInput = document.getElementById('endTime');
-
-    // Toggle the hidden checkbox state
-    allDayCheckbox.checked = !allDayCheckbox.checked;
-
-    if (allDayCheckbox.checked) {
-        // Change to active state (green)
-        allDayButton.textContent = 'ALL DAY';
-        allDayButton.classList.add('active');
-
-        // Set to all-day times
-        startTimeInput.value = '00:00';
-        endTimeInput.value = '23:59';
-
-        // Disable inputs visually
-        startTimeInput.readOnly = true;
-        endTimeInput.readOnly = true;
-        startTimeInput.style.opacity = '0.5';
-        endTimeInput.style.opacity = '0.5';
-
-        // Remove required attribute
-        startTimeInput.removeAttribute('required');
-        endTimeInput.removeAttribute('required');
-    } else {
-        // Change to inactive state (blue)
-        allDayButton.textContent = 'ALL DAY?';
-        allDayButton.classList.remove('active');
-
-        // Clear time values
-        startTimeInput.value = '';
-        endTimeInput.value = '';
-
-        // Enable inputs
-        startTimeInput.disabled = false;
-        endTimeInput.disabled = false;
-        startTimeInput.style.opacity = '1';
-        endTimeInput.style.opacity = '1';
-
-        // Add back required attribute
-        startTimeInput.setAttribute('required', 'required');
-        endTimeInput.setAttribute('required', 'required');
-    }
-}
-
-/**
- * Handle create event form submission
- */
-async function handleCreateEventSubmit(e) {
-    e.preventDefault();
-
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const submitBtnText = document.getElementById('submitBtnText');
-    const submitBtnSpinner = document.getElementById('submitBtnSpinner');
-    const formMessage = document.getElementById('formMessage');
-
-    submitBtn.disabled = true;
-    submitBtnText.style.display = 'none';
-    submitBtnSpinner.style.display = 'inline-block';
-
-    const formData = new FormData(e.target);
-
-    const location = formData.get('eventLocation');
-    if (location === 'other') {
-        formData.set('eventLocation', formData.get('customLocation'));
-    }
-    formData.delete('customLocation');
-
-    try {
-        const response = await fetch('/event-register', {
-            method: 'POST',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-            formMessage.textContent = data.message || 'Event created successfully! Refreshing calendar...';
-            formMessage.className = 'form-message success';
-            formMessage.style.display = 'block';
-
-            setTimeout(() => { window.location.reload(); }, 1500);
-        } else {
-            throw new Error(data.message || 'Failed to create event');
-        }
-    } catch (error) {
-        formMessage.textContent = error.message || 'Failed to create event. Please try again.';
-        formMessage.className = 'form-message error';
-        formMessage.style.display = 'block';
-
-        submitBtn.disabled = false;
-        submitBtnText.style.display = 'inline';
-        submitBtnSpinner.style.display = 'none';
-    }
-}
-
-// ============================================
-// EDIT EVENT
-// ============================================
-
-/**
- * Toggle edit mode
- */
-function toggleEditMode() {
-    const content = document.getElementById('eventDetailsContent');
-    const editForm = document.getElementById('eventEditForm');
-    const editBtn = document.getElementById('editEventBtn');
-    const deleteBtn = document.getElementById('deleteEventBtn');
-    const titleElement = document.getElementById('eventDetailsTitle');
-
-    content.style.display = 'none';
-    editForm.style.display = 'block';
-    if (editBtn) editBtn.style.display = 'none';
-    if (deleteBtn) deleteBtn.style.display = 'none';
-
-    if (titleElement) {
-        titleElement.textContent = 'Edit Event';
-    }
-
-    createEditForm();
-}
-
-/**
- * Create edit form with multi-game tag system
- */
-function createEditForm() {
-    const editForm = document.getElementById('eventEditForm');
-    if (!currentEventData) return;
-
-    const event = currentEventData;
-
-    // Convert 12-hour time format to 24-hour format for input[type="time"]
-    function convertTo24Hour(time12h) {
-        if (!time12h) return '';
-
-        const [time, period] = time12h.split(' ');
-        let [hours, minutes] = time.split(':');
-
-        hours = parseInt(hours);
-
-        if (period === 'PM' && hours !== 12) {
-            hours += 12;
-        } else if (period === 'AM' && hours === 12) {
-            hours = 0;
-        }
-
-        return `${hours.toString().padStart(2, '0')}:${minutes}`;
-    }
-
-    editForm.innerHTML = `
-        <form id="editEventFormData" class="event-form-modal">
-            <div class="form-group">
-                <label for="editEventName">Event Name</label>
-                <input type="text" id="editEventName" name="eventName"
-                       value="${event.name}" required>
-            </div>
-
-            <div class="form-group">
-                <label for="editEventType">Event Type</label>
-                <select id="editEventType" name="eventType" required onchange="handleEditEventTypeChange()">
-                    <option value="Event" ${event.event_type === 'Event' ? 'selected' : ''}>Event</option>
-                    <option value="Match" ${event.event_type === 'Match' ? 'selected' : ''}>Match</option>
-                    <option value="Practice" ${event.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
-                    <option value="Tournament" ${event.event_type === 'Tournament' ? 'selected' : ''}>Tournament</option>
-                    <option value="Misc" ${event.event_type === 'Misc' ? 'selected' : ''}>Misc</option>
-                </select>
-            </div>
-
-            <!-- Multi-Game Tag Selector -->
-            <div class="form-group" id="editGameFieldGroup">
-                <label for="editGameDropdown">Games (Optional)</label>
-                <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
-                    Select games from the dropdown - they'll appear as tags below
-                </div>
-
-                <!-- Selected games display area -->
-                <div id="editSelectedGamesContainer" class="selected-games-container">
-                    <!-- Selected game tags will appear here -->
-                </div>
-
-                <!-- Dropdown for selecting games -->
-                <select id="editGameDropdown" class="game-dropdown-single">
-                    <option value="">+ Add a game</option>
-                    <!-- Games will be loaded dynamically via JavaScript -->
-                </select>
-
-                <div id="editGameLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                    <i class="fas fa-spinner fa-spin"></i> Loading games...
-                </div>
-
-                <!-- Hidden input to store selected games as JSON -->
-                <input type="hidden" id="editSelectedGamesInput" name="games" value="[]">
-            </div>
-
-            <div class="form-group">
-                <label for="editDate">Date</label>
-                <input type="date" id="editDate" name="eventDate"
-                       value="${event.date_raw}" required>
-            </div>
-
-            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group" style="margin: 0;">
-                    <label for="editStartTime">Start Time</label>
-                    <input type="time" id="editStartTime" name="startTime"
-                           value="${convertTo24Hour(event.start_time)}" required>
-                </div>
-
-                <div class="form-group" style="margin: 0;">
-                    <label for="editEndTime">End Time</label>
-                    <input type="time" id="editEndTime" name="endTime"
-                           value="${convertTo24Hour(event.end_time)}" required>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="editLocation">Location</label>
-                <select id="editLocation" name="eventLocation" required>
-                    <option value="">Select location</option>
-                    <option value="Campus Center">Campus Center</option>
-                    <option value="Campus Center Coffee House">Campus Center Coffee House</option>
-                    <option value="Campus Center Event Room">Campus Center Event Room</option>
-                    <option value="D-108">D-108</option>
-                    <option value="Esports Lab (Commons Building 80)">Esports Lab (Commons Building 80)</option>
-                    <option value="Lakeside Lodge">Lakeside Lodge</option>
-                    <option value="Online">Online</option>
-                    <option value="other">Other</option>
-                </select>
-            </div>
-
-            <div class="form-group" id="editCustomLocationGroup" style="display: none;">
-                <label for="editCustomLocation">Custom Location</label>
-                <input type="text" id="editCustomLocation" name="customLocation" placeholder="Enter custom location">
-            </div>
-
-            <div class="form-group">
-                <label for="editDescription">Description</label>
-                <textarea id="editDescription" name="eventDescription"
-                          required>${event.description}</textarea>
-            </div>
-
-            <div id="editFormMessage" class="form-message" style="display: none;"></div>
-
-            <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="cancelEdit()">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button type="button" class="btn btn-primary" onclick="submitEventEdit()">
-                    <i class="fas fa-save"></i> Save Changes
-                </button>
-            </div>
-        </form>
-    `;
-
-    // Initialize edit game tags with existing games
-    loadGamesForEditTagSelector(event.game);
-    setupEditLocationDropdown(event.location);
-    handleEditEventTypeChange();
-}
-
-/**
- * Load games for the edit tag selector and pre-populate with existing games
- */
-async function loadGamesForEditTagSelector(currentGames) {
-    const dropdown = document.getElementById('editGameDropdown');
-    const loadingIndicator = document.getElementById('editGameLoadingIndicator');
-
-    if (!dropdown) {
-        console.warn('editGameDropdown element not found');
-        return;
-    }
-
-    // Show loading indicator
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'block';
-    }
-
-    try {
-        const games = await loadGamesList();
-
-        // Clear existing options except placeholder
-        dropdown.innerHTML = '<option value="">+ Add a game</option>';
-
-        if (games.length === 0) {
-            const option = document.createElement('option');
-            option.value = "";
-            option.textContent = "No games available";
-            option.disabled = true;
-            dropdown.appendChild(option);
-            return;
-        }
-
-        // Populate dropdown
-        games.forEach(game => {
-            const option = document.createElement('option');
-            option.value = game.GameTitle;
-            option.textContent = game.GameTitle;
-            dropdown.appendChild(option);
-        });
-
-        // Parse existing games and add them as tags
-        selectedGames = [];
-        if (currentGames && currentGames !== 'N/A' && currentGames.trim() !== '') {
-            const gamesList = currentGames.split(',').map(g => g.trim());
-            gamesList.forEach(game => {
-                if (game) {
-                    selectedGames.push(game);
-                }
-            });
-        }
-        updateEditGameTagsDisplay();
-        updateEditHiddenGamesInput();
-
-        // Initialize the tag selector event listener
-        initializeEditGameTagSelector();
-
-    } catch (error) {
-        console.error('Error populating edit game dropdown:', error);
-        dropdown.innerHTML = '<option value="">Error loading games</option>';
-    } finally {
-        // Hide loading indicator
-        if (loadingIndicator) {
-            loadingIndicator.style.display = 'none';
-        }
-
-        // Force enable the dropdown
-        dropdown.removeAttribute('disabled');
-        dropdown.disabled = false;
-        dropdown.style.pointerEvents = 'auto';
-        dropdown.style.opacity = '1';
-        dropdown.style.cursor = 'pointer';
-
-        console.log('Edit dropdown fully enabled');
-    }
-}
-
-/**
- * Initialize game tag selector event listener for edit form
- */
-function initializeEditGameTagSelector() {
-    const dropdown = document.getElementById('editGameDropdown');
-    if (!dropdown) return;
-
-    // Remove any existing event listeners to prevent duplicates
-    const clone = dropdown.cloneNode(true);
-    dropdown.replaceWith(clone);
-
-    // Get fresh reference to the replaced element
-    const newDropdown = document.getElementById('editGameDropdown');
-    if (!newDropdown) return;
-
-    newDropdown.addEventListener('change', function() {
-        const selectedGame = this.value;
-        if (selectedGame && !selectedGames.includes(selectedGame)) {
-            addEditGameTag(selectedGame);
-        }
-        // Reset dropdown to placeholder
-        this.value = '';
-    });
-}
-
-/**
- * Add a game tag to the edit selected games
- */
-function addEditGameTag(gameTitle) {
-    if (selectedGames.includes(gameTitle)) return;
-
-    selectedGames.push(gameTitle);
-    updateEditGameTagsDisplay();
-    updateEditHiddenGamesInput();
-}
-
-/**
- * Remove a game tag from edit selected games
- */
-function removeEditGameTag(gameTitle) {
-    selectedGames = selectedGames.filter(game => game !== gameTitle);
-    updateEditGameTagsDisplay();
-    updateEditHiddenGamesInput();
-}
-
-/**
- * Update the visual display of selected game tags in edit form
- */
-function updateEditGameTagsDisplay() {
-    const container = document.getElementById('editSelectedGamesContainer');
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    selectedGames.forEach(game => {
-        const tag = document.createElement('div');
-        tag.className = 'game-tag';
-        tag.innerHTML = `
-            <i class="fas fa-gamepad game-tag-icon"></i>
-            <span>${game}</span>
-            <button type="button"
-                    class="game-tag-remove"
-                    onclick="removeEditGameTag('${game.replace(/'/g, "\\'")}')"
-                    title="Remove ${game}">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        container.appendChild(tag);
-    });
-}
-
-/**
- * Update the hidden input with selected games as JSON for edit form
- */
-function updateEditHiddenGamesInput() {
-    const hiddenInput = document.getElementById('editSelectedGamesInput');
-    if (hiddenInput) {
-        hiddenInput.value = JSON.stringify(selectedGames);
-    }
-}
-
-/**
- * Setup edit location dropdown
- */
-function setupEditLocationDropdown(currentLocation) {
-    const presetLocations = [
-        'Campus Center',
-        'Campus Center Coffee House',
-        'Campus Center Event Room',
-        'D-108',
-        'Esports Lab (Commons Building 80)',
-        'Lakeside Lodge',
-        'Online'
-    ];
-
-    const locationSelect = document.getElementById('editLocation');
-    const customLocationGroup = document.getElementById('editCustomLocationGroup');
-    const customLocationInput = document.getElementById('editCustomLocation');
-
-    if (presetLocations.includes(currentLocation)) {
-        locationSelect.value = currentLocation;
-    } else {
-        locationSelect.value = 'other';
-        customLocationGroup.style.display = 'block';
-        customLocationInput.value = currentLocation;
-        customLocationInput.required = true;
-    }
-
-    locationSelect.addEventListener('change', function() {
-        if (this.value === 'other') {
-            customLocationGroup.style.display = 'block';
-            customLocationInput.required = true;
-        } else {
-            customLocationGroup.style.display = 'none';
-            customLocationInput.required = false;
-            customLocationInput.value = '';
-        }
-    });
-}
-
-/**
- * Handle event type change in edit form
- */
-function handleEditEventTypeChange() {
-    const eventType = document.getElementById('editEventType').value;
-    const gameFieldGroup = document.getElementById('editGameFieldGroup');
-
-    if (eventType === 'Misc') {
-        // Hide game field for Misc events
-        gameFieldGroup.style.display = 'none';
-        // Clear selected games
-        selectedGames = [];
-        updateEditGameTagsDisplay();
-        updateEditHiddenGamesInput();
-    } else {
-        // Show game field for other event types
-        gameFieldGroup.style.display = 'block';
-    }
-}
-
-/**
- * Submit event edit with multi-game support
- */
-async function submitEventEdit() {
-    const formMessage = document.getElementById('editFormMessage');
-    const submitBtn = document.querySelector('#editEventFormData .btn-primary');
-
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-
-    const locationSelect = document.getElementById('editLocation');
-    const customLocationInput = document.getElementById('editCustomLocation');
-    const locationValue = locationSelect.value === 'other' ? customLocationInput.value : locationSelect.value;
-
-    // Get games as JSON string
-    const gamesInput = document.getElementById('editSelectedGamesInput');
-    const gamesJson = gamesInput ? gamesInput.value : '[]';
-
-    const formData = {
-        event_id: currentEventId,
-        event_name: document.getElementById('editEventName').value,
-        event_type: document.getElementById('editEventType').value,
-        games: gamesJson,  // Send as JSON string
-        event_date: document.getElementById('editDate').value,
-        start_time: document.getElementById('editStartTime').value,
-        end_time: document.getElementById('editEndTime').value,
-        location: locationValue,
-        description: document.getElementById('editDescription').value
-    };
-
-    try {
-        const response = await fetch('/api/event/edit', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData)
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            formMessage.textContent = data.message;
-            formMessage.className = 'form-message success';
-            formMessage.style.display = 'block';
-
-            setTimeout(() => {
-                closeEventModal();
-                window.location.reload();
-            }, 1500);
-        } else {
-            formMessage.textContent = data.message || 'Failed to update event';
-            formMessage.className = 'form-message error';
-            formMessage.style.display = 'block';
-
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
-        }
-    } catch (error) {
-        console.error('Error updating event:', error);
-        formMessage.textContent = 'An error occurred while updating the event';
-        formMessage.className = 'form-message error';
-        formMessage.style.display = 'block';
-
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
-    }
-}
-
-/**
- * Cancel edit
- */
-function cancelEdit() {
-    const content = document.getElementById('eventDetailsContent');
-    const editForm = document.getElementById('eventEditForm');
-    const editBtn = document.getElementById('editEventBtn');
-    const deleteBtn = document.getElementById('deleteEventBtn');
-    const titleElement = document.getElementById('eventDetailsTitle');
-
-    content.style.display = 'block';
-    editForm.style.display = 'none';
-
-    const isAdmin = window.userPermissions ? window.userPermissions.is_admin : false;
-}
-
-// ============================================
-// EXPORT FUNCTIONS TO GLOBAL SCOPE
-// ============================================
 window.initializeEventsModule = initializeEventsModule;
 window.loadEvents = loadEvents;
 window.filterEvents = filterEvents;
+window.filterEventsByType = filterEventsByType;
+window.filterEventsByGame = filterEventsByGame;
+
+// Event Modal Functions
 window.openEventModal = openEventModal;
 window.closeEventModal = closeEventModal;
+window.toggleEventSubscription = toggleEventSubscription;
+
+// Day Modal Functions (Calendar)
 window.openDayModal = openDayModal;
 window.closeDayModal = closeDayModal;
+
+// Create Event Functions
 window.openCreateEventModal = openCreateEventModal;
 window.closeCreateEventModal = closeCreateEventModal;
+window.handleEventTypeChange = handleEventTypeChange;
+window.toggleAllDayEvent = toggleAllDayEvent;
+
+// Edit Event Functions
 window.toggleEditMode = toggleEditMode;
 window.cancelEdit = cancelEdit;
 window.submitEventEdit = submitEventEdit;
+window.handleEditEventTypeChange = handleEditEventTypeChange;
+
+// Delete Event Functions
 window.deleteEvent = deleteEvent;
 window.openDeleteConfirmModal = openDeleteConfirmModal;
 window.closeDeleteConfirmModal = closeDeleteConfirmModal;
 window.confirmDeleteEvent = confirmDeleteEvent;
-window.toggleEventSubscription = toggleEventSubscription;
-window.loadGamesForDropdown = loadGamesForDropdown;
-window.toggleAllDayEvent = toggleAllDayEvent;
-window.filterEventsByGame = filterEventsByGame;
-window.loadGamesForFilter = loadGamesForFilter;
-window.clearGamesCache = clearGamesCache;
-window.handleEventTypeChange = handleEventTypeChange;
-window.handleEditEventTypeChange = handleEditEventTypeChange;
+
+// Game Tag System Functions
 window.addGameTag = addGameTag;
 window.removeGameTag = removeGameTag;
 window.clearSelectedGames = clearSelectedGames;
-window.addEditGameTag = addEditGameTag;
-window.removeEditGameTag = removeEditGameTag;
-window.handleEditEventTypeChange = handleEditEventTypeChange;
+
+// Utility Functions
+window.loadGamesForFilter = loadGamesForFilter;
+window.clearGamesCache = clearGamesCache;
