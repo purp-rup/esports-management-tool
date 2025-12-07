@@ -204,6 +204,7 @@
     transition: all 0.2s;
     font-size: 0.875rem;
     margin-right: 0.5rem;
+    margin-top: 0.5rem;
     border-radius: 6px;
     opacity: 1;
 }
