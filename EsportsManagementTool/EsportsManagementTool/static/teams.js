@@ -1,7 +1,7 @@
 /**
  * teams.js
  * ============================================================================
- * TEAMS MANAGEMENT SYSTEM - PART 1 OF 2
+ * TEAMS MANAGEMENT SYSTEM
  * ============================================================================
  * Comprehensive team management functionality:
  * - Role-based view switching (All Teams, Teams I Manage, Teams I Play On)
@@ -85,6 +85,9 @@ async function initializeViewSwitcher() {
             } else {
                 hideViewSwitcher();
             }
+
+            // Initialize division filter dropdown for admins
+            initializeDivisionFilter();
         } else {
             hideViewSwitcher();
         }
@@ -95,8 +98,7 @@ async function initializeViewSwitcher() {
 }
 
 /**
- * Render the view switcher dropdown
- * Populates dropdown with available views and sets current selection
+ * Updated renderViewSwitcher to include Division option
  */
 function renderViewSwitcher() {
     const viewSwitcher = document.getElementById('teamViewSwitcher');
@@ -120,6 +122,18 @@ function renderViewSwitcher() {
         }
         viewSelect.appendChild(option);
     });
+
+    // Add Division filter option for admins only
+    const isAdmin = window.userPermissions?.is_admin || false;
+    if (isAdmin) {
+        const divisionOption = document.createElement('option');
+        divisionOption.value = 'division';
+        divisionOption.textContent = 'Filter by Division';
+        if (currentView === 'division') {
+            divisionOption.selected = true;
+        }
+        viewSelect.appendChild(divisionOption);
+    }
 
     // Show the switcher
     viewSwitcher.classList.remove('hidden');
@@ -153,6 +167,15 @@ function handleViewChange(event) {
 
         // Persist the selection in session storage
         sessionStorage.setItem(VIEW_STORAGE_KEY, newView);
+
+        // Show/hide division filter dropdown based on selection
+        if (newView === 'division') {
+            showDivisionFilterDropdown();
+        } else {
+            hideDivisionFilterDropdown();
+            // Clear division filter when switching away
+            setSelectedDivisionFilter(null);
+        }
 
         // Reset selected team and show welcome state
         currentSelectedTeamId = null;
@@ -754,122 +777,6 @@ function setSelectedDivisionFilter(division) {
         sessionStorage.setItem(DIVISION_FILTER_KEY, division);
     } else {
         sessionStorage.removeItem(DIVISION_FILTER_KEY);
-    }
-}
-
-// ============================================
-// VIEW SWITCHER UPDATES
-// ============================================
-
-/**
- * Updated initializeViewSwitcher to include Division option for admins
- * Replaces the existing function in teams.js
- */
-async function initializeViewSwitcher() {
-    try {
-        // Fetch available views from backend
-        const response = await fetch('/api/teams/available-views');
-        const data = await response.json();
-
-        if (data.success && data.views && data.views.length > 0) {
-            availableViews = data.views;
-
-            // Get stored view preference or use first (highest priority) view
-            const storedView = sessionStorage.getItem(VIEW_STORAGE_KEY);
-            const validStoredView = availableViews.find(v => v.value === storedView);
-            currentView = validStoredView ? storedView : availableViews[0].value;
-
-            // Show switcher only if user has multiple view options
-            if (data.has_multiple) {
-                renderViewSwitcher();
-            } else {
-                hideViewSwitcher();
-            }
-
-            // Initialize division filter dropdown for admins
-            initializeDivisionFilter();
-        } else {
-            hideViewSwitcher();
-        }
-    } catch (error) {
-        console.error('Error initializing view switcher:', error);
-        hideViewSwitcher();
-    }
-}
-
-/**
- * Updated renderViewSwitcher to include Division option
- */
-function renderViewSwitcher() {
-    const viewSwitcher = document.getElementById('teamViewSwitcher');
-    const viewSelect = document.getElementById('teamViewSelect');
-
-    if (!viewSwitcher || !viewSelect) {
-        console.error('View switcher elements not found');
-        return;
-    }
-
-    // Clear existing options
-    viewSelect.innerHTML = '';
-
-    // Add view options
-    availableViews.forEach(view => {
-        const option = document.createElement('option');
-        option.value = view.value;
-        option.textContent = view.label;
-        if (view.value === currentView) {
-            option.selected = true;
-        }
-        viewSelect.appendChild(option);
-    });
-
-    // Add Division filter option for admins only
-    const isAdmin = window.userPermissions?.is_admin || false;
-    if (isAdmin) {
-        const divisionOption = document.createElement('option');
-        divisionOption.value = 'division';
-        divisionOption.textContent = 'Filter by Division';
-        if (currentView === 'division') {
-            divisionOption.selected = true;
-        }
-        viewSelect.appendChild(divisionOption);
-    }
-
-    // Show the switcher
-    viewSwitcher.classList.remove('hidden');
-
-    // Attach change event handler
-    viewSelect.onchange = handleViewChange;
-}
-
-/**
- * Updated handleViewChange to support division filtering
- */
-function handleViewChange(event) {
-    const newView = event.target.value;
-
-    if (newView !== currentView) {
-        currentView = newView;
-
-        // Persist the selection in session storage
-        sessionStorage.setItem(VIEW_STORAGE_KEY, newView);
-
-        // Show/hide division filter dropdown based on selection
-        if (newView === 'division') {
-            showDivisionFilterDropdown();
-        } else {
-            hideDivisionFilterDropdown();
-            // Clear division filter when switching away
-            setSelectedDivisionFilter(null);
-        }
-
-        // Reset selected team and show welcome state
-        currentSelectedTeamId = null;
-        document.getElementById('teamsWelcomeState').style.display = 'flex';
-        document.getElementById('teamsDetailContent').style.display = 'none';
-
-        // Reload teams with new view
-        loadTeams();
     }
 }
 
