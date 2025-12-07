@@ -303,7 +303,7 @@
                          class="notification-options"
                          style="{% if not preferences or not preferences.enable_notifications %}display: none;{% endif %}">
 
-                        <!-- NEW SECTION: Event Type Filters -->
+                        <!-- Event Type Filters -->
                         <div class="form-section">
                             <h3>Event Types to Notify</h3>
                             <p class="section-description">Choose which types of events you want to be notified about</p>
@@ -1060,6 +1060,7 @@
                             <div class="team-header-info">
                                 <h1 id="teamDetailTitle">Team Name</h1>
                                 <p id="teamDetailGame">Game: Mario Kart</p>
+                                <p id="teamDetailDivision" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
                             </div>
                         </div>
                         <div class="team-header-actions">
@@ -1447,7 +1448,7 @@
                     <p>Manage users, roles, and permissions</p>
                 </div>
                 <button class="btn btn-primary" onclick="openCreateGameModal()">
-                    <i class="fas fa-plus"></i> Create Game
+                    <i class="fas fa-plus"></i> Create Community
                 </button>
             </div>
 
@@ -1618,12 +1619,27 @@
             </button>
         </div>
         <div class="modal-body">
-            <p class="modal-subtitle">Add a new game to the roster</p>
+            <p class="modal-subtitle">Add a new game community to our roster</p>
 
             <form id="createGameForm" class="event-form-modal" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="gameTitle">Game Title</label>
                     <input type="text" id="gameTitle" name="gameTitle" placeholder="Enter game title" required>
+                </div>
+
+                <!-- Division Dropdown -->
+                <div class="form-group">
+                    <label for="gameDivision">Division *</label>
+                    <select id="gameDivision" name="division" required>
+                        <option value="">Select division</option>
+                        <option value="Strategy">Strategy</option>
+                        <option value="Shooter">Shooter</option>
+                        <option value="Sports">Sports</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                        Choose the category this game belongs to
+                    </small>
                 </div>
 
                 <!-- Image Upload Field -->

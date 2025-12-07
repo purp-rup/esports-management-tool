@@ -198,21 +198,53 @@ async function loadTeams() {
         const data = await response.json();
 
         if (data.success && data.teams && data.teams.length > 0) {
+            let teamsToDisplay = data.teams;
+
+            // Apply division filter if in division view
+            if (currentView === 'division') {
+                const selectedDivision = getSelectedDivisionFilter();
+
+                if (selectedDivision) {
+                    teamsToDisplay = data.teams.filter(team =>
+                        (team.division || 'Other') === selectedDivision
+                    );
+                }
+            }
+
             // Store teams data
-            allTeamsData = data.teams;
+            allTeamsData = teamsToDisplay;
 
             // Update subtitle with view label and team count
             if (sidebarSubtitle) {
-                const viewLabel = getSubtitleForView(currentView, data.teams.length);
+                const viewLabel = getSubtitleForView(currentView, teamsToDisplay.length);
                 sidebarSubtitle.textContent = viewLabel;
             }
 
-            // Render teams in sidebar
-            renderTeamsSidebar(data.teams);
+            if (teamsToDisplay.length > 0) {
+                // Render teams in sidebar
+                renderTeamsSidebar(teamsToDisplay);
 
-            // Show teams list
-            sidebarLoading.style.display = 'none';
-            sidebarList.style.display = 'flex';
+                // Show teams list
+                sidebarLoading.style.display = 'none';
+                sidebarList.style.display = 'flex';
+            } else {
+                // No teams after filtering
+                if (sidebarSubtitle) {
+                    const viewLabel = getSubtitleForView(currentView, 0);
+                    sidebarSubtitle.textContent = viewLabel;
+                }
+
+                if (sidebarEmpty) {
+                    const selectedDivision = getSelectedDivisionFilter();
+                    const emptyMessage = selectedDivision
+                        ? `No teams found in ${selectedDivision} division.`
+                        : getEmptyMessageForView(currentView);
+                    sidebarEmpty.innerHTML = `<i class="fas fa-users"></i><p>${emptyMessage}</p>`;
+                }
+
+                sidebarLoading.style.display = 'none';
+                sidebarEmpty.style.display = 'block';
+            }
         } else {
             // No teams found for current view
 
@@ -248,22 +280,32 @@ async function loadTeams() {
  * @returns {string} Formatted subtitle text
  */
 function getSubtitleForView(view, count = 0) {
-    const viewObj = availableViews.find(v => v.value === view);
     let label = '';
 
-    if (viewObj) {
-        label = viewObj.label;
-    } else {
-        // Fallback based on user permissions
-        const isAdmin = window.userPermissions?.is_admin || false;
-        const isGM = window.userPermissions?.is_gm || false;
-
-        if (isAdmin) {
-            label = 'All Teams';
-        } else if (isGM) {
-            label = 'Teams I Manage';
+    if (view === 'division') {
+        const selectedDivision = getSelectedDivisionFilter();
+        if (selectedDivision) {
+            label = `${selectedDivision} Teams`;
         } else {
-            label = 'Your Teams';
+            label = 'All Teams';
+        }
+    } else {
+        const viewObj = availableViews.find(v => v.value === view);
+
+        if (viewObj) {
+            label = viewObj.label;
+        } else {
+            // Fallback based on user permissions
+            const isAdmin = window.userPermissions?.is_admin || false;
+            const isGM = window.userPermissions?.is_gm || false;
+
+            if (isAdmin) {
+                label = 'All Teams';
+            } else if (isGM) {
+                label = 'Teams I Manage';
+            } else {
+                label = 'Your Teams';
+            }
         }
     }
 
@@ -380,6 +422,60 @@ function toggleGameCollapse(gameId) {
     }
 }
 
+// ============================================
+// DIVISION ORDER CONFIGURATION
+// ============================================
+
+const DIVISION_ORDER = ['Strategy', 'Shooter', 'Sports', 'Other'];
+
+/**
+ * Get sort priority for a division
+ * @param {string} division - Division name
+ * @returns {number} Sort priority (lower = earlier)
+ */
+function getDivisionSortPriority(division) {
+    const index = DIVISION_ORDER.indexOf(division);
+    return index !== -1 ? index : 999; // Unknown divisions go last
+}
+
+// ============================================
+// UPDATED TEAM SORTING
+// ============================================
+/**
+ * Sort teams by division order, then alphabetically by game title
+ * @param {Array} teams - Array of team objects
+ * @returns {Array} Sorted teams array
+ */
+function sortTeamsByDivision(teams) {
+    return teams.sort((a, b) => {
+        // First, sort by division priority
+        const divisionA = a.division || 'Other';
+        const divisionB = b.division || 'Other';
+
+        const priorityA = getDivisionSortPriority(divisionA);
+        const priorityB = getDivisionSortPriority(divisionB);
+
+        if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+        }
+
+        // Within same division, sort by game title
+        const gameA = (a.GameTitle || '').toLowerCase();
+        const gameB = (b.GameTitle || '').toLowerCase();
+
+        if (gameA !== gameB) {
+            return gameA.localeCompare(gameB);
+        }
+
+        // Within same game, sort by team creation date
+        if (a.created_at && b.created_at) {
+            return new Date(a.created_at) - new Date(b.created_at);
+        }
+
+        return 0;
+    });
+}
+
 /**
  * Render teams sidebar with game grouping (for "All Teams" view)
  * Groups teams by game and adds collapse/expand functionality
@@ -396,15 +492,20 @@ function renderTeamsSidebarWithGroups(teams) {
         sidebar.setAttribute('data-view', currentView || 'all');
     }
 
-    // If not in "all" view, use standard rendering
+    // If not in "all" view, use standard rendering (no game grouping)
     if (currentView !== 'all') {
-        originalRenderTeamsSidebar(teams);
+        // Sort teams by division even in other views
+        const sortedTeams = sortTeamsByDivision(teams);
+        originalRenderTeamsSidebar(sortedTeams);
         return;
     }
 
-    // Group teams by game
+    // Sort teams by division FIRST
+    const sortedTeams = sortTeamsByDivision(teams);
+
+    // Group teams by game (now already sorted by division)
     const gameGroups = {};
-    teams.forEach(team => {
+    sortedTeams.forEach(team => {
         const gameId = team.gameID;
         const gameTitle = team.GameTitle || 'Unknown Game';
 
@@ -412,6 +513,7 @@ function renderTeamsSidebarWithGroups(teams) {
             gameGroups[gameId] = {
                 gameId: gameId,
                 gameTitle: gameTitle,
+                division: team.division || 'Other', // Store division for reference
                 hasGameImage: team.has_game_image,
                 teams: []
             };
@@ -419,15 +521,24 @@ function renderTeamsSidebarWithGroups(teams) {
         gameGroups[gameId].teams.push(team);
     });
 
-    // Sort game groups alphabetically by game title
+    // Convert to array and sort by division
+    // Sort game groups by their division before rendering
     const sortedGroups = Object.values(gameGroups).sort((a, b) => {
+        const priorityA = getDivisionSortPriority(a.division);
+        const priorityB = getDivisionSortPriority(b.division);
+
+        if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+        }
+
+        // Within same division, sort alphabetically by game title
         return a.gameTitle.localeCompare(b.gameTitle);
     });
 
     // Get collapsed state
     const collapsedGames = getCollapsedGames();
 
-    // Render each game group (now in alphabetical order)
+    // Render each game group (now in proper division order)
     sortedGroups.forEach(group => {
         const isCollapsed = collapsedGames.has(group.gameId.toString());
 
@@ -572,6 +683,298 @@ renderTeamsSidebar = function(teams) {
     }
 };
 
+/**
+ * Updated original render function to use division sorting
+ * This is used for "manage" and "play" views
+ */
+const originalRenderTeamsSidebarBackup = originalRenderTeamsSidebar;
+
+function updatedOriginalRenderTeamsSidebar(teams) {
+    const sidebarList = document.getElementById('teamsSidebarList');
+    sidebarList.innerHTML = '';
+
+    // Sort by division first
+    const sortedTeams = sortTeamsByDivision(teams);
+
+    sortedTeams.forEach(team => {
+        const teamItem = document.createElement('div');
+        teamItem.className = 'team-sidebar-item';
+        teamItem.setAttribute('data-team-id', team.TeamID);
+        teamItem.setAttribute('data-gm-id', team.gm_id || '');
+
+        const isGameManager = team.gm_id && team.gm_id === window.currentUserId;
+
+        teamItem.innerHTML = `
+            <div class="team-sidebar-content" onclick="selectTeam('${team.TeamID}')">
+                <div class="team-sidebar-name">${team.teamName}</div>
+                <div class="team-sidebar-game">${team.GameTitle || 'Unknown Game'}</div>
+                <div class="team-sidebar-meta">
+                    <span><i class="fas fa-users"></i> ${team.member_count || 0}</span>
+                    <span><i class="fas fa-trophy"></i> ${team.teamMaxSize}</span>
+                </div>
+            </div>
+            ${isGameManager ? `
+                <button class="team-edit-btn"
+                        onclick="event.stopPropagation(); openEditTeamModal('${team.TeamID}', '${team.teamName.replace(/'/g, "\\'")}', ${team.teamMaxSize}, '${team.TeamSizes || ''}')"
+                        title="Edit team">
+                    <i class="fas fa-edit"></i>
+                </button>
+            ` : ''}
+        `;
+
+        sidebarList.appendChild(teamItem);
+    });
+}
+
+/**
+ * TEAMS DIVISION FILTER - ADMIN ONLY
+ * Adds division-based filtering for admin users
+ */
+
+// ============================================
+// DIVISION FILTER STATE
+// ============================================
+
+const DIVISION_FILTER_KEY = 'teams_selected_division';
+
+/**
+ * Get currently selected division filter
+ * @returns {string|null} Division name or null
+ */
+function getSelectedDivisionFilter() {
+    return sessionStorage.getItem(DIVISION_FILTER_KEY);
+}
+
+/**
+ * Set division filter
+ * @param {string|null} division - Division to filter by, or null to clear
+ */
+function setSelectedDivisionFilter(division) {
+    if (division) {
+        sessionStorage.setItem(DIVISION_FILTER_KEY, division);
+    } else {
+        sessionStorage.removeItem(DIVISION_FILTER_KEY);
+    }
+}
+
+// ============================================
+// VIEW SWITCHER UPDATES
+// ============================================
+
+/**
+ * Updated initializeViewSwitcher to include Division option for admins
+ * Replaces the existing function in teams.js
+ */
+async function initializeViewSwitcher() {
+    try {
+        // Fetch available views from backend
+        const response = await fetch('/api/teams/available-views');
+        const data = await response.json();
+
+        if (data.success && data.views && data.views.length > 0) {
+            availableViews = data.views;
+
+            // Get stored view preference or use first (highest priority) view
+            const storedView = sessionStorage.getItem(VIEW_STORAGE_KEY);
+            const validStoredView = availableViews.find(v => v.value === storedView);
+            currentView = validStoredView ? storedView : availableViews[0].value;
+
+            // Show switcher only if user has multiple view options
+            if (data.has_multiple) {
+                renderViewSwitcher();
+            } else {
+                hideViewSwitcher();
+            }
+
+            // Initialize division filter dropdown for admins
+            initializeDivisionFilter();
+        } else {
+            hideViewSwitcher();
+        }
+    } catch (error) {
+        console.error('Error initializing view switcher:', error);
+        hideViewSwitcher();
+    }
+}
+
+/**
+ * Updated renderViewSwitcher to include Division option
+ */
+function renderViewSwitcher() {
+    const viewSwitcher = document.getElementById('teamViewSwitcher');
+    const viewSelect = document.getElementById('teamViewSelect');
+
+    if (!viewSwitcher || !viewSelect) {
+        console.error('View switcher elements not found');
+        return;
+    }
+
+    // Clear existing options
+    viewSelect.innerHTML = '';
+
+    // Add view options
+    availableViews.forEach(view => {
+        const option = document.createElement('option');
+        option.value = view.value;
+        option.textContent = view.label;
+        if (view.value === currentView) {
+            option.selected = true;
+        }
+        viewSelect.appendChild(option);
+    });
+
+    // Add Division filter option for admins only
+    const isAdmin = window.userPermissions?.is_admin || false;
+    if (isAdmin) {
+        const divisionOption = document.createElement('option');
+        divisionOption.value = 'division';
+        divisionOption.textContent = 'Filter by Division';
+        if (currentView === 'division') {
+            divisionOption.selected = true;
+        }
+        viewSelect.appendChild(divisionOption);
+    }
+
+    // Show the switcher
+    viewSwitcher.classList.remove('hidden');
+
+    // Attach change event handler
+    viewSelect.onchange = handleViewChange;
+}
+
+/**
+ * Updated handleViewChange to support division filtering
+ */
+function handleViewChange(event) {
+    const newView = event.target.value;
+
+    if (newView !== currentView) {
+        currentView = newView;
+
+        // Persist the selection in session storage
+        sessionStorage.setItem(VIEW_STORAGE_KEY, newView);
+
+        // Show/hide division filter dropdown based on selection
+        if (newView === 'division') {
+            showDivisionFilterDropdown();
+        } else {
+            hideDivisionFilterDropdown();
+            // Clear division filter when switching away
+            setSelectedDivisionFilter(null);
+        }
+
+        // Reset selected team and show welcome state
+        currentSelectedTeamId = null;
+        document.getElementById('teamsWelcomeState').style.display = 'flex';
+        document.getElementById('teamsDetailContent').style.display = 'none';
+
+        // Reload teams with new view
+        loadTeams();
+    }
+}
+
+// ============================================
+// DIVISION FILTER DROPDOWN
+// ============================================
+
+/**
+ * Initialize division filter dropdown
+ * Creates the dropdown element if it doesn't exist
+ */
+function initializeDivisionFilter() {
+    const isAdmin = window.userPermissions?.is_admin || false;
+    if (!isAdmin) return;
+
+    const sidebarHeaderTop = document.querySelector('.sidebar-header-top');
+    if (!sidebarHeaderTop) return;
+
+    // Check if dropdown already exists
+    let divisionFilterContainer = document.getElementById('divisionFilterContainer');
+
+    if (!divisionFilterContainer) {
+        // Create container
+        divisionFilterContainer = document.createElement('div');
+        divisionFilterContainer.id = 'divisionFilterContainer';
+        divisionFilterContainer.className = 'division-filter-container hidden';
+
+        divisionFilterContainer.innerHTML = `
+            <label for="divisionFilterSelect" class="division-filter-label">
+                Division:
+            </label>
+            <select id="divisionFilterSelect" class="division-filter-select">
+                <option value="">All Divisions</option>
+                <option value="Strategy">Strategy</option>
+                <option value="Shooter">Shooter</option>
+                <option value="Sports">Sports</option>
+                <option value="Other">Other</option>
+            </select>
+        `;
+
+        // Insert after the sidebar-header-top div (so it's on its own row)
+        if (sidebarHeaderTop.parentNode) {
+            sidebarHeaderTop.parentNode.insertBefore(divisionFilterContainer, sidebarHeaderTop.nextSibling);
+        }
+
+        // Attach change handler
+        const divisionSelect = document.getElementById('divisionFilterSelect');
+        if (divisionSelect) {
+            divisionSelect.addEventListener('change', handleDivisionFilterChange);
+        }
+    }
+
+    // Show division filter if currently in division view
+    if (currentView === 'division') {
+        showDivisionFilterDropdown();
+
+        // Restore saved division selection
+        const savedDivision = getSelectedDivisionFilter();
+        if (savedDivision) {
+            const divisionSelect = document.getElementById('divisionFilterSelect');
+            if (divisionSelect) {
+                divisionSelect.value = savedDivision;
+            }
+        }
+    }
+}
+
+/**
+ * Show division filter dropdown
+ */
+function showDivisionFilterDropdown() {
+    const container = document.getElementById('divisionFilterContainer');
+    if (container) {
+        container.classList.remove('hidden');
+    }
+}
+
+/**
+ * Hide division filter dropdown
+ */
+function hideDivisionFilterDropdown() {
+    const container = document.getElementById('divisionFilterContainer');
+    if (container) {
+        container.classList.add('hidden');
+    }
+}
+
+/**
+ * Handle division filter change
+ */
+function handleDivisionFilterChange(event) {
+    const selectedDivision = event.target.value;
+
+    // Save selection
+    setSelectedDivisionFilter(selectedDivision || null);
+
+    // Reset selected team
+    currentSelectedTeamId = null;
+    document.getElementById('teamsWelcomeState').style.display = 'flex';
+    document.getElementById('teamsDetailContent').style.display = 'none';
+
+    // Reload teams with filter
+    loadTeams();
+}
+
 // ============================================
 // TEAM SELECTION & DETAILS
 // ============================================
@@ -652,6 +1055,16 @@ async function loadTeamDetails(teamId) {
             // ========================================
             document.getElementById('teamDetailTitle').textContent = team.title;
             document.getElementById('teamDetailGame').textContent = `Game: ${team.game_title || 'Unknown'}`;
+
+            const divisionElement = document.getElementById('teamDetailDivision');
+            if (divisionElement) {
+                if (team.division) {
+                    divisionElement.textContent = `Division: ${team.division}`;
+                    divisionElement.style.display = 'block';
+                } else {
+                    divisionElement.style.display = 'none';
+                }
+            }
 
             // Update team icon with game image
             const teamIconLarge = document.querySelector('.team-icon-large');
@@ -1503,3 +1916,20 @@ window.loadNextScheduledEvent = loadNextScheduledEvent;
 window.openEditTeamModal = openEditTeamModal;
 window.closeEditTeamModal = closeEditTeamModal;
 window.toggleGameCollapse = toggleGameCollapse;
+
+//Team Folders functions
+window.originalRenderTeamsSidebar = updatedOriginalRenderTeamsSidebar;
+window.sortTeamsByDivision = sortTeamsByDivision;
+window.getDivisionSortPriority = getDivisionSortPriority;
+window.renderTeamsSidebarWithGroups = renderTeamsSidebarWithGroups;
+
+//Division viewer exports
+window.initializeViewSwitcher = initializeViewSwitcher;
+window.renderViewSwitcher = renderViewSwitcher;
+window.handleViewChange = handleViewChange;
+window.loadTeams = loadTeams;
+window.getSubtitleForView = getSubtitleForView;
+window.initializeDivisionFilter = initializeDivisionFilter;
+window.showDivisionFilterDropdown = showDivisionFilterDropdown;
+window.hideDivisionFilterDropdown = hideDivisionFilterDropdown;
+window.handleDivisionFilterChange = handleDivisionFilterChange;

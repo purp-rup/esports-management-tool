@@ -256,6 +256,358 @@ async function leaveGame(gameId, gameTitle) {
 }
 
 // ============================================
+// DIVISION FOLDER SYSTEM FOR COMMUNITIES
+// ============================================
+
+const COLLAPSED_DIVISIONS_KEY = 'communities_collapsed_divisions';
+
+/**
+ * Get set of collapsed division names from sessionStorage
+ * @returns {Set<string>}
+ */
+function getCollapsedDivisions() {
+    const stored = sessionStorage.getItem(COLLAPSED_DIVISIONS_KEY);
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+}
+
+/**
+ * Save collapsed divisions to sessionStorage
+ * @param {Set<string>} collapsedDivisions
+ */
+function saveCollapsedDivisions(collapsedDivisions) {
+    sessionStorage.setItem(COLLAPSED_DIVISIONS_KEY, JSON.stringify([...collapsedDivisions]));
+}
+
+/**
+ * Toggle collapse state for a division
+ * @param {string} division - Name of division to toggle
+ */
+function toggleDivisionCollapse(division) {
+    const collapsedDivisions = getCollapsedDivisions();
+
+    if (collapsedDivisions.has(division)) {
+        collapsedDivisions.delete(division);
+    } else {
+        collapsedDivisions.add(division);
+    }
+
+    saveCollapsedDivisions(collapsedDivisions);
+
+    // Re-render communities with updated collapse state
+    const currentGames = window.currentGamesData || [];
+    if (currentGames.length > 0) {
+        displayGamesWithDivisions(currentGames);
+    }
+}
+
+// ============================================
+// DISPLAY GAMES WITH DIVISION GROUPING
+// ============================================
+
+/**
+ * Display games grouped by division with collapsible folders
+ * Replaces the original displayGames function
+ * @param {Array} games - Array of game objects from API
+ */
+function displayGamesWithDivisions(games) {
+    const gridDiv = document.getElementById('rostersGrid');
+    gridDiv.className = 'rosters-grid-divisions'; // New class for division layout
+    gridDiv.innerHTML = '';
+
+    // Store games data globally for re-rendering
+    window.currentGamesData = games;
+
+    // Check if current user is admin for delete permissions
+    const isAdmin = window.userPermissions?.is_admin || false;
+
+    // Group games by division
+    const divisionGroups = {};
+    games.forEach(game => {
+        const division = game.Division || 'Other';
+
+        if (!divisionGroups[division]) {
+            divisionGroups[division] = [];
+        }
+        divisionGroups[division].push(game);
+    });
+
+    // Define division order
+    const divisionOrder = ['Strategy', 'Shooter', 'Sports', 'Other'];
+
+    // Sort divisions by defined order
+    const sortedDivisions = Object.keys(divisionGroups).sort((a, b) => {
+        const indexA = divisionOrder.indexOf(a);
+        const indexB = divisionOrder.indexOf(b);
+
+        // If both are in the order array, sort by index
+        if (indexA !== -1 && indexB !== -1) {
+            return indexA - indexB;
+        }
+        // If only one is in the order array, it comes first
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        // If neither is in the order array, sort alphabetically
+        return a.localeCompare(b);
+    });
+
+    // Get collapsed state
+    const collapsedDivisions = getCollapsedDivisions();
+
+    // Render each division group
+    sortedDivisions.forEach(division => {
+        const gamesInDivision = divisionGroups[division];
+        const isCollapsed = collapsedDivisions.has(division);
+
+        if (isCollapsed) {
+            // Render collapsed folder
+            renderCollapsedDivision(division, gamesInDivision.length, gridDiv);
+        } else {
+            // Render expanded division with games
+            renderExpandedDivision(division, gamesInDivision, isAdmin, gridDiv);
+        }
+    });
+}
+
+/**
+ * Render a collapsed division folder
+ * @param {string} division - Division name
+ * @param {number} gameCount - Number of games in division
+ * @param {HTMLElement} container - Container to append to
+ */
+function renderCollapsedDivision(division, gameCount, container) {
+    const folderDiv = document.createElement('div');
+    folderDiv.className = 'division-folder-collapsed';
+    folderDiv.setAttribute('data-division', division);
+
+    const gameWord = gameCount === 1 ? 'game' : 'games';
+
+    // Get division icon
+    const divisionIcon = getDivisionIcon(division);
+
+    folderDiv.innerHTML = `
+        <div class="division-folder-header">
+            <button class="division-collapse-btn"
+                    onclick="toggleDivisionCollapse('${division}')"
+                    title="Expand ${division}">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="division-folder-info">
+                <div class="division-icon">${divisionIcon}</div>
+                <div class="division-details">
+                    <h3 class="division-name">${division}</h3>
+                    <p class="division-count">${gameCount} ${gameWord}</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    container.appendChild(folderDiv);
+}
+
+/**
+ * Render an expanded division with all games
+ * @param {string} division - Division name
+ * @param {Array} games - Games in this division
+ * @param {boolean} isAdmin - Whether current user is admin
+ * @param {HTMLElement} container - Container to append to
+ */
+function renderExpandedDivision(division, games, isAdmin, container) {
+    const divisionBox = document.createElement('div');
+    divisionBox.className = 'division-box-expanded';
+    divisionBox.setAttribute('data-division', division);
+
+    // Get division icon
+    const divisionIcon = getDivisionIcon(division);
+
+    // Build division header
+    const headerHTML = `
+        <div class="division-box-header">
+            <button class="division-collapse-btn"
+                    onclick="toggleDivisionCollapse('${division}')"
+                    title="Collapse ${division}">
+                <i class="fas fa-chevron-up"></i>
+            </button>
+            <div class="division-icon">${divisionIcon}</div>
+            <h3 class="division-name">${division}</h3>
+        </div>
+    `;
+
+    // Build games grid
+    const gamesGrid = document.createElement('div');
+    gamesGrid.className = 'division-games-grid';
+
+    games.forEach(game => {
+        const card = createGameCard(game, isAdmin);
+        gamesGrid.appendChild(card);
+    });
+
+    // Assemble division box
+    divisionBox.innerHTML = headerHTML;
+    divisionBox.appendChild(gamesGrid);
+
+    container.appendChild(divisionBox);
+}
+
+/**
+ * Get icon for division
+ * @param {string} division - Division name
+ * @returns {string} HTML for icon
+ */
+function getDivisionIcon(division) {
+    const icons = {
+        'Strategy': '<i class="fas fa-chess"></i>',
+        'Shooter': '<i class="fas fa-crosshairs"></i>',
+        'Sports': '<i class="fas fa-football-ball"></i>',
+        'Other': '<i class="fas fa-star"></i>'
+    };
+
+    return icons[division] || '<i class="fas fa-gamepad"></i>';
+}
+
+/**
+ * Create a game card element
+ * (Using existing createGameCard function from game.js, but included here for reference)
+ * This is the same as before, no changes needed
+ */
+function createGameCard(game, isAdmin) {
+    const card = document.createElement('div');
+    card.className = 'roster-card';
+
+    const memberCount = game.member_count || 0;
+    const teamCount = game.team_count || 0;
+    const isMember = game.is_member || false;
+    const isGameManager = game.is_game_manager || false;
+
+    const iconHTML = game.ImageURL
+        ? `<img src="${game.ImageURL}"
+                alt="${game.GameTitle}"
+                class="roster-game-image"
+                onerror="this.onerror=null; this.parentElement.innerHTML='<i class=&quot;fas fa-gamepad&quot;></i>';">`
+        : `<i class="fas fa-gamepad"></i>`;
+
+    const deleteButtonHTML = isAdmin
+        ? `<button class="game-delete-btn"
+                    onclick="confirmDeleteGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')"
+                    title="Delete game">
+                <i class="fas fa-trash"></i>
+           </button>`
+        : '';
+
+    const joinButtonHTML = isMember
+        ? `<button class="btn btn-secondary"
+                    onclick="confirmLeaveGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')">
+                <i class="fas fa-sign-out-alt"></i> Leave Community
+           </button>`
+        : `<button class="btn btn-success"
+                    onclick="confirmJoinGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')">
+                <i class="fas fa-user-plus"></i> Join Community
+           </button>`;
+
+    const createTeamButtonHTML = isGameManager
+        ? `<button class="btn btn-primary"
+                    onclick="openCreateTeamModal(${game.GameID}, '${escapeHtml(game.GameTitle)}', '${game.TeamSizes}')">
+                <i class="fas fa-plus"></i> Create Team
+           </button>`
+        : '';
+
+    const memberBadge = isMember
+        ? `<span class="member-badge">
+                <i class="fas fa-check-circle"></i> Joined
+           </span>`
+        : '';
+
+    card.innerHTML = `
+        ${deleteButtonHTML}
+        <div class="roster-card-header">
+            <div class="roster-icon">
+                ${iconHTML}
+            </div>
+            <h3 class="roster-card-title">
+                ${game.GameTitle}
+                ${memberBadge}
+            </h3>
+        </div>
+        <p class="roster-card-description">${game.Description}</p>
+
+        <div class="roster-card-meta">
+            <div class="roster-stat">
+                <i class="fas fa-users roster-stat-icon"></i>
+                <div class="roster-stat-number">${memberCount}</div>
+                <div class="roster-stat-label">Members</div>
+            </div>
+            <div class="roster-stat">
+                <i class="fas fa-shield-alt roster-stat-icon"></i>
+                <div class="roster-stat-number">${teamCount}</div>
+                <div class="roster-stat-label">Teams</div>
+            </div>
+        </div>
+
+        <div class="roster-card-actions">
+            <button class="btn btn-primary" onclick="openGameDetailsModal(${game.GameID})">
+                <i class="fas fa-eye"></i> View Details
+            </button>
+            ${joinButtonHTML}
+            ${createTeamButtonHTML}
+        </div>
+    `;
+
+    return card;
+}
+
+/**
+ * Escape HTML (same as before)
+ */
+function escapeHtml(text) {
+    const map = {
+        "'": "\\'",
+        '"': '&quot;',
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;'
+    };
+    return text.replace(/['&<>"]/g, m => map[m]);
+}
+
+// ============================================
+// OVERRIDE ORIGINAL DISPLAY FUNCTION
+// ============================================
+
+// Store original loadGames if it exists
+const originalLoadGames = window.loadGames;
+
+/**
+ * Updated loadGames to use division grouping
+ */
+async function loadGames() {
+    const loadingDiv = document.getElementById('rostersLoading');
+    const gridDiv = document.getElementById('rostersGrid');
+    const emptyDiv = document.getElementById('rostersEmpty');
+
+    loadingDiv.style.display = 'block';
+    gridDiv.style.display = 'none';
+    emptyDiv.style.display = 'none';
+
+    try {
+        const response = await fetch('/games');
+        const data = await response.json();
+
+        if (data.success && data.games && data.games.length > 0) {
+            // Use division grouping display
+            displayGamesWithDivisions(data.games);
+            loadingDiv.style.display = 'none';
+            gridDiv.style.display = 'block';
+        } else {
+            loadingDiv.style.display = 'none';
+            emptyDiv.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error loading games:', error);
+        loadingDiv.style.display = 'none';
+        emptyDiv.style.display = 'block';
+    }
+}
+
+// ============================================
 // GM ASSIGNMENT FUNCTIONALITY
 // ============================================
 
@@ -534,6 +886,11 @@ window.joinGame = joinGame;
 window.leaveGame = leaveGame;
 window.closeConfirmModal = closeConfirmModal;
 window.confirmModalAction = confirmModalAction;
+
+//Folder system
+window.loadGames = loadGames;
+window.toggleDivisionCollapse = toggleDivisionCollapse;
+window.displayGamesWithDivisions = displayGamesWithDivisions;
 
 // GM assignment
 window.openAssignGMModal = openAssignGMModal;

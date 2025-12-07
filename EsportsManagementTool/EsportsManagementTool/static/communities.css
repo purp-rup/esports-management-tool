@@ -190,6 +190,230 @@
     font-size: 0.875rem;
 }
 
+/* ============================================
+   DIVISION FOLDER SYSTEM FOR COMMUNITIES
+   Collapsible division grouping similar to teams
+   ============================================ */
+.rosters-grid-divisions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+    margin-top: 1.5rem !important;
+    max-width: 100% !important;
+}
+
+/* --------------------------------------------
+   COLLAPSED DIVISION FOLDER
+   Compact view showing division name and count
+   -------------------------------------------- */
+.division-folder-collapsed {
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.division-folder-collapsed:hover {
+    border-color: var(--stockton-blue);
+    background: var(--hover-bg);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(121, 189, 233, 0.2);
+}
+
+.division-folder-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.division-collapse-btn {
+    background: transparent;
+    border: 2px solid var(--border-color);
+    color: var(--text-secondary);
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.division-collapse-btn:hover {
+    background: rgba(121, 189, 233, 0.15);
+    border-color: var(--stockton-blue);
+    color: var(--stockton-blue);
+    transform: scale(1.05);
+}
+
+.division-collapse-btn i {
+    font-size: 0.875rem;
+}
+
+.division-folder-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+}
+
+.division-icon {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.division-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.division-name {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.division-count {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* --------------------------------------------
+   EXPANDED DIVISION BOX
+   Container showing division header + games grid
+   -------------------------------------------- */
+.division-box-expanded {
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+}
+
+.division-box-expanded:hover {
+    border-color: var(--stockton-blue);
+}
+
+.division-box-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.division-box-header .division-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    font-size: 1.25rem;
+}
+
+.division-box-header .division-name {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+/* Games grid inside expanded division */
+.division-games-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+/* --------------------------------------------
+   DIVISION-SPECIFIC COLORS
+   Optional: Different colors per division
+   -------------------------------------------- */
+.division-box-expanded[data-division="Strategy"] .division-icon,
+.division-folder-collapsed[data-division="Strategy"] .division-icon {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+}
+
+.division-box-expanded[data-division="Shooter"] .division-icon,
+.division-folder-collapsed[data-division="Shooter"] .division-icon {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.division-box-expanded[data-division="Sports"] .division-icon,
+.division-folder-collapsed[data-division="Sports"] .division-icon {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.division-box-expanded[data-division="Other"] .division-icon,
+.division-folder-collapsed[data-division="Other"] .division-icon {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+/* --------------------------------------------
+   GAME CARDS WITHIN DIVISIONS
+   Adjustments for cards inside division boxes
+   -------------------------------------------- */
+.division-games-grid .roster-card {
+    margin: 0; /* Remove any default margin */
+}
+
+/* --------------------------------------------
+   RESPONSIVE DESIGN
+   Mobile and tablet adaptations
+   -------------------------------------------- */
+@media (max-width: 1024px) {
+    .division-games-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .division-folder-header {
+        flex-wrap: wrap;
+    }
+
+    .division-box-header {
+        flex-wrap: wrap;
+    }
+
+    .division-collapse-btn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+    }
+
+    .division-icon {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        font-size: 1.25rem;
+    }
+
+    .division-name {
+        font-size: 1.125rem;
+    }
+
+    .division-box-expanded {
+        padding: 1rem;
+    }
+}
+
 /* --------------------------------------------
    GAME DETAILS MODAL
    Modal displaying full game information

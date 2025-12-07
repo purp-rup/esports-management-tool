@@ -12,3 +12,6 @@ Needs doing:
             Organizing Files (remaining):
             All Py files
 
+            Fortnite (shooter) comes after Clash (other) on teams sidebar?
+            Add filter for divisions under teams sidebar (only for admins/ opens second dropdown)
+
