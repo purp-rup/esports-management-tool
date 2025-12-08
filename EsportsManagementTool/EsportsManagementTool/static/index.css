@@ -92,7 +92,19 @@ body {
 }
 
 .hero-content {
-    max-width: 800px;
+    max-width: 1200px;
+    display: flex;
+    gap: 3rem;
+    align-items: center;
+    flex-direction: column;
+}
+
+.hero-top {
+    display: flex;
+    gap: 3rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
 .hero h1 {
@@ -118,6 +130,20 @@ body {
     gap: 1rem;
     justify-content: center;
     flex-wrap: wrap;
+}
+
+.hero-text {
+    flex: 1;
+    min-width: 300px;
+}
+
+.hero-twitch {
+    flex: 0 0 auto;
+}
+
+.hero-twitch iframe {
+    border-radius: 12px;
+    border: 2px solid var(--border-color);
 }
 
 .btn-large {
