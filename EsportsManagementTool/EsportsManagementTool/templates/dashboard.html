@@ -37,7 +37,7 @@
         <option value="rosters">👥 Communities</option>
         <option value="events">📆 Events</option>
         <option value="teams">🎮 Teams</option>
-        {% if user.is_admin %}
+        {% if user.is_admin or user.is_developer %}
         <option value="admin">🛡️ Admin</option>
         {% endif %}
     </select>
@@ -64,7 +64,7 @@
             <i class="fa-solid fa-gamepad tab-icon"></i>
             Teams
         </button>
-        {% if user.is_admin %}
+        {% if user.is_admin or user.is_developer %}
         <button class="tab-button" data-tab="admin">
             <i class="fa-solid fa-shield-halved tab-icon"></i>
             Admin
@@ -784,12 +784,12 @@
                     <div class="event-filter-dropdown">
                         <label for="eventFilter" style="margin-right: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">Filter by:</label>
                         <select id="eventFilter" onchange="filterEvents()" style="padding: 0.5rem 1rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; cursor: pointer;">
-                            <option value="subscribed" {% if not (user.is_admin or user.is_gm) %}selected{% endif %}>Subscribed Events</option>
-                            <option value="all" {% if user.is_admin or user.is_gm %}selected{% endif %}>All Events</option>
+                            <option value="subscribed" {% if not (user.is_admin or user.is_developer or user.is_gm) %}selected{% endif %}>Subscribed Events</option>
+                            <option value="all" {% if user.is_admin or user.is_developer or user.is_gm %}selected{% endif %}>All Events</option>
                             <option value="upcoming">Upcoming (Next 7 Days)</option>
                             <option value="upcoming14">Upcoming (Next 14 Days)</option>
                             <option value="past30">Past (Last 30 Days)</option>
-                            {% if user.is_admin or user.is_gm %}
+                            {% if user.is_admin or user.is_developer or user.is_gm %}
                             <option value="created_by_me">Created by Me</option>
                             {% endif %}
                             <option value="type">Type</option>
@@ -822,7 +822,7 @@
                         </div>
                     </div>
 
-                    {%if user.is_admin or user.is_gm %}
+                    {%if user.is_admin or user.is_developer or user.is_gm %}
                     <button class="btn btn-primary" onclick="openCreateEventModal()">
                         <i class="fas fa-plus"></i> Create Event
                     </button>
@@ -844,7 +844,7 @@
             <!-- Empty State -->
             <div id="eventsEmptyState" class="events-empty-state" style="display: none;">
                 <div class="events-empty-state-icon">🎮</div>
-                {% if user.is_admin or user.is_gm %}
+                {% if user.is_admin or user.is_developer or user.is_gm %}
                 <h3>No Events Found</h3>
                 <p>Click "Create Event" to add your first event</p>
                 {% else %}
@@ -874,7 +874,7 @@
         </div>
 
         <!-- Create Event Modal -->
-        {% if user.is_admin or user.is_gm %}
+        {% if user.is_admin or user.is_developer or user.is_gm %}
         <div id="createEventModal" class="modal">
             <div class="modal-content modal-content-large">
                 <div class="modal-header">
@@ -1168,7 +1168,7 @@
                             <div class="vods-section">
                                 <div class="vods-header">
                                     <h3>Team VODs</h3>
-                                    {% if user.is_admin or user.is_gm %}
+                                    {% if user.is_admin or user.is_developer or user.is_gm %}
                                     <button onclick="showAddVodModal()" class="btn btn-primary">
                                         <i class="fas fa-plus"></i> Add VOD
                                     </button>
@@ -1439,7 +1439,7 @@
     </div>
 
     <!-- Admin Tab -->
-    {% if user.is_admin %}
+    {% if user.is_admin or user.is_developer %}
     <div id="admin" class="tab-content">
         <div class="content-card">
             <div class="card-header">
@@ -1517,7 +1517,8 @@
                                     data-last-seen="{{ u.last_seen.strftime('%B %d, %Y; %I:%M %p') if u.last_seen else 'Never logged in' }}"
                                     data-is-admin="{{ u.is_admin }}"
                                     data-is-gm="{{ u.is_gm }}"
-                                    data-is-player="{{ u.is_player }}">
+                                    data-is-player="{{ u.is_player }}"
+                                    data-is-developer="{{ u.is_developer }}">
                                     <div>
                                         <strong>{{ u.firstname }} {{ u.lastname }}</strong>
                                         <p>@{{ u.username }} — {{ u.email }}</p>
@@ -1526,6 +1527,9 @@
                                             <!-- Role Badges -->
                                             {% if u.is_admin %}
                                             <span class="role-badge admin">Admin</span>
+                                            {% endif %}
+                                            {% if u.is_developer %}
+                                            <span class="role-badge developer">Dev</span>
                                             {% endif %}
                                             {% if u.is_gm %}
                                             <span class="role-badge gm">GM</span>
@@ -1582,7 +1586,7 @@
                         onclick="toggleEditMode()">
                     <i class="fas fa-edit"></i>
                 </button>
-                {% if user.is_admin %}
+                {% if user.is_admin or user.is_developer %}
                 <button id="deleteEventBtn"
                         class="btn-delete-event"
                         style="display: none;"
@@ -2124,7 +2128,8 @@
 <script>
     window.userPermissions = {
         is_admin: {{ 'true' if user.is_admin else 'false' }},
-        is_gm: {{ 'true' if user.is_gm else 'false' }}
+        is_gm: {{ 'true' if user.is_gm else 'false' }},
+        is_developer: {{ 'true' if user.is_developer else 'false' }}
     };
 
     // Set global user context for events module

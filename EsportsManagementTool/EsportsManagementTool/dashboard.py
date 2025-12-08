@@ -36,8 +36,9 @@ def dashboard(year=None, month=None):
     cursor.execute('SELECT * FROM verified_users WHERE userid = %s', [user['id']])
     is_verified = cursor.fetchone()
 
-    # CRITICAL FIX: Get actual permissions from database instead of overriding
+    # Get actual permissions from database instead of overriding
     permissions = get_user_permissions(user['id'])
+    user['is_developer'] = permissions['is_developer']
     user['is_admin'] = permissions['is_admin']
     user['is_gm'] = permissions['is_gm']
     user['is_player'] = permissions['is_player']
@@ -193,9 +194,9 @@ def dashboard(year=None, month=None):
             events_by_date[date_str].append(event_data)
 
         # --- Admin Panel Stats ---
-        total_users = active_users = admins = gms = players = 0
+        total_users = active_users = admins = gms = players = developers = 0
 
-        if user['is_admin'] == 1:
+        if user['is_admin'] == 1 or user['is_developer'] == 1:
             try:
                 # Count all users
                 cursor.execute("SELECT COUNT(*) AS total_users FROM users")
@@ -223,12 +224,16 @@ def dashboard(year=None, month=None):
                 cursor.execute("SELECT COUNT(*) AS gms FROM permissions WHERE is_gm = 1")
                 gms = cursor.fetchone()['gms']
 
-                # **NEW: Count unique players (users who are on at least one team)**
+                # Count unique players (users who are on at least one team)**
                 cursor.execute("""
                     SELECT COUNT(DISTINCT user_id) AS players
                     FROM team_members
                 """)
                 players = cursor.fetchone()['players']
+
+                # Count developers
+                cursor.execute("SELECT COUNT(*) AS developers FROM permissions WHERE is_developer = 1")
+                developers = cursor.fetchone()['developers']
 
             except Exception as e:
                 print("Admin stats error:", e)
@@ -236,8 +241,8 @@ def dashboard(year=None, month=None):
         # --- Admin User Management ---
         user_list = []
 
-        # FIXED: Only fetch user list if user is actually an admin
-        if user['is_admin'] == 1:
+        # Only fetch user list if user is actually an admin
+        if user['is_admin'] == 1 or user['is_developer'] == 1:
             # Clean up inactive users before displaying stats
             from EsportsManagementTool import cleanup_inactive_users
             cleanup_inactive_users()
@@ -256,7 +261,8 @@ def dashboard(year=None, month=None):
                         ua.last_seen,
                         p.is_admin,
                         p.is_gm,
-                        p.is_player
+                        p.is_player,
+                        p.is_developer
                     FROM users u
                     LEFT JOIN user_activity ua ON u.id = ua.userid
                     LEFT JOIN permissions p ON u.id = p.userid
@@ -287,6 +293,7 @@ def dashboard(year=None, month=None):
             admins=admins,
             gms=gms,
             players=players,
+            developers=developers,
             user_list=user_list
         )
 
@@ -365,7 +372,7 @@ def upload_avatar():
 Route meant to assign and remove roles.
 """
 @app.route('/admin/manage-role', methods=['POST'])
-@roles_required('admin')
+@roles_required('admin', 'developer')
 def manage_role():
     """
     Assign or remove roles from users
@@ -568,11 +575,9 @@ def get_user_managed_game(user_id, game_id=None):
 """
 Method to search users in Admin Panel based on input from user in search bar.
 """
-
-
 @app.route('/admin/search-users')
 @login_required
-@roles_required('admin')
+@roles_required('admin', 'developer')
 def search_users():
     """Search users by name, username, or email"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -590,7 +595,8 @@ def search_users():
                        ua.last_seen,
                        COALESCE(p.is_admin, 0) as is_admin, 
                        COALESCE(p.is_gm, 0) as is_gm, 
-                       COALESCE(p.is_player, 0) as is_player
+                       COALESCE(p.is_player, 0) as is_player,
+                       COALESCE(p.is_developer, 0) as is_developer
                 FROM users u
                 LEFT JOIN permissions p ON u.id = p.userid
                 LEFT JOIN user_activity ua ON u.id = ua.userid
@@ -607,7 +613,8 @@ def search_users():
                        ua.last_seen,
                        COALESCE(p.is_admin, 0) as is_admin, 
                        COALESCE(p.is_gm, 0) as is_gm, 
-                       COALESCE(p.is_player, 0) as is_player
+                       COALESCE(p.is_player, 0) as is_player,
+                       COALESCE(p.is_developer, 0) as is_developer
                 FROM users u
                 LEFT JOIN permissions p ON u.id = p.userid
                 LEFT JOIN user_activity ua ON u.id = ua.userid
@@ -654,7 +661,8 @@ def search_users():
                 'last_seen': last_seen,
                 'is_admin': bool(user.get('is_admin', 0)),
                 'is_gm': bool(user.get('is_gm', 0)),
-                'is_player': bool(user.get('is_player', 0))
+                'is_player': bool(user.get('is_player', 0)),
+                'is_developer': bool(user.get('is_developer', 0))
             })
 
         return jsonify({
@@ -678,7 +686,7 @@ def search_users():
 Route allowing admins to remove user data from the site. This includes email, password, profile picture, etc.
 """
 @app.route('/admin/remove-user', methods=['POST'])
-@roles_required('admin')
+@roles_required('admin', 'developer')
 def remove_user():
     """
     Permanently delete a user and all associated data

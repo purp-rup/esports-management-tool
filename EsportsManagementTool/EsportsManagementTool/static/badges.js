@@ -78,7 +78,7 @@ async function loadGMGameMappings() {
  *
  * @param {Object} options - Badge configuration options
  * @param {number} options.userId - User ID to generate badges for
- * @param {Array<string>} options.roles - Array of role strings ['Admin', 'Game Manager', 'Player']
+ * @param {Array<string>} options.roles - Array of role strings ['Admin', 'Game Manager', 'Developer', 'Player']
  * @param {number|null} options.contextGameId - Optional: Game ID for context-aware highlighting
  *                                               When provided, highlights GM badge if user is assigned to this game
  * @param {Array<string>} options.excludeRoles - Optional: Array of role names to exclude from display
@@ -95,7 +95,15 @@ function buildUniversalRoleBadges(options) {
         // Check which roles the user has
         const hasGMRole = roles.includes('Game Manager');
         const hasAdminRole = roles.includes('Admin');
+        const hasDeveloperRole = roles.includes('Developer');
         const hasPlayerRole = roles.includes('Player');
+
+        // ============================================
+        // DEVELOPER BADGE (HIGHEST PRIORITY)
+        // ============================================
+        if (hasDeveloperRole && !excludeRoles.includes('Developer')) {
+            badgesHTML += '<span class="role-badge dev" title="Developer">DEV</span>';
+        }
 
         // ============================================
         // ADMIN BADGE

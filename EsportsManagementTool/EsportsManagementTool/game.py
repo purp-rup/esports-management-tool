@@ -111,7 +111,7 @@ def view_games():
 Route that allows admins to create new games. Accessible via button that opens a modal.
 """
 @app.route('/create-game', methods=['POST'])
-@roles_required('admin')
+@roles_required('admin', 'developer')
 def create_game():
     """Create a new game and its member table"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -186,7 +186,7 @@ def create_game():
 Route to allow admins to delete games from the communities tab. Accessible via communities tab on game cards.
 """
 @app.route('/delete-game', methods=['POST'])
-@roles_required('admin')
+@roles_required('admin', 'developer')
 def delete_game():
     """Delete a game and drop its members from communities."""
     try:
@@ -374,14 +374,14 @@ def get_game_community_details(game_id):
             try:
                 cursor.execute("""
                                SELECT u.id, u.firstname, u.lastname, u.username,
-                                      u.profile_picture, p.is_admin, p.is_gm,
+                                      u.profile_picture, p.is_admin, p.is_developer, p.is_gm,
                                       p.is_player, c.joined_at, (u.id = gm.gm_id) as is_game_manager
                                FROM in_communities c
                                JOIN games gm ON c.game_id = gm.GameID
                                JOIN users u ON c.user_id = u.id
                                LEFT JOIN permissions p ON u.id = p.userid
                                WHERE c.game_id = %s
-                               ORDER BY (u.id = gm.gm_id) DESC, p.is_admin DESC, p.is_gm DESC, c.joined_at ASC
+                               ORDER BY (u.id = gm.gm_id) DESC, p.is_developer DESC, p.is_admin DESC, p.is_gm DESC, c.joined_at ASC
                                """, (game_id,))
                 members = cursor.fetchall()
 
@@ -389,6 +389,8 @@ def get_game_community_details(game_id):
                     roles = []
                     if m['is_admin'] == 1:
                         roles.append('Admin')
+                    if m['is_developer'] == 1:
+                        roles.append('Developer')
                     if m['is_gm'] == 1:
                         roles.append('Game Manager')
                     if m['is_player'] == 1:
@@ -818,7 +820,7 @@ Route to assign a game manager to a community. Accessible only to admins.
 @param - game_id is the id of the game a game manager is being assigned to.
 """
 @app.route('/api/game/<int:game_id>/assign-gm', methods=['POST'])
-@roles_required('admin')
+@roles_required('admin', 'developer')
 def assign_game_manager(game_id):
     """Assign a game manager to a game"""
     try:
@@ -891,7 +893,7 @@ Route to allow admins to remove the current game manager from a game. Accessible
 @param - game_id is the id of the game a manager is being removed from.
 """
 @app.route('/api/game/<int:game_id>/remove-gm', methods=['POST'])
-@roles_required('admin')
+@roles_required('admin', 'developer')
 def remove_game_manager(game_id):
     """Remove game manager assignment from a game"""
     try:

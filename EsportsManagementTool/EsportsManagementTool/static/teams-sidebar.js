@@ -149,7 +149,7 @@ function renderViewSwitcher() {
         viewSelect.appendChild(option);
     });
 
-    const isAdmin = window.userPermissions?.is_admin || false;
+    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
     if (isAdmin) {
         const divisionOption = document.createElement('option');
         divisionOption.value = 'division';
@@ -369,7 +369,7 @@ function getSubtitleForView(view, count = 0) {
         if (viewObj) {
             label = viewObj.label;
         } else {
-            const isAdmin = window.userPermissions?.is_admin || false;
+            const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
             const isGM = window.userPermissions?.is_gm || false;
 
             if (isAdmin) {
@@ -756,7 +756,7 @@ function setSelectedDivisionFilter(division) {
  * Initialize division filter dropdown
  */
 function initializeDivisionFilter() {
-    const isAdmin = window.userPermissions?.is_admin || false;
+    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
     if (!isAdmin) return;
 
     const sidebarHeaderTop = document.querySelector('.sidebar-header-top');

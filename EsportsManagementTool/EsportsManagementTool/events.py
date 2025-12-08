@@ -23,7 +23,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
     # EVENT CREATION
     # ===================================
     @app.route('/event-register', methods=['GET', 'POST'])
-    @roles_required('admin', 'gm')
+    @roles_required('admin', 'gm', 'developer')
     def eventRegister():
         """
         Create a new event
@@ -200,6 +200,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             # Get user permissions
             permissions = get_user_permissions(user_id)
             is_admin = permissions['is_admin']
+            is_developer = permissions['is_developer']
             is_gm = permissions['is_gm']
 
             # Get filter parameters
@@ -230,8 +231,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 conditions.append("ge.Date >= %s AND ge.Date < %s")
                 params.extend([start_date, current_date])
             elif event_filter == 'created_by_me':
-                # Only allow this filter for admins and GMs
-                if not (is_admin or is_gm):
+                # Only allow this filter for admins, GMs, and Developers
+                if not (is_admin or is_gm or is_developer):
                     return jsonify({'success': False, 'message': 'Unauthorized filter'}), 403
                 conditions.append("ge.created_by = %s")
                 params.append(user_id)
@@ -301,7 +302,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 cursor.execute(query, tuple(params))
 
             # Build query based on user role
-            elif is_admin:
+            elif is_admin or is_developer:
                 query = f"""
                     SELECT 
                         ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
@@ -388,7 +389,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 'success': True,
                 'events': events_list,
                 'is_admin': is_admin,
-                'is_gm': is_gm
+                'is_gm': is_gm,
+                'is_developer': is_developer
             }), 200
 
         except Exception as e:
@@ -455,6 +457,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             # Get user permissions
             permissions = get_user_permissions(user_id)
             is_admin = permissions['is_admin']
+            is_developer = permissions['is_developer']
             is_gm = permissions['is_gm']
 
             # Get the event to check permissions
@@ -471,6 +474,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
 
             # Check permissions
             if is_admin:
+                can_edit = True
+            elif is_developer:
                 can_edit = True
             elif is_gm and event['created_by'] == user_id:
                 can_edit = True
@@ -562,6 +567,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             # Get user permissions
             permissions = get_user_permissions(user_id)
             is_admin = permissions['is_admin']
+            is_developer = permissions['is_developer']
             is_gm = permissions['is_gm']
 
             # Get event details
@@ -578,6 +584,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
 
             # Check permissions
             if is_admin:
+                can_delete = True
+            elif is_developer:
                 can_delete = True
             elif is_gm and event['created_by'] == user_id:
                 can_delete = True
@@ -626,6 +634,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             # Get user permissions
             permissions = get_user_permissions(user_id)
             is_admin = permissions['is_admin']
+            is_developer = permissions['is_developer']
             is_gm = permissions['is_gm']
 
             # Get event details
@@ -642,6 +651,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
 
             # Check permissions
             if is_admin:
+                can_delete = True
+            elif is_developer:
                 can_delete = True
             elif is_gm and event['created_by'] == user_id:
                 can_delete = True

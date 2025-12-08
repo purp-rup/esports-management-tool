@@ -154,13 +154,7 @@ Method defining role hierarchy functionality.
 def roles_required(*required_roles):
     """
     Flexible decorator that checks if user has ANY of the specified roles.
-
-    Usage:
-        @roles_required('admin')                    # Only admins
-        @roles_required('admin', 'gm')              # Admins OR GMs
-        @roles_required('admin', 'gm', 'player')    # Any user with a role
     """
-
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -172,7 +166,7 @@ def roles_required(*required_roles):
 
             try:
                 cursor.execute("""
-                    SELECT is_admin, is_gm, is_player 
+                    SELECT is_admin, is_gm, is_player, is_developer 
                     FROM permissions 
                     WHERE userid = %s
                 """, (session['id'],))
@@ -186,7 +180,8 @@ def roles_required(*required_roles):
                 role_map = {
                     'admin': permissions.get('is_admin', 0),
                     'gm': permissions.get('is_gm', 0),
-                    'player': permissions.get('is_player', 0)
+                    'player': permissions.get('is_player', 0),
+                    'developer': permissions.get('is_developer', 0)
                 }
 
                 # Check if user has ANY of the required roles
@@ -202,7 +197,6 @@ def roles_required(*required_roles):
                 cursor.close()
 
         return decorated_function
-
     return decorator
 
 
@@ -216,7 +210,7 @@ def get_user_permissions(user_id):
 
     try:
         cursor.execute("""
-            SELECT is_admin, is_gm, is_player 
+            SELECT is_admin, is_gm, is_player, is_developer 
             FROM permissions 
             WHERE userid = %s
         """, (user_id,))
@@ -225,7 +219,12 @@ def get_user_permissions(user_id):
         if permissions:
             return permissions
         else:
-            return {'is_admin': 0, 'is_gm': 0, 'is_player': 0}
+            return {
+                'is_admin': 0,
+                'is_gm': 0,
+                'is_player': 0,
+                'is_developer': 0
+            }
     finally:
         cursor.close()
 
@@ -237,7 +236,6 @@ Method that checks if a user has a specific role for certain actions, including 
 def has_role(role_name):
     """
     Check if current user has a specific role.
-    Useful for conditional logic in views.
     """
     if 'loggedin' not in session:
         return False
@@ -246,7 +244,8 @@ def has_role(role_name):
     role_map = {
         'admin': permissions['is_admin'],
         'gm': permissions['is_gm'],
-        'player': permissions['is_player']
+        'player': permissions['is_player'],
+        'developer': permissions['is_developer']
     }
 
     return role_map.get(role_name, 0) == 1

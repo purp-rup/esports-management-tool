@@ -149,7 +149,7 @@ async function loadTeamDetails(teamId) {
                 }
             }
 
-            const isAdmin = window.userPermissions?.is_admin || false;
+            const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
             const isGM = window.userPermissions?.is_gm || false;
 
             const addPlayerBtn = document.getElementById('addPlayerBtn');
@@ -282,7 +282,7 @@ function loadRosterTab(members) {
     rosterList.style.display = 'grid';
     rosterEmpty.style.display = 'none';
 
-    const isAdmin = window.userPermissions?.is_admin || false;
+    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
     const isGM = window.userPermissions?.is_gm || false;
     const canManage = isAdmin || isGM;
 

@@ -135,7 +135,7 @@ async function displayGames(games) {
     gridDiv.innerHTML = '';
 
     // Check if current user is admin for delete permissions
-    const isAdmin = window.userPermissions?.is_admin || false;
+    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
 
     for (const game of games) {
         const card = createGameCard(game, isAdmin);
@@ -513,7 +513,7 @@ function updateActionButtons(game, gameId) {
  */
 function updateGMAssignmentButton(game, gameId) {
     const gmButtonContainer = document.getElementById('gmButtonContainer');
-    const isAdmin = window.userPermissions?.is_admin || false;
+    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
 
     if (isAdmin && gmButtonContainer) {
         gmButtonContainer.innerHTML = ''; // Clear existing
