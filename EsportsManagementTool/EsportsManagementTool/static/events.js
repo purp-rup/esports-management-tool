@@ -27,6 +27,7 @@ const EventState = {
 
     // User permissions
     permissions: {
+        is_developer: false,
         is_admin: false,
         is_gm: false
     },
@@ -52,9 +53,10 @@ const EventState = {
     /**
      * Update user permissions
      */
-    setPermissions(isAdmin, isGm) {
+    setPermissions(isAdmin, isGm, isDeveloper) {
         this.permissions.is_admin = isAdmin;
         this.permissions.is_gm = isGm;
+        this.permissions.is_developer = isDeveloper;
     }
 };
 
@@ -132,8 +134,8 @@ function loadEvents() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                EventState.setPermissions(data.is_admin, data.is_gm);
-                renderEvents(data.events, data.is_admin, data.is_gm);
+                EventState.setPermissions(data.is_admin, data.is_developer, data.is_gm);
+                renderEvents(data.events, data.is_admin, data.is_developer, data.is_gm);
             } else {
                 console.error('Failed to load events:', data.message);
                 showEventsError();
@@ -257,9 +259,10 @@ function convertTo24Hour(time12h) {
  */
 function canUserDeleteEvent(event) {
     const is_admin = window.userPermissions?.is_admin || EventState.permissions.is_admin;
+    const is_developer = window.userPermissions?.is_developer || EventState.permissions.is_developer;
     const is_gm = window.userPermissions?.is_gm || EventState.permissions.is_gm;
     const sessionUserId = window.currentUserId || 0;
-    return is_admin || (is_gm && event.created_by === sessionUserId);
+    return is_admin || is_developer || (is_gm && event.created_by === sessionUserId);
 }
 
 /**
@@ -269,9 +272,10 @@ function canUserDeleteEvent(event) {
  */
 function canUserEditEvent(event) {
     const is_admin = window.userPermissions?.is_admin || EventState.permissions.is_admin;
+    const is_developer = window.userPermissions?.is_developer || EventState.permissions.is_developer;
     const is_gm = window.userPermissions?.is_gm || EventState.permissions.is_gm;
     const sessionUserId = window.currentUserId || 0;
-    return is_admin || (is_gm && event.created_by === sessionUserId);
+    return is_admin || is_developer || (is_gm && event.created_by === sessionUserId);
 }
 
 // ============================================
@@ -816,7 +820,7 @@ function getEmptyStateMessage(filterValue) {
     }
 
     // Default message
-    const canCreate = window.userPermissions?.is_admin || window.userPermissions?.is_gm;
+    const canCreate = window.userPermissions?.is_admin || window.userPermissions.is_developer || window.userPermissions?.is_gm;
     return {
         title: 'No Events Found',
         text: canCreate
@@ -1018,7 +1022,7 @@ function updateEventModalButtons(event) {
     }
 
     // Show delete button if user is admin
-    if (deleteBtn && EventState.permissions.is_admin) {
+    if (deleteBtn && EventState.permissions.is_admin || EventState.permissions.is_developer) {
         deleteBtn.style.display = 'flex';
     }
 }

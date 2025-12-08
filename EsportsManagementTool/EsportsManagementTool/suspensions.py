@@ -324,17 +324,17 @@ def register_suspension_routes(app, mysql, roles_required_decorator):
 
     # Register routes
     @app.route('/admin/suspend-user', methods=['POST'])
-    @roles_required_decorator('admin')
+    @roles_required_decorator('admin', 'developer')
     def suspend_user():
         return suspend_user_route(mysql)
 
     @app.route('/admin/lift-suspension', methods=['POST'])
-    @roles_required_decorator('admin')
+    @roles_required_decorator('admin', 'developer')
     def lift_suspension():
         return lift_suspension_route(mysql)
 
     @app.route('/api/user/<int:user_id>/suspension-status')
-    @roles_required_decorator('admin')
+    @roles_required_decorator('admin', 'developer')
     def get_suspension_status(user_id):
         return get_suspension_status_route(mysql, user_id)
 

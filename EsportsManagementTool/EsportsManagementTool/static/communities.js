@@ -317,8 +317,8 @@ function displayGamesWithDivisions(games) {
     // Store games data globally for re-rendering
     window.currentGamesData = games;
 
-    // Check if current user is admin for delete permissions
-    const isAdmin = window.userPermissions?.is_admin || false;
+    // Check if current user is admin or developer for delete permissions
+    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
 
     // Group games by division
     const divisionGroups = {};

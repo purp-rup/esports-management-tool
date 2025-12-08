@@ -719,7 +719,7 @@ function renderScheduleDetails(schedule) {
 function configureScheduleButtons(scheduleId) {
     const editBtn = document.getElementById('editScheduleBtn');
     const deleteBtn = document.getElementById('deleteScheduleBtn');
-    const isAdmin = window.userPermissions?.is_admin || false;
+    const isAdmin = window.userPermissions?.is_admin || window.userPermissions?.is_developer || false;
     const isGM = window.userPermissions?.is_gm || false;
 
     // Show/hide buttons based on permissions

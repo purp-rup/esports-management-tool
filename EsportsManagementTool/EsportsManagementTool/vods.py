@@ -40,7 +40,7 @@ def add_team_vod(team_id):
 
     # Check if the user is admin or the GM for the specific game
     cursor.execute('''
-        SELECT p.is_admin, g.gm_id
+        SELECT p.is_admin, p.is_developer, g.gm_id
         FROM permissions p
         LEFT JOIN teams t on t.teamID = %s
         LEFT JOIN games g on t.gameID = g.gameID
@@ -54,9 +54,10 @@ def add_team_vod(team_id):
         return jsonify({'error': 'Unauthorized'}), 403
 
     is_admin = user_data['is_admin']
+    is_developer = user_data['is_developer']
     is_team_gm = (user_data['gm_id'] == user_id)
 
-    if not (is_admin or is_team_gm):
+    if not (is_admin or is_developer or is_team_gm):
         cursor.close()
         return jsonify({'error': 'Only admins or the Game Manager can add VODs!'}), 403
 
@@ -121,13 +122,13 @@ def add_team_vod(team_id):
 
 @app.route('/api/vods/<int:vod_id>', methods=['DELETE'])
 @login_required
-@roles_required('admin', 'gm')
+@roles_required('admin', 'gm', 'developer')
 def delete_vod(vod_id):
     user_id = session.get('id')
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     cursor.execute('''
-        SELECT p.is_admin, g.gm_id
+        SELECT p.is_admin, p.is_developer, g.gm_id
         FROM team_vods v
         JOIN teams t on v.teamID = t.teamID
         JOIN games g on t.gameID = g.gameID
@@ -142,9 +143,10 @@ def delete_vod(vod_id):
         return jsonify({'error': 'VOD not found'}), 404
 
     is_admin = result['is_admin']
+    is_developer = result['is_developer']
     is_game_gm = (result['gm_id'] == user_id)
 
-    if not (is_admin or is_game_gm):
+    if not (is_admin or is_developer or is_game_gm):
         cursor.close()
         return jsonify({'error': 'Only admins or the game manager can delete VODs!'}), 403
 
@@ -225,7 +227,7 @@ def add_vod_comment(vod_id):
 
     # Check if the user is the GM for specified game
     cursor.execute('''
-        SELECT p.is_admin, g.gm_id
+        SELECT p.is_admin, p.is_developer, g.gm_id
         FROM team_vods v
         JOIN teams t on v.teamID = t.teamID
         JOIN games g ON t.gameID = g.GameID
@@ -240,9 +242,10 @@ def add_vod_comment(vod_id):
         return jsonify({'error': 'VOD not found!'}), 404
 
     is_admin = result['is_admin']
+    is_developer = result['is_developer']
     is_game_gm = (result['gm_id'] == user_id)
 
-    if not (is_admin or is_game_gm):
+    if not (is_admin or is_developer or is_game_gm):
         cursor.close()
         return jsonify({'error': 'Only admins or the game manager can leave comments!'}), 403
 
@@ -277,7 +280,7 @@ def delete_vod_comment(comment_id):
 
     # Check permissions
     cursor.execute('''
-        SELECT c.user_id, p.is_admin, g.gm_id
+        SELECT c.user_id, p.is_admin, p.is_developer, g.gm_id
         FROM vod_comments c
         JOIN team_vods v ON c.vod_id = v.id
         JOIN teams t ON v.teamID = t.TeamID
@@ -293,10 +296,11 @@ def delete_vod_comment(comment_id):
         return jsonify({'error': 'Comment not found!'}), 404
 
     is_admin = result['is_admin']
+    is_developer = result['is_developer']
     is_game_gm = (result['gm_id'] == user_id)
     is_own_comment = (result['user_id'] == user_id)
 
-    if not (is_admin or is_game_gm or is_own_comment):
+    if not (is_admin or is_developer or is_game_gm or is_own_comment):
         cursor.close()
         return jsonify({'error': 'Permission denied!'}), 403
 

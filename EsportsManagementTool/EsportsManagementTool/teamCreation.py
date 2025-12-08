@@ -18,7 +18,7 @@ Method to allow an admin or a game manager to create a game.
 @param - game_id is the id of the game a team is being made for.
 """
 @app.route('/api/create-team/<int:game_id>', methods=['POST'])
-@roles_required('admin', 'gm')
+@roles_required('admin', 'gm', 'developer')
 def create_team(game_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
@@ -118,7 +118,7 @@ Method to gather all users who are in a game's community and not currently part 
 """
 @app.route('/api/teams/<team_id>/available-members')
 @login_required
-@roles_required('admin', 'gm')
+@roles_required('admin', 'gm', 'developer')
 def get_available_team_members(team_id):
     """Get list of users who are in the game's community but NOT already in this team"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -146,7 +146,8 @@ def get_available_team_members(team_id):
                    u.profile_picture,
                    p.is_admin,
                    p.is_gm,
-                   p.is_player
+                   p.is_player,
+                   p.is_developer
             FROM users u
             LEFT JOIN permissions p ON u.id = p.userid
             INNER JOIN in_communities ic ON u.id = ic.user_id
@@ -167,6 +168,8 @@ def get_available_team_members(team_id):
             roles = []
             if user['is_admin'] == 1:
                 roles.append('Admin')
+            if user['is_developer'] == 1:
+                roles.append('Developer')
             if user['is_gm'] == 1:
                 roles.append('Game Manager')
             if user['is_player'] == 1:
@@ -206,7 +209,7 @@ Method to add a player to a team.
 """
 @app.route('/api/teams/<team_id>/add-members', methods=['POST'])
 @login_required
-@roles_required('admin', 'gm')
+@roles_required('admin', 'gm', 'developer')
 def add_members_to_team(team_id):
     """Add multiple members to a team"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -293,7 +296,7 @@ Method to remove a player from a team.
 """
 @app.route('/api/teams/<team_id>/remove-member', methods=['POST'])
 @login_required
-@roles_required('admin', 'gm')
+@roles_required('admin', 'gm', 'developer')
 def remove_member_from_team(team_id):
     """Remove a member from a team"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -425,7 +428,7 @@ def update_team(team_id):
 """
 Method to filter teams based on user role AND selected view
 - Supports view switching for multi-role users
-- Admin: can view all teams, teams they manage, or teams they play for
+- Admin/Developer: can view all teams, teams they manage, or teams they play for
 - GM: can view teams they manage or teams they play for
 - Player: can only view teams they play for
 """
@@ -441,6 +444,7 @@ def get_teams_sidebar():
         is_admin = permissions['is_admin']
         is_gm = permissions['is_gm']
         is_player = permissions['is_player']
+        is_developer = permissions['is_developer']
 
         # Get the view preference from query parameters (default to highest priority)
         view_mode = request.args.get('view', None)
@@ -449,8 +453,8 @@ def get_teams_sidebar():
         order_clause = ""
 
         # Determine which query to run based on view_mode
-        if view_mode == 'all' and is_admin:
-            # Admin viewing ALL teams - INCLUDE gm_id, has_game_image, AND division
+        if view_mode == 'all' and (is_admin or is_developer):
+            # Admin/Developer viewing ALL teams - INCLUDE gm_id, has_game_image, AND division
             cursor.execute(f"""
                 SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
                        g.GameTitle, g.gm_id, g.Division,
@@ -461,7 +465,7 @@ def get_teams_sidebar():
                 {order_clause}
             """)
 
-        elif view_mode == 'manage' and (is_admin or is_gm):
+        elif view_mode == 'manage' and (is_admin or is_gm or is_developer):
             # Admin or GM viewing teams they manage - INCLUDE division
             cursor.execute(f"""
                 SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
@@ -490,7 +494,7 @@ def get_teams_sidebar():
 
         else:
             # Default behavior based on highest priority role (no view_mode specified)
-            if is_admin:
+            if is_admin or is_developer:
                 # Admins see ALL teams by default - INCLUDE division
                 cursor.execute(f"""
                     SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
@@ -571,13 +575,14 @@ def get_available_team_views():
         # Get user permissions
         permissions = get_user_permissions(session['id'])
         is_admin = permissions['is_admin']
+        is_developer = permissions['is_developer']
         is_gm = permissions['is_gm']
         is_player = permissions['is_player']
 
         views = []
 
         # Admin can see all teams
-        if is_admin:
+        if is_admin or is_developer:
             views.append({
                 'value': 'all',
                 'label': 'All Teams',
@@ -585,7 +590,7 @@ def get_available_team_views():
             })
 
         # Admin or GM can see teams they manage
-        if is_admin or is_gm:
+        if is_admin or is_developer or is_gm:
             # Check if they actually manage any games
             cursor.execute("""
                 SELECT COUNT(*) as count 
@@ -660,7 +665,7 @@ def team_details(team_id):
             # Checking if a user can manage given team
             user_id = session.get('id')
             cursor.execute('''
-                SELECT p.is_admin, g.gm_id
+                SELECT p.is_admin, p.is_developer, g.gm_id
                 FROM permissions p
                 LEFT JOIN games g on g.GameID = %s
                 WHERE p.userid = %s
@@ -670,8 +675,9 @@ def team_details(team_id):
             can_manage = False
             if perm_check:
                 is_admin = perm_check['is_admin']
+                is_developer = perm_check['is_developer']
                 is_game_gm = (perm_check['gm_id'] == user_id)
-                can_manage = (is_admin or is_game_gm)
+                can_manage = (is_admin or is_developer or is_game_gm)
 
             try:
                 cursor.execute(f"SELECT 1 FROM team_members WHERE user_id = %s AND team_id = %s",
@@ -690,7 +696,7 @@ def team_details(team_id):
             try:
                 cursor.execute("""
                                SELECT u.id, u.firstname, u.lastname, u.username,
-                                      u.profile_picture, p.is_admin, p.is_gm,
+                                      u.profile_picture, p.is_admin, p.is_developer, p.is_gm,
                                       p.is_player, tm.joined_at
                                FROM team_members tm
                                JOIN teams t ON tm.team_id = t.teamID
@@ -704,6 +710,8 @@ def team_details(team_id):
                     roles = []
                     if m['is_admin'] == 1:
                         roles.append('Admin')
+                    if m['is_developer'] == 1:
+                        roles.append('Developer')
                     if m['is_gm'] == 1:
                         roles.append('Game Manager')
                     if m['is_player'] == 1:

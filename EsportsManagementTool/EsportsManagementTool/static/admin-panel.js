@@ -138,10 +138,12 @@ function renderUserItems(users) {
         li.setAttribute('data-is-admin', user.is_admin ? '1' : '0');
         li.setAttribute('data-is-gm', user.is_gm ? '1' : '0');
         li.setAttribute('data-is-player', user.is_player ? '1' : '0');
+        li.setAttribute('data-is-developer', user.is_developer ? '1' : '0');
 
         // Build role badges
         const roles = [];
         if (user.is_admin) roles.push('Admin');
+        if (user.is_developer) roles.push('Developer');
         if (user.is_gm) roles.push('Game Manager');
         if (user.is_player) roles.push('Player');
 
@@ -185,12 +187,14 @@ function buildBadgesFromUserItem(item) {
     const isAdmin = item.dataset.isAdmin === '1';
     const isGm = item.dataset.isGm === '1';
     const isPlayer = item.dataset.isPlayer === '1';
+    const isDeveloper = item.dataset.isDeveloper ==='1';
 
     // Build roles array based on data attributes
     const roles = [];
     if (isAdmin) roles.push('Admin');
     if (isGm) roles.push('Game Manager');
     if (isPlayer) roles.push('Player');
+    if (isDeveloper) roles.push('Developer');
 
     // Generate badges with icons using the universal badge builder
     return buildUniversalRoleBadges({

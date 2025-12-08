@@ -12,5 +12,7 @@ Needs doing:
             Organizing Files (remaining):
             All Py files
 
-            folder system not present under division teams-sidebar filter
+            player count doesn't update after adding player until reload (on teams sidebar card)
+
+            Test DEV badge functionality (and remove admin from users who no longer need it)
 
