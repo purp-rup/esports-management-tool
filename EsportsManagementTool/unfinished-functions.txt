@@ -12,3 +12,5 @@ Needs doing:
             Organizing Files (remaining):
             All Py files
 
+            folder system not present under division teams-sidebar filter
+

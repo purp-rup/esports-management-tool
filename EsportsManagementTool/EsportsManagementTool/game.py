@@ -24,38 +24,39 @@ def view_games():
 
     try:
         user_id = session['id']
-        
-        # Step 1: Get all games with basic info
+
+        # Step 1: Get all games with basic info INCLUDING Division
         cursor.execute("""
             SELECT 
                 GameID,
                 GameTitle,
                 Description,
                 TeamSizes,
+                Division,
                 gm_id,
                 CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image
             FROM games
             ORDER BY GameTitle ASC
         """)
-        
+
         games = cursor.fetchall()
-        
+
         if not games:
             return jsonify({'success': True, 'games': []})
-        
+
         # Step 2: Get member counts for all games in one query
         game_ids = [game['GameID'] for game in games]
         placeholders = ','.join(['%s'] * len(game_ids))
-        
+
         cursor.execute(f"""
             SELECT game_id, COUNT(DISTINCT user_id) as member_count
             FROM in_communities
             WHERE game_id IN ({placeholders})
             GROUP BY game_id
         """, game_ids)
-        
+
         member_counts = {row['game_id']: row['member_count'] for row in cursor.fetchall()}
-        
+
         # Step 3: Get team counts for all games in one query
         cursor.execute(f"""
             SELECT gameID, COUNT(*) as team_count
@@ -63,28 +64,29 @@ def view_games():
             WHERE gameID IN ({placeholders})
             GROUP BY gameID
         """, game_ids)
-        
+
         team_counts = {row['gameID']: row['team_count'] for row in cursor.fetchall()}
-        
+
         # Step 4: Get current user's memberships
         cursor.execute(f"""
             SELECT game_id
             FROM in_communities
             WHERE user_id = %s AND game_id IN ({placeholders})
         """, [user_id] + game_ids)
-        
+
         user_memberships = {row['game_id'] for row in cursor.fetchall()}
-        
+
         # Step 5: Build the response
         games_with_details = []
         for game in games:
             game_id = game['GameID']
-            
+
             game_dict = {
                 'GameID': game_id,
                 'GameTitle': game['GameTitle'],
                 'Description': game['Description'],
                 'TeamSizes': game['TeamSizes'],
+                'Division': game['Division'],
                 'ImageURL': f'/game-image/{game_id}' if game['has_image'] else None,
                 'member_count': member_counts.get(game_id, 0),
                 'team_count': team_counts.get(game_id, 0),
@@ -104,6 +106,7 @@ def view_games():
 
     finally:
         cursor.close()
+
 """
 Route that allows admins to create new games. Accessible via button that opens a modal.
 """
@@ -114,9 +117,11 @@ def create_game():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
+        #Retrieves inputted title, description, sizes, and division for table.
         game_title = request.form.get('gameTitle', '').strip()
         description = request.form.get('gameDescription', '').strip()
         team_sizes_json = request.form.get('team_sizes', '[]')
+        division = request.form.get('division', 'Other').strip()
 
         import json
         team_sizes = json.loads(team_sizes_json)
@@ -139,6 +144,11 @@ def create_game():
         if not team_sizes or len(team_sizes) == 0:
             return jsonify({'success': False, 'message': 'At least one team size must be selected'}), 400
 
+        #Validate division
+        valid_divisions = ['Strategy', 'Shooter', 'Sports', 'Other']
+        if division not in valid_divisions:
+            return jsonify({'success': False, 'message': 'Invalid division selected'}), 400
+
         team_sizes_str = ','.join(map(str, team_sizes))
 
         cursor.execute("SELECT GameID FROM games WHERE GameTitle = %s", (game_title,))
@@ -148,9 +158,10 @@ def create_game():
             cursor.close()
             return jsonify({'success': False, 'message': 'A game with this title already exists'}), 400
 
+        # UPDATED: Include Division in INSERT
         cursor.execute(
-            "INSERT INTO games (GameTitle, Description, TeamSizes, GameImage, ImageMimeType) VALUES (%s, %s, %s, %s, %s)",
-            (game_title, description, team_sizes_str, game_image, image_mime_type))
+            "INSERT INTO games (GameTitle, Description, TeamSizes, Division, GameImage, ImageMimeType) VALUES (%s, %s, %s, %s, %s, %s)",
+            (game_title, description, team_sizes_str, division, game_image, image_mime_type))
 
         game_id = cursor.lastrowid
         print(f"Game inserted with ID: {game_id}")

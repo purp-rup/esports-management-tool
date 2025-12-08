@@ -445,15 +445,15 @@ def get_teams_sidebar():
         # Get the view preference from query parameters (default to highest priority)
         view_mode = request.args.get('view', None)
 
-        # Common ORDER BY clause for consistent sorting
-        order_clause = "ORDER BY g.GameTitle ASC, t.created_at ASC"
+        # Teams will be sorted by division in JavaScript
+        order_clause = ""
 
         # Determine which query to run based on view_mode
         if view_mode == 'all' and is_admin:
-            # Admin viewing ALL teams - INCLUDE gm_id and has_game_image for permission checks
+            # Admin viewing ALL teams - INCLUDE gm_id, has_game_image, AND division
             cursor.execute(f"""
                 SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
-                       g.GameTitle, g.gm_id,
+                       g.GameTitle, g.gm_id, g.Division,
                        CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
                        (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
                 FROM teams t
@@ -462,10 +462,10 @@ def get_teams_sidebar():
             """)
 
         elif view_mode == 'manage' and (is_admin or is_gm):
-            # Admin or GM viewing teams they manage - INCLUDE gm_id and has_game_image
+            # Admin or GM viewing teams they manage - INCLUDE division
             cursor.execute(f"""
                 SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
-                       g.GameTitle, g.gm_id,
+                       g.GameTitle, g.gm_id, g.Division,
                        CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
                        (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
                 FROM teams t
@@ -475,10 +475,10 @@ def get_teams_sidebar():
             """, (session['id'],))
 
         elif view_mode == 'play' and is_player:
-            # Any role viewing teams they play for - INCLUDE gm_id and has_game_image
+            # Any role viewing teams they play for - INCLUDE division
             cursor.execute(f"""
                 SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
-                       g.GameTitle, g.gm_id,
+                       g.GameTitle, g.gm_id, g.Division,
                        CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
                        (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
                 FROM teams t
@@ -491,10 +491,10 @@ def get_teams_sidebar():
         else:
             # Default behavior based on highest priority role (no view_mode specified)
             if is_admin:
-                # Admins see ALL teams by default - INCLUDE gm_id and has_game_image
+                # Admins see ALL teams by default - INCLUDE division
                 cursor.execute(f"""
                     SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
-                           g.GameTitle, g.gm_id,
+                           g.GameTitle, g.gm_id, g.Division,
                            CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
                            (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
                     FROM teams t
@@ -502,10 +502,10 @@ def get_teams_sidebar():
                     {order_clause}
                 """)
             elif is_gm:
-                # GMs see only teams from games they manage - INCLUDE gm_id and has_game_image
+                # GMs see only teams from games they manage - INCLUDE division
                 cursor.execute(f"""
                     SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
-                           g.GameTitle, g.gm_id,
+                           g.GameTitle, g.gm_id, g.Division,
                            CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
                            (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
                     FROM teams t
@@ -514,10 +514,10 @@ def get_teams_sidebar():
                     {order_clause}
                 """, (session['id'],))
             elif is_player:
-                # Players see only teams they are members of - INCLUDE gm_id and has_game_image
+                # Players see only teams they are members of - INCLUDE division
                 cursor.execute(f"""
                     SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
-                           g.GameTitle, g.gm_id,
+                           g.GameTitle, g.gm_id, g.Division,
                            CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
                            (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
                     FROM teams t
@@ -532,7 +532,7 @@ def get_teams_sidebar():
 
         teams = cursor.fetchall()
 
-        # Format teams - INCLUDE gm_id and has_game_image in response
+        # Format teams - INCLUDE division in response
         teams_list = []
         for team in teams:
             teams_list.append({
@@ -543,7 +543,9 @@ def get_teams_sidebar():
                 'GameTitle': team['GameTitle'],
                 'member_count': team['member_count'],
                 'gm_id': team['gm_id'],
-                'has_game_image': team.get('has_game_image', 0)  # Added for game icon display
+                'has_game_image': team.get('has_game_image', 0),
+                'division': team.get('Division', 'Other'),  # NEW: Include division
+                'created_at': team['created_at'].isoformat() if team.get('created_at') else None
             })
 
         return jsonify({'success': True, 'teams': teams_list})
@@ -729,9 +731,10 @@ def team_details(team_id):
                 traceback.print_exc()
 
             # Get game info including icon
-            cursor.execute('SELECT GameTitle, GameImage FROM games WHERE GameID = %s', (game_id,))
+            cursor.execute('SELECT GameTitle, GameImage, Division FROM games WHERE GameID = %s', (game_id,))
             game_info = cursor.fetchone()
             game_title = game_info['GameTitle'] if game_info else 'Unknown Game'
+            game_division = game_info['Division'] if game_info else None
 
             # Generate game icon URL
             game_icon_url = None
@@ -745,9 +748,10 @@ def team_details(team_id):
                                      'member_count': member_count,
                                      'members': formatted_members,
                                      'is_member': is_member,
-                                     'game_id': game_id,  # FIX: Include game_id in response
+                                     'game_id': game_id,
                                      'game_title': game_title,
                                      'game_icon_url': game_icon_url,
+                                     'division': game_division,
                                      'can_manage': can_manage}}), 200
         finally:
             cursor.close()
