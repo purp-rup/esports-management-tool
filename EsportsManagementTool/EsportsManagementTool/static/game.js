@@ -190,7 +190,7 @@ function createGameCard(game, isAdmin) {
     // Create Team button (only for GMs of this specific game)
     const createTeamButtonHTML = isGameManager
         ? `<button class="btn btn-primary"
-                    onclick="openCreateTeamModal(${game.GameID}, '${escapeHtml(game.GameTitle)}', '${game.TeamSizes}')">
+                    onclick="checkSeasonBeforeTeamCreation(${game.GameID}, '${escapeHtml(game.GameTitle)}', '${game.TeamSizes}')">
                 <i class="fas fa-plus"></i> Create Team
            </button>`
         : '';
@@ -662,6 +662,30 @@ function filterMembers() {
 // ============================================
 
 /**
+ * Check if there's an active season before allowing team creation
+ */
+async function checkSeasonBeforeTeamCreation(gameId, gameTitle) {
+    try {
+        const response = await fetch('/api/seasons/current');
+        const data = await response.json();
+
+        if (data.success && data.season) {
+            // Active season exists - proceed with team creation
+            openCreateTeamModal(gameId, gameTitle);
+        } else {
+            // No active season - show error message
+            alert(
+                'Cannot create team: No active season found.\n\n' +
+                'Teams must be assigned to a season. Please ask an administrator to create a season first.'
+            );
+        }
+    } catch (error) {
+        console.error('Error checking for active season:', error);
+        alert('Failed to check for active season. Please try again.');
+    }
+}
+
+/**
  * Open create team modal
  * Shows form for GMs to create a new team
  * @param {number} gameID - Game ID to create team for
@@ -687,6 +711,71 @@ function openCreateTeamModal(gameID, gameTitle, teamSizes) {
 
     // Populate team size radio buttons
     populateTeamSizeOptions(teamSizes);
+}
+
+/**
+ * Update the openCreateTeamModal function to display season info
+ */
+async function displayActiveSeasonInfo() {
+    try {
+        const response = await fetch('/api/seasons/current');
+        const data = await response.json();
+
+        if (data.success && data.season) {
+            const season = data.season;
+
+            // Create or update season info display in the modal
+            const modalBody = document.querySelector('#createTeamModal .modal-body');
+            let seasonInfo = document.getElementById('teamSeasonInfo');
+
+            if (!seasonInfo) {
+                seasonInfo = document.createElement('div');
+                seasonInfo.id = 'teamSeasonInfo';
+                seasonInfo.style.cssText = `
+                    background: rgba(34, 197, 94, 0.1);
+                    border: 1px solid rgba(34, 197, 94, 0.3);
+                    border-radius: 6px;
+                    padding: 0.75rem;
+                    margin-bottom: 1rem;
+                    color: var(--text-primary);
+                    font-size: 0.875rem;
+                `;
+
+                // Insert after the subtitle
+                const subtitle = modalBody.querySelector('.modal-subtitle');
+                if (subtitle) {
+                    subtitle.after(seasonInfo);
+                }
+            }
+
+            seasonInfo.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-calendar-check" style="color: #22c55e;"></i>
+                    <strong>Active Season:</strong> ${season.season_name}
+                    <span style="color: var(--text-secondary); margin-left: auto;">
+                        ${formatSeasonDate(season.start_date)} - ${formatSeasonDate(season.end_date)}
+                    </span>
+                </div>
+                <div style="margin-top: 0.25rem; font-size: 0.8125rem; color: var(--text-secondary);">
+                    This team will be assigned to the current season
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error displaying season info:', error);
+    }
+}
+
+/**
+ * Helper function to format season dates
+ */
+function formatSeasonDate(dateStr) {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    });
 }
 
 /**
@@ -845,3 +934,7 @@ window.filterMembers = filterMembers;
 window.openCreateTeamModal = openCreateTeamModal;
 window.closeCreateTeamModal = closeCreateTeamModal;
 window.setupCreateTeamForm = setupCreateTeamForm;
+
+//Seasons systems
+window.checkSeasonBeforeTeamCreation = checkSeasonBeforeTeamCreation;
+window.displayActiveSeasonInfo = displayActiveSeasonInfo;

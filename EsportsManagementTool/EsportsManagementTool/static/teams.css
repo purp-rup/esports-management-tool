@@ -301,9 +301,8 @@
 
 .team-header-left {
     display: flex;
-    align-items: center;
     gap: 1.5rem;
-    margin-left: 1rem;
+    margin-left: 2rem;
 }
 
 .team-icon-large {
@@ -1188,6 +1187,47 @@
 
 .teams-sidebar:not([data-view="all"]):not([data-view="division"]) .team-collapse-btn {
     display: none;
+}
+
+/* ================================
+    SEASONS STYLES FOR TEAMS TAB
+   ================================ */
+
+/* Season display in team header */
+#teamDetailSeason {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#teamDetailSeason span {
+    font-size: 0.625rem;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Season info in create team modal */
+#teamSeasonInfo {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Animation for collapsing/expanding */

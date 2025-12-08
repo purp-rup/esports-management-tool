@@ -505,7 +505,7 @@ function createGameCard(game, isAdmin) {
 
     const createTeamButtonHTML = isGameManager
         ? `<button class="btn btn-primary"
-                    onclick="openCreateTeamModal(${game.GameID}, '${escapeHtml(game.GameTitle)}', '${game.TeamSizes}')">
+                    onclick="checkSeasonBeforeTeamCreation(${game.GameID}, '${escapeHtml(game.GameTitle)}', '${game.TeamSizes}')">
                 <i class="fas fa-plus"></i> Create Team
            </button>`
         : '';

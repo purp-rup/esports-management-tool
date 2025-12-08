@@ -551,16 +551,18 @@ import EsportsManagementTool.dashboard
 from EsportsManagementTool import game
 from EsportsManagementTool import teamCreation
 from EsportsManagementTool import vods
+from EsportsManagementTool import seasons
 
 # ================================
-# REGISTER SUSPENSION ROUTES (MOVED HERE)
+# REGISTER SUSPENSION ROUTES
 # ==================================
 EsportsManagementTool.suspensions.register_suspension_routes(app, mysql, roles_required)
 
 # =====================================
-# PULLS EVENT METHODS
+# PULLS EVENT AND SEASON METHODS
 # =====================================
 EsportsManagementTool.events.register_event_routes(app, mysql, login_required, roles_required, get_user_permissions)
+EsportsManagementTool.seasons.register_seasons_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
 # =======================================
 # CALENDAR API ENDPOINT FOR LANDING PAGE

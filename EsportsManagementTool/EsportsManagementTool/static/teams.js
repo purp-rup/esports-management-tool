@@ -119,6 +119,21 @@ async function loadTeamDetails(teamId) {
                 }
             }
 
+            // Display season information
+            const seasonElement = document.getElementById('teamDetailSeason');
+            if (seasonElement) {
+                if (team.season_name) {
+                    const seasonStatus = team.season_is_active ?
+                        '<span style="color: #22c55e;">●</span>' :
+                        '<span style="color: #94a3b8;">●</span>';
+                    seasonElement.innerHTML = `${seasonStatus} Season: ${team.season_name}`;
+                    seasonElement.style.display = 'block';
+                } else {
+                    seasonElement.textContent = 'Season: Not assigned';
+                    seasonElement.style.display = 'block';
+                }
+            }
+
             const teamIconLarge = document.querySelector('.team-icon-large');
             if (teamIconLarge) {
                 if (team.game_icon_url) {
