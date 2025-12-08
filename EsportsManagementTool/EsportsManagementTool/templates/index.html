@@ -13,14 +13,22 @@
 <!-- Hero Section -->
 <section class="hero">
     <div class="hero-content">
-        <h1>
-            Welcome to<br>
-            <span class="hero-gradient">Stockton Esports</span>
-        </h1>
-        <p>
-            Your centralized hub for competitive gaming, team management, and community engagement.
-            Join us in building the future of collegiate esports at Stockton University.
-        </p>
+        <div class="hero-top">
+            <div class="hero-text">
+               <h1>
+                   Welcome to<br>
+                   <span class="hero-gradient">Stockton Esports</span>
+                </h1>
+                <p>
+                    Your centralized hub for competitive gaming, team management, and community engagement.
+                    Join us in building the future of collegiate esports at Stockton University.
+                </p>
+            </div>
+            <div class="hero-twitch" id="twitchContainer">
+                <h3 class="live-indicator">Stockton Esports Twitch is LIVE!</h3>
+                <div id="twitchEmbed"></div>
+            </div>
+        </div>
         <div class="hero-actions">
             {% if session.loggedin %}
                 <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-large">Go to Dashboard</a>
@@ -254,4 +262,34 @@
 <!-- Then load modals.js which references those handlers -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <!-- DO NOT load events.js - it conflicts with landing calendar functions -->
+<script src="https://embed.twitch.tv/embed/v1.js"></script>
+<script>
+    async function checkEmbedder() {
+        const channelName = 'stocktonesports';
+        const container = document.getElementById('twitchContainer');
+
+        try {
+            const response = await fetch(`https://www.twitch.tv/${channelName}`);
+            const html = await response.text();
+
+            if (html.includes('"isLiveBroadcast":true') || html.includes('isLiveBroadcast":true')) {
+                new Twitch.Embed("twitchEmbed", {
+                width: 400,
+                height: 225,
+                channel: channelName,
+                layout: "video",
+                parent: ["127.0.0.1", "localhost"]  // Add domain here when deployed
+            });
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Error fetching Twitch status:', error);
+            container.style.display = 'none';
+        }
+    }
+
+    checkEmbedder();
+</script>
 {% endblock %}
