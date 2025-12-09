@@ -2,7 +2,7 @@
 # separate our application into multiple modules that are then imported
 # into __init__.py here
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, make_response
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
 from datetime import datetime
@@ -304,6 +304,35 @@ def cleanup_inactive_users():
 @app.route('/')
 def index():
     """Landing page - calendar loads events via AJAX"""
+    remember_token = request.cookies.get('remember_token')
+    if remember_token:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            cursor.execute('SELECT * FROM users WHERE remember_token = %s', (remember_token,))
+            account = cursor.fetchone()
+
+            if account:
+                # Check for suspensions
+                is_suspended, suspension_info = EsportsManagementTool.suspensions.check_user_suspension(mysql, account['id'])
+
+                if not is_suspended:
+                    # Auto log the user in
+                    session['loggedin'] = True
+                    session['id'] = account['id']
+                    session['username'] = account['username']
+                    session['login_time'] = get_current_time().isoformat()
+
+                    cursor.execute("""
+                        INSERT INTO user_activity (userid, is_active, last_seen)
+                        VALUES (%s, 1, NOW())
+                        ON DUPLICATE KEY UPDATE
+                            is_active = 1,
+                            last_seen = NOW()
+                        """, (account['id'],))
+                    mysql.connection.commit()
+        finally:
+            cursor.close()
+
     return render_template('index.html')
 
 
@@ -364,6 +393,7 @@ def login():
     if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
         username = request.form['username']
         password = request.form['password']
+        remember_me = request.form.get('remember')
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
@@ -429,7 +459,31 @@ def login():
                             except Exception as e:
                                 print(f"Error updating user activity: {str(e)}")
 
-                            return redirect(url_for('dashboard'))
+                            #Handling "Remember Me" functionalities
+                            response = make_response(redirect(url_for('dashboard')))
+
+                            if remember_me:
+                                remember_token = secrets.token_urlsafe(32)
+
+                                cursor.execute('UPDATE users SET remember_token = %s WHERE id = %s', (remember_token, account['id']))
+                                mysql.connection.commit()
+
+                                response.set_cookie(
+                                    'remember_token',
+                                    remember_token,
+                                    max_age=30*24*60*60,
+                                    httponly=True,
+                                    secure=False, # WHEN WE PORT TO SERVER THIS *NEEDS* TO BE TRUE!!!!!!! I CANNOT STRESS THIS ENOUGH!!!!!
+                                    samesite='Lax'
+                                )
+                            else:
+                                # Clear any existing token
+                                cursor.execute('UPDATE users SET remember_token = NULL WHERE id = %s', (account['id'],))
+                                mysql.connection.commit()
+                                response.set_cookie('remember_token', '', max_age=0)
+
+                            return response
+
                 else:
                     msg = 'Incorrect username/password!'
             else:
@@ -455,6 +509,10 @@ def logout():
                 WHERE userid = %s
             """, (session['id'],))
             mysql.connection.commit()
+
+            cursor.execute('UPDATE users SET remember_token = NULL WHERE id = %s', (session['id'],))
+            mysql.connection.commit()
+
             cursor.close()
         except Exception as e:
             print(f"Error updating logout activity: {str(e)}")
@@ -463,7 +521,10 @@ def logout():
     session.pop('id', None)
     session.pop('username', None)
     flash('Successfully logged out.')
-    return redirect(url_for('login'))
+
+    response = make_response(redirect(url_for('login')))
+    response.set_cookie('remember_token', '', max_age=0)
+    return response
 
 
 """
