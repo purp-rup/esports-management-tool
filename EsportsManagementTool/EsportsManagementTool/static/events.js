@@ -160,6 +160,12 @@ function buildEventFilterParams() {
 
     let params = `filter=${filterValue}`;
 
+    // Add past season filter if active
+    if (PastSeasonFilterState.selectedSeasonId) {
+        params += `&season_id=${PastSeasonFilterState.selectedSeasonId}`;
+    }
+    // Otherwise, backend will default to active season
+
     // Add event type filter if applicable
     if (filterValue === 'type') {
         const typeFilter = document.getElementById('eventTypeFilter')?.value;
@@ -572,6 +578,61 @@ async function loadGamesForFilter() {
 // EVENT FILTERING
 // ============================================
 
+// Global state for season filtering
+const PastSeasonFilterState = {
+    selectedSeasonId: null,
+    selectedSeasonName: '',
+    availablePastSeasons: [],
+    secondaryFilter: 'all',
+    isFilteringPastSeason: false
+};
+
+/**
+ * Load past seasons for filtering (admin/dev only)
+ */
+async function loadPastSeasonsForFilter() {
+    const seasonSelect = document.getElementById('pastSeasonSelect');
+    const loadingIndicator = document.getElementById('pastSeasonLoadingIndicator');
+
+    if (!seasonSelect) return;
+
+    // Show loading
+    setElementDisplay(loadingIndicator, 'inline-block');
+    seasonSelect.disabled = true;
+
+    try {
+        const response = await fetch('/api/seasons/past');
+        const data = await response.json();
+
+        if (data.success && data.seasons) {
+            PastSeasonFilterState.availablePastSeasons = data.seasons;
+
+            // Clear and populate dropdown
+            seasonSelect.innerHTML = '<option value="">Select Past Season</option>';
+
+            if (data.seasons.length === 0) {
+                seasonSelect.innerHTML += '<option value="" disabled>No past seasons available</option>';
+            } else {
+                data.seasons.forEach(season => {
+                    const option = document.createElement('option');
+                    option.value = season.season_id;
+                    option.textContent = season.season_name;
+                    seasonSelect.appendChild(option);
+                });
+            }
+        } else {
+            console.error('Failed to load past seasons:', data.message);
+            seasonSelect.innerHTML = '<option value="">Error loading past seasons</option>';
+        }
+    } catch (error) {
+        console.error('Error fetching past seasons:', error);
+        seasonSelect.innerHTML = '<option value="">Error loading past seasons</option>';
+    } finally {
+        setElementDisplay(loadingIndicator, 'none');
+        seasonSelect.disabled = false;
+    }
+}
+
 /**
  * Filter events based on dropdown selection
  * Manages visibility of secondary filter dropdowns
@@ -585,28 +646,263 @@ function filterEvents() {
     const gameFilterContainer = document.getElementById('gameFilterContainer');
     const gameFilterSelect = document.getElementById('gameFilter');
 
-    // Hide all secondary filters
+    // Past season-specific elements
+    const pastSeasonSelectContainer = document.getElementById('pastSeasonSelectContainer');
+    const pastSeasonSecondaryFilterContainer = document.getElementById('pastSeasonSecondaryFilterContainer');
+
+    // Hide all secondary filters by default
     setElementDisplay(typeFilterContainer, 'none');
     setElementDisplay(gameFilterContainer, 'none');
+    setElementDisplay(pastSeasonSelectContainer, 'none');
+    setElementDisplay(pastSeasonSecondaryFilterContainer, 'none');
 
     // Reset secondary filters
     if (typeFilterSelect) typeFilterSelect.value = '';
     if (gameFilterSelect) gameFilterSelect.value = '';
 
-    // Show appropriate secondary filter
+    // Reset past season filter state
+    PastSeasonFilterState.selectedSeasonId = null;
+    PastSeasonFilterState.selectedSeasonName = '';
+    PastSeasonFilterState.secondaryFilter = 'all';
+    PastSeasonFilterState.isFilteringPastSeason = false;
+
+    // Handle past season filter
+    if (filterValue === 'past_season') {
+        PastSeasonFilterState.isFilteringPastSeason = true;
+        setElementDisplay(pastSeasonSelectContainer, 'flex');
+        loadPastSeasonsForFilter();
+        return; // Don't load events yet, wait for season selection
+    }
+
+    // Show appropriate secondary filter for non-season filters
     if (filterValue === 'type') {
         setElementDisplay(typeFilterContainer, 'flex');
-        // Wait for type selection before loading
         return;
     } else if (filterValue === 'game') {
         setElementDisplay(gameFilterContainer, 'flex');
         loadGamesForFilter();
-        // Wait for game selection before loading
         return;
     }
 
-    // Load events with main filter
+    updateFilterColumnsCount();
+
+    // Load events with main filter (defaults to current active season on backend)
     loadEvents();
+}
+
+/* ================================
+    SEASON FILTERING STUFF
+   ================================ */
+
+/**
+ * Handle past season selection
+ */
+function handlePastSeasonSelection() {
+    const seasonSelect = document.getElementById('pastSeasonSelect');
+    const seasonId = seasonSelect?.value;
+    const seasonSecondaryFilterContainer = document.getElementById('pastSeasonSecondaryFilterContainer');
+
+    if (!seasonId) {
+        // No season selected, hide secondary filter
+        setElementDisplay(seasonSecondaryFilterContainer, 'none');
+        PastSeasonFilterState.selectedSeasonId = null;
+        PastSeasonFilterState.selectedSeasonName = '';
+        return;
+    }
+
+    // Store selected past season
+    PastSeasonFilterState.selectedSeasonId = seasonId;
+    PastSeasonFilterState.selectedSeasonName = seasonSelect.options[seasonSelect.selectedIndex].text;
+
+    // Show secondary filter
+    setElementDisplay(seasonSecondaryFilterContainer, 'flex');
+
+    // Reset secondary filter to "All Events"
+    const secondaryFilter = document.getElementById('pastSeasonSecondaryFilter');
+    if (secondaryFilter) {
+        secondaryFilter.value = 'all';
+    }
+
+    // Load events for this past season
+    loadEventsForPastSeason();
+
+    updateFilterColumnsCount();
+}
+
+/**
+ * Filter events by past season and secondary filter
+ */
+function filterEventsByPastSeason() {
+    const secondaryFilter = document.getElementById('pastSeasonSecondaryFilter');
+    const secondaryValue = secondaryFilter?.value || 'all';
+
+    PastSeasonFilterState.secondaryFilter = secondaryValue;
+
+    const typeFilterContainer = document.getElementById('eventTypeFilterContainer');
+    const gameFilterContainer = document.getElementById('gameFilterContainer');
+
+    // Hide both tertiary filters
+    setElementDisplay(typeFilterContainer, 'none');
+    setElementDisplay(gameFilterContainer, 'none');
+
+    // Show appropriate tertiary filter
+    if (secondaryValue === 'type') {
+        setElementDisplay(typeFilterContainer, 'flex');
+        return; // Wait for type selection
+    } else if (secondaryValue === 'game') {
+        setElementDisplay(gameFilterContainer, 'flex');
+        loadGamesForFilter();
+        return; // Wait for game selection
+    }
+
+    // Load events with secondary filter
+    loadEventsForPastSeason();
+
+    updateFilterColumnsCount();
+}
+
+/**
+ * Filter by past season and type
+ */
+function filterBySeasonAndType() {
+    const typeFilter = document.getElementById('eventTypeFilter');
+    if (typeFilter?.value) {
+        loadEventsForPastSeason();
+    }
+}
+
+/**
+ * Filter by past season and game
+ */
+function filterBySeasonAndGame() {
+    const gameFilter = document.getElementById('gameFilter');
+    if (gameFilter?.value) {
+        loadEventsForPastSeason();
+    }
+}
+
+/**
+ * Handle type filter change - routes to correct function based on context
+ */
+function handleTypeFilterChange() {
+    if (PastSeasonFilterState.isFilteringPastSeason) {
+        filterBySeasonAndType();
+    } else {
+        filterEventsByType();
+    }
+}
+
+/**
+ * Handle game filter change - routes to correct function based on context
+ */
+function handleGameFilterChange() {
+    if (PastSeasonFilterState.isFilteringPastSeason) {
+        filterBySeasonAndGame();
+    } else {
+        filterEventsByGame();
+    }
+}
+
+/**
+ * Load events for selected past season with filters
+ */
+function loadEventsForPastSeason() {
+    if (!PastSeasonFilterState.selectedSeasonId) {
+        console.warn('No past season selected');
+        return;
+    }
+
+    const elements = {
+        loading: document.getElementById('eventsLoading'),
+        container: document.getElementById('eventsContainer'),
+        emptyState: document.getElementById('eventsEmptyState')
+    };
+
+    // Show loading state
+    setElementDisplay(elements.loading, 'block');
+    setElementDisplay(elements.container, 'none');
+    setElementDisplay(elements.emptyState, 'none');
+
+    // Build query parameters
+    let queryParams = `season_id=${PastSeasonFilterState.selectedSeasonId}`;
+
+    // Add secondary filter
+    const secondaryFilter = PastSeasonFilterState.secondaryFilter;
+
+    if (secondaryFilter === 'created_by_me') {
+        queryParams += '&filter=created_by_me';
+    } else if (secondaryFilter === 'type') {
+        const typeFilter = document.getElementById('eventTypeFilter')?.value;
+        if (typeFilter) {
+            queryParams += `&filter=type&event_type=${typeFilter}`;
+        }
+    } else if (secondaryFilter === 'game') {
+        const gameFilter = document.getElementById('gameFilter')?.value;
+        if (gameFilter) {
+            queryParams += `&filter=game&game=${encodeURIComponent(gameFilter)}`;
+        }
+    } else {
+        // "all" - just use season filter
+        queryParams += '&filter=all';
+    }
+
+    // Fetch events
+    fetch(`/api/events?${queryParams}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                EventState.setPermissions(data.is_admin, data.is_developer, data.is_gm);
+                renderEvents(data.events, data.is_admin, data.is_developer, data.is_gm);
+
+                // Update empty state message for season filtering
+                updatePastSeasonEmptyStateMessage();
+            } else {
+                console.error('Failed to load events:', data.message);
+                showEventsError();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading events:', error);
+            showEventsError();
+        })
+        .finally(() => {
+            setElementDisplay(elements.loading, 'none');
+        });
+}
+
+/**
+ * Update empty state message for past season filtering
+ */
+function updatePastSeasonEmptyStateMessage() {
+    const emptyStateDiv = document.getElementById('eventsEmptyState');
+    const emptyStateTitle = emptyStateDiv?.querySelector('h3');
+    const emptyStateText = emptyStateDiv?.querySelector('p');
+
+    if (!emptyStateTitle || !emptyStateText) return;
+
+    const seasonName = PastSeasonFilterState.selectedSeasonName;
+    const secondaryFilter = PastSeasonFilterState.secondaryFilter;
+
+    let title = `No Events in ${seasonName}`;
+    let text = `No events found for ${seasonName}.`;
+
+    if (secondaryFilter === 'created_by_me') {
+        title = `No Events Created in ${seasonName}`;
+        text = `You haven't created any events in ${seasonName}.`;
+    } else if (secondaryFilter === 'type') {
+        const typeSelect = document.getElementById('eventTypeFilter');
+        const typeName = typeSelect?.options[typeSelect.selectedIndex]?.text || 'Selected';
+        title = `No ${typeName} Events in ${seasonName}`;
+        text = `No ${typeName.toLowerCase()} events found in ${seasonName}.`;
+    } else if (secondaryFilter === 'game') {
+        const gameSelect = document.getElementById('gameFilter');
+        const gameName = gameSelect?.options[gameSelect.selectedIndex]?.text || 'Selected Game';
+        title = `No ${gameName} Events in ${seasonName}`;
+        text = `No events found for ${gameName} in ${seasonName}.`;
+    }
+
+    emptyStateTitle.textContent = title;
+    emptyStateText.textContent = text;
 }
 
 /**
@@ -627,6 +923,21 @@ function filterEventsByGame() {
     if (gameFilterSelect?.value) {
         loadEvents();
     }
+}
+
+/**
+ * Update the number of visible filter columns
+ * Adds data-columns attribute for CSS styling
+ */
+function updateFilterColumnsCount() {
+    const filterContainer = document.querySelector('.event-filters-container');
+    if (!filterContainer) return;
+
+    // Count visible filter dropdowns
+    const visibleFilters = filterContainer.querySelectorAll('.event-filter-dropdown:not([style*="display: none"])');
+    const columnCount = visibleFilters.length > 1 ? '2' : '1';
+
+    filterContainer.setAttribute('data-columns', columnCount);
 }
 
 // ============================================
@@ -684,6 +995,14 @@ function createEventCard(event, isAdmin, isGm) {
     const eventTypeClass = (event.event_type || 'event').toLowerCase();
     const scheduledClass = event.is_scheduled ? 'scheduled-event' : '';
 
+    // Season indicator (inline with title, similar to team styling)
+    const seasonIndicator = event.season_name ? `
+        <div class="event-season-indicator" title="${event.season_is_active ? 'Active Season' : 'Past Season'}">
+            <span style="color: ${event.season_is_active ? '#22c55e' : '#94a3b8'};">●</span>
+            ${event.season_name}
+        </div>
+    ` : '';
+
     return `
         <div class="event-card ${scheduledClass}"
              data-event-type="${eventTypeClass}"
@@ -692,6 +1011,7 @@ function createEventCard(event, isAdmin, isGm) {
             ${ongoingIndicator}
             <div class="event-card-header">
                 <h3 class="event-card-title">${event.name}</h3>
+                ${seasonIndicator}
             </div>
 
             <div class="event-card-details">
@@ -1464,7 +1784,7 @@ function createEditFormFields(event) {
         </div>
 
         <div class="form-group">
-            <label for="editEventType">Event Type</label>
+            <label for="editEventType"> Type</label>
             <select id="editEventType" name="eventType" required onchange="handleEditEventTypeChange()">
                 ${createEventTypeOptions(event.event_type)}
             </select>
@@ -1890,6 +2210,14 @@ window.confirmDeleteEvent = confirmDeleteEvent;
 window.addGameTag = addGameTag;
 window.removeGameTag = removeGameTag;
 window.clearSelectedGames = clearSelectedGames;
+
+//Filtering with seasons
+window.loadPastSeasonsForFilter = loadPastSeasonsForFilter;
+window.handlePastSeasonSelection = handlePastSeasonSelection;
+window.filterEventsByPastSeason = filterEventsByPastSeason;
+window.filterBySeasonAndType = filterBySeasonAndType;
+window.filterBySeasonAndGame = filterBySeasonAndGame;
+window.loadEventsForPastSeason = loadEventsForPastSeason;
 
 // Utility Functions
 window.loadGamesForFilter = loadGamesForFilter;

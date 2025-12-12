@@ -9,6 +9,7 @@ import MySQLdb.cursors
 from dateutil.relativedelta import relativedelta
 import calendar
 from EsportsManagementTool import get_current_time, localize_datetime, EST
+from EsportsManagementTool.events import get_season_for_event_date
 
 """
 Formats schedule-related time to 12Hr format.
@@ -650,6 +651,15 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
                 if team_name not in event_name:
                     event_name = f"{event_name} ({team_name})"
 
+        # Calculate season based on the event_date (not creation date!)
+        from EsportsManagementTool.events import get_season_for_event_date
+        season_id = get_season_for_event_date(cursor, event_date)
+
+        if season_id:
+            print(f"   📅 Scheduled event on {event_date} assigned to season_id: {season_id}")
+        else:
+            print(f"   📅 Scheduled event on {event_date} has no season assignment")
+
         # Build game display string with team name if team-specific
         game_display = game_title
         if game_title and schedule['visibility'] == 'team' and schedule['team_id']:
@@ -670,25 +680,26 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
         # Correct column order and value mapping
         # ============================================
         cursor.execute("""
-            INSERT INTO generalevents
-            (EventName, Date, StartTime, EndTime, Description, EventType, 
-             Game, game_id, Location, created_by, schedule_id, is_scheduled,
-             team_id, visibility)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s)
-        """, (
-            event_name,                                                    # EventName
-            event_date,                                                    # Date
-            schedule['start_time'],                                        # StartTime
-            schedule['end_time'],                                          # EndTime
-            schedule['description'] or f"Recurring {schedule['event_type']}", # Description
-            schedule['event_type'],                                        # EventType
-            game_display,                                                  # Game (display string)
-            schedule['game_id'],                                          # game_id
-            schedule['location'] or 'TBD',                                # Location
-            schedule['created_by'],                                        # created_by
-            schedule['schedule_id'],                                       # schedule_id
-            event_team_id,                                                # team_id - NOW CONDITIONAL
-            schedule['visibility']                                         # visibility
+                    INSERT INTO generalevents
+                    (EventName, Date, StartTime, EndTime, Description, EventType, 
+                     Game, game_id, Location, created_by, schedule_id, is_scheduled,
+                     team_id, visibility, season_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s)
+                """, (
+            event_name,  # EventName
+            event_date,  # Date
+            schedule['start_time'],  # StartTime
+            schedule['end_time'],  # EndTime
+            schedule['description'] or f"Recurring {schedule['event_type']}",  # Description
+            schedule['event_type'],  # EventType
+            game_display,  # Game (display string)
+            schedule['game_id'],  # game_id
+            schedule['location'] or 'TBD',  # Location
+            schedule['created_by'],  # created_by
+            schedule['schedule_id'],  # schedule_id
+            event_team_id,  # team_id
+            schedule['visibility'],  # visibility
+            season_id  # season_id
         ))
 
         event_id = cursor.lastrowid

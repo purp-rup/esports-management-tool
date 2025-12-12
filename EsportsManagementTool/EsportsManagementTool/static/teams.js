@@ -119,6 +119,41 @@ async function loadTeamDetails(teamId) {
                 }
             }
 
+            // Display season information
+            const seasonElement = document.getElementById('teamDetailSeason');
+            if (seasonElement) {
+                if (team.season_name) {
+                    const seasonStatus = team.season_is_active ?
+                        '<span style="color: #22c55e;">●</span>' :
+                        '<span style="color: #94a3b8;">●</span>';
+                    seasonElement.innerHTML = `${seasonStatus} Season: ${team.season_name}`;
+                    seasonElement.style.display = 'block';
+                } else {
+                    seasonElement.textContent = 'Season: Not assigned';
+                    seasonElement.style.display = 'block';
+                }
+            }
+
+            //Applies a collapsed team details state
+            const isCollapsed = getCollapsedTeamDetailsState();
+            const subheadersContainer = document.getElementById('teamDetailSubheaders');
+            const collapseBtn = document.getElementById('teamDetailCollapseBtn');
+            const icon = collapseBtn?.querySelector('i');
+
+            if (subheadersContainer && isCollapsed) {
+                subheadersContainer.classList.add('collapsed');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                }
+            } else if (subheadersContainer) {
+                subheadersContainer.classList.remove('collapsed');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                }
+            }
+
             const teamIconLarge = document.querySelector('.team-icon-large');
             if (teamIconLarge) {
                 if (team.game_icon_url) {
@@ -172,6 +207,53 @@ async function loadTeamDetails(teamId) {
         }
     } catch (error) {
         console.error('Error loading team details:', error);
+    }
+}
+
+/**
+ * Storage key for collapsed team details
+ */
+const COLLAPSED_TEAM_DETAILS_KEY = 'teams_collapsed_details';
+
+/**
+ * Get collapsed team details state
+ */
+function getCollapsedTeamDetailsState() {
+    const stored = sessionStorage.getItem(COLLAPSED_TEAM_DETAILS_KEY);
+    return stored === 'true';
+}
+
+/**
+ * Save collapsed team details state
+ */
+function saveCollapsedTeamDetailsState(isCollapsed) {
+    sessionStorage.setItem(COLLAPSED_TEAM_DETAILS_KEY, isCollapsed.toString());
+}
+
+/**
+ * Toggle team detail collapse
+ */
+function toggleTeamDetailCollapse() {
+    const detailsContainer = document.getElementById('teamDetailSubheaders');
+    const toggleBtn = document.getElementById('teamDetailCollapseBtn');
+    const icon = toggleBtn?.querySelector('i');
+
+    if (!detailsContainer || !toggleBtn || !icon) return;
+
+    const isCollapsed = detailsContainer.classList.contains('collapsed');
+
+    if (isCollapsed) {
+        // Expand
+        detailsContainer.classList.remove('collapsed');
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+        saveCollapsedTeamDetailsState(false);
+    } else {
+        // Collapse
+        detailsContainer.classList.add('collapsed');
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+        saveCollapsedTeamDetailsState(true);
     }
 }
 
@@ -523,6 +605,10 @@ async function addSelectedMembersToTeam() {
         if (data.success) {
             alert(data.message);
             closeAddTeamMembersModal();
+
+            window.invalidateTeamsCache();
+            await window.loadTeams();
+
             selectTeam(window.currentSelectedTeamId);
         } else {
             alert(`Error: ${data.message}`);
@@ -590,6 +676,10 @@ async function removeMemberNew(memberId, memberName) {
 
         if (data.success) {
             alert(`"${memberName}" removed successfully`);
+
+            window.invalidateTeamsCache();
+            await window.loadTeams();
+
             selectTeam(window.currentSelectedTeamId);
         } else {
             alert(`Error: ${data.message}`);
@@ -912,3 +1002,4 @@ window.loadNextScheduledEvent = loadNextScheduledEvent;
 window.openEditTeamModal = openEditTeamModal;
 window.closeEditTeamModal = closeEditTeamModal;
 window.populateTeamSizes = populateTeamSizes;
+window.toggleTeamDetailCollapse = toggleTeamDetailCollapse;

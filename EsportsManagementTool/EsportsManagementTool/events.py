@@ -7,6 +7,86 @@ from datetime import datetime, timedelta
 import MySQLdb.cursors
 from EsportsManagementTool import get_current_time, localize_datetime, EST
 
+"""
+Helper function to determine which season an event will be tied to.
+@param - event_date is the date the event takes place. This is used to calculate which season it will be a part of.
+"""
+def get_season_for_event_date(cursor, event_date):
+    """
+    Determine which season an event belongs to based on its date.
+
+    Logic:
+    1. If event falls within an active or past season's date range, use that season
+    2. If event is before all seasons, return None
+    3. If event is between seasons, assign to the most recent previous season
+    4. If event is after all seasons, assign to the most recent season
+
+    Args:
+        cursor: MySQL cursor
+        event_date: Date object or string in YYYY-MM-DD format
+
+    Returns:
+        int or None: season_id to assign, or None if no seasons exist
+    """
+    from datetime import datetime
+
+    # Convert string to date if needed
+    if isinstance(event_date, str):
+        event_date = datetime.strptime(event_date, '%Y-%m-%d').date()
+
+    try:
+        # Check if event falls within any season's date range
+        cursor.execute("""
+            SELECT season_id, season_name, start_date, end_date
+            FROM seasons
+            WHERE %s BETWEEN start_date AND end_date
+            ORDER BY start_date DESC
+            LIMIT 1
+        """, (event_date,))
+
+        direct_match = cursor.fetchone()
+        if direct_match:
+            print(f"   📅 Event date {event_date} falls within season '{direct_match['season_name']}'")
+            return direct_match['season_id']
+
+        # Event doesn't fall within any season - find the most recent previous season
+        cursor.execute("""
+            SELECT season_id, season_name, start_date, end_date
+            FROM seasons
+            WHERE end_date < %s
+            ORDER BY end_date DESC
+            LIMIT 1
+        """, (event_date,))
+
+        previous_season = cursor.fetchone()
+        if previous_season:
+            print(
+                f"   📅 Event date {event_date} is after season '{previous_season['season_name']}' (ended {previous_season['end_date']})")
+            return previous_season['season_id']
+
+        # Event is before all seasons - check if there are any future seasons
+        cursor.execute("""
+            SELECT season_id, season_name, start_date, end_date
+            FROM seasons
+            WHERE start_date > %s
+            ORDER BY start_date ASC
+            LIMIT 1
+        """, (event_date,))
+
+        future_season = cursor.fetchone()
+        if future_season:
+            print(
+                f"   📅 Event date {event_date} is before all seasons (next season: '{future_season['season_name']}' starts {future_season['start_date']})")
+            return None  # Event is before any season exists
+
+        # No seasons exist at all
+        print(f"   📅 No seasons defined in system")
+        return None
+
+    except Exception as e:
+        print(f"   ❌ Error determining season for event date {event_date}: {str(e)}")
+        return None
+
 def register_event_routes(app, mysql, login_required, roles_required, get_user_permissions):
     """
     Register all event-related routes with the Flask app
@@ -91,11 +171,21 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     print(f"\n💾 Inserting event into generalevents...")
                     print(f"   game_id: {primary_game_id}")
 
+                    # ============================================
+                    # DETERMINE SEASON FOR EVENT
+                    # ============================================
+                    season_id = get_season_for_event_date(cursor, eventDate)
+
+                    if season_id:
+                        print(f"   ✅ Event will be assigned to season_id: {season_id}")
+                    else:
+                        print(f"   ℹ️  Event will not be assigned to any season (pre-season event or no seasons exist)")
+
                     cursor.execute(
-                        'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Location, Game, game_id, created_by) '
-                        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                        'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Location, Game, game_id, created_by, season_id) '
+                        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
                         (eventName, eventDate, startTime, endTime, eventDescription, eventType, location, game_display,
-                         primary_game_id, session['id']))
+                         primary_game_id, session['id'], season_id))
 
                     event_id = cursor.lastrowid
                     print(f"   ✅ Created event_id: {event_id}")
@@ -207,17 +297,37 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             event_filter = request.args.get('filter', 'all')
             event_type_filter = request.args.get('event_type', '').lower()
             game_filter = request.args.get('game', '')
+            season_id = request.args.get('season_id', '')
 
             # Get current date and time
             now = get_current_time()
             current_date = now.date()
             current_time = now.time()
 
+            # If no season specified, default to active season for ALL users
+            if not season_id:
+                cursor.execute("""
+                    SELECT season_id 
+                    FROM seasons 
+                    WHERE is_active = 1 
+                    LIMIT 1
+                """)
+                active_season = cursor.fetchone()
+                if active_season:
+                    season_id = active_season['season_id']
+                    print(f"   📅 No season specified, defaulting to active season: {season_id}")
+
             # Build base conditions
             conditions = []
             params = []
 
             # Date filter
+            if season_id:
+                conditions.append("ge.season_id = %s")
+                params.append(season_id)
+            else:
+                # If no active season and no season specified, show events with NULL season_id
+                print(f"   📅 No active season, showing events without season assignment")
             if event_filter == 'upcoming':
                 end_date = current_date + timedelta(days=7)
                 conditions.append("ge.Date >= %s AND ge.Date <= %s")
@@ -289,9 +399,11 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     SELECT 
                         ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
                         ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
-                        ge.is_scheduled, ge.schedule_id
+                        ge.is_scheduled, ge.schedule_id,
+                        s.season_name, s.is_active as season_is_active
                     FROM generalevents ge
                     LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+                    LEFT JOIN seasons s ON ge.season_id = s.season_id
                     INNER JOIN event_subscriptions es ON ge.EventID = es.event_id
                     WHERE {where_clause} AND es.user_id = %s
                     AND {visibility_clause}
@@ -307,9 +419,11 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     SELECT 
                         ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
                         ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
-                        ge.is_scheduled, ge.schedule_id
+                        ge.is_scheduled, ge.schedule_id,
+                        s.season_name, s.is_active as season_is_active
                     FROM generalevents ge
                     LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+                    LEFT JOIN seasons s ON ge.season_id = s.season_id
                     WHERE {where_clause}
                     AND {visibility_clause}
                     ORDER BY ge.Date {'ASC' if is_upcoming_filter else 'DESC'}, 
@@ -329,9 +443,11 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     SELECT 
                         ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
                         ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
-                        ge.is_scheduled, ge.schedule_id
+                        ge.is_scheduled, ge.schedule_id,
+                        s.season_name, s.is_active as season_is_active
                     FROM generalevents ge
                     LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+                    LEFT JOIN seasons s ON ge.season_id = s.season_id
                     WHERE {where_clause}
                     AND {visibility_clause}
                     ORDER BY ge.Date {'ASC' if is_upcoming_filter else 'DESC'}, 
@@ -346,9 +462,11 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     SELECT 
                         ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
                         ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
-                        ge.is_scheduled, ge.schedule_id
+                        ge.is_scheduled, ge.schedule_id,
+                        s.season_name, s.is_active as season_is_active
                     FROM generalevents ge
                     LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+                    LEFT JOIN seasons s ON ge.season_id = s.season_id
                     WHERE {where_clause}
                     AND {visibility_clause}
                     ORDER BY ge.Date {'ASC' if is_upcoming_filter else 'DESC'}, 
@@ -381,7 +499,10 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     'is_ongoing': is_ongoing,
                     'created_by': event['created_by'],
                     'is_scheduled': event.get('is_scheduled', False),
-                    'schedule_id': event.get('schedule_id')
+                    'schedule_id': event.get('schedule_id'),
+                    'season_id': event.get('season_id'),
+                    'season_name': event.get('season_name'),
+                    'season_is_active': event.get('season_is_active', 0)
                 }
                 events_list.append(event_data)
 
@@ -405,7 +526,14 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
         """Get detailed information about a specific event"""
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            cursor.execute('SELECT * FROM generalevents WHERE EventID = %s', (event_id,))
+            # Gather event and season data
+            cursor.execute("""
+                SELECT ge.*, s.season_name, s.is_active as season_is_active
+                FROM generalevents ge
+                LEFT JOIN seasons s ON ge.season_id = s.season_id
+                WHERE ge.EventID = %s
+            """, (event_id,))
+
             event = cursor.fetchone()
 
             if not event:
@@ -422,7 +550,10 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 'event_type': event['EventType'] if event['EventType'] else 'General',
                 'game': event['Game'] if event['Game'] else 'N/A',
                 'location': event['Location'] if event['Location'] else 'TBD',
-                'created_by': event.get('created_by')
+                'created_by': event.get('created_by'),
+                'season_id': event.get('season_id'),
+                'season_name': event.get('season_name'),
+                'season_is_active': event.get('season_is_active', 0)
             }
 
             return jsonify(event_data)
@@ -503,11 +634,22 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 if game_result:
                     primary_game_id = game_result['gameID']
 
+            # ============================================
+            # RECALCULATE SEASON BASED ON NEW DATE
+            # ============================================
+            new_event_date = data['event_date']
+            season_id = get_season_for_event_date(cursor, new_event_date)
+
+            if season_id:
+                print(f"   📅 Updated event date {new_event_date} assigned to season_id: {season_id}")
+            else:
+                print(f"   📅 Updated event date {new_event_date} has no season assignment")
+
             # Update the event
             cursor.execute("""
                 UPDATE generalevents
                 SET EventName = %s, EventType = %s, Game = %s, game_id = %s, Date = %s,
-                    StartTime = %s, EndTime = %s, Location = %s, Description = %s
+                    StartTime = %s, EndTime = %s, Location = %s, Description = %s, season_id = %s
                 WHERE EventID = %s
             """, (
                 data['event_name'],
@@ -519,6 +661,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 data['end_time'],
                 data['location'],
                 data['description'],
+                season_id,
                 event_id
             ))
 
@@ -759,6 +902,51 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             print("Error in toggle_subscription:", e)
             mysql.connection.rollback()
             return jsonify({'error': str(e)}), 500
+        finally:
+            cursor.close()
+
+    @app.route('/api/seasons/past', methods=['GET'])
+    @login_required
+    @roles_required('admin', 'developer')
+    def get_past_seasons():
+        """
+        Get list of past (inactive) seasons for filtering
+        Only accessible to admins and developers
+        """
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute("""
+                SELECT season_id, season_name, start_date, end_date, is_active
+                FROM seasons
+                WHERE is_active = 0
+                ORDER BY end_date DESC
+            """)
+
+            seasons = cursor.fetchall()
+
+            # Format dates
+            formatted_seasons = []
+            for season in seasons:
+                formatted_seasons.append({
+                    'season_id': season['season_id'],
+                    'season_name': season['season_name'],
+                    'start_date': season['start_date'].strftime('%Y-%m-%d'),
+                    'end_date': season['end_date'].strftime('%Y-%m-%d'),
+                    'is_active': season['is_active']
+                })
+
+            return jsonify({
+                'success': True,
+                'seasons': formatted_seasons
+            })
+
+        except Exception as e:
+            print(f"Error fetching past seasons: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Failed to fetch past seasons'
+            }), 500
         finally:
             cursor.close()
 

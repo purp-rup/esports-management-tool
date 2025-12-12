@@ -57,7 +57,10 @@ const MODAL_CLOSE_HANDLERS = {
     'createScheduledEventModal': closeCreateScheduledEventModal,
 
     //VOD Modal
-    'showAddVodModal': closeAddVodModal
+    'showAddVodModal': closeAddVodModal,
+
+    //Seasons Modal
+    'manageSeasonsModal': closeManageSeasonsModal
 };
 
 // ============================================
