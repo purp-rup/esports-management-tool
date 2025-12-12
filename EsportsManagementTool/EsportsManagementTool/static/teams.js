@@ -538,6 +538,10 @@ async function addSelectedMembersToTeam() {
         if (data.success) {
             alert(data.message);
             closeAddTeamMembersModal();
+
+            window.invalidateTeamsCache();
+            await window.loadTeams();
+
             selectTeam(window.currentSelectedTeamId);
         } else {
             alert(`Error: ${data.message}`);
@@ -605,6 +609,10 @@ async function removeMemberNew(memberId, memberName) {
 
         if (data.success) {
             alert(`"${memberName}" removed successfully`);
+
+            window.invalidateTeamsCache();
+            await window.loadTeams();
+
             selectTeam(window.currentSelectedTeamId);
         } else {
             alert(`Error: ${data.message}`);

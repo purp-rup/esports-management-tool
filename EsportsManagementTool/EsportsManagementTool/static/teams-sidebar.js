@@ -26,6 +26,9 @@ const teamsCache = {
     manage: null,
     play: null,
     division: {},
+    my_past_teams: null,
+    past_managed: null,
+    past_seasons: {},
     timestamps: {}
 };
 
@@ -51,6 +54,21 @@ window.currentSelectedTeamId = null;
  * @type {Array}
  */
 window.allTeamsData = [];
+
+/**
+ * Past season filter storage key
+ */
+const PAST_SEASON_FILTER_KEY = 'teams_selected_past_season';
+
+/**
+ * Past season filtering state
+ */
+const PastSeasonTeamsFilterState = {
+    selectedSeasonId: null,
+    selectedSeasonName: '',
+    availablePastSeasons: [],
+    isFilteringPastSeason: false
+};
 
 /**
  * Available views for current user based on permissions
@@ -116,6 +134,7 @@ async function initializeViewSwitcher() {
             }
 
             initializeDivisionFilter();
+            initializePastSeasonFilter();
         } else {
             hideViewSwitcher();
         }
@@ -150,14 +169,27 @@ function renderViewSwitcher() {
     });
 
     const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
+
+    // Add division filter option for admins
     if (isAdmin) {
         const divisionOption = document.createElement('option');
         divisionOption.value = 'division';
-        divisionOption.textContent = 'Filter by Division';
+        divisionOption.textContent = 'Divisions';
         if (window.currentView === 'division') {
             divisionOption.selected = true;
         }
         viewSelect.appendChild(divisionOption);
+    }
+
+    // Add past seasons option for admins/devs
+    if (isAdmin) {
+        const pastSeasonOption = document.createElement('option');
+        pastSeasonOption.value = 'past_seasons';
+        pastSeasonOption.textContent = 'Past Seasons';
+        if (window.currentView === 'past_seasons') {
+            pastSeasonOption.selected = true;
+        }
+        viewSelect.appendChild(pastSeasonOption);
     }
 
     viewSwitcher.classList.remove('hidden');
@@ -184,13 +216,39 @@ function handleViewChange(event) {
         window.currentView = newView;
         sessionStorage.setItem(VIEW_STORAGE_KEY, newView);
 
-        if (newView === 'division') {
-            showDivisionFilterDropdown();
-        } else {
-            hideDivisionFilterDropdown();
-            setSelectedDivisionFilter(null);
+        // Hide all secondary filters first
+        hideDivisionFilterDropdown();
+        hidePastSeasonFilterDropdown();
+
+        // Reset filter states
+        setSelectedDivisionFilter(null);
+
+        // IMPORTANT: Reset past season filter completely
+        PastSeasonTeamsFilterState.selectedSeasonId = null;
+        PastSeasonTeamsFilterState.selectedSeasonName = '';
+        PastSeasonTeamsFilterState.isFilteringPastSeason = false;
+        setSelectedPastSeasonFilter(null); // Clear from session storage
+
+        // Reset the dropdown value if it exists
+        const seasonSelect = document.getElementById('pastSeasonFilterSelect');
+        if (seasonSelect) {
+            seasonSelect.value = '';
         }
 
+        // CRITICAL: Invalidate all cache when switching views to force fresh data load
+        invalidateTeamsCache();
+
+        // Show appropriate filter
+        if (newView === 'division') {
+            showDivisionFilterDropdown();
+        } else if (newView === 'past_seasons') {
+            PastSeasonTeamsFilterState.isFilteringPastSeason = true;
+            showPastSeasonFilterDropdown();
+            loadPastSeasonsForTeamsFilter();
+            return; // Don't load teams yet, wait for season selection
+        }
+
+        // Reset team selection and show welcome state
         window.currentSelectedTeamId = null;
         document.getElementById('teamsWelcomeState').style.display = 'flex';
         document.getElementById('teamsDetailContent').style.display = 'none';
@@ -218,9 +276,30 @@ async function loadTeams() {
 
     // Generate cache key
     const selectedDivision = window.currentView === 'division' ? getSelectedDivisionFilter() : null;
-    const cacheKey = selectedDivision
-        ? `division-${selectedDivision}`
-        : window.currentView || 'all';
+    const selectedSeasonId = window.currentView === 'past_seasons' ? PastSeasonTeamsFilterState.selectedSeasonId : null;
+
+    let cacheKey = window.currentView || 'all';
+    if (selectedDivision) {
+        cacheKey = `division-${selectedDivision}`;
+    } else if (selectedSeasonId) {
+        cacheKey = `past_season-${selectedSeasonId}`;
+    }
+
+    // IMPORTANT: If in past_seasons view but no season selected, show empty state immediately
+    if (window.currentView === 'past_seasons' && !selectedSeasonId) {
+        sidebarLoading.style.display = 'none';
+        sidebarList.style.display = 'none';
+        sidebarEmpty.style.display = 'block';
+
+        if (sidebarSubtitle) {
+            sidebarSubtitle.textContent = 'Past Seasons (0)';
+        }
+
+        if (sidebarEmpty) {
+            sidebarEmpty.innerHTML = `<i class="fas fa-calendar"></i><p>Select a past season to view teams</p>`;
+        }
+        return;
+    }
 
     // Check cache first
     if (teamsCache[cacheKey] && isCacheFresh(cacheKey)) {
@@ -235,9 +314,13 @@ async function loadTeams() {
     sidebarEmpty.style.display = 'none';
 
     try {
-        const url = window.currentView
-            ? `/api/teams/sidebar?view=${window.currentView}`
-            : '/api/teams/sidebar';
+        // Build URL with parameters
+        let url = `/api/teams/sidebar?view=${window.currentView}`;
+
+        // Add season parameter if filtering past seasons
+        if (selectedSeasonId) {
+            url += `&season_id=${selectedSeasonId}`;
+        }
 
         const response = await fetch(url);
         const data = await response.json();
@@ -245,6 +328,7 @@ async function loadTeams() {
         if (data.success && data.teams && data.teams.length > 0) {
             let teamsToDisplay = data.teams;
 
+            // Apply division filter if active
             if (window.currentView === 'division') {
                 const selectedDivision = getSelectedDivisionFilter();
                 if (selectedDivision) {
@@ -276,10 +360,7 @@ async function loadTeams() {
                 }
 
                 if (sidebarEmpty) {
-                    const selectedDivision = getSelectedDivisionFilter();
-                    const emptyMessage = selectedDivision
-                        ? `No teams found in ${selectedDivision} division.`
-                        : getEmptyMessageForView(window.currentView);
+                    const emptyMessage = getEmptyMessageForView(window.currentView);
                     sidebarEmpty.innerHTML = `<i class="fas fa-users"></i><p>${emptyMessage}</p>`;
                 }
 
@@ -346,6 +427,9 @@ function invalidateTeamsCache() {
     teamsCache.manage = null;
     teamsCache.play = null;
     teamsCache.division = {};
+    teamsCache.my_past_teams = null;
+    teamsCache.past_managed = null;
+    teamsCache.past_seasons = {};
     teamsCache.timestamps = {};
     console.log('Teams cache invalidated');
 }
@@ -362,6 +446,13 @@ function getSubtitleForView(view, count = 0) {
             label = `${selectedDivision} Teams`;
         } else {
             label = 'All Teams';
+        }
+    } else if (view === 'past_seasons') {
+        const seasonName = PastSeasonTeamsFilterState.selectedSeasonName;
+        if (seasonName) {
+            label = `${seasonName} Teams`;
+        } else {
+            label = 'Past Seasons';
         }
     } else {
         const viewObj = window.availableViews.find(v => v.value === view);
@@ -392,7 +483,10 @@ function getEmptyMessageForView(view) {
     const messages = {
         all: 'No teams have been created yet.',
         manage: 'You are not managing any teams yet.',
-        play: 'You are not a member of any teams yet.'
+        play: 'You are not a member of any teams yet.',
+        my_past_teams: 'You have not played on any past teams.',
+        past_managed: 'You have not managed any past teams.',
+        past_seasons: 'No teams found for the selected season.'
     };
 
     return messages[view] || 'No teams available.';
@@ -413,9 +507,18 @@ function renderTeamsSidebar(teams) {
 
         const isGameManager = team.gm_id && team.gm_id === window.currentUserId;
 
+        // Season indicator - ONLY show for PAST teams (season_is_active = 0)
+        const seasonIndicator = (team.season_name && team.season_is_active === 0) ? `
+            <div class="team-sidebar-season" title="Past Season">
+                <span style="color: #94a3b8;">●</span>
+                ${team.season_name}
+            </div>
+        ` : '';
+
         teamItem.innerHTML = `
             <div class="team-sidebar-content" onclick="selectTeam('${team.TeamID}')">
                 <div class="team-sidebar-name">${team.teamName}</div>
+                ${seasonIndicator}
                 <div class="team-sidebar-game">${team.GameTitle || 'Unknown Game'}</div>
                 <div class="team-sidebar-meta">
                     <span><i class="fas fa-users"></i> ${team.member_count || 0}</span>
@@ -510,6 +613,179 @@ function sortTeamsByDivision(teams) {
 
         return 0;
     });
+}
+
+// ============================================
+// PAST SEASON FILTER
+// ============================================
+
+/**
+ * Get currently selected past season filter
+ */
+function getSelectedPastSeasonFilter() {
+    return sessionStorage.getItem(PAST_SEASON_FILTER_KEY);
+}
+
+/**
+ * Set past season filter
+ */
+function setSelectedPastSeasonFilter(seasonId) {
+    if (seasonId) {
+        sessionStorage.setItem(PAST_SEASON_FILTER_KEY, seasonId);
+    } else {
+        sessionStorage.removeItem(PAST_SEASON_FILTER_KEY);
+    }
+}
+
+/**
+ * Initialize past season filter dropdown
+ */
+function initializePastSeasonFilter() {
+    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
+    if (!isAdmin) return;
+
+    const divisionFilterContainer = document.getElementById('divisionFilterContainer');
+    if (!divisionFilterContainer || !divisionFilterContainer.parentNode) return;
+
+    let pastSeasonFilterContainer = document.getElementById('pastSeasonFilterContainer');
+
+    if (!pastSeasonFilterContainer) {
+        pastSeasonFilterContainer = document.createElement('div');
+        pastSeasonFilterContainer.id = 'pastSeasonFilterContainer';
+        pastSeasonFilterContainer.className = 'past-season-filter-container hidden';
+
+        pastSeasonFilterContainer.innerHTML = `
+            <label for="pastSeasonFilterSelect" class="past-season-filter-label">
+                Season:
+            </label>
+            <select id="pastSeasonFilterSelect" class="past-season-filter-select">
+                <option value="">Select Past Season</option>
+            </select>
+            <div id="pastSeasonFilterLoadingIndicator" style="display: none; margin-left: 0.5rem;">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+        `;
+
+        divisionFilterContainer.parentNode.insertBefore(
+            pastSeasonFilterContainer,
+            divisionFilterContainer.nextSibling
+        );
+
+        const seasonSelect = document.getElementById('pastSeasonFilterSelect');
+        if (seasonSelect) {
+            seasonSelect.addEventListener('change', handlePastSeasonFilterChange);
+        }
+    }
+
+    if (window.currentView === 'past_seasons') {
+        showPastSeasonFilterDropdown();
+
+        const savedSeasonId = getSelectedPastSeasonFilter();
+        if (savedSeasonId) {
+            PastSeasonTeamsFilterState.selectedSeasonId = savedSeasonId;
+            const seasonSelect = document.getElementById('pastSeasonFilterSelect');
+            if (seasonSelect) {
+                seasonSelect.value = savedSeasonId;
+            }
+        }
+    }
+}
+
+/**
+ * Show past season filter dropdown
+ */
+function showPastSeasonFilterDropdown() {
+    const container = document.getElementById('pastSeasonFilterContainer');
+    if (container) {
+        container.classList.remove('hidden');
+    }
+}
+
+/**
+ * Hide past season filter dropdown
+ */
+function hidePastSeasonFilterDropdown() {
+    const container = document.getElementById('pastSeasonFilterContainer');
+    if (container) {
+        container.classList.add('hidden');
+    }
+}
+
+/**
+ * Load past seasons for teams filter
+ */
+async function loadPastSeasonsForTeamsFilter() {
+    const seasonSelect = document.getElementById('pastSeasonFilterSelect');
+    const loadingIndicator = document.getElementById('pastSeasonFilterLoadingIndicator');
+
+    if (!seasonSelect) return;
+
+    // Show loading
+    if (loadingIndicator) loadingIndicator.style.display = 'inline-block';
+    seasonSelect.disabled = true;
+
+    try {
+        const response = await fetch('/api/seasons/past');
+        const data = await response.json();
+
+        if (data.success && data.seasons) {
+            PastSeasonTeamsFilterState.availablePastSeasons = data.seasons;
+
+            // Clear and populate dropdown
+            seasonSelect.innerHTML = '<option value="">Select Past Season</option>';
+
+            if (data.seasons.length === 0) {
+                seasonSelect.innerHTML += '<option value="" disabled>No past seasons available</option>';
+            } else {
+                data.seasons.forEach(season => {
+                    const option = document.createElement('option');
+                    option.value = season.season_id;
+                    option.textContent = season.season_name;
+                    seasonSelect.appendChild(option);
+                });
+            }
+        } else {
+            console.error('Failed to load past seasons:', data.message);
+            seasonSelect.innerHTML = '<option value="">Error loading past seasons</option>';
+        }
+    } catch (error) {
+        console.error('Error fetching past seasons:', error);
+        seasonSelect.innerHTML = '<option value="">Error loading past seasons</option>';
+    } finally {
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+        seasonSelect.disabled = false;
+    }
+}
+
+/**
+ * Handle past season filter change
+ */
+function handlePastSeasonFilterChange(event) {
+    const selectedSeasonId = event.target.value;
+
+    if (!selectedSeasonId) {
+        PastSeasonTeamsFilterState.selectedSeasonId = null;
+        PastSeasonTeamsFilterState.selectedSeasonName = '';
+        setSelectedPastSeasonFilter(null);
+        return;
+    }
+
+    // Store selected past season
+    PastSeasonTeamsFilterState.selectedSeasonId = selectedSeasonId;
+    const seasonSelect = event.target;
+    PastSeasonTeamsFilterState.selectedSeasonName = seasonSelect.options[seasonSelect.selectedIndex].text;
+    setSelectedPastSeasonFilter(selectedSeasonId);
+
+    // CRITICAL: Invalidate cache to ensure fresh data for the selected season
+    invalidateTeamsCache();
+
+    // Reset team selection
+    window.currentSelectedTeamId = null;
+    document.getElementById('teamsWelcomeState').style.display = 'flex';
+    document.getElementById('teamsDetailContent').style.display = 'none';
+
+    // Load teams for this past season
+    loadTeams();
 }
 
 /**
@@ -860,3 +1136,12 @@ window.hideDivisionFilterDropdown = hideDivisionFilterDropdown;
 window.handleDivisionFilterChange = handleDivisionFilterChange;
 window.invalidateTeamsCache = invalidateTeamsCache;
 window.isCacheFresh = isCacheFresh;
+
+//Past Season Exports
+window.initializePastSeasonFilter = initializePastSeasonFilter;
+window.showPastSeasonFilterDropdown = showPastSeasonFilterDropdown;
+window.hidePastSeasonFilterDropdown = hidePastSeasonFilterDropdown;
+window.loadPastSeasonsForTeamsFilter = loadPastSeasonsForTeamsFilter;
+window.handlePastSeasonFilterChange = handlePastSeasonFilterChange;
+window.getSelectedPastSeasonFilter = getSelectedPastSeasonFilter;
+window.setSelectedPastSeasonFilter = setSelectedPastSeasonFilter;

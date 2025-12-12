@@ -1,10 +1,5 @@
 Functionality notes:
 Needs doing:
-            Archive Old events (30+ days old) (delete old practices/matches, keep old tournaments/events)
-            Filter specific to admins to show archived events/tournaments
-            Filter specific to admins to show ALL events (all current + archived)?
-
-            Remember Me button on login
             Forgot password button on login
 
             Viewing other profiles.
@@ -12,7 +7,7 @@ Needs doing:
             Organizing Files (remaining):
             All Py files
 
-            player count doesn't update after adding player until reload (on teams sidebar card)
+            
 
-            Test DEV badge functionality (and remove admin from users who no longer need it)
+
 

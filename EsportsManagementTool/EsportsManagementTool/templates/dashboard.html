@@ -781,49 +781,77 @@
                     <h2>Events</h2>
                     <p>Manage matches, practices, and community events</p>
                 </div>
-                <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-                    <div class="event-filter-dropdown">
-                        <label for="eventFilter" style="margin-right: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">Filter by:</label>
-                        <select id="eventFilter" onchange="filterEvents()" style="padding: 0.5rem 1rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; cursor: pointer;">
-                            <option value="subscribed" {% if not (user.is_admin or user.is_developer or user.is_gm) %}selected{% endif %}>Subscribed Events</option>
-                            <option value="all" {% if user.is_admin or user.is_developer or user.is_gm %}selected{% endif %}>All Events</option>
-                            <option value="upcoming">Upcoming (Next 7 Days)</option>
-                            <option value="upcoming14">Upcoming (Next 14 Days)</option>
-                            <option value="past30">Past (Last 30 Days)</option>
-                            {% if user.is_admin or user.is_developer or user.is_gm %}
-                            <option value="created_by_me">Created by Me</option>
-                            {% endif %}
-                            <option value="type">Type</option>
-                            <option value="game">Game</option>
-                        </select>
-                    </div>
 
-                    <!-- Event Type Filter Dropdown (Hidden by default) -->
-                    <div class="event-filter-dropdown" id="eventTypeFilterContainer" style="display: none;">
-                        <label for="eventTypeFilter" style="margin-right: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">Event Type:</label>
-                        <select id="eventTypeFilter" onchange="filterEventsByType()" style="padding: 0.5rem 1rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; cursor: pointer;">
-                            <option value="">Select Type</option>
-                            <option value="tournament">Tournament</option>
-                            <option value="match">Match</option>
-                            <option value="practice">Practice</option>
-                            <option value="event">Event</option>
-                            <option value="misc">Misc</option>
-                        </select>
-                    </div>
+                <div class="event-header-controls">
+                    <!-- Filter Controls Container - NO MORE ROWS, direct children -->
+                    <div class="event-filters-container">
+                        <!-- Column 1, Row 1 -->
+                        <div class="event-filter-dropdown">
+                            <label for="eventFilter">Filter by:</label>
+                            <select id="eventFilter" onchange="filterEvents()">
+                                <option value="subscribed" {% if not (user.is_admin or user.is_developer or user.is_gm) %}selected{% endif %}>Subscribed Events</option>
+                                <option value="all" {% if user.is_admin or user.is_developer or user.is_gm %}selected{% endif %}>All Events</option>
+                                <option value="upcoming">Next 7 days</option>
+                                <option value="upcoming14">Next 14 days</option>
+                                <option value="past30">Last 30 days</option>
+                                {% if user.is_admin or user.is_developer or user.is_gm %}
+                                <option value="created_by_me">Created by Me</option>
+                                <option value="past_season">Past Seasons</option>
+                                {% endif %}
+                                <option value="type">Type</option>
+                                <option value="game">Game</option>
+                            </select>
+                        </div>
 
-                    <!-- Game Filter Dropdown (Hidden by default) -->
-                    <div class="event-filter-dropdown" id="gameFilterContainer" style="display: none;">
-                        <label for="gameFilter" style="margin-right: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">Game:</label>
-                        <select id="gameFilter" onchange="filterEventsByGame()" style="padding: 0.5rem 1rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; cursor: pointer;">
-                            <option value="">Select Game</option>
-                            <!-- Games will be populated dynamically -->
-                        </select>
-                        <div id="gameFilterLoadingIndicator" style="display: none; margin-left: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                            <i class="fas fa-spinner fa-spin"></i> Loading games...
+                        <!-- Column 2, Row 1 -->
+                        <div class="event-filter-dropdown" id="pastSeasonSecondaryFilterContainer" style="display: none;">
+                            <label for="pastSeasonSecondaryFilter">Then by:</label>
+                            <select id="pastSeasonSecondaryFilter" onchange="filterEventsByPastSeason()">
+                                <option value="all">All Events</option>
+                                <option value="created_by_me">Created by Me</option>
+                                <option value="type">Type</option>
+                                <option value="game">Game</option>
+                            </select>
+                        </div>
+
+                        <!-- Column 1, Row 2 -->
+                        <div class="event-filter-dropdown" id="pastSeasonSelectContainer" style="display: none;">
+                            <label for="pastSeasonSelect">Season:</label>
+                            <select id="pastSeasonSelect" onchange="handlePastSeasonSelection()">
+                                <option value="">Select Past Season</option>
+                            </select>
+                            <div id="pastSeasonLoadingIndicator" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+
+                        <!-- Column 2, Row 2 -->
+                        <div class="event-filter-dropdown" id="eventTypeFilterContainer" style="display: none;">
+                            <label for="eventTypeFilter">Type:</label>
+                            <select id="eventTypeFilter" onchange="handleTypeFilterChange()">
+                                <option value="">Select Type</option>
+                                <option value="tournament">Tournament</option>
+                                <option value="match">Match</option>
+                                <option value="practice">Practice</option>
+                                <option value="event">Event</option>
+                                <option value="misc">Misc</option>
+                            </select>
+                        </div>
+
+                        <!-- Game Filter - also Column 2, Row 2 (only one shows at a time) -->
+                        <div class="event-filter-dropdown" id="gameFilterContainer" style="display: none;">
+                            <label for="gameFilter">Game:</label>
+                            <select id="gameFilter" onchange="handleGameFilterChange()">
+                                <option value="">Select Game</option>
+                            </select>
+                            <div id="gameFilterLoadingIndicator" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </div>
                         </div>
                     </div>
 
-                    {%if user.is_admin or user.is_developer or user.is_gm %}
+                    <!-- Create Event Button (stays in top right) -->
+                    {% if user.is_admin or user.is_developer or user.is_gm %}
                     <button class="btn btn-primary" onclick="openCreateEventModal()">
                         <i class="fas fa-plus"></i> Create Event
                     </button>
