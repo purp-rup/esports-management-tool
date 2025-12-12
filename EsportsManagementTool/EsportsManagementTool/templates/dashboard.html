@@ -1088,9 +1088,23 @@
                             </div>
                             <div class="team-header-info">
                                 <h1 id="teamDetailTitle">Team Name</h1>
-                                <p id="teamDetailGame">Game: Mario Kart</p>
-                                <p id="teamDetailDivision" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
-                                <p id="teamDetailSeason" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
+
+                                <!-- Button outside the collapsible container -->
+                                <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <button id="teamDetailCollapseBtn"
+                                            class="team-detail-collapse-btn"
+                                            onclick="toggleTeamDetailCollapse()"
+                                            title="Toggle details">
+                                        <i class="fas fa-chevron-up"></i>
+                                    </button>
+
+                                    <!-- Wrap subheaders in collapsible container -->
+                                    <div id="teamDetailSubheaders" class="team-detail-subheaders">
+                                        <p id="teamDetailGame" style="margin: 0;">Game: Mario Kart</p>
+                                        <p id="teamDetailDivision" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
+                                        <p id="teamDetailSeason" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="team-header-actions">

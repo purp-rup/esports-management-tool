@@ -664,14 +664,14 @@ function filterMembers() {
 /**
  * Check if there's an active season before allowing team creation
  */
-async function checkSeasonBeforeTeamCreation(gameId, gameTitle) {
+async function checkSeasonBeforeTeamCreation(gameId, gameTitle, teamSizes) {
     try {
         const response = await fetch('/api/seasons/current');
         const data = await response.json();
 
         if (data.success && data.season) {
             // Active season exists - proceed with team creation
-            openCreateTeamModal(gameId, gameTitle);
+            openCreateTeamModal(gameId, gameTitle, teamSizes);
         } else {
             // No active season - show error message
             alert(

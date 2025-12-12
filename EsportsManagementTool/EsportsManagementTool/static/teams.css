@@ -356,6 +356,54 @@
     margin-right: 1rem;
 }
 
+/* Team Detail Collapse Button */
+.team-detail-collapse-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    margin-top: 0.125rem; 
+    font-size: 0.875rem;
+    transition: color 0.2s ease, transform 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.team-detail-collapse-btn:hover {
+    color: var(--stockton-blue);
+    transform: scale(1.1);
+}
+
+.team-detail-collapse-btn i {
+    transition: transform 0.2s ease;
+}
+
+/* Collapsible subheaders container */
+.team-detail-subheaders {
+    max-height: 200px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    opacity: 1;
+    flex: 1;
+}
+
+.team-detail-subheaders.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+/* Keep Game text on same line as collapse button */
+#teamDetailGame {
+    display: flex;
+    align-items: center;
+    margin: 0;
+}
+
 /* ============================================
    DIVISION FILTER DROPDOWN - ADMIN ONLY
    Additional filter for teams sidebar

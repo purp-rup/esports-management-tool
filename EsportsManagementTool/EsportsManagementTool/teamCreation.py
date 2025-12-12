@@ -58,11 +58,19 @@ def create_team(game_id):
         # ============================================
         # STEP 3: CHECK IF TEAM NAME ALREADY EXISTS
         # ============================================
-        cursor.execute('SELECT COUNT(*) AS count FROM teams WHERE gameID = %s AND LOWER(teamName) = LOWER(%s)',
-                       (game_id, team_title))
+        cursor.execute('''
+            SELECT COUNT(*) AS count 
+            FROM teams 
+            WHERE gameID = %s 
+            AND LOWER(teamName) = LOWER(%s)
+            AND season_id = %s
+        ''', (game_id, team_title, season_id))
         name = cursor.fetchone()
         if name['count'] > 0:
-            return jsonify({'success': False, 'message': 'Team already exists.'}), 400
+            return jsonify({
+                'success': False,
+                'message': f'A team with this name already exists for {season_name}. Please choose a different name.'
+            }), 400
 
         # ============================================
         # STEP 4: GENERATE TEAM ID
@@ -436,11 +444,15 @@ def update_team(team_id):
             WHERE gameID = %s 
             AND LOWER(teamName) = LOWER(%s) 
             AND TeamID != %s
-        ''', (team['gameID'], team_title, team_id))
+            AND season_id = (SELECT season_id FROM teams WHERE TeamID = %s)
+        ''', (team['gameID'], team_title, team_id, team_id))
 
         name_check = cursor.fetchone()
         if name_check['count'] > 0:
-            return jsonify({'success': False, 'message': 'A team with this name already exists for this game'}), 400
+            return jsonify({
+                'success': False,
+                'message': 'A team with this name already exists in this season for this game'
+            }), 400
 
         # Update the team
         cursor.execute('''
