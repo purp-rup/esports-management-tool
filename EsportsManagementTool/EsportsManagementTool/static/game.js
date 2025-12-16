@@ -352,12 +352,11 @@ async function openGameDetailsModal(gameId) {
             document.getElementById('gameDetailsTitle').textContent = game.title;
             document.getElementById('gameDetailsDescription').textContent = game.description;
 
-            // Update stats
-            document.getElementById('gameDetailsMemberCount').textContent = game.member_count;
-            document.getElementById('gameDetailsTeamCount').textContent = game.team_count;
-
             // Update game icon/image
             updateGameIcon(game);
+
+            // Load and display leagues + stats
+            await displayGameStatsWithLeagues(gameId, game);
 
             // Populate members list
             populateMembersList(game.members, gameId);
@@ -397,6 +396,85 @@ function updateGameIcon(game) {
         iconDiv.innerHTML = `<img src="${game.image_url}" alt="${game.title}" class="game-details-image">`;
     } else {
         iconDiv.innerHTML = '<i class="fas fa-gamepad"></i>';
+    }
+}
+
+/**
+ * Display game stats with leagues
+ * @param {number} gameId - Game ID
+ * @param {Object} game - Game object
+ */
+async function displayGameStatsWithLeagues(gameId, game) {
+    // Load leagues for this game's current season
+    let leaguesHtml = '';
+    try {
+        const leaguesResponse = await fetch(`/api/game/${gameId}/current-leagues`);
+        const leaguesData = await leaguesResponse.json();
+
+        if (leaguesData.success && leaguesData.leagues && leaguesData.leagues.length > 0) {
+            // Build league badges
+            const leagueBadgesHtml = leaguesData.leagues.map(league => {
+                const logoHtml = league.logo
+                    ? `<img src="${league.logo}" alt="${league.name}" class="game-league-badge-logo">`
+                    : '<i class="fas fa-trophy game-league-badge-icon"></i>';
+
+                // If there's a website URL, make it a link
+                if (league.website_url) {
+                    return `
+                        <a href="${league.website_url}"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="game-league-badge"
+                           title="Visit ${league.name} website">
+                            ${logoHtml}
+                            <span class="game-league-badge-name">${league.name}</span>
+                            <i class="fas fa-external-link-alt game-league-badge-external"></i>
+                        </a>
+                    `;
+                } else {
+                    return `
+                        <span class="game-league-badge">
+                            ${logoHtml}
+                            <span class="game-league-badge-name">${league.name}</span>
+                        </span>
+                    `;
+                }
+            }).join('');
+
+            // Create leagues stat card with just icon, label, and badges
+            leaguesHtml = `
+                <div class="game-stat-card leagues-card">
+                    <i class="fas fa-trophy"></i>
+                    <div class="game-stat-label">Leagues</div>
+                    <div class="game-leagues-badges">
+                        ${leagueBadgesHtml}
+                    </div>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading leagues:', error);
+    }
+
+    // Build stats row HTML
+    const statsRowHtml = `
+        ${leaguesHtml}
+        <div class="game-stat-card">
+            <i class="fas fa-users"></i>
+            <div class="game-stat-number">${game.member_count || 0}</div>
+            <div class="game-stat-label">Members</div>
+        </div>
+        <div class="game-stat-card">
+            <i class="fas fa-shield-alt"></i>
+            <div class="game-stat-number">${game.team_count || 0}</div>
+            <div class="game-stat-label">Teams</div>
+        </div>
+    `;
+
+    // Find the stats row container and update it
+    const statsRow = document.querySelector('.game-stats-row');
+    if (statsRow) {
+        statsRow.innerHTML = statsRowHtml;
     }
 }
 
@@ -692,7 +770,7 @@ async function checkSeasonBeforeTeamCreation(gameId, gameTitle, teamSizes) {
  * @param {string} gameTitle - Game title for display
  * @param {string} teamSizes - Comma-separated team sizes
  */
-function openCreateTeamModal(gameID, gameTitle, teamSizes) {
+async function openCreateTeamModal(gameID, gameTitle, teamSizes) {
     const modal = document.getElementById('createTeamModal');
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
@@ -700,7 +778,21 @@ function openCreateTeamModal(gameID, gameTitle, teamSizes) {
     // Reset the form
     const teamForm = document.getElementById('createTeamForm');
     teamForm.reset();
+
+    const submitBtn = teamForm.querySelector('button[type="submit"]');
+    const submitBtnText = document.getElementById('submitTeamBtnText');
+    const submitBtnSpinner = document.getElementById('submitTeamBtnSpinner');
+
+    if (submitBtn) submitBtn.disabled = false;
+    if (submitBtnText) submitBtnText.style.display = 'inline';
+    if (submitBtnSpinner) submitBtnSpinner.style.display = 'none';
+
     document.getElementById('teamFormMessage').style.display = 'none';
+
+    // Clear any previous league selections
+    if (typeof clearSelectedLeagues === 'function') {
+        clearSelectedLeagues('create');
+    }
 
     // Store the current game ID
     document.getElementById('gameIDField').value = gameID;
@@ -711,6 +803,22 @@ function openCreateTeamModal(gameID, gameTitle, teamSizes) {
 
     // Populate team size radio buttons
     populateTeamSizeOptions(teamSizes);
+
+    // Display active season info
+    await displayActiveSeasonInfo();
+
+    // Initialize league selector - WAIT FOR IT TO COMPLETE
+    if (typeof initializeTeamLeagueSelector === 'function') {
+        await initializeTeamLeagueSelector('create', []);
+
+        // EXPLICITLY ENABLE DROPDOWN AFTER INITIALIZATION
+        setTimeout(() => {
+            const dropdown = document.getElementById('teamLeaguesDropdown');
+            if (dropdown) {
+                enableDropdown(dropdown);
+            }
+        }, 50);
+    }
 }
 
 /**
@@ -825,6 +933,26 @@ function populateTeamSizeOptions(teamSizes) {
  */
 function closeCreateTeamModal() {
     const modal = document.getElementById('createTeamModal');
+    const form = document.getElementById('createTeamForm');
+    const submitBtn = form?.querySelector('button[type="submit"]');
+    const submitBtnText = document.getElementById('submitTeamBtnText');
+    const submitBtnSpinner = document.getElementById('submitTeamBtnSpinner');
+    const formMessage = document.getElementById('teamFormMessage');
+
+    // ✅ RESET BUTTON STATE
+    if (submitBtn) {
+        submitBtn.disabled = false;
+    }
+    if (submitBtnText) {
+        submitBtnText.style.display = 'inline';
+    }
+    if (submitBtnSpinner) {
+        submitBtnSpinner.style.display = 'none';
+    }
+    if (formMessage) {
+        formMessage.style.display = 'none';
+    }
+
     modal.style.display = 'none';
     document.body.style.overflow = 'auto';
 }
@@ -850,9 +978,6 @@ function setupCreateTeamForm() {
         submitBtnText.style.display = 'none';
         submitBtnSpinner.style.display = 'inline-block';
 
-        const formData = new FormData(createTeamForm);
-        const gameID = document.getElementById('gameIDField').value;
-
         // Validate team size selection
         const selectedSize = document.querySelector('input[name="team_sizes"]:checked');
         if (!selectedSize) {
@@ -860,11 +985,15 @@ function setupCreateTeamForm() {
             formMessage.className = 'form-message error';
             formMessage.style.display = 'block';
 
+            // RESET BUTTON STATE
             submitBtn.disabled = false;
             submitBtnText.style.display = 'inline';
             submitBtnSpinner.style.display = 'none';
             return;
         }
+
+        const formData = new FormData(createTeamForm);
+        const gameID = document.getElementById('gameIDField').value;
 
         try {
             // Submit team creation request
@@ -894,7 +1023,7 @@ function setupCreateTeamForm() {
             formMessage.className = 'form-message error';
             formMessage.style.display = 'block';
 
-            // Reset button state
+            // RESET BUTTON STATE ON ERROR
             submitBtn.disabled = false;
             submitBtnText.style.display = 'inline';
             submitBtnSpinner.style.display = 'none';
@@ -927,6 +1056,7 @@ window.loadGamesForDropdown = loadGamesForDropdown;
 // Game details modal
 window.openGameDetailsModal = openGameDetailsModal;
 window.closeGameDetailsModal = closeGameDetailsModal;
+window.displayGameStatsWithLeagues = displayGameStatsWithLeagues;
 window.loadGameNextScheduledEvent = loadGameNextScheduledEvent;
 window.filterMembers = filterMembers;
 

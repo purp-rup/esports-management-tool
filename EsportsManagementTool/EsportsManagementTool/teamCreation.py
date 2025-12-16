@@ -55,6 +55,11 @@ def create_team(game_id):
         team_title = request.form.get('team_title', '').strip()
         true_size = request.form.get('team_sizes')
 
+        # NEW: Get league IDs from form data (JSON string)
+        leagues_json = request.form.get('leagues', '[]')
+        import json
+        league_ids = json.loads(leagues_json) if leagues_json else []
+
         # ============================================
         # STEP 3: CHECK IF TEAM NAME ALREADY EXISTS
         # ============================================
@@ -88,6 +93,16 @@ def create_team(game_id):
             VALUES (%s, %s, %s, %s, %s)
         """, (newID, team_title, true_size, game_id, season_id))
 
+        # ============================================
+        # STEP 6: ASSIGN LEAGUES TO TEAM
+        # ============================================
+        if league_ids:
+            for league_id in league_ids:
+                cursor.execute("""
+                    INSERT INTO team_leagues (team_id, league_id)
+                    VALUES (%s, %s)
+                """, (newID, league_id))
+
         mysql.connection.commit()
 
         return jsonify({
@@ -95,12 +110,135 @@ def create_team(game_id):
             'message': f'Team "{team_title}" created successfully and assigned to {season_name}!',
             'team_id': newID,
             'season_id': season_id,
-            'season_name': season_name
+            'season_name': season_name,
+            'leagues_assigned': len(league_ids)
         })
 
     except Exception as e:
         mysql.connection.rollback()
+        print(f"Error creating team: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+    finally:
+        cursor.close()
+
+
+"""
+Route to get all available leagues for team assignment
+"""
+@app.route('/api/leagues/all', methods=['GET'])
+@login_required
+def get_all_leagues_for_teams():
+    """Get all leagues for team assignment dropdown"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        cursor.execute('''
+            SELECT id, name, website_url,
+                   CASE WHEN logo IS NOT NULL THEN 1 ELSE 0 END as has_logo
+            FROM league
+            ORDER BY name ASC
+        ''')
+
+        leagues = cursor.fetchall()
+
+        # Add logo URL for frontend
+        for league in leagues:
+            league['logo'] = f'/league-image/{league["id"]}' if league['has_logo'] else None
+            del league['has_logo']
+
+        return jsonify({'success': True, 'leagues': leagues}), 200
+
+    except Exception as e:
+        print(f"Error fetching leagues for teams: {e}")
+        return jsonify({'success': False, 'error': 'Failed to fetch leagues'}), 500
+
+    finally:
+        cursor.close()
+
+
+"""
+Route to get leagues assigned to a specific team
+"""
+@app.route('/api/teams/<team_id>/leagues', methods=['GET'])
+@login_required
+def get_team_leagues(team_id):
+    """Get all leagues assigned to a team"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        cursor.execute('''
+            SELECT l.id, l.name, l.website_url,
+                   CASE WHEN l.logo IS NOT NULL THEN 1 ELSE 0 END as has_logo,
+                   tl.assigned_at
+            FROM team_leagues tl
+            JOIN league l ON tl.league_id = l.id
+            WHERE tl.team_id = %s
+            ORDER BY l.name ASC
+        ''', (team_id,))
+
+        leagues = cursor.fetchall()
+
+        # Add logo URL
+        for league in leagues:
+            league['logo'] = f'/league-image/{league["id"]}' if league['has_logo'] else None
+            del league['has_logo']
+
+        return jsonify({'success': True, 'leagues': leagues}), 200
+
+    except Exception as e:
+        print(f"Error fetching team leagues: {e}")
+        return jsonify({'success': False, 'error': 'Failed to fetch team leagues'}), 500
+
+    finally:
+        cursor.close()
+
+
+"""
+Route to assign leagues to a team (for create/edit)
+"""
+
+
+@app.route('/api/teams/<team_id>/leagues', methods=['POST'])
+@login_required
+@roles_required('admin', 'gm', 'developer')
+def assign_team_leagues(team_id):
+    """Assign leagues to a team - replaces existing assignments"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        data = request.get_json()
+        league_ids = data.get('league_ids', [])
+
+        # Verify team exists
+        cursor.execute('SELECT TeamID FROM teams WHERE TeamID = %s', (team_id,))
+        if not cursor.fetchone():
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        # Delete existing league assignments
+        cursor.execute('DELETE FROM team_leagues WHERE team_id = %s', (team_id,))
+
+        # Insert new league assignments
+        if league_ids:
+            for league_id in league_ids:
+                cursor.execute('''
+                    INSERT INTO team_leagues (team_id, league_id)
+                    VALUES (%s, %s)
+                ''', (team_id, league_id))
+
+        mysql.connection.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Successfully assigned {len(league_ids)} league(s) to team'
+        }), 200
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error assigning team leagues: {e}")
+        return jsonify({'success': False, 'message': 'Failed to assign leagues'}), 500
 
     finally:
         cursor.close()
