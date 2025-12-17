@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='notifications.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='admin-panel.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='teams.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='teams-sidebar.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='discord.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
@@ -18,8 +19,11 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='scheduled-events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='teamstats.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='vods.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='seasons.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='leagues.css') }}">
 
 <!-- Import Calendar CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
 {% endblock %}
 
@@ -780,49 +784,77 @@
                     <h2>Events</h2>
                     <p>Manage matches, practices, and community events</p>
                 </div>
-                <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-                    <div class="event-filter-dropdown">
-                        <label for="eventFilter" style="margin-right: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">Filter by:</label>
-                        <select id="eventFilter" onchange="filterEvents()" style="padding: 0.5rem 1rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; cursor: pointer;">
-                            <option value="subscribed" {% if not (user.is_admin or user.is_developer or user.is_gm) %}selected{% endif %}>Subscribed Events</option>
-                            <option value="all" {% if user.is_admin or user.is_developer or user.is_gm %}selected{% endif %}>All Events</option>
-                            <option value="upcoming">Upcoming (Next 7 Days)</option>
-                            <option value="upcoming14">Upcoming (Next 14 Days)</option>
-                            <option value="past30">Past (Last 30 Days)</option>
-                            {% if user.is_admin or user.is_developer or user.is_gm %}
-                            <option value="created_by_me">Created by Me</option>
-                            {% endif %}
-                            <option value="type">Type</option>
-                            <option value="game">Game</option>
-                        </select>
-                    </div>
 
-                    <!-- Event Type Filter Dropdown (Hidden by default) -->
-                    <div class="event-filter-dropdown" id="eventTypeFilterContainer" style="display: none;">
-                        <label for="eventTypeFilter" style="margin-right: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">Event Type:</label>
-                        <select id="eventTypeFilter" onchange="filterEventsByType()" style="padding: 0.5rem 1rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; cursor: pointer;">
-                            <option value="">Select Type</option>
-                            <option value="tournament">Tournament</option>
-                            <option value="match">Match</option>
-                            <option value="practice">Practice</option>
-                            <option value="event">Event</option>
-                            <option value="misc">Misc</option>
-                        </select>
-                    </div>
+                <div class="event-header-controls">
+                    <!-- Filter Controls Container - NO MORE ROWS, direct children -->
+                    <div class="event-filters-container">
+                        <!-- Column 1, Row 1 -->
+                        <div class="event-filter-dropdown">
+                            <label for="eventFilter">Filter by:</label>
+                            <select id="eventFilter" onchange="filterEvents()">
+                                <option value="subscribed" {% if not (user.is_admin or user.is_developer or user.is_gm) %}selected{% endif %}>Subscribed Events</option>
+                                <option value="all" {% if user.is_admin or user.is_developer or user.is_gm %}selected{% endif %}>All Events</option>
+                                <option value="upcoming">Next 7 days</option>
+                                <option value="upcoming14">Next 14 days</option>
+                                <option value="past30">Last 30 days</option>
+                                {% if user.is_admin or user.is_developer or user.is_gm %}
+                                <option value="created_by_me">Created by Me</option>
+                                <option value="past_season">Past Seasons</option>
+                                {% endif %}
+                                <option value="type">Type</option>
+                                <option value="game">Game</option>
+                            </select>
+                        </div>
 
-                    <!-- Game Filter Dropdown (Hidden by default) -->
-                    <div class="event-filter-dropdown" id="gameFilterContainer" style="display: none;">
-                        <label for="gameFilter" style="margin-right: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">Game:</label>
-                        <select id="gameFilter" onchange="filterEventsByGame()" style="padding: 0.5rem 1rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; cursor: pointer;">
-                            <option value="">Select Game</option>
-                            <!-- Games will be populated dynamically -->
-                        </select>
-                        <div id="gameFilterLoadingIndicator" style="display: none; margin-left: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                            <i class="fas fa-spinner fa-spin"></i> Loading games...
+                        <!-- Column 2, Row 1 -->
+                        <div class="event-filter-dropdown" id="pastSeasonSecondaryFilterContainer" style="display: none;">
+                            <label for="pastSeasonSecondaryFilter">Then by:</label>
+                            <select id="pastSeasonSecondaryFilter" onchange="filterEventsByPastSeason()">
+                                <option value="all">All Events</option>
+                                <option value="created_by_me">Created by Me</option>
+                                <option value="type">Type</option>
+                                <option value="game">Game</option>
+                            </select>
+                        </div>
+
+                        <!-- Column 1, Row 2 -->
+                        <div class="event-filter-dropdown" id="pastSeasonSelectContainer" style="display: none;">
+                            <label for="pastSeasonSelect">Season:</label>
+                            <select id="pastSeasonSelect" onchange="handlePastSeasonSelection()">
+                                <option value="">Select Past Season</option>
+                            </select>
+                            <div id="pastSeasonLoadingIndicator" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+
+                        <!-- Column 2, Row 2 -->
+                        <div class="event-filter-dropdown" id="eventTypeFilterContainer" style="display: none;">
+                            <label for="eventTypeFilter">Type:</label>
+                            <select id="eventTypeFilter" onchange="handleTypeFilterChange()">
+                                <option value="">Select Type</option>
+                                <option value="tournament">Tournament</option>
+                                <option value="match">Match</option>
+                                <option value="practice">Practice</option>
+                                <option value="event">Event</option>
+                                <option value="misc">Misc</option>
+                            </select>
+                        </div>
+
+                        <!-- Game Filter - also Column 2, Row 2 (only one shows at a time) -->
+                        <div class="event-filter-dropdown" id="gameFilterContainer" style="display: none;">
+                            <label for="gameFilter">Game:</label>
+                            <select id="gameFilter" onchange="handleGameFilterChange()">
+                                <option value="">Select Game</option>
+                            </select>
+                            <div id="gameFilterLoadingIndicator" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </div>
                         </div>
                     </div>
 
-                    {%if user.is_admin or user.is_developer or user.is_gm %}
+                    <!-- Create Event Button (stays in top right) -->
+                    {% if user.is_admin or user.is_developer or user.is_gm %}
                     <button class="btn btn-primary" onclick="openCreateEventModal()">
                         <i class="fas fa-plus"></i> Create Event
                     </button>
@@ -1059,10 +1091,27 @@
                             </div>
                             <div class="team-header-info">
                                 <h1 id="teamDetailTitle">Team Name</h1>
-                                <p id="teamDetailGame">Game: Mario Kart</p>
-                                <p id="teamDetailDivision" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
+
+                                <!-- Button outside the collapsible container -->
+                                <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <button id="teamDetailCollapseBtn"
+                                            class="team-detail-collapse-btn"
+                                            onclick="toggleTeamDetailCollapse()"
+                                            title="Toggle details">
+                                        <i class="fas fa-chevron-up"></i>
+                                    </button>
+
+                                    <!-- Wrap subheaders in collapsible container -->
+                                    <div id="teamDetailSubheaders" class="team-detail-subheaders">
+                                        <p id="teamDetailGame" style="margin: 0;">Game: Mario Kart</p>
+                                        <p id="teamDetailDivision" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
+                                        <p id="teamDetailLeagues" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
+                                         <p id="teamDetailSeason" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+
                         <div class="team-header-actions">
                             <!-- Stack for Add Player and Schedule buttons -->
                             <div class="team-action-buttons-stack">
@@ -1447,9 +1496,17 @@
                     <h2>Admin Panel</h2>
                     <p>Manage users, roles, and permissions</p>
                 </div>
-                <button class="btn btn-primary" onclick="openCreateGameModal()">
-                    <i class="fas fa-plus"></i> Create Community
-                </button>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn btn-primary" onclick="openManageLeaguesModal()">
+                        <i class="fas fa-trophy"></i> Manage Leagues
+                    </button>
+                    <button class="btn btn-primary" onclick="openManageSeasonsModal()">
+                        <i class="fas fa-calendar-alt"></i> Manage Seasons
+                    </button>
+                    <button class="btn btn-primary" onclick="openCreateGameModal()">
+                        <i class="fas fa-plus"></i> Create Community
+                    </button>
+                </div>
             </div>
 
             <div class="admin-dashboard">
@@ -1613,7 +1670,7 @@
     </div>
 </div>
 
-<!-- Create Game Modal -->
+<!-- Create Game Community Modal -->
 <div id="createGameModal" class="modal">
     <div class="modal-content modal-content-large">
         <div class="modal-header">
@@ -1756,6 +1813,36 @@
     </div>
 </div>
 
+<!-- Manage Seasons Modal -->
+<div id="manageSeasonsModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <div class="modal-header">
+            <h2>Manage Seasons</h2>
+            <button class="modal-close" onclick="closeManageSeasonsModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Create, edit, and view seasons for organizing events and teams</p>
+            <p class="modal-subtitle">Note: Teams cannot be created when no season is active</p>
+
+            <!-- Message Area -->
+            <div id="seasonsMessage" class="form-message" style="display: none;"></div>
+
+            <!-- Loading State -->
+            <div id="seasonsLoading" style="display: block; text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading seasons...</p>
+            </div>
+
+            <!-- Content Area -->
+            <div id="seasonsContent" style="display: none;">
+                <!-- Dynamic content will be loaded here by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Create Team Modal -->
 <div id="createTeamModal" class="modal">
     <div class="modal-content modal-content-large">
@@ -1784,6 +1871,33 @@
                     <div id="teamSizesContainer" class="team-size-options">
                         <!-- Team size options will be dynamically inserted here -->
                     </div>
+                </div>
+
+                <div class="form-group" id="leaguesFieldGroup">
+                    <label for="teamLeaguesDropdown">Leagues (Optional)</label>
+                    <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
+                        Select leagues this team will compete in - they'll appear as tags below
+                    </div>
+
+                    <!-- Selected leagues display area -->
+                    <div id="selectedLeaguesContainer" class="selected-games-container">
+                        <div style="color: var(--text-secondary); font-size: 0.875rem; padding: 0.5rem;">
+                            No leagues selected
+                        </div>
+                    </div>
+
+                    <!-- Dropdown for selecting leagues -->
+                    <select id="teamLeaguesDropdown" class="game-dropdown-single">
+                        <option value="">+ Add a league</option>
+                        <!-- Leagues will be loaded dynamically via JavaScript -->
+                    </select>
+
+                    <div id="teamLeagueLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                        <i class="fas fa-spinner fa-spin"></i> Loading leagues...
+                    </div>
+
+                    <!-- Hidden input to store selected leagues as JSON -->
+                    <input type="hidden" id="selectedLeaguesInput" name="leagues" value="[]">
                 </div>
 
                 <div id="teamFormMessage" class="form-message" style="display: none;"></div>
@@ -1938,6 +2052,29 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label for="editTeamLeaguesDropdown">Leagues (Optional)</label>
+                    <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
+                        Select leagues this team will compete in
+                    </div>
+
+                    <!-- Selected leagues display area -->
+                    <div id="editSelectedLeaguesContainer" class="selected-games-container">
+                        <div style="color: var(--text-secondary); font-size: 0.875rem; padding: 0.5rem;">
+                            No leagues selected
+                        </div>
+                    </div>
+
+                    <!-- Dropdown for selecting leagues -->
+                    <select id="editTeamLeaguesDropdown" class="game-dropdown-single">
+                        <option value="">+ Add a league</option>
+                        <!-- Leagues will be loaded dynamically via JavaScript -->
+                    </select>
+
+                    <!-- Hidden input to store selected leagues as JSON -->
+                    <input type="hidden" id="editSelectedLeaguesInput" name="leagues" value="[]">
+                </div>
+
                 <div id="editTeamFormMessage" class="form-message" style="display: none;"></div>
 
                 <div class="form-actions">
@@ -1950,6 +2087,35 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Leagues Modal -->
+<div id="manageLeaguesModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <div class="modal-header">
+            <h2>Manage Leagues</h2>
+            <button class="modal-close" onclick="closeManageLeaguesModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Create, edit, and view leagues for organizing teams and competitions</p>
+
+            <!-- Message Area -->
+            <div id="leaguesMessage" class="form-message" style="display: none;"></div>
+
+            <!-- Loading State -->
+            <div id="leaguesLoading" style="display: block; text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading leagues...</p>
+            </div>
+
+            <!-- Content Area -->
+            <div id="leaguesContent" style="display: none;">
+                <!-- Dynamic content will be loaded here by JavaScript -->
+            </div>
         </div>
     </div>
 </div>
@@ -2104,9 +2270,68 @@
         </div>
     </div>
 </div>
+
+<!-- Image Cropper Modal -->
+<div id="imageCropperModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-crop-alt"></i> Crop Image</h2>
+            <button class="modal-close" onclick="closeImageCropper()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Adjust and crop your image to fit perfectly</p>
+
+            <div class="cropper-container-wrapper">
+                <img id="imageToCrop" style="max-width: 100%; display: block;">
+            </div>
+
+            <div class="crop-controls">
+                <button type="button" onclick="cropZoomIn()" title="Zoom In">
+                    <i class="fas fa-search-plus"></i>
+                    <span>Zoom In</span>
+                </button>
+                <button type="button" onclick="cropZoomOut()" title="Zoom Out">
+                    <i class="fas fa-search-minus"></i>
+                    <span>Zoom Out</span>
+                </button>
+                <button type="button" onclick="cropRotateLeft()" title="Rotate Left">
+                    <i class="fas fa-undo"></i>
+                    <span>Rotate Left</span>
+                </button>
+                <button type="button" onclick="cropRotateRight()" title="Rotate Right">
+                    <i class="fas fa-redo"></i>
+                    <span>Rotate Right</span>
+                </button>
+                <button type="button" onclick="cropReset()" title="Reset">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Reset</span>
+                </button>
+            </div>
+
+            <p class="crop-preview-text">
+                <i class="fas fa-info-circle"></i>
+                Drag to move the image • Use corners to resize crop area
+            </p>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeImageCropper()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="applyCrop()">
+                    <i class="fas fa-check"></i> Apply Crop
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<!-- Image Cropper -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<!-- Rest of js imports -->
 <script src="{{ url_for('static', filename='badges.js') }}"></script>
 <script src="{{ url_for('static', filename='discord.js') }}"></script>
 <script src="{{ url_for('static', filename='teams-sidebar.js') }}"></script>
@@ -2121,6 +2346,9 @@
 <script src="{{ url_for('static', filename='scheduled-events.js') }}"></script>
 <script src="{{ url_for('static', filename='teamstats.js') }}"></script>
 <script src="{{ url_for('static', filename='vods.js') }}"></script>
+<script src="{{ url_for('static', filename='seasons.js') }}"></script>
+<script src="{{ url_for('static', filename='leagues.js') }}"></script>
+<!-- Must load second-to-last -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <!-- Must load last -->
 <script src="{{ url_for('static', filename='dashboard.js') }}"></script>

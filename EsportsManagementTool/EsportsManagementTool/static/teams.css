@@ -1,5 +1,5 @@
 /* ============================================
-   TEAMS TAB STYLES
+   TEAMS TAB STYLES - MAIN CONTENT
    Two-column layout with sidebar and main content
    ORGANIZED BY CLAUDE AI
    ============================================ */
@@ -24,199 +24,6 @@
     max-width: 100% !important;
     margin-bottom: 2rem !important;
     overflow: hidden;
-}
-
-/* --------------------------------------------
-   LEFT SIDEBAR - TEAM LIST
-   Fixed-width sidebar with team selection
-   -------------------------------------------- */
-.teams-sidebar {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1.5rem;
-    overflow-y: auto;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
-    width: 300px;
-    min-width: 300px;
-    max-width: 300px;
-    flex-shrink: 0;
-}
-
-/* Sidebar header */
-.teams-sidebar-header {
-    margin-bottom: 1.5rem;
-}
-
-.sidebar-header-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    gap: 1rem;
-}
-
-.sidebar-header-top h2 {
-    margin: 0;
-    font-size: 1.5rem;
-    color: var(--text-primary);
-    flex-shrink: 0;
-}
-
-.teams-subtitle {
-    margin: 0;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-}
-
-/* View switcher dropdown */
-.view-switcher {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex: 1;
-    min-width: 0;
-}
-
-.view-switcher-select {
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-primary);
-    padding: 0.5rem 0.75rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    width: 100%;
-    max-width: 180px;
-    outline: none;
-}
-
-.view-switcher-select:hover {
-    border-color: var(--stockton-blue);
-    background: var(--hover-bg);
-}
-
-.view-switcher-select:focus {
-    border-color: var(--stockton-blue);
-    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
-}
-
-.view-switcher-select option {
-    background: var(--dark-bg);
-    color: var(--text-primary);
-    padding: 0.5rem;
-}
-
-.view-switcher.hidden {
-    display: none;
-}
-
-/* Sidebar states */
-.sidebar-loading,
-.sidebar-empty {
-    text-align: center;
-    padding: 2rem 1rem;
-    color: var(--text-secondary);
-}
-
-.sidebar-loading i,
-.sidebar-empty i {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    color: var(--stockton-blue);
-}
-
-/* Teams list */
-.teams-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.team-sidebar-item {
-    padding: 0;
-    background: var(--dark-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: relative;
-}
-
-.team-sidebar-content {
-    flex: 1;
-    padding: 1rem;
-    cursor: pointer;
-}
-
-.team-sidebar-item:hover {
-    background: var(--hover-bg);
-    border-color: var(--stockton-blue);
-    transform: translateX(4px);
-}
-
-.team-sidebar-item.active {
-    background: rgba(121, 189, 233, 0.1);
-    border-color: var(--stockton-blue);
-    border-left-width: 4px;
-}
-
-.team-sidebar-name {
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.25rem;
-    font-size: 0.9375rem;
-}
-
-.team-sidebar-game {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-}
-
-.team-sidebar-meta {
-    display: flex;
-    gap: 1rem;
-    margin-top: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-
-.team-sidebar-meta span {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-/* Edit button */
-.team-edit-btn {
-    background: transparent;
-    border: none;
-    color: var(--stockton-blue);
-    padding: 0.5rem 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.875rem;
-    margin-right: 0.5rem;
-    margin-top: 0.5rem;
-    border-radius: 6px;
-    opacity: 1;
-}
-
-.team-edit-btn:hover {
-    background: rgba(121, 189, 233, 0.15);
-    color: var(--stockton-blue);
-    transform: scale(1.1);
-}
-
-.team-edit-btn:active {
-    transform: scale(0.95);
 }
 
 /* --------------------------------------------
@@ -301,9 +108,8 @@
 
 .team-header-left {
     display: flex;
-    align-items: center;
     gap: 1.5rem;
-    margin-left: 1rem;
+    margin-left: 2rem;
 }
 
 .team-icon-large {
@@ -357,81 +163,111 @@
     margin-right: 1rem;
 }
 
-/* ============================================
-   DIVISION FILTER DROPDOWN - ADMIN ONLY
-   Additional filter for teams sidebar
-   ============================================ */
-
-/* Division filter container */
-.division-filter-container {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-    transition: all 0.3s ease;
-}
-
-.division-filter-container.hidden {
-    display: none;
-}
-
-/* Division filter label */
-.division-filter-label {
-    font-size: 0.8125rem;
-    font-weight: 500;
+/* Team Detail Collapse Button */
+.team-detail-collapse-btn {
+    background: none;
+    border: none;
     color: var(--text-secondary);
-    margin: 0;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 0.125rem;
+    font-size: 0.875rem;
+    transition: color 0.2s ease, transform 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
     flex-shrink: 0;
 }
 
-/* Division filter select */
-.division-filter-select {
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-primary);
-    padding: 0.5rem 0.75rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    outline: none;
+.team-detail-collapse-btn:hover {
+    color: var(--stockton-blue);
+    transform: scale(1.1);
+}
+
+.team-detail-collapse-btn i {
+    transition: transform 0.2s ease;
+}
+
+/* Collapsible subheaders container */
+.team-detail-subheaders {
+    max-height: 200px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    opacity: 1;
     flex: 1;
-    min-width: 0;
-    max-width: 180px;
 }
 
-.division-filter-select:hover {
+.team-detail-subheaders.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+/* Keep Game text on same line as collapse button */
+#teamDetailGame {
+    display: flex;
+    align-items: center;
+    margin: 0;
+}
+
+/* --------------------------------------------
+   TEAM DETAIL LEAGUES (in subheader)
+   Inline league badges with logos and links
+   -------------------------------------------- */
+
+#teamDetailLeagues {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+}
+
+.team-league-link,
+.team-league-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    background: rgba(121, 189, 233, 0.1);
+    border: 1px solid rgba(121, 189, 233, 0.3);
+    border-radius: 4px;
+    color: var(--stockton-blue);
+    text-decoration: none;
+    font-size: 0.6875rem;
+    font-style: normal;
+    transition: all 0.2s;
+}
+
+.team-league-link:hover {
+    background: rgba(121, 189, 233, 0.2);
     border-color: var(--stockton-blue);
-    background: var(--hover-bg);
+    transform: translateY(-1px);
 }
 
-.division-filter-select:focus {
-    border-color: var(--stockton-blue);
-    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
+.team-league-logo {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    object-fit: cover;
 }
 
-.division-filter-select option {
-    background: var(--dark-bg);
-    color: var(--text-primary);
-    padding: 0.5rem;
+.team-league-icon {
+    font-size: 0.5625rem;
+    color: var(--stockton-blue);
 }
 
-/* Add icon to division options */
-.division-filter-select option[value="Strategy"]::before {
-    content: "♔ ";
+.team-league-name {
+    font-weight: 500;
 }
 
-.division-filter-select option[value="Shooter"]::before {
-    content: "⊕ ";
+.team-league-external {
+    font-size: 0.4375rem;
+    opacity: 0.7;
 }
 
-.division-filter-select option[value="Sports"]::before {
-    content: "⚽ ";
-}
-
-.division-filter-select option[value="Other"]::before {
-    content: "★ ";
+.team-league-link:hover .team-league-external {
+    opacity: 1;
 }
 
 /* --------------------------------------------
@@ -1015,211 +851,44 @@
     gap: 0.5rem;
 }
 
-/* --------------------------------------------
-    EDIT BUTTON
-    Edit button and edit team modal
-    ------------------------------------------- */
+/* ================================
+    SEASONS STYLES FOR TEAMS TAB
+   ================================ */
 
-/* --------------------------------------------
-   GAME GROUPING & COLLAPSIBLE FOLDERS
-   For "All Teams" view organization
-   -------------------------------------------- */
-
-/* Game group container */
-.game-group {
+/* Season display in team header */
+#teamDetailSeason {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 0.5rem;
-    margin-bottom: 0.75rem;
 }
 
-/* Collapse/expand button on first team card */
-.team-collapse-btn {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    background: transparent;
-    border: 2px solid var(--border-color);
-    color: var(--text-secondary);
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    z-index: 10;
-    padding: 0;
+#teamDetailSeason span {
+    font-size: 0.625rem;
+    animation: pulse 2s ease-in-out infinite;
 }
 
-.team-collapse-btn:hover {
-    background: rgba(121, 189, 233, 0.15);
-    border-color: var(--stockton-blue);
-    color: var(--stockton-blue);
-    transform: scale(1.05);
-}
-
-.team-collapse-btn:active {
-    transform: scale(0.95);
-}
-
-.team-collapse-btn i {
-    font-size: 0.75rem;
-    pointer-events: none;
-}
-
-/* Collapsed game folder */
-.game-folder-collapsed {
-    background: var(--dark-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    position: relative;
-    min-width: 0;
-}
-
-.game-folder-collapsed:hover {
-    background: var(--hover-bg);
-    border-color: var(--stockton-blue);
-    transform: translateX(4px);
-}
-
-.game-folder-collapsed.active {
-    background: rgba(121, 189, 233, 0.1);
-    border-color: var(--stockton-blue);
-    border-left-width: 4px;
-}
-
-.game-folder-info {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-}
-
-.game-folder-icon {
-    width: 36px;
-    height: 36px;
-    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 1rem;
-    flex-shrink: 0;
-    overflow: hidden;
-    position: relative;
-}
-
-/* Ensure fallback icon is centered */
-.game-folder-icon > div {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
-    border-radius: 8px;
-}
-
-.game-folder-details {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-}
-
-.game-folder-name {
-    font-weight: 600;
-    color: var(--text-primary);
-    font-size: 0.9375rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    width: 100%;
-}
-
-.game-folder-count {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    margin-top: 0.125rem;
-    white-space: nowrap;
-}
-
-.game-folder-expand-btn {
-    background: transparent;
-    border: 2px solid var(--border-color);
-    color: var(--text-secondary);
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-    margin-left: 0;
-}
-
-.game-folder-expand-btn:hover {
-    background: rgba(121, 189, 233, 0.15);
-    border-color: var(--stockton-blue);
-    color: var(--stockton-blue);
-}
-
-.game-folder-expand-btn i {
-    font-size: 0.75rem;
-}
-
-/* Hide game groups when not in "all" or "division" view */
-.teams-sidebar:not([data-view="all"]):not([data-view="division"]) .game-group {
-    display: contents;
-}
-
-.teams-sidebar:not([data-view="all"]):not([data-view="division"]) .team-collapse-btn {
-    display: none;
-}
-
-/* Animation for collapsing/expanding */
-.game-group-collapsing {
-    animation: collapseOut 0.3s ease-out forwards;
-}
-
-.game-group-expanding {
-    animation: expandIn 0.3s ease-out forwards;
-}
-
-@keyframes collapseOut {
-    from {
+@keyframes pulse {
+    0%, 100% {
         opacity: 1;
-        max-height: 1000px;
     }
-    to {
-        opacity: 0;
-        max-height: 0;
-        margin: 0;
-        overflow: hidden;
+    50% {
+        opacity: 0.5;
     }
 }
 
-@keyframes expandIn {
+/* Season info in create team modal */
+#teamSeasonInfo {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
     from {
         opacity: 0;
-        max-height: 0;
+        transform: translateY(-10px);
     }
     to {
         opacity: 1;
-        max-height: 1000px;
+        transform: translateY(0);
     }
 }
 
@@ -1230,24 +899,6 @@
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
-}
-
-/* Animation for showing/hiding Division filter */
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-        max-height: 0;
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-        max-height: 100px;
-    }
-}
-
-.division-filter-container:not(.hidden) {
-    animation: slideDown 0.3s ease-out;
 }
 
 /* --------------------------------------------
@@ -1261,13 +912,6 @@
         height: auto !important;
     }
 
-    .teams-sidebar {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        max-height: 400px;
-    }
-
     .teams-main-content {
         width: 100%;
     }
@@ -1278,19 +922,6 @@
 }
 
 @media (max-width: 768px) {
-    .sidebar-header-top {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .view-switcher {
-        width: 100%;
-    }
-
-    .view-switcher-select {
-        max-width: 100%;
-    }
-
     .team-detail-header {
         flex-direction: column;
         align-items: flex-start;
@@ -1348,17 +979,13 @@
         font-size: 0.75rem;
     }
 
-    .division-filter-container {
-        padding: 0.5rem;
-        gap: 0.375rem;
+    #teamDetailLeagues {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
-    .division-filter-label {
-        font-size: 0.75rem;
-    }
-
-    .division-filter-select {
-        font-size: 0.8125rem;
-        padding: 0.4rem 0.6rem;
+    .team-league-link,
+    .team-league-item {
+        width: 100%;
     }
 }

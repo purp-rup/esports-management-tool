@@ -22,38 +22,223 @@ Method to allow an admin or a game manager to create a game.
 def create_team(game_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
+        # ============================================
+        # STEP 1: CHECK FOR ACTIVE SEASON
+        # ============================================
+        cursor.execute("""
+            SELECT season_id, season_name 
+            FROM seasons 
+            WHERE is_active = 1 
+            LIMIT 1
+        """)
+        active_season = cursor.fetchone()
 
+        if not active_season:
+            return jsonify({
+                'success': False,
+                'message': 'Cannot create team: No active season found. Please create a season first.'
+            }), 400
+
+        season_id = active_season['season_id']
+        season_name = active_season['season_name']
+
+        # ============================================
+        # STEP 2: VALIDATE GAME EXISTS AND USER HAS PERMISSION
+        # ============================================
         cursor.execute('SELECT GameTitle FROM games WHERE GameID = %s AND gm_id = %s', (game_id, session['id']))
         games = cursor.fetchone()
 
         if not games:
-            return jsonify({'success': False, 'message': 'Game does not exist.'}), 400
-
+            return jsonify({'success': False, 'message': 'Game does not exist or you do not have permission.'}), 400
 
         gamesGM = games['GameTitle']
         team_title = request.form.get('team_title', '').strip()
         true_size = request.form.get('team_sizes')
 
-        # Check if team name already exists within table
-        cursor.execute('SELECT COUNT(*) AS count FROM teams WHERE gameID = %s AND LOWER(teamName) = LOWER(%s)', (game_id, team_title))
+        # NEW: Get league IDs from form data (JSON string)
+        leagues_json = request.form.get('leagues', '[]')
+        import json
+        league_ids = json.loads(leagues_json) if leagues_json else []
+
+        # ============================================
+        # STEP 3: CHECK IF TEAM NAME ALREADY EXISTS
+        # ============================================
+        cursor.execute('''
+            SELECT COUNT(*) AS count 
+            FROM teams 
+            WHERE gameID = %s 
+            AND LOWER(teamName) = LOWER(%s)
+            AND season_id = %s
+        ''', (game_id, team_title, season_id))
         name = cursor.fetchone()
         if name['count'] > 0:
-            return jsonify({'success': False, 'message': 'Team already exists.'}), 400
+            return jsonify({
+                'success': False,
+                'message': f'A team with this name already exists for {season_name}. Please choose a different name.'
+            }), 400
 
+        # ============================================
+        # STEP 4: GENERATE TEAM ID
+        # ============================================
         cursor.execute('SELECT TeamID FROM teams WHERE gameID = %s', (game_id,))
         teams = cursor.fetchall()
         existingTeams = [team['TeamID'] for team in teams] if teams else []
         newID = idgen(gamesGM, existingTeams)
 
+        # ============================================
+        # STEP 5: CREATE TEAM WITH SEASON ASSIGNMENT
+        # ============================================
+        cursor.execute("""
+            INSERT INTO teams (TeamID, teamName, teamMaxSize, gameID, season_id) 
+            VALUES (%s, %s, %s, %s, %s)
+        """, (newID, team_title, true_size, game_id, season_id))
 
-        cursor.execute('INSERT INTO teams (TeamID, teamName, teamMaxSize, gameID) VALUES (%s, %s, %s, %s)', (newID, team_title, true_size, game_id))
+        # ============================================
+        # STEP 6: ASSIGN LEAGUES TO TEAM
+        # ============================================
+        if league_ids:
+            for league_id in league_ids:
+                cursor.execute("""
+                    INSERT INTO team_leagues (team_id, league_id)
+                    VALUES (%s, %s)
+                """, (newID, league_id))
+
         mysql.connection.commit()
 
-        return jsonify({'success': True, 'message': f'Team "{team_title}" created successfully!', 'team_id': newID})
+        return jsonify({
+            'success': True,
+            'message': f'Team "{team_title}" created successfully and assigned to {season_name}!',
+            'team_id': newID,
+            'season_id': season_id,
+            'season_name': season_name,
+            'leagues_assigned': len(league_ids)
+        })
 
     except Exception as e:
         mysql.connection.rollback()
+        print(f"Error creating team: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+    finally:
+        cursor.close()
+
+
+"""
+Route to get all available leagues for team assignment
+"""
+@app.route('/api/leagues/all', methods=['GET'])
+@login_required
+def get_all_leagues_for_teams():
+    """Get all leagues for team assignment dropdown"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        cursor.execute('''
+            SELECT id, name, website_url,
+                   CASE WHEN logo IS NOT NULL THEN 1 ELSE 0 END as has_logo
+            FROM league
+            ORDER BY name ASC
+        ''')
+
+        leagues = cursor.fetchall()
+
+        # Add logo URL for frontend
+        for league in leagues:
+            league['logo'] = f'/league-image/{league["id"]}' if league['has_logo'] else None
+            del league['has_logo']
+
+        return jsonify({'success': True, 'leagues': leagues}), 200
+
+    except Exception as e:
+        print(f"Error fetching leagues for teams: {e}")
+        return jsonify({'success': False, 'error': 'Failed to fetch leagues'}), 500
+
+    finally:
+        cursor.close()
+
+
+"""
+Route to get leagues assigned to a specific team
+"""
+@app.route('/api/teams/<team_id>/leagues', methods=['GET'])
+@login_required
+def get_team_leagues(team_id):
+    """Get all leagues assigned to a team"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        cursor.execute('''
+            SELECT l.id, l.name, l.website_url,
+                   CASE WHEN l.logo IS NOT NULL THEN 1 ELSE 0 END as has_logo,
+                   tl.assigned_at
+            FROM team_leagues tl
+            JOIN league l ON tl.league_id = l.id
+            WHERE tl.team_id = %s
+            ORDER BY l.name ASC
+        ''', (team_id,))
+
+        leagues = cursor.fetchall()
+
+        # Add logo URL
+        for league in leagues:
+            league['logo'] = f'/league-image/{league["id"]}' if league['has_logo'] else None
+            del league['has_logo']
+
+        return jsonify({'success': True, 'leagues': leagues}), 200
+
+    except Exception as e:
+        print(f"Error fetching team leagues: {e}")
+        return jsonify({'success': False, 'error': 'Failed to fetch team leagues'}), 500
+
+    finally:
+        cursor.close()
+
+
+"""
+Route to assign leagues to a team (for create/edit)
+"""
+
+
+@app.route('/api/teams/<team_id>/leagues', methods=['POST'])
+@login_required
+@roles_required('admin', 'gm', 'developer')
+def assign_team_leagues(team_id):
+    """Assign leagues to a team - replaces existing assignments"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        data = request.get_json()
+        league_ids = data.get('league_ids', [])
+
+        # Verify team exists
+        cursor.execute('SELECT TeamID FROM teams WHERE TeamID = %s', (team_id,))
+        if not cursor.fetchone():
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        # Delete existing league assignments
+        cursor.execute('DELETE FROM team_leagues WHERE team_id = %s', (team_id,))
+
+        # Insert new league assignments
+        if league_ids:
+            for league_id in league_ids:
+                cursor.execute('''
+                    INSERT INTO team_leagues (team_id, league_id)
+                    VALUES (%s, %s)
+                ''', (team_id, league_id))
+
+        mysql.connection.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Successfully assigned {len(league_ids)} league(s) to team'
+        }), 200
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error assigning team leagues: {e}")
+        return jsonify({'success': False, 'message': 'Failed to assign leagues'}), 500
 
     finally:
         cursor.close()
@@ -397,11 +582,15 @@ def update_team(team_id):
             WHERE gameID = %s 
             AND LOWER(teamName) = LOWER(%s) 
             AND TeamID != %s
-        ''', (team['gameID'], team_title, team_id))
+            AND season_id = (SELECT season_id FROM teams WHERE TeamID = %s)
+        ''', (team['gameID'], team_title, team_id, team_id))
 
         name_check = cursor.fetchone()
         if name_check['count'] > 0:
-            return jsonify({'success': False, 'message': 'A team with this name already exists for this game'}), 400
+            return jsonify({
+                'success': False,
+                'message': 'A team with this name already exists in this season for this game'
+            }), 400
 
         # Update the team
         cursor.execute('''
@@ -435,7 +624,7 @@ Method to filter teams based on user role AND selected view
 @app.route('/api/teams/sidebar')
 @login_required
 def get_teams_sidebar():
-    """Get teams for sidebar - filtered by role and view preference"""
+    """Get teams for sidebar - filtered by role, view preference, and season"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
@@ -446,97 +635,129 @@ def get_teams_sidebar():
         is_player = permissions['is_player']
         is_developer = permissions['is_developer']
 
-        # Get the view preference from query parameters (default to highest priority)
+        # Get the view preference and season filter from query parameters
         view_mode = request.args.get('view', None)
+        season_id = request.args.get('season_id', None)
 
-        # Teams will be sorted by division in JavaScript
-        order_clause = ""
+        # Get current active season
+        cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+        active_season = cursor.fetchone()
+        active_season_id = active_season['season_id'] if active_season else None
+
+        # Base query parts
+        base_select = """
+            SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at, t.season_id,
+                   g.GameTitle, g.gm_id, g.Division,
+                   s.season_name, s.is_active as season_is_active,
+                   CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
+                   (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
+            FROM teams t
+            LEFT JOIN games g ON t.gameID = g.GameID
+            LEFT JOIN seasons s ON t.season_id = s.season_id
+        """
 
         # Determine which query to run based on view_mode
         if view_mode == 'all' and (is_admin or is_developer):
-            # Admin/Developer viewing ALL teams - INCLUDE gm_id, has_game_image, AND division
-            cursor.execute(f"""
-                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
-                       g.GameTitle, g.gm_id, g.Division,
-                       CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
-                       (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
-                FROM teams t
-                LEFT JOIN games g ON t.gameID = g.GameID
-                {order_clause}
-            """)
+            # Admin/Developer viewing ALL teams - CURRENT SEASON ONLY (unless filtering past season)
+            if season_id:
+                # Filtering specific past season
+                cursor.execute(base_select + "WHERE t.season_id = %s", (season_id,))
+            else:
+                # Current season only
+                if active_season_id:
+                    cursor.execute(base_select + "WHERE t.season_id = %s", (active_season_id,))
+                else:
+                    cursor.execute(base_select)
 
         elif view_mode == 'manage' and (is_admin or is_gm or is_developer):
-            # Admin or GM viewing teams they manage - INCLUDE division
-            cursor.execute(f"""
-                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
-                       g.GameTitle, g.gm_id, g.Division,
-                       CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
-                       (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
-                FROM teams t
-                LEFT JOIN games g ON t.gameID = g.GameID
-                WHERE g.gm_id = %s
-                {order_clause}
-            """, (session['id'],))
+            # Teams they manage - CURRENT SEASON ONLY
+            if active_season_id:
+                cursor.execute(base_select + """
+                    WHERE g.gm_id = %s AND t.season_id = %s
+                """, (session['id'], active_season_id))
+            else:
+                cursor.execute(base_select + """
+                    WHERE g.gm_id = %s
+                """, (session['id'],))
+
+        elif view_mode == 'past_managed' and (is_admin or is_gm or is_developer):
+            # Past teams they managed - EXCLUDE CURRENT SEASON
+            if active_season_id:
+                cursor.execute(base_select + """
+                    WHERE g.gm_id = %s AND (t.season_id IS NULL OR t.season_id != %s)
+                """, (session['id'], active_season_id))
+            else:
+                cursor.execute(base_select + """
+                    WHERE g.gm_id = %s AND t.season_id IS NOT NULL
+                """, (session['id'],))
 
         elif view_mode == 'play' and is_player:
-            # Any role viewing teams they play for - INCLUDE division
-            cursor.execute(f"""
-                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
-                       g.GameTitle, g.gm_id, g.Division,
-                       CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
-                       (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
-                FROM teams t
-                LEFT JOIN games g ON t.gameID = g.GameID
-                INNER JOIN team_members tm ON t.TeamID = tm.team_id
-                WHERE tm.user_id = %s
-                {order_clause}
-            """, (session['id'],))
-
-        else:
-            # Default behavior based on highest priority role (no view_mode specified)
-            if is_admin or is_developer:
-                # Admins see ALL teams by default - INCLUDE division
-                cursor.execute(f"""
-                    SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
-                           g.GameTitle, g.gm_id, g.Division,
-                           CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
-                           (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
-                    FROM teams t
-                    LEFT JOIN games g ON t.gameID = g.GameID
-                    {order_clause}
-                """)
-            elif is_gm:
-                # GMs see only teams from games they manage - INCLUDE division
-                cursor.execute(f"""
-                    SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
-                           g.GameTitle, g.gm_id, g.Division,
-                           CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
-                           (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
-                    FROM teams t
-                    LEFT JOIN games g ON t.gameID = g.GameID
-                    WHERE g.gm_id = %s
-                    {order_clause}
-                """, (session['id'],))
-            elif is_player:
-                # Players see only teams they are members of - INCLUDE division
-                cursor.execute(f"""
-                    SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.created_at,
-                           g.GameTitle, g.gm_id, g.Division,
-                           CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
-                           (SELECT COUNT(*) FROM team_members WHERE team_id = t.TeamID) as member_count
-                    FROM teams t
-                    LEFT JOIN games g ON t.gameID = g.GameID
+            # Teams they play for - CURRENT SEASON ONLY
+            if active_season_id:
+                cursor.execute(base_select + """
+                    INNER JOIN team_members tm ON t.TeamID = tm.team_id
+                    WHERE tm.user_id = %s AND t.season_id = %s
+                """, (session['id'], active_season_id))
+            else:
+                cursor.execute(base_select + """
                     INNER JOIN team_members tm ON t.TeamID = tm.team_id
                     WHERE tm.user_id = %s
-                    {order_clause}
                 """, (session['id'],))
+
+        elif view_mode == 'my_past_teams' and is_player:
+            # Past teams they played on - EXCLUDE CURRENT SEASON
+            if active_season_id:
+                cursor.execute(base_select + """
+                    INNER JOIN team_members tm ON t.TeamID = tm.team_id
+                    WHERE tm.user_id = %s AND (t.season_id IS NULL OR t.season_id != %s)
+                """, (session['id'], active_season_id))
             else:
-                # Users with no specific role see no teams
+                cursor.execute(base_select + """
+                    INNER JOIN team_members tm ON t.TeamID = tm.team_id
+                    WHERE tm.user_id = %s AND t.season_id IS NOT NULL
+                """, (session['id'],))
+
+        elif view_mode == 'past_seasons' and (is_admin or is_developer):
+            # Filter by specific past season
+            if season_id:
+                cursor.execute(base_select + "WHERE t.season_id = %s", (season_id,))
+            else:
+                # No season selected yet, return empty
+                return jsonify({'success': True, 'teams': []})
+
+        else:
+            # Default behavior based on highest priority role - CURRENT SEASON ONLY
+            if is_admin or is_developer:
+                if active_season_id:
+                    cursor.execute(base_select + "WHERE t.season_id = %s", (active_season_id,))
+                else:
+                    cursor.execute(base_select)
+            elif is_gm:
+                if active_season_id:
+                    cursor.execute(base_select + """
+                        WHERE g.gm_id = %s AND t.season_id = %s
+                    """, (session['id'], active_season_id))
+                else:
+                    cursor.execute(base_select + """
+                        WHERE g.gm_id = %s
+                    """, (session['id'],))
+            elif is_player:
+                if active_season_id:
+                    cursor.execute(base_select + """
+                        INNER JOIN team_members tm ON t.TeamID = tm.team_id
+                        WHERE tm.user_id = %s AND t.season_id = %s
+                    """, (session['id'], active_season_id))
+                else:
+                    cursor.execute(base_select + """
+                        INNER JOIN team_members tm ON t.TeamID = tm.team_id
+                        WHERE tm.user_id = %s
+                    """, (session['id'],))
+            else:
                 return jsonify({'success': True, 'teams': []})
 
         teams = cursor.fetchall()
 
-        # Format teams - INCLUDE division in response
+        # Format teams
         teams_list = []
         for team in teams:
             teams_list.append({
@@ -548,14 +769,19 @@ def get_teams_sidebar():
                 'member_count': team['member_count'],
                 'gm_id': team['gm_id'],
                 'has_game_image': team.get('has_game_image', 0),
-                'division': team.get('Division', 'Other'),  # NEW: Include division
-                'created_at': team['created_at'].isoformat() if team.get('created_at') else None
+                'division': team.get('Division', 'Other'),
+                'created_at': team['created_at'].isoformat() if team.get('created_at') else None,
+                'season_id': team.get('season_id'),
+                'season_name': team.get('season_name'),
+                'season_is_active': team.get('season_is_active', 0)
             })
 
         return jsonify({'success': True, 'teams': teams_list})
 
     except Exception as e:
         print(f"Error fetching teams sidebar: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
     finally:
@@ -602,8 +828,15 @@ def get_available_team_views():
             if result and result['count'] > 0:
                 views.append({
                     'value': 'manage',
-                    'label': 'Teams I Manage',
+                    'label': 'Managed Teams',
                     'priority': 2
+                })
+
+                # Add "Past Teams I Managed" option for GMs
+                views.append({
+                    'value': 'past_managed',
+                    'label': 'Old Managed Teams',
+                    'priority': 3
                 })
 
         # Anyone who is a player can see teams they play for
@@ -619,11 +852,18 @@ def get_available_team_views():
             if result and result['count'] > 0:
                 views.append({
                     'value': 'play',
-                    'label': 'Teams I Play For',
-                    'priority': 3
+                    'label': 'My Teams',
+                    'priority': 4
                 })
 
-        # Sort by priority (just in case)
+                # Add "My Past Teams" option for players
+                views.append({
+                    'value': 'my_past_teams',
+                    'label': 'My Old Teams',
+                    'priority': 5
+                })
+
+        # Sort by priority
         views.sort(key=lambda x: x['priority'])
 
         return jsonify({
@@ -651,8 +891,13 @@ def team_details(team_id):
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         try:
-            cursor.execute(
-                "SELECT TeamID, teamName, teamMaxSize, gameID FROM teams WHERE TeamID = %s", (team_id,))
+            cursor.execute("""
+                SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.season_id,
+                       s.season_name, s.start_date, s.end_date, s.is_active
+                FROM teams t
+                LEFT JOIN seasons s ON t.season_id = s.season_id
+                WHERE t.TeamID = %s
+            """, (team_id,))
             team = cursor.fetchone()
 
             if not team:
@@ -661,6 +906,9 @@ def team_details(team_id):
             team_name = team['teamName']
             team_max = team['teamMaxSize']
             game_id = team['gameID']
+            season_id = team['season_id']
+            season_name = team['season_name']
+            season_is_active = team['is_active']
 
             # Checking if a user can manage given team
             user_id = session.get('id')
@@ -750,17 +998,22 @@ def team_details(team_id):
                 game_icon_url = f'/game-image/{game_id}'
 
             return jsonify({'success': True,
-                            'team': {'id': team['TeamID'],
-                                     'title': team_name,
-                                     'team_max_size': team_max,
-                                     'member_count': member_count,
-                                     'members': formatted_members,
-                                     'is_member': is_member,
-                                     'game_id': game_id,
-                                     'game_title': game_title,
-                                     'game_icon_url': game_icon_url,
-                                     'division': game_division,
-                                     'can_manage': can_manage}}), 200
+                            'team': {
+                                'id': team['TeamID'],
+                                'title': team_name,
+                                'team_max_size': team_max,
+                                'member_count': member_count,
+                                'members': formatted_members,
+                                'is_member': is_member,
+                                'game_id': game_id,
+                                'game_title': game_title,
+                                'game_icon_url': game_icon_url,
+                                'division': game_division,
+                                'can_manage': can_manage,
+                                'season_id': season_id,
+                                'season_name': season_name,
+                                'season_is_active': season_is_active
+                            }}), 200
         finally:
             cursor.close()
 

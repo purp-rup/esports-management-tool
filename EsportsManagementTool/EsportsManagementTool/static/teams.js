@@ -45,6 +45,257 @@ const badgeCache = new Map();
 // TEAM SELECTION & DETAILS
 // ============================================
 
+// ============================================
+// TEAM LEAGUE TAG SYSTEM
+// ============================================
+
+/**
+ * State for league selection
+ */
+let selectedLeaguesForTeam = [];
+let leaguesCache = null;
+
+/**
+ * Load all available leagues
+ */
+async function loadAllLeagues() {
+    if (leaguesCache) {
+        return leaguesCache;
+    }
+
+    try {
+        const response = await fetch('/api/leagues/all');
+        const data = await response.json();
+
+        if (data.success && data.leagues) {
+            leaguesCache = data.leagues;
+            return leaguesCache;
+        } else {
+            console.error('Failed to load leagues');
+            return [];
+        }
+    } catch (error) {
+        console.error('Error fetching leagues:', error);
+        return [];
+    }
+}
+
+/**
+ * Initialize league tag selector for team modal
+ * @param {string} context - 'create' or 'edit'
+ * @param {Array} preSelectedLeagueIds - Array of league IDs to pre-select
+ */
+async function initializeTeamLeagueSelector(context = 'create', preSelectedLeagueIds = []) {
+    const dropdownId = context === 'create' ? 'teamLeaguesDropdown' : 'editTeamLeaguesDropdown';
+    const dropdown = document.getElementById(dropdownId);
+
+    if (!dropdown) {
+        console.warn(`${dropdownId} not found`);
+        return;
+    }
+
+    // Show loading
+    dropdown.disabled = true;
+    dropdown.innerHTML = '<option value="">Loading leagues...</option>';
+
+    try {
+        // Load leagues
+        const leagues = await loadAllLeagues();
+
+        // Populate dropdown
+        dropdown.innerHTML = '<option value="">+ Add a league</option>';
+
+        if (leagues.length === 0) {
+            dropdown.innerHTML += '<option value="" disabled>No leagues available</option>';
+        } else {
+            leagues.forEach(league => {
+                const option = document.createElement('option');
+                option.value = league.id;
+                option.textContent = league.name;
+                dropdown.appendChild(option);
+            });
+        }
+
+        // Pre-select leagues if provided
+        if (preSelectedLeagueIds && preSelectedLeagueIds.length > 0) {
+            selectedLeaguesForTeam = preSelectedLeagueIds.map(id => {
+                const league = leagues.find(l => l.id === id);
+                return league ? { id: league.id, name: league.name, logo: league.logo } : null;
+            }).filter(l => l !== null);
+        } else {
+            selectedLeaguesForTeam = [];
+        }
+
+        // Update display
+        updateTeamLeagueTags(context);
+        updateHiddenLeaguesInput(context);
+        updateLeagueDropdownOptions(context);
+
+        // Attach change listener
+        attachTeamLeagueDropdownListener(dropdown, context);
+
+    } catch (error) {
+        console.error('Error initializing league selector:', error);
+        dropdown.innerHTML = '<option value="">Error loading leagues</option>';
+    } finally {
+        // USE THE PROPER ENABLE FUNCTION
+        enableDropdown(dropdown);
+    }
+}
+
+/**
+ * Enable a dropdown element (removes all disabled states)
+ * @param {HTMLElement} dropdown - Dropdown to enable
+ */
+function enableDropdown(dropdown) {
+    if (!dropdown) return;
+
+    dropdown.removeAttribute('disabled');
+    dropdown.disabled = false;
+    dropdown.style.pointerEvents = 'auto';
+    dropdown.style.opacity = '1';
+    dropdown.style.cursor = 'pointer';
+}
+
+/**
+ * Attach change listener to league dropdown
+ */
+function attachTeamLeagueDropdownListener(dropdown, context) {
+    // Remove existing listener
+    const clone = dropdown.cloneNode(true);
+    dropdown.replaceWith(clone);
+
+    // Get fresh reference
+    const dropdownId = context === 'create' ? 'teamLeaguesDropdown' : 'editTeamLeaguesDropdown';
+    const newDropdown = document.getElementById(dropdownId);
+
+    if (!newDropdown) return;
+
+    newDropdown.addEventListener('change', function() {
+        const selectedId = parseInt(this.value);
+        if (selectedId && !selectedLeaguesForTeam.find(l => l.id === selectedId)) {
+            const league = leaguesCache.find(l => l.id === selectedId);
+            if (league) {
+                addTeamLeagueTag(league, context);
+            }
+        }
+        this.value = ''; // Reset to placeholder
+    });
+}
+
+/**
+ * Add a league tag
+ */
+function addTeamLeagueTag(league, context = 'create') {
+    if (selectedLeaguesForTeam.find(l => l.id === league.id)) return;
+
+    selectedLeaguesForTeam.push({
+        id: league.id,
+        name: league.name,
+        logo: league.logo
+    });
+
+    updateTeamLeagueTags(context);
+    updateHiddenLeaguesInput(context);
+    updateLeagueDropdownOptions(context);
+}
+
+/**
+ * Remove a league tag
+ */
+function removeTeamLeagueTag(leagueId, context = 'create') {
+    selectedLeaguesForTeam = selectedLeaguesForTeam.filter(l => l.id !== leagueId);
+    updateTeamLeagueTags(context);
+    updateHiddenLeaguesInput(context);
+    updateLeagueDropdownOptions(context);
+}
+
+/**
+ * Update visual display of league tags
+ */
+function updateTeamLeagueTags(context = 'create') {
+    const containerId = context === 'create' ? 'selectedLeaguesContainer' : 'editSelectedLeaguesContainer';
+    const container = document.getElementById(containerId);
+
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (selectedLeaguesForTeam.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-secondary); font-size: 0.875rem; padding: 0.5rem;">No leagues selected</div>';
+        return;
+    }
+
+    selectedLeaguesForTeam.forEach(league => {
+        const tag = document.createElement('div');
+        tag.className = 'game-tag'; // Reuse game tag styling
+
+        const logoHTML = league.logo
+            ? `<img src="${league.logo}" alt="${league.name}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover;">`
+            : '<i class="fas fa-trophy game-tag-icon"></i>';
+
+        tag.innerHTML = `
+            ${logoHTML}
+            <span>${league.name}</span>
+            <button type="button"
+                    class="game-tag-remove"
+                    onclick="removeTeamLeagueTag(${league.id}, '${context}')"
+                    title="Remove ${league.name}">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(tag);
+    });
+}
+
+/**
+ * Update dropdown to hide selected leagues
+ */
+function updateLeagueDropdownOptions(context = 'create') {
+    const dropdownId = context === 'create' ? 'teamLeaguesDropdown' : 'editTeamLeaguesDropdown';
+    const dropdown = document.getElementById(dropdownId);
+
+    if (!dropdown) return;
+
+    const options = Array.from(dropdown.options);
+
+    options.forEach(option => {
+        if (option.value === '') return; // Skip placeholder
+
+        const optionId = parseInt(option.value);
+        if (selectedLeaguesForTeam.find(l => l.id === optionId)) {
+            option.style.display = 'none';
+            option.disabled = true;
+        } else {
+            option.style.display = '';
+            option.disabled = false;
+        }
+    });
+}
+
+/**
+ * Update hidden input with selected league IDs
+ */
+function updateHiddenLeaguesInput(context = 'create') {
+    const inputId = context === 'create' ? 'selectedLeaguesInput' : 'editSelectedLeaguesInput';
+    const hiddenInput = document.getElementById(inputId);
+
+    if (hiddenInput) {
+        const leagueIds = selectedLeaguesForTeam.map(l => l.id);
+        hiddenInput.value = JSON.stringify(leagueIds);
+    }
+}
+
+/**
+ * Clear all selected leagues
+ */
+function clearSelectedLeagues(context = 'create') {
+    selectedLeaguesForTeam = [];
+    updateTeamLeagueTags(context);
+    updateHiddenLeaguesInput(context);
+    updateLeagueDropdownOptions(context);
+}
+
 /**
  * Select a team from sidebar
  * Updates UI and loads team details
@@ -119,6 +370,44 @@ async function loadTeamDetails(teamId) {
                 }
             }
 
+            // Display team leagues**
+            await displayTeamLeaguesInSubheader(teamId);
+
+            // Display season information
+            const seasonElement = document.getElementById('teamDetailSeason');
+            if (seasonElement) {
+                if (team.season_name) {
+                    const seasonStatus = team.season_is_active ?
+                        '<span style="color: #22c55e;">●</span>' :
+                        '<span style="color: #94a3b8;">●</span>';
+                    seasonElement.innerHTML = `${seasonStatus} Season: ${team.season_name}`;
+                    seasonElement.style.display = 'block';
+                } else {
+                    seasonElement.textContent = 'Season: Not assigned';
+                    seasonElement.style.display = 'block';
+                }
+            }
+
+            //Applies a collapsed team details state
+            const isCollapsed = getCollapsedTeamDetailsState();
+            const subheadersContainer = document.getElementById('teamDetailSubheaders');
+            const collapseBtn = document.getElementById('teamDetailCollapseBtn');
+            const icon = collapseBtn?.querySelector('i');
+
+            if (subheadersContainer && isCollapsed) {
+                subheadersContainer.classList.add('collapsed');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                }
+            } else if (subheadersContainer) {
+                subheadersContainer.classList.remove('collapsed');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                }
+            }
+
             const teamIconLarge = document.querySelector('.team-icon-large');
             if (teamIconLarge) {
                 if (team.game_icon_url) {
@@ -172,6 +461,108 @@ async function loadTeamDetails(teamId) {
         }
     } catch (error) {
         console.error('Error loading team details:', error);
+    }
+}
+
+/**
+ * Display leagues in team details
+ */
+async function displayTeamLeaguesInSubheader(teamId) {
+    try {
+        const response = await fetch(`/api/teams/${teamId}/leagues`);
+        const data = await response.json();
+
+        const leaguesElement = document.getElementById('teamDetailLeagues');
+
+        if (!leaguesElement) {
+            console.warn('teamDetailLeagues element not found');
+            return;
+        }
+
+        if (data.success && data.leagues && data.leagues.length > 0) {
+            // Build leagues HTML with logos and links
+            const leaguesHTML = data.leagues.map(league => {
+                const logoHTML = league.logo
+                    ? `<img src="${league.logo}" alt="${league.name}" class="team-league-logo">`
+                    : '<i class="fas fa-trophy team-league-icon"></i>';
+
+                const content = `${logoHTML}<span class="team-league-name">${league.name}</span>`;
+
+                // If there's a website URL, make it a link
+                if (league.website_url) {
+                    return `
+                        <a href="${league.website_url}"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="team-league-link"
+                           title="Visit ${league.name} website">
+                            ${content}
+                            <i class="fas fa-external-link-alt team-league-external"></i>
+                        </a>
+                    `;
+                } else {
+                    return `<span class="team-league-item">${content}</span>`;
+                }
+            }).join('');
+
+            leaguesElement.innerHTML = `League(s): ${leaguesHTML}`;
+            leaguesElement.style.display = 'block';
+        } else {
+            leaguesElement.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error loading team leagues:', error);
+        const leaguesElement = document.getElementById('teamDetailLeagues');
+        if (leaguesElement) {
+            leaguesElement.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Storage key for collapsed team details
+ */
+const COLLAPSED_TEAM_DETAILS_KEY = 'teams_collapsed_details';
+
+/**
+ * Get collapsed team details state
+ */
+function getCollapsedTeamDetailsState() {
+    const stored = sessionStorage.getItem(COLLAPSED_TEAM_DETAILS_KEY);
+    return stored === 'true';
+}
+
+/**
+ * Save collapsed team details state
+ */
+function saveCollapsedTeamDetailsState(isCollapsed) {
+    sessionStorage.setItem(COLLAPSED_TEAM_DETAILS_KEY, isCollapsed.toString());
+}
+
+/**
+ * Toggle team detail collapse
+ */
+function toggleTeamDetailCollapse() {
+    const detailsContainer = document.getElementById('teamDetailSubheaders');
+    const toggleBtn = document.getElementById('teamDetailCollapseBtn');
+    const icon = toggleBtn?.querySelector('i');
+
+    if (!detailsContainer || !toggleBtn || !icon) return;
+
+    const isCollapsed = detailsContainer.classList.contains('collapsed');
+
+    if (isCollapsed) {
+        // Expand
+        detailsContainer.classList.remove('collapsed');
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+        saveCollapsedTeamDetailsState(false);
+    } else {
+        // Collapse
+        detailsContainer.classList.add('collapsed');
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+        saveCollapsedTeamDetailsState(true);
     }
 }
 
@@ -523,6 +914,10 @@ async function addSelectedMembersToTeam() {
         if (data.success) {
             alert(data.message);
             closeAddTeamMembersModal();
+
+            window.invalidateTeamsCache();
+            await window.loadTeams();
+
             selectTeam(window.currentSelectedTeamId);
         } else {
             alert(`Error: ${data.message}`);
@@ -590,6 +985,10 @@ async function removeMemberNew(memberId, memberName) {
 
         if (data.success) {
             alert(`"${memberName}" removed successfully`);
+
+            window.invalidateTeamsCache();
+            await window.loadTeams();
+
             selectTeam(window.currentSelectedTeamId);
         } else {
             alert(`Error: ${data.message}`);
@@ -658,58 +1057,67 @@ async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSize
     }
 
     document.getElementById('editTeamForm').reset();
+
+    const form = document.getElementById('editTeamForm');
+    const submitBtn = form?.querySelector('button[type="submit"]');
+    const submitBtnText = document.getElementById('updateTeamBtnText');
+    const submitBtnSpinner = document.getElementById('updateTeamBtnSpinner');
+
+    if (submitBtn) submitBtn.disabled = false;
+    if (submitBtnText) submitBtnText.style.display = 'inline';
+    if (submitBtnSpinner) submitBtnSpinner.style.display = 'none';
+
     formMessage.style.display = 'none';
 
     modalTitle.textContent = teamName;
     teamIdField.value = teamId;
     teamTitleInput.value = teamName;
 
-    // Check if we have cached team data
-    if (currentTeamCache &&
-        currentTeamCache.teamId === teamId &&
-        (Date.now() - currentTeamCache.timestamp) < 60000) { // 1 minute cache
+    try {
+        // Fetch current team leagues
+        const leaguesResponse = await fetch(`/api/teams/${teamId}/leagues`);
+        const leaguesData = await leaguesResponse.json();
 
-        console.log('Using cached team data for edit modal');
-        const team = currentTeamCache.team;
+        const currentLeagueIds = leaguesData.success && leaguesData.leagues ?
+            leaguesData.leagues.map(l => l.id) : [];
 
-        try {
-            // Still need to fetch game details, but we saved one API call
+        console.log('Current team leagues:', currentLeagueIds);
+
+        // Fetch game details for available sizes
+        const response = await fetch(`/api/teams/${teamId}/details`);
+        const data = await response.json();
+
+        if (data.success) {
+            const team = data.team;
             const gameResponse = await fetch(`/api/game/${team.game_id}/details`);
             const gameData = await gameResponse.json();
 
             if (gameData.success) {
-                populateTeamSizes(gameData.game.team_sizes || availableSizes.split(',').map(s => s.trim()),
-                                 currentMaxSize,
-                                 sizeContainer);
+                populateTeamSizes(
+                    gameData.game.team_sizes || availableSizes.split(',').map(s => s.trim()),
+                    currentMaxSize,
+                    sizeContainer
+                );
             }
-        } catch (error) {
-            console.error('Error loading game details:', error);
-            alert('Failed to load game information. Please try again.');
-            return;
         }
-    } else {
-        // Cache miss - fetch the data
-        try {
-            const response = await fetch(`/api/teams/${teamId}/details`);
-            const data = await response.json();
 
-            if (data.success) {
-                const team = data.team;
+        // Initialize league selector with pre-selected leagues**
+        if (typeof initializeTeamLeagueSelector === 'function') {
+            await initializeTeamLeagueSelector('edit', currentLeagueIds);
 
-                const gameResponse = await fetch(`/api/game/${team.game_id}/details`);
-                const gameData = await gameResponse.json();
-
-                if (gameData.success) {
-                    populateTeamSizes(gameData.game.team_sizes || availableSizes.split(',').map(s => s.trim()),
-                                     currentMaxSize,
-                                     sizeContainer);
+            // EXPLICITLY ENABLE DROPDOWN AFTER INITIALIZATION
+            setTimeout(() => {
+                const dropdown = document.getElementById('editTeamLeaguesDropdown');
+                if (dropdown) {
+                    enableDropdown(dropdown);
                 }
-            }
-        } catch (error) {
-            console.error('Error loading team details for edit:', error);
-            alert('Failed to load team information. Please try again.');
-            return;
+            }, 50);
         }
+
+    } catch (error) {
+        console.error('Error loading team details for edit:', error);
+        alert('Failed to load team information. Please try again.');
+        return;
     }
 
     modal.style.display = 'block';
@@ -721,6 +1129,26 @@ async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSize
  */
 function closeEditTeamModal() {
     const modal = document.getElementById('editTeamModal');
+    const form = document.getElementById('editTeamForm');
+    const submitBtn = form?.querySelector('button[type="submit"]');
+    const submitBtnText = document.getElementById('updateTeamBtnText');
+    const submitBtnSpinner = document.getElementById('updateTeamBtnSpinner');
+    const formMessage = document.getElementById('editTeamFormMessage');
+
+    // ✅ RESET BUTTON STATE
+    if (submitBtn) {
+        submitBtn.disabled = false;
+    }
+    if (submitBtnText) {
+        submitBtnText.style.display = 'inline';
+    }
+    if (submitBtnSpinner) {
+        submitBtnSpinner.style.display = 'none';
+    }
+    if (formMessage) {
+        formMessage.style.display = 'none';
+    }
+
     if (modal) {
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
@@ -762,6 +1190,7 @@ function setupEditTeamForm() {
         }
 
         try {
+            // Update team basic info (name and size)
             const response = await fetch(`/api/teams/${teamId}/update`, {
                 method: 'POST',
                 headers: {
@@ -776,6 +1205,26 @@ function setupEditTeamForm() {
             const data = await response.json();
 
             if (response.ok && data.success) {
+                // Update team leagues
+                const leaguesInput = document.getElementById('editSelectedLeaguesInput');
+                if (leaguesInput) {
+                    const leagueIds = JSON.parse(leaguesInput.value || '[]');
+
+                    console.log('Updating team leagues:', leagueIds);
+
+                    const leaguesResponse = await fetch(`/api/teams/${teamId}/leagues`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ league_ids: leagueIds })
+                    });
+
+                    const leaguesData = await leaguesResponse.json();
+
+                    if (!leaguesResponse.ok || !leaguesData.success) {
+                        console.warn('Team updated but league assignment had issues:', leaguesData.message);
+                    }
+                }
+
                 formMessage.textContent = data.message || 'Team updated successfully!';
                 formMessage.className = 'form-message success';
                 formMessage.style.display = 'block';
@@ -912,3 +1361,11 @@ window.loadNextScheduledEvent = loadNextScheduledEvent;
 window.openEditTeamModal = openEditTeamModal;
 window.closeEditTeamModal = closeEditTeamModal;
 window.populateTeamSizes = populateTeamSizes;
+window.toggleTeamDetailCollapse = toggleTeamDetailCollapse;
+
+//Team League Exports
+window.initializeTeamLeagueSelector = initializeTeamLeagueSelector;
+window.addTeamLeagueTag = addTeamLeagueTag;
+window.removeTeamLeagueTag = removeTeamLeagueTag;
+window.clearSelectedLeagues = clearSelectedLeagues;
+window.enableDropdown = enableDropdown;

@@ -57,12 +57,14 @@ def view_games():
 
         member_counts = {row['game_id']: row['member_count'] for row in cursor.fetchall()}
 
-        # Step 3: Get team counts for all games in one query
+        # Step 3: Get team counts for all games in one query - SEASON AWARE
         cursor.execute(f"""
-            SELECT gameID, COUNT(*) as team_count
-            FROM teams
-            WHERE gameID IN ({placeholders})
-            GROUP BY gameID
+            SELECT t.gameID, COUNT(*) as team_count
+            FROM teams t
+            INNER JOIN seasons s ON t.season_id = s.season_id
+            WHERE t.gameID IN ({placeholders})
+            AND s.is_active = 1
+            GROUP BY t.gameID
         """, game_ids)
 
         team_counts = {row['gameID']: row['team_count'] for row in cursor.fetchall()}
@@ -89,11 +91,11 @@ def view_games():
                 'Division': game['Division'],
                 'ImageURL': f'/game-image/{game_id}' if game['has_image'] else None,
                 'member_count': member_counts.get(game_id, 0),
-                'team_count': team_counts.get(game_id, 0),
+                'team_count': team_counts.get(game_id, 0),  # Will be 0 if no active season teams
                 'is_member': game_id in user_memberships,
                 'is_game_manager': game['gm_id'] == user_id if game['gm_id'] else False
             }
-            
+
             games_with_details.append(game_dict)
 
         return jsonify({'success': True, 'games': games_with_details})
@@ -361,7 +363,13 @@ def get_game_community_details(game_id):
                 cursor.execute(f"SELECT COUNT(*) as count FROM in_communities WHERE game_id = %s", (game_id,))
                 member_count = cursor.fetchone()['count']
 
-                cursor.execute('SELECT COUNT(*) as count FROM teams WHERE gameID = %s', (game_id,))
+                cursor.execute('''
+                    SELECT COUNT(*) as count 
+                    FROM teams t
+                    INNER JOIN seasons s ON t.season_id = s.season_id
+                    WHERE t.gameID = %s 
+                    AND s.is_active = 1
+                ''', (game_id,))
                 team_result = cursor.fetchone()
                 team_count = team_result['count'] if team_result else 0
 
@@ -441,6 +449,58 @@ def get_game_community_details(game_id):
     except Exception as e:
         print(f"Error getting game details: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load game details'}), 500
+
+
+"""
+Route to get leagues associated with a game's current season teams
+"""
+@app.route('/api/game/<int:game_id>/current-leagues', methods=['GET'])
+@login_required
+def get_game_current_leagues(game_id):
+    """Get all leagues associated with this game's current season teams"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Get current active season
+        cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+        active_season = cursor.fetchone()
+
+        if not active_season:
+            return jsonify({'success': True, 'leagues': []})
+
+        active_season_id = active_season['season_id']
+
+        # Get unique leagues from teams in current season for this game
+        cursor.execute("""
+            SELECT DISTINCT l.id, l.name, l.website_url,
+                   CASE WHEN l.logo IS NOT NULL THEN 1 ELSE 0 END as has_logo,
+                   COUNT(DISTINCT tl.team_id) as team_count
+            FROM league l
+            INNER JOIN team_leagues tl ON l.id = tl.league_id
+            INNER JOIN teams t ON tl.team_id = t.TeamID
+            WHERE t.gameID = %s
+            AND t.season_id = %s
+            GROUP BY l.id, l.name, l.website_url
+            ORDER BY l.name ASC
+        """, (game_id, active_season_id))
+
+        leagues = cursor.fetchall()
+
+        # Add logo URLs
+        for league in leagues:
+            league['logo'] = f'/league-image/{league["id"]}' if league['has_logo'] else None
+            del league['has_logo']
+
+        return jsonify({'success': True, 'leagues': leagues}), 200
+
+    except Exception as e:
+        print(f"Error fetching game current leagues: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': 'Failed to fetch leagues'}), 500
+
+    finally:
+        cursor.close()
 
 """
 Method to retrieve the next event to be shown in a game's community tab.

@@ -478,7 +478,7 @@
 
 .game-stats-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
     margin-bottom: 0.25rem;
 }
@@ -509,6 +509,107 @@
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+/* ============================================
+   LEAGUE BADGES - CONSISTENT STYLING
+   Unified league badge design for teams and games
+   ============================================ */
+
+/* --------------------------------------------
+   GAME DETAILS MODAL - LEAGUE BADGES
+   -------------------------------------------- */
+
+/* League stat card - special styling without number */
+.game-stat-card.leagues-card {
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem 1rem;
+}
+
+.game-stat-card.leagues-card > i {
+    font-size: 2rem;
+    color: var(--stockton-blue);
+    margin-bottom: 0.25rem;
+}
+
+.game-stat-card.leagues-card .game-stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+/* League badges container - horizontal inline */
+.game-leagues-badges {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    flex-wrap: wrap;
+}
+
+/* League badge - compact horizontal pills */
+.game-league-badge {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.5rem !important;
+    background: rgba(121, 189, 233, 0.1);
+    border: 1px solid rgba(121, 189, 233, 0.3);
+    border-radius: 4px;
+    color: var(--stockton-blue) !important;
+    text-decoration: none;
+    font-size: 0.75rem !important;
+    font-weight: 500;
+    transition: all 0.2s;
+    width: auto;
+    line-height: 1.2;
+}
+
+.game-league-badge:hover {
+    background: rgba(121, 189, 233, 0.2);
+    border-color: var(--stockton-blue);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(121, 189, 233, 0.3);
+}
+
+/* League logo - small circular */
+.game-league-badge-logo {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+/* League icon (fallback) */
+.game-league-badge-icon {
+    font-size: 0.5625rem;
+    color: var(--stockton-blue);
+    width: 12px;
+    text-align: center;
+}
+
+/* League name - compact */
+.game-league-badge-name {
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* External link icon - tiny */
+.game-league-badge-external {
+    font-size: 0.8rem !important;
+    opacity: 0.7;
+    flex-shrink: 0;
+    margin-top: 0.5rem;
+}
+
+.game-league-badge:hover .game-league-badge-external {
+    opacity: 1;
 }
 
 /* --------------------------------------------
