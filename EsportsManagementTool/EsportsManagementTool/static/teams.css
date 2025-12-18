@@ -18,7 +18,7 @@
     display: flex !important;
     flex-direction: row !important;
     gap: 1.5rem !important;
-    height: calc(100vh - 250px) !important;
+    height: calc(100vh - 50px) !important;
     min-height: 675px !important;
     width: 100% !important;
     max-width: 100% !important;
