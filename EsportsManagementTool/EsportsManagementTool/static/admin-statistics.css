@@ -1,0 +1,482 @@
+/* ============================================
+   ADMIN STATISTICS PAGE STYLES
+   Comprehensive styling for program statistics
+   ============================================ */
+
+/* ============================================
+   HEADER & FILTERS
+   ============================================ */
+.statistics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.statistics-header h1 {
+    margin: 0;
+    font-size: 2rem;
+    color: var(--text-primary);
+}
+
+.statistics-header p {
+    margin: 0.5rem 0 0;
+    color: var(--text-secondary);
+}
+
+.season-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.season-filter label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.season-dropdown {
+    padding: 0.5rem 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--dark-bg);
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    min-width: 200px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.season-dropdown:hover,
+.season-dropdown:focus {
+    border-color: var(--stockton-blue);
+    outline: none;
+}
+
+/* ============================================
+   SECTIONS
+   ============================================ */
+.stats-section {
+    margin-bottom: 3rem;
+}
+
+.stats-section h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stats-section h2::before {
+    content: '';
+    width: 4px;
+    height: 1.5rem;
+    background: var(--stockton-blue);
+    border-radius: 2px;
+}
+
+/* ============================================
+   STAT CARDS - LARGE GRID (6 columns)
+   ============================================ */
+.stats-grid-large {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+/* ============================================
+   STAT CARDS - MEDIUM GRID (3 columns)
+   ============================================ */
+.stats-grid-medium {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+/* ============================================
+   STAT CARD BASE STYLES
+   ============================================ */
+.stat-card {
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--stockton-blue), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    border-color: var(--stockton-blue);
+}
+
+.stat-card:hover::before {
+    opacity: 1;
+}
+
+/* Highlight variant */
+.stat-card-highlight {
+    border-color: #11998e;
+}
+
+.stat-card-highlight:hover {
+    border-color: #38ef7d;
+}
+
+/* Warning variant */
+.stat-card-warning {
+    border-color: #ee0979;
+}
+
+.stat-card-warning:hover {
+    border-color: #ff6a00;
+}
+
+/* ============================================
+   STAT CARD COMPONENTS
+   ============================================ */
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: white;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.stat-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.stat-description {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
+/* ============================================
+   PLACEMENT CARDS (Tournament Performance)
+   ============================================ */
+.placements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.placement-card {
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.placement-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, transparent, rgba(121, 189, 233, 0.05));
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.placement-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.placement-card:hover::before {
+    opacity: 1;
+}
+
+/* Gold placement */
+.placement-card.gold {
+    border-color: #FFD700;
+}
+
+.placement-card.gold .placement-icon {
+    color: #FFD700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+/* Silver placement */
+.placement-card.silver {
+    border-color: #C0C0C0;
+}
+
+.placement-card.silver .placement-icon {
+    color: #C0C0C0;
+    text-shadow: 0 0 10px rgba(192, 192, 192, 0.5);
+}
+
+/* Bronze placement */
+.placement-card.bronze {
+    border-color: #CD7F32;
+}
+
+.placement-card.bronze .placement-icon {
+    color: #CD7F32;
+    text-shadow: 0 0 10px rgba(205, 127, 50, 0.5);
+}
+
+.placement-icon {
+    font-size: 2.5rem;
+    color: var(--stockton-blue);
+    margin-bottom: 0.75rem;
+}
+
+.placement-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.placement-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+/* ============================================
+   LEAGUE CARDS
+   ============================================ */
+.league-stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+}
+
+.league-card {
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.league-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    border-color: var(--stockton-blue);
+}
+
+.league-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.league-title h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+}
+
+.league-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.league-stat {
+    text-align: center;
+    padding: 0.75rem;
+    background: var(--background-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.league-stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--stockton-blue);
+    margin-bottom: 0.25rem;
+}
+
+.league-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.league-chart {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: var(--background-secondary);
+    border-radius: 8px;
+    max-height: 300px;
+}
+
+/* ============================================
+   EXPORT ACTIONS
+   ============================================ */
+.export-actions {
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+}
+
+.export-actions h2 {
+    margin-bottom: 1.5rem;
+}
+
+.export-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.export-buttons .btn {
+    min-width: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    padding: 0.75rem 1.5rem;
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-secondary);
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state p {
+    font-size: 1.125rem;
+    margin: 0;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+@media (max-width: 1200px) {
+    .stats-grid-large {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+    
+    .league-stats-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .statistics-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .stats-grid-large,
+    .stats-grid-medium {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .placements-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+    
+    .stat-value {
+        font-size: 1.75rem;
+    }
+    
+    .export-buttons {
+        flex-direction: column;
+    }
+    
+    .export-buttons .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid-large,
+    .stats-grid-medium,
+    .placements-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .league-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
