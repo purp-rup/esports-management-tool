@@ -24,6 +24,7 @@ const EventState = {
     // Delete confirmation
     currentDeleteEventId: null,
     currentDeleteEventName: '',
+    deletionFromModal: false,
 
     // User permissions
     permissions: {
@@ -260,15 +261,75 @@ function convertTo24Hour(time12h) {
 
 /**
  * Check if current user can delete an event
+ * Time-based deletion (24-hour window for creators, always for developers)
  * @param {Object} event - Event object
  * @returns {boolean} True if user can delete
  */
 function canUserDeleteEvent(event) {
-    const is_admin = window.userPermissions?.is_admin || EventState.permissions.is_admin;
-    const is_developer = window.userPermissions?.is_developer || EventState.permissions.is_developer;
-    const is_gm = window.userPermissions?.is_gm || EventState.permissions.is_gm;
+    const is_developer = window.userPermissions?.is_developer || false;
+    const is_gm = window.userPermissions?.is_gm || false;
+    const is_admin = window.userPermissions?.is_admin || false;
     const sessionUserId = window.currentUserId || 0;
-    return is_admin || is_developer || (is_gm && event.created_by === sessionUserId);
+
+    // Developers can always delete
+    if (is_developer) {
+        return true;
+    }
+
+    // Check if within 24-hour window
+    if (!event.created_at) {
+        return false;
+    }
+
+    const createdAt = new Date(event.created_at);
+    const now = new Date();
+    const hoursSinceCreation = (now - createdAt) / (1000 * 60 * 60);
+    const within24Hours = hoursSinceCreation <= 24;
+
+    // Admins can delete ANY event within 24 hours
+    if (is_admin) {
+        return within24Hours;
+    }
+
+    // GMs can only delete events they created (within 24-hour window)
+    if (is_gm) {
+        // Must be the creator
+        if (event.created_by !== sessionUserId) {
+            return false;
+        }
+
+        return within24Hours; // FIXED: Use within24Hours instead of canDelete
+    }
+
+    // Non-GM, non-admin, non-developer users cannot delete
+    return false;
+}
+
+/**
+ * Get time remaining for deletion window
+ * @param {string} createdAt - ISO timestamp of creation
+ * @returns {string} Human-readable time remaining
+ */
+function getDeletionTimeRemaining(createdAt) {
+    if (!createdAt) return null;
+
+    const created = new Date(createdAt);
+    const now = new Date();
+    const deletionDeadline = new Date(created.getTime() + (24 * 60 * 60 * 1000));
+
+    if (now >= deletionDeadline) {
+        return null; // Window expired
+    }
+
+    const msRemaining = deletionDeadline - now;
+    const hoursRemaining = Math.floor(msRemaining / (1000 * 60 * 60));
+    const minutesRemaining = Math.floor((msRemaining % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hoursRemaining > 0) {
+        return `${hoursRemaining}h ${minutesRemaining}m remaining`;
+    } else {
+        return `${minutesRemaining}m remaining`;
+    }
 }
 
 /**
@@ -277,9 +338,9 @@ function canUserDeleteEvent(event) {
  * @returns {boolean} True if user can edit
  */
 function canUserEditEvent(event) {
-    const is_admin = window.userPermissions?.is_admin || EventState.permissions.is_admin;
-    const is_developer = window.userPermissions?.is_developer || EventState.permissions.is_developer;
-    const is_gm = window.userPermissions?.is_gm || EventState.permissions.is_gm;
+    const is_admin = window.userPermissions?.is_admin || false;
+    const is_developer = window.userPermissions?.is_developer || false;
+    const is_gm = window.userPermissions?.is_gm || false;
     const sessionUserId = window.currentUserId || 0;
     return is_admin || is_developer || (is_gm && event.created_by === sessionUserId);
 }
@@ -970,32 +1031,28 @@ function renderEvents(events, isAdmin, isGm) {
     setElementDisplay(emptyStateDiv, 'none');
 }
 
-/**
- * Create an event card HTML
- * @param {Object} event - Event object
- * @param {boolean} isAdmin - Whether user is admin
- * @param {boolean} isGm - Whether user is GM
- * @returns {string} HTML string for event card
- */
 function createEventCard(event, isAdmin, isGm) {
     const canDelete = canUserDeleteEvent(event);
+
     const ongoingIndicator = event.is_ongoing
         ? '<div class="event-ongoing-indicator" title="Event is currently ongoing"></div>'
         : '';
 
-    const deleteButton = canDelete ? `
-        <button class="btn btn-secondary btn-delete"
-                onclick="event.stopPropagation(); openDeleteConfirmModal(${event.id}, '${escapeQuotes(event.name)}')">
-            <i class="fas fa-trash"></i>
-        </button>
-    ` : '';
+    // Build delete button
+    let deleteButton = '';
+    if (canDelete) {
+        deleteButton = `
+            <button class="btn btn-secondary btn-delete"
+                    onclick="event.stopPropagation(); openDeleteConfirmModal(${event.id}, '${escapeQuotes(event.name)}')">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+    }
 
-    // Handle multiple games display
     const gameDisplay = formatGameDisplay(event.game);
     const eventTypeClass = (event.event_type || 'event').toLowerCase();
     const scheduledClass = event.is_scheduled ? 'scheduled-event' : '';
 
-    // Season indicator (inline with title, similar to team styling)
     const seasonIndicator = event.season_name ? `
         <div class="event-season-indicator" title="${event.season_is_active ? 'Active Season' : 'Past Season'}">
             <span style="color: ${event.season_is_active ? '#22c55e' : '#94a3b8'};">●</span>
@@ -1330,7 +1387,6 @@ function createNotificationSection() {
 
 /**
  * Update edit/delete buttons based on permissions
- * @param {Object} event - Event object
  */
 function updateEventModalButtons(event) {
     const editBtn = document.getElementById("editEventBtn");
@@ -1339,11 +1395,25 @@ function updateEventModalButtons(event) {
     // Show edit button if user can edit
     if (editBtn && canUserEditEvent(event)) {
         editBtn.style.display = 'flex';
+    } else {
+        if (editBtn) editBtn.style.display = 'none';
     }
 
-    // Show delete button if user is admin
-    if (deleteBtn && EventState.permissions.is_admin || EventState.permissions.is_developer) {
-        deleteBtn.style.display = 'flex';
+    // Show delete button if user can delete
+    if (deleteBtn) {
+        const canDelete = canUserDeleteEvent(event);
+
+        if (canDelete) {
+            // Simple trash icon only
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.title = 'Delete event';
+
+            deleteBtn.style.display = 'flex';
+        } else {
+            deleteBtn.style.display = 'none';
+        }
+    } else {
+        console.error('Delete button element not found!');
     }
 }
 
@@ -1630,7 +1700,7 @@ async function handleCreateEventSubmit(e) {
 
         if (response.ok && data.success) {
             // Direct manipulation
-            formMessage.textContent = data.message || 'Event created successfully! Refreshing calendar...';
+            formMessage.innerHTML = (data.message || 'Event created successfully! Refreshing calendar...').replace(/\n/g, '<br>');
             formMessage.className = 'form-message success';
             formMessage.style.display = 'block';
 
@@ -2082,15 +2152,54 @@ function cancelEdit() {
 
 /**
  * Open delete confirmation modal
- * @param {number} eventId - Event ID to delete
- * @param {string} eventName - Event name for confirmation
+ * Show time-based deletion info
  */
-function openDeleteConfirmModal(eventId, eventName) {
+async function openDeleteConfirmModal(eventId, eventName) {
     EventState.currentDeleteEventId = eventId;
     EventState.currentDeleteEventName = eventName;
 
-    document.getElementById('deleteEventName').textContent = eventName;
-    document.getElementById('deleteEventConfirmModal').classList.add('active');
+    // If we don't have event data, or we have data but it's for a different event, fetch it
+    if (!EventState.currentEventData || EventState.currentEventData.id !== eventId) {
+        try {
+            const response = await fetch(`/api/event/${eventId}`);
+            if (!response.ok) throw new Error('Failed to fetch event details');
+            EventState.currentEventData = await response.json();
+        } catch (error) {
+            console.error('Error fetching event data for deletion:', error);
+            // Continue without time remaining if fetch fails
+        }
+    }
+
+    const eventData = EventState.currentEventData;
+    const timeRemaining = eventData ? getDeletionTimeRemaining(eventData.created_at) : null;
+
+    // Update modal message with time remaining
+    const eventNameSpan = document.getElementById('deleteEventName');
+    if (eventNameSpan) {
+        eventNameSpan.textContent = eventName;
+    }
+
+    // Add time remaining indicator if applicable
+    const confirmModal = document.getElementById('deleteEventConfirmModal');
+    const messageDiv = confirmModal?.querySelector('.delete-confirmation-message');
+
+    if (messageDiv) {
+        const originalMessage = `Are you sure you want to delete ${eventName}? This action cannot be undone.`;
+
+        if (timeRemaining) {
+            messageDiv.innerHTML = `
+                ${originalMessage}
+                <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(251, 191, 36, 0.1); border: 1px solid #fbbf24; border-radius: 6px; font-size: 0.875rem;">
+                    <i class="fas fa-clock" style="color: #fbbf24;"></i>
+                    <strong style="color: #fbbf24;">Deletion window:</strong> ${timeRemaining}
+                </div>
+            `;
+        } else {
+            messageDiv.innerHTML = originalMessage;
+        }
+    }
+
+    confirmModal?.classList.add('active');
     document.body.style.overflow = 'hidden';
 }
 
@@ -2098,17 +2207,41 @@ function openDeleteConfirmModal(eventId, eventName) {
  * Close delete confirmation modal
  */
 function closeDeleteConfirmModal() {
-    document.getElementById('deleteEventConfirmModal').classList.remove('active');
-    document.body.style.overflow = 'auto';
+    const modal = document.getElementById('deleteEventConfirmModal');
+    modal?.classList.remove('active');
+
+    // Check if event details modal is actually open
+    const eventModal = document.getElementById('eventDetailsModal');
+    const isEventModalOpen = eventModal &&
+                              (eventModal.style.display === 'block' ||
+                               eventModal.classList.contains('active'));
+
+    if (isEventModalOpen) {
+        // Event modal is still open, keep overflow hidden
+        document.body.style.overflow = 'hidden';
+    } else {
+        // No modal behind, restore scrolling
+        document.body.style.overflow = 'auto';
+    }
+
+    // Reset state
     EventState.currentDeleteEventId = null;
     EventState.currentDeleteEventName = '';
+    EventState.deletionFromModal = false;
 }
 
 /**
  * Confirm event deletion
+ * Better error messages for expired windows
  */
 async function confirmDeleteEvent() {
     if (!EventState.currentDeleteEventId) return;
+
+    const confirmBtn = document.querySelector('.btn-confirm-delete');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    }
 
     try {
         const response = await fetch(`/api/events/${EventState.currentDeleteEventId}`, {
@@ -2120,19 +2253,51 @@ async function confirmDeleteEvent() {
 
         if (data.success) {
             closeDeleteConfirmModal();
-            alert(data.message);
-            window.location.reload();
+
+            // If deletion was from event modal, close that too
+            if (EventState.deletionFromModal) {
+                const eventModal = document.getElementById('eventDetailsModal');
+                if (eventModal) {
+                    eventModal.style.display = 'none';
+                }
+                EventState.deletionFromModal = false;
+            }
+
+            // Show success message
+            const successDiv = document.createElement('div');
+            successDiv.className = 'events-info-message';
+            successDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000; background: #10b981; border-color: #10b981; color: white;';
+            successDiv.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <p>${data.message}</p>
+            `;
+            document.body.appendChild(successDiv);
+
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
         } else {
-            alert('Error: ' + data.message);
+            // Handle specific error cases
+            if (data.message.includes('expired') || data.message.includes('24')) {
+                alert(`⏰ ${data.message}\n\nOnly developers can delete events after 24 hours.`);
+            } else if (data.message.includes('creator')) {
+                alert(`🚫 ${data.message}`);
+            } else {
+                alert('Error: ' + data.message);
+            }
+
+            closeDeleteConfirmModal();
         }
     } catch (error) {
         console.error('Error deleting event:', error);
         alert('An error occurred while deleting the event. Please try again.');
+        closeDeleteConfirmModal();
     }
 }
 
 /**
- * Delete event (legacy function for calendar compatibility)
+ * Delete event (called from event details modal)
+ * Uses the same confirmation modal as card deletion
  */
 async function deleteEvent() {
     if (!EventState.currentEventId) {
@@ -2140,30 +2305,29 @@ async function deleteEvent() {
         return;
     }
 
-    if (!confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
+    const event = EventState.currentEventData;
+    if (!event) {
+        alert("Event data not found.");
         return;
     }
 
-    try {
-        const response = await fetch('/delete-event', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ event_id: EventState.currentEventId })
-        });
+    // Check if user can delete
+    if (!canUserDeleteEvent(event)) {
+        const is_developer = window.userPermissions?.is_developer || false;
 
-        const data = await response.json();
-
-        if (data.success) {
-            alert("Event deleted successfully!");
-            closeEventModal();
-            window.location.reload();
+        if (!is_developer && event.created_by === (window.currentUserId || 0)) {
+            alert("⏰ The 24-hour deletion window has expired.\n\nOnly developers can delete events after 24 hours.");
         } else {
-            alert("Error: " + (data.message || "Failed to delete event"));
+            alert("🚫 You don't have permission to delete this event.");
         }
-    } catch (error) {
-        console.error("Error deleting event:", error);
-        alert("Something went wrong while deleting the event.");
+        return;
     }
+
+    // Track that deletion was initiated from modal
+    EventState.deletionFromModal = true;
+
+    // DON'T close the event modal - just open delete confirmation on top
+    openDeleteConfirmModal(event.id, event.name);
 }
 
 // ============================================
@@ -2205,6 +2369,8 @@ window.deleteEvent = deleteEvent;
 window.openDeleteConfirmModal = openDeleteConfirmModal;
 window.closeDeleteConfirmModal = closeDeleteConfirmModal;
 window.confirmDeleteEvent = confirmDeleteEvent;
+window.canUserDeleteEvent = canUserDeleteEvent;
+window.getDeletionTimeRemaining = getDeletionTimeRemaining;
 
 // Game Tag System Functions
 window.addGameTag = addGameTag;

@@ -87,6 +87,77 @@ def get_season_for_event_date(cursor, event_date):
         print(f"   ❌ Error determining season for event date {event_date}: {str(e)}")
         return None
 
+
+def can_delete_event(cursor, event_id, user_id, is_developer, is_admin):
+    """
+    Determine if a user can delete an event based on time-based rules.
+
+    Rules:
+    1. Developers can ALWAYS delete any event
+    2. Admins can delete ANY event within 24 hours of creation
+    3. GMs can delete their OWN events within 24 hours of creation
+    4. After 24 hours, only developers can delete
+
+    Args:
+        cursor: MySQL cursor
+        event_id: ID of the event
+        user_id: ID of the user attempting deletion
+        is_developer: Whether user is a developer
+        is_admin: Whether user is an admin
+
+    Returns:
+        tuple: (can_delete: bool, reason: str)
+    """
+    # Developers can always delete
+    if is_developer:
+        return (True, "Developer privileges")
+
+    # Fetch event creation info
+    cursor.execute("""
+        SELECT created_by, created_at
+        FROM generalevents
+        WHERE EventID = %s
+    """, (event_id,))
+
+    event = cursor.fetchone()
+
+    if not event:
+        return (False, "Event not found")
+
+    # Check if within 24-hour window
+    if not event['created_at']:
+        # If no creation timestamp, deny deletion (safety measure)
+        return (False, "Event creation time not recorded")
+
+    created_at = event['created_at']
+    current_time = get_current_time()
+
+    # Ensure both datetimes are timezone-aware for comparison
+    if created_at.tzinfo is None:
+        created_at = localize_datetime(created_at)
+
+    time_since_creation = current_time - created_at
+    within_24_hours = time_since_creation <= timedelta(hours=24)
+
+    # Admins can delete ANY event within 24 hours
+    if is_admin:
+        if within_24_hours:
+            return (True, "Admin privileges - within 24-hour window")
+        else:
+            hours_ago = int(time_since_creation.total_seconds() / 3600)
+            return (False, f"Admin deletion window expired (created {hours_ago} hours ago)")
+
+    # GMs can only delete events THEY created within 24 hours
+    if event['created_by'] != user_id:
+        return (False, "Only the event creator, an admin (within 24h), or a developer can delete this event")
+
+    # User is the creator - check time window
+    if within_24_hours:
+        return (True, "Within 24-hour deletion window")
+    else:
+        hours_ago = int(time_since_creation.total_seconds() / 3600)
+        return (False, f"Deletion window expired (created {hours_ago} hours ago)")
+
 def register_event_routes(app, mysql, login_required, roles_required, get_user_permissions):
     """
     Register all event-related routes with the Flask app
@@ -107,7 +178,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
     def eventRegister():
         """
         Create a new event
-        Accessible by: Admins and Game Managers
+        NOW INCLUDES: created_at timestamp for deletion tracking
         """
         msg = ''
         if request.method == 'POST':
@@ -125,131 +196,52 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 try:
                     import json
 
-                    # ============================================
-                    # CRITICAL DEBUG LOGGING
-                    # ============================================
                     print("\n" + "=" * 60)
                     print(f"🎮 Creating Event: {eventName}")
                     print("=" * 60)
-                    print(f"📦 Raw games_json: {repr(games_json)}")
 
                     selected_games = json.loads(games_json)
-                    print(f"📋 Parsed games: {selected_games}")
-                    print(f"   Type: {type(selected_games)}")
-                    print(f"   Length: {len(selected_games)}")
-
-                    if selected_games:
-                        for idx, game in enumerate(selected_games):
-                            print(f"   [{idx}] '{game}' (len={len(game)}, repr={repr(game)})")
-
-                    # Build comma-separated display string
                     game_display = ', '.join(selected_games) if selected_games else None
-                    print(f"🏷️  Display string: {game_display}")
 
-                    # Get primary game_id (first selected game)
+                    # Get primary game_id
                     primary_game_id = None
                     if selected_games:
                         first_game_title = selected_games[0]
-                        print(f"\n🔍 Looking up primary game: '{first_game_title}'")
-
-                        cursor.execute('SELECT gameID, GameTitle FROM games WHERE GameTitle = %s', (first_game_title,))
+                        cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (first_game_title,))
                         game_result = cursor.fetchone()
-
                         if game_result:
                             primary_game_id = game_result['gameID']
-                            print(f"   ✅ Found: game_id={primary_game_id}, title='{game_result['GameTitle']}'")
-                        else:
-                            print(f"   ❌ NOT FOUND in games table")
-                            # Show what games ARE in the table
-                            cursor.execute('SELECT gameID, GameTitle FROM games ORDER BY gameID DESC LIMIT 10')
-                            available = cursor.fetchall()
-                            print(f"   📚 Available games (last 10):")
-                            for g in available:
-                                print(f"      - {g['gameID']}: '{g['GameTitle']}'")
 
-                    # Create the event
-                    print(f"\n💾 Inserting event into generalevents...")
-                    print(f"   game_id: {primary_game_id}")
-
-                    # ============================================
-                    # DETERMINE SEASON FOR EVENT
-                    # ============================================
+                    # Determine season
                     season_id = get_season_for_event_date(cursor, eventDate)
 
-                    if season_id:
-                        print(f"   ✅ Event will be assigned to season_id: {season_id}")
-                    else:
-                        print(f"   ℹ️  Event will not be assigned to any season (pre-season event or no seasons exist)")
+                    # Get current timestamp for created_at
+                    created_at = get_current_time()
 
+                    # Insert event with created_at timestamp
                     cursor.execute(
-                        'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Location, Game, game_id, created_by, season_id) '
-                        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                        'INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, EventType, Location, Game, game_id, created_by, season_id, created_at) '
+                        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
                         (eventName, eventDate, startTime, endTime, eventDescription, eventType, location, game_display,
-                         primary_game_id, session['id'], season_id))
+                         primary_game_id, session['id'], season_id, created_at))
 
                     event_id = cursor.lastrowid
-                    print(f"   ✅ Created event_id: {event_id}")
+                    print(f"   ✅ Created event_id: {event_id} at {created_at}")
 
-                    # Insert ALL games into event_games
-                    print(f"\n🔗 Inserting into event_games table...")
-
+                    # Insert games into event_games table
                     if selected_games:
                         for game_title in selected_games:
-                            print(f"\n   Processing: '{game_title}'")
-
-                            cursor.execute('SELECT gameID, GameTitle FROM games WHERE GameTitle = %s', (game_title,))
+                            cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (game_title,))
                             game_result = cursor.fetchone()
-
                             if game_result:
                                 game_id = game_result['gameID']
-                                print(f"      ✅ Found game_id: {game_id}")
-
-                                try:
-                                    cursor.execute(
-                                        'INSERT IGNORE INTO event_games (event_id, game_id) VALUES (%s, %s)',
-                                        (event_id, game_id)
-                                    )
-
-                                    rows_affected = cursor.rowcount
-                                    print(f"      📝 INSERT result: {rows_affected} row(s) affected")
-
-                                    if rows_affected > 0:
-                                        print(f"      ✅ Successfully linked event {event_id} to game_id {game_id}")
-                                    else:
-                                        print(f"      ⚠️  No rows inserted (duplicate or failed)")
-
-                                except Exception as insert_error:
-                                    print(f"      ❌ INSERT ERROR: {insert_error}")
-
-                            else:
-                                print(f"      ❌ Game '{game_title}' NOT FOUND in database")
-                                # Show similar games
                                 cursor.execute(
-                                    'SELECT gameID, GameTitle FROM games WHERE GameTitle LIKE %s LIMIT 5',
-                                    (f'%{game_title[:5]}%',)
+                                    'INSERT IGNORE INTO event_games (event_id, game_id) VALUES (%s, %s)',
+                                    (event_id, game_id)
                                 )
-                                similar = cursor.fetchall()
-                                if similar:
-                                    print(f"      💡 Similar games found:")
-                                    for s in similar:
-                                        print(f"         - {s['gameID']}: '{s['GameTitle']}'")
-                    else:
-                        print("   ⚠️  No games selected!")
-
-                    print("\n" + "=" * 60)
-                    print("🔍 Verifying event_games entries...")
-                    cursor.execute(
-                        'SELECT * FROM event_games WHERE event_id = %s',
-                        (event_id,)
-                    )
-                    verify_results = cursor.fetchall()
-                    print(f"   Found {len(verify_results)} entries:")
-                    for entry in verify_results:
-                        print(f"      - event_games.id={entry['id']}, game_id={entry['game_id']}")
-                    print("=" * 60 + "\n")
 
                     mysql.connection.commit()
-                    msg = 'Event Registered!'
+                    msg = 'Event Registered!\nYou have 24 hours to delete this event.'
 
                     if request.headers.get(
                             'X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
@@ -325,9 +317,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             if season_id:
                 conditions.append("ge.season_id = %s")
                 params.append(season_id)
-            else:
-                # If no active season and no season specified, show events with NULL season_id
-                print(f"   📅 No active season, showing events without season assignment")
+
             if event_filter == 'upcoming':
                 end_date = current_date + timedelta(days=7)
                 conditions.append("ge.Date >= %s AND ge.Date <= %s")
@@ -399,7 +389,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     SELECT 
                         ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
                         ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
-                        ge.is_scheduled, ge.schedule_id,
+                        ge.is_scheduled, ge.schedule_id, ge.created_at,
                         s.season_name, s.is_active as season_is_active
                     FROM generalevents ge
                     LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
@@ -419,7 +409,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     SELECT 
                         ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
                         ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
-                        ge.is_scheduled, ge.schedule_id,
+                        ge.is_scheduled, ge.schedule_id, ge.created_at,
                         s.season_name, s.is_active as season_is_active
                     FROM generalevents ge
                     LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
@@ -433,17 +423,11 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 cursor.execute(query, tuple(params))
 
             elif is_gm:
-                # For GMs, if not using "created_by_me" filter, still only show their events
-                if event_filter != 'created_by_me':
-                    conditions.append("ge.created_by = %s")
-                    params.append(user_id)
-                    where_clause = " AND ".join(conditions) if conditions else "ge.created_by = %s"
-
                 query = f"""
                     SELECT 
                         ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
                         ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
-                        ge.is_scheduled, ge.schedule_id,
+                        ge.is_scheduled, ge.schedule_id, ge.created_at,
                         s.season_name, s.is_active as season_is_active
                     FROM generalevents ge
                     LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
@@ -462,7 +446,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     SELECT 
                         ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
                         ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
-                        ge.is_scheduled, ge.schedule_id,
+                        ge.is_scheduled, ge.schedule_id, ge.created_at,
                         s.season_name, s.is_active as season_is_active
                     FROM generalevents ge
                     LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
@@ -498,6 +482,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     'description': event['Description'] or 'No description provided',
                     'is_ongoing': is_ongoing,
                     'created_by': event['created_by'],
+                    'created_at': event['created_at'].isoformat() if event['created_at'] else None,
                     'is_scheduled': event.get('is_scheduled', False),
                     'schedule_id': event.get('schedule_id'),
                     'season_id': event.get('season_id'),
@@ -551,6 +536,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 'game': event['Game'] if event['Game'] else 'N/A',
                 'location': event['Location'] if event['Location'] else 'TBD',
                 'created_by': event.get('created_by'),
+                'created_at': event['created_at'].isoformat() if event.get('created_at') else None,
                 'season_id': event.get('season_id'),
                 'season_name': event.get('season_name'),
                 'season_is_active': event.get('season_is_active', 0)
@@ -699,45 +685,31 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
     @login_required
     def delete_event_from_tab(event_id):
         """
-        Delete an event
-        - Admins can delete any event
-        - Game Managers can only delete events they created
+        Delete an event with time-based permissions
+        REFACTORED: 24-hour window for creators, always for developers
         """
         try:
             user_id = session['id']
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-            # Get user permissions
             permissions = get_user_permissions(user_id)
-            is_admin = permissions['is_admin']
             is_developer = permissions['is_developer']
-            is_gm = permissions['is_gm']
+            is_admin = permissions['is_admin']
 
-            # Get event details
-            cursor.execute("""
-                SELECT EventID, EventName, created_by
-                FROM generalevents
-                WHERE EventID = %s
-            """, (event_id,))
+            # Check deletion permissions
+            can_delete, reason = can_delete_event(cursor, event_id, user_id, is_developer, is_admin)
+
+            if not can_delete:
+                cursor.close()
+                return jsonify({'success': False, 'message': reason}), 403
+
+            # Get event name for confirmation message
+            cursor.execute("SELECT EventName FROM generalevents WHERE EventID = %s", (event_id,))
             event = cursor.fetchone()
 
             if not event:
                 cursor.close()
                 return jsonify({'success': False, 'message': 'Event not found'}), 404
-
-            # Check permissions
-            if is_admin:
-                can_delete = True
-            elif is_developer:
-                can_delete = True
-            elif is_gm and event['created_by'] == user_id:
-                can_delete = True
-            else:
-                can_delete = False
-
-            if not can_delete:
-                cursor.close()
-                return jsonify({'success': False, 'message': 'You do not have permission to delete this event'}), 403
 
             # Delete the event
             cursor.execute("DELETE FROM generalevents WHERE EventID = %s", (event_id,))
@@ -760,9 +732,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
     @login_required
     def delete_event_modal():
         """
-        Delete an event from the modal view
-        - Admins can delete any event
-        - Game Managers can only delete events they created
+        Delete an event from the modal view with time-based permissions
+        REFACTORED: 24-hour window for creators, always for developers
         """
         try:
             user_id = session['id']
@@ -774,38 +745,24 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
 
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-            # Get user permissions
             permissions = get_user_permissions(user_id)
-            is_admin = permissions['is_admin']
             is_developer = permissions['is_developer']
-            is_gm = permissions['is_gm']
+            is_admin = permissions['is_admin']
 
-            # Get event details
-            cursor.execute("""
-                SELECT EventID, EventName, created_by
-                FROM generalevents
-                WHERE EventID = %s
-            """, (event_id,))
+            # Check deletion permissions
+            can_delete, reason = can_delete_event(cursor, event_id, user_id, is_developer, is_admin)
+
+            if not can_delete:
+                cursor.close()
+                return jsonify({'success': False, 'message': reason}), 403
+
+            # Get event name
+            cursor.execute("SELECT EventName FROM generalevents WHERE EventID = %s", (event_id,))
             event = cursor.fetchone()
 
             if not event:
                 cursor.close()
                 return jsonify({'success': False, 'message': 'Event not found'}), 404
-
-            # Check permissions
-            if is_admin:
-                can_delete = True
-            elif is_developer:
-                can_delete = True
-            elif is_gm and event['created_by'] == user_id:
-                can_delete = True
-            else:
-                can_delete = False
-
-            if not can_delete:
-                cursor.close()
-                return jsonify(
-                    {'success': False, 'message': 'You do not have permission to delete this event'}), 403
 
             # Delete the event
             cursor.execute("DELETE FROM generalevents WHERE EventID = %s", (event_id,))

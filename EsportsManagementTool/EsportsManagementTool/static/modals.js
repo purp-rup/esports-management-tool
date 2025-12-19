@@ -55,6 +55,7 @@ const MODAL_CLOSE_HANDLERS = {
 
     // Scheduled events
     'createScheduledEventModal': closeCreateScheduledEventModal,
+    'deleteScheduleConfirmModal': closeDeleteScheduleConfirmModal,
 
     //VOD Modal
     'showAddVodModal': closeAddVodModal,
@@ -87,17 +88,15 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeClickOutsideHandler() {
     window.addEventListener('click', function(event) {
         // Check if the clicked element is a modal background
-        if (event.target.classList.contains('modal')) {
+        // Support both .modal and .delete-confirmation-modal classes
+        if (event.target.classList.contains('modal') ||
+            event.target.classList.contains('delete-confirmation-modal')) {
             const modalId = event.target.id;
 
             // Look up and execute the appropriate close handler
             if (MODAL_CLOSE_HANDLERS[modalId]) {
                 MODAL_CLOSE_HANDLERS[modalId]();
             }
-
-            // Always reset scroll as a safety measure
-            // Ensures body scrolling is restored even if close handler fails
-            document.body.style.overflow = 'auto';
         }
     });
 }
@@ -117,7 +116,7 @@ function initializeEscapeKeyHandler() {
             // Find all currently visible modals
             // Supports both display:block style and .active class
             const visibleModals = document.querySelectorAll(
-                '.modal[style*="display: block"], .modal.active'
+                '.modal[style*="display: block"], .modal.active, .delete-confirmation-modal.active'
             );
 
             // Close all visible modals
@@ -129,9 +128,6 @@ function initializeEscapeKeyHandler() {
                     MODAL_CLOSE_HANDLERS[modalId]();
                 }
             });
-
-            // Always reset scroll as a safety measure
-            document.body.style.overflow = 'auto';
         }
     });
 }
