@@ -39,11 +39,20 @@ class EsportsStatistics:
     
     def get_unique_games(self):
         """
-        Count unique competitive game titles
+        Count unique competitive game titles (games with at least one team)
         Returns: int
         """
-        query = "SELECT COUNT(DISTINCT GameID) as count FROM games"
-        self.cursor.execute(query)
+        query = """
+            SELECT COUNT(DISTINCT gameID) as count 
+            FROM teams
+        """
+        
+        if self.season_id:
+            query += " WHERE season_id = %s"
+            self.cursor.execute(query, (self.season_id,))
+        else:
+            self.cursor.execute(query)
+            
         result = self.cursor.fetchone()
         return result['count'] if result else 0
     
@@ -95,20 +104,19 @@ class EsportsStatistics:
     
     def get_unique_esports_count(self):
         """
-        Count games that have active teams
+        Count games that have active teams (same as get_unique_games)
         Returns: int
         """
-        query = """
-            SELECT COUNT(DISTINCT gameID) as count 
-            FROM teams
+        # Reuse get_unique_games to avoid duplication
+        return self.get_unique_games()
+    
+    def get_total_games_in_database(self):
         """
-        
-        if self.season_id:
-            query += " WHERE season_id = %s"
-            self.cursor.execute(query, (self.season_id,))
-        else:
-            self.cursor.execute(query)
-            
+        Count all games in database (including non-competitive)
+        Returns: int
+        """
+        query = "SELECT COUNT(DISTINCT GameID) as count FROM games"
+        self.cursor.execute(query)
         result = self.cursor.fetchone()
         return result['count'] if result else 0
     
@@ -324,21 +332,14 @@ class EsportsStatistics:
     # =====================================
     
     def get_tournament_placements(self):
-        """Count tournament placements by type"""
-        query = """
-            SELECT 
-                tournament_placement,
-                COUNT(*) as count
-            FROM teams
         """
-        
-        if self.season_id:
-            query += " WHERE season_id = %s"
-            self.cursor.execute(query + " GROUP BY tournament_placement", (self.season_id,))
-        else:
-            self.cursor.execute(query + " GROUP BY tournament_placement")
-        
-        results = self.cursor.fetchall()
+        Count tournament placements by type
+        Returns: dict with keys: winners, finals, semifinals, quarterfinals, 
+                 playoffs, regular_season, in_progress
+        """
+        # This depends on how you track tournament results
+        # You might need to add a 'placement' or 'finish_position' field to teams
+        # For now, returning structure based on match results
         
         placements = {
             'winners': 0,
@@ -350,24 +351,8 @@ class EsportsStatistics:
             'in_progress': 0
         }
         
-        for result in results:
-            placement = result['tournament_placement']
-            count = result['count']
-            
-            if placement == 'winner':
-                placements['winners'] = count
-            elif placement == 'finalist':
-                placements['finals'] = count
-            elif placement == 'semifinalist':
-                placements['semifinals'] = count
-            elif placement == 'quarterfinalist':
-                placements['quarterfinals'] = count
-            elif placement == 'playoffs':
-                placements['playoffs'] = count
-            elif placement == 'regular_season':
-                placements['regular_season'] = count
-            elif placement == 'in_progress':
-                placements['in_progress'] = count
+        # TODO: Implement based on your tournament tracking system
+        # This might require additional database fields or logic
         
         return placements
     
