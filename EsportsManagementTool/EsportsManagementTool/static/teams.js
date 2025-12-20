@@ -898,7 +898,7 @@ async function addSelectedMembersToTeam() {
     const memberIds = Array.from(checkboxes).map(cb => cb.value);
 
     if (memberIds.length === 0) {
-        alert('Please select at least one member');
+        showDeleteErrorMessage('Please select at least one member');
         return;
     }
 
@@ -912,19 +912,25 @@ async function addSelectedMembersToTeam() {
         const data = await response.json();
 
         if (data.success) {
-            alert(data.message);
+            // Close modal
             closeAddTeamMembersModal();
 
+            // Show success notification
+            showDeleteSuccessMessage(data.message);
+
+            // Refresh teams and reload current team
             window.invalidateTeamsCache();
             await window.loadTeams();
 
-            selectTeam(window.currentSelectedTeamId);
+            setTimeout(() => {
+                selectTeam(window.currentSelectedTeamId);
+            }, 350);
         } else {
-            alert(`Error: ${data.message}`);
+            showDeleteErrorMessage(data.message);
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Failed to add members');
+        showDeleteErrorMessage('Failed to add members');
     }
 }
 
@@ -962,12 +968,26 @@ const filterAvailableMembers = debounce(function() {
 }, 300);
 
 /**
- * Confirm and remove member from team
+ * Confirm and remove member from team using universal delete modal
  */
 function confirmRemoveMemberNew(memberId, memberName) {
-    if (confirm(`Remove "${memberName}" from this team?`)) {
-        removeMemberNew(memberId, memberName);
-    }
+    // Open universal delete modal
+    openDeleteConfirmModal({
+        title: 'Remove Team Member?',
+        itemName: memberName,
+        message: `Are you sure you want to remove ${memberName} from this team?`,
+        additionalInfo: `
+            <div style="margin-top: 1rem; padding: 1rem; background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 8px;">
+                <p style="margin: 0; color: var(--text-secondary); font-size: 0.875rem;">
+                    <i class="fas fa-info-circle" style="color: #ffc107;"></i>
+                    This will remove ${memberName} from the team roster.
+                </p>
+            </div>
+        `,
+        buttonText: 'Remove Member',
+        onConfirm: () => removeMemberNew(memberId, memberName),
+        itemId: memberId
+    });
 }
 
 /**
@@ -984,18 +1004,28 @@ async function removeMemberNew(memberId, memberName) {
         const data = await response.json();
 
         if (data.success) {
-            alert(`"${memberName}" removed successfully`);
+            // Close the delete confirmation modal first
+            closeDeleteConfirmModal();
 
+            // Show success notification
+            showDeleteSuccessMessage(`"${memberName}" removed successfully`);
+
+            // Refresh teams and reload current team
             window.invalidateTeamsCache();
             await window.loadTeams();
 
-            selectTeam(window.currentSelectedTeamId);
+            setTimeout(() => {
+                selectTeam(window.currentSelectedTeamId);
+            }, 350);
         } else {
-            alert(`Error: ${data.message}`);
+            // Close modal and show error
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage(data.message);
         }
     } catch (error) {
         console.error('Error removing member:', error);
-        alert('Failed to remove member');
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Failed to remove member');
     }
 }
 
@@ -1238,7 +1268,7 @@ function setupEditTeamForm() {
                     window.loadTeams().then(() => {
                         selectTeam(teamId);
                     });
-                }, 1500);
+                }, 350);
             } else {
                 throw new Error(data.message || 'Failed to update team');
             }
@@ -1259,21 +1289,104 @@ function setupEditTeamForm() {
 // ============================================
 
 /**
- * Confirm and delete selected team
+ * Confirm and delete selected team with permission and time checks
  */
-function confirmDeleteSelectedTeam() {
-    if (!window.currentSelectedTeamId) return;
+async function confirmDeleteSelectedTeam() {
+    if (!window.currentSelectedTeamId) {
+        alert('No team selected');
+        return;
+    }
 
-    const teamName = document.getElementById('teamDetailTitle').textContent;
-    if (confirm(`Are you sure you want to delete "${teamName}"?\n\nThis action cannot be undone.`)) {
-        deleteTeamNew(window.currentSelectedTeamId);
+    const teamId = window.currentSelectedTeamId;
+
+    try {
+        // Get deletion permission info
+        const response = await fetch(`/api/teams/${teamId}/deletion-info`);
+        const data = await response.json();
+
+        if (!data.success) {
+            alert(data.message || 'Failed to check deletion permissions');
+            return;
+        }
+
+        // Check if user can delete
+        if (!data.can_delete) {
+            let message = '';
+
+            if (data.restriction_level === 'expired') {
+                message = `Cannot delete "${data.team_name}". This team was created ${data.days_since_creation} days ago. Only developers can delete teams older than 30 days.`;
+            } else if (data.restriction_level === 'no_permission') {
+                message = `You don't have permission to delete "${data.team_name}".`;
+            } else {
+                message = 'You cannot delete this team.';
+            }
+
+            alert(message);
+            return;
+        }
+
+        const isDeveloper = window.userPermissions?.is_developer || false;
+
+        // Build modal configuration
+        let additionalInfo = '';
+
+        if (!isDeveloper && data.restriction_level === 'time_limited') {
+            // Show time remaining warning
+            const timeRemaining = formatTimeRemaining(data.days_remaining, data.hours_remaining);
+            additionalInfo = `
+                <div style="margin-top: 1rem; padding: 1rem; background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <i class="fas fa-clock" style="color: #ffc107;"></i>
+                        <strong style="color: #ffc107;">Time-Limited Deletion</strong>
+                    </div>
+                    <p style="margin: 0; color: var(--text-secondary); font-size: 0.875rem;">
+                        ${timeRemaining} remaining to delete this team.<br>
+                        After that, only developers can delete it.
+                    </p>
+                </div>
+            `;
+        }
+
+        additionalInfo += `
+            <div style="margin-top: 1rem; padding: 1rem; background: rgba(255, 82, 82, 0.1); border: 1px solid rgba(255, 82, 82, 0.3); border-radius: 8px;">
+                <p style="margin: 0; color: var(--text-secondary); font-size: 0.875rem;">
+                    <i class="fas fa-exclamation-triangle" style="color: #ff5252;"></i>
+                    This will permanently delete:
+                </p>
+                <ul style="margin: 0.5rem 0 0 1.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                    <li>All team member assignments</li>
+                    <li>Team-specific scheduled events</li>
+                    <li>League assignments</li>
+                    <li>All team data</li>
+                </ul>
+                <p style="margin: 0.5rem 0 0 0; color: #ff5252; font-size: 0.875rem; font-weight: 600;">
+                    This action cannot be undone.
+                </p>
+            </div>
+        `;
+
+        // Open universal delete modal
+        openDeleteConfirmModal({
+            title: 'Delete Team?',
+            itemName: data.team_name,
+            message: `Are you sure you want to delete ${data.team_name}?`,
+            additionalInfo: additionalInfo,
+            buttonText: 'Delete Team',
+            onConfirm: executeTeamDeletion,
+            itemId: teamId
+        });
+
+    } catch (error) {
+        console.error('Error checking deletion permissions:', error);
+        alert('Failed to check deletion permissions. Please try again.');
     }
 }
 
 /**
- * Delete team
+ * Execute the actual team deletion
+ * Called by the universal delete modal
  */
-async function deleteTeamNew(teamId) {
+async function executeTeamDeletion(teamId) {
     try {
         const response = await fetch('/delete-team', {
             method: 'POST',
@@ -1284,21 +1397,46 @@ async function deleteTeamNew(teamId) {
         const data = await response.json();
 
         if (data.success) {
-            alert(data.message);
+            // Close the modal first
+            closeDeleteConfirmModal();
 
-            // Invalidate cache
+            // Show success notification using universal system
+            showDeleteSuccessMessage(data.message);
+
+            // Invalidate cache and refresh
             invalidateTeamsCache();
-
             window.currentSelectedTeamId = null;
+
             document.getElementById('teamsWelcomeState').style.display = 'flex';
             document.getElementById('teamsDetailContent').style.display = 'none';
-            window.loadTeams();
+
+            // Reload after notification is visible
+            setTimeout(() => {
+                window.loadTeams();
+            }, 1500);
         } else {
-            alert(`Error: ${data.message}`);
+            // Close modal and show error
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage(data.message || 'Failed to delete team');
         }
     } catch (error) {
         console.error('Error deleting team:', error);
-        alert('Failed to delete team');
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('An error occurred while deleting the team');
+    }
+}
+
+/**
+ * Format time remaining for display
+ */
+function formatTimeRemaining(days, hours) {
+    if (days > 0) {
+        if (days === 1) {
+            return `${days} day, ${hours} hour${hours !== 1 ? 's' : ''}`;
+        }
+        return `${days} days, ${hours} hour${hours !== 1 ? 's' : ''}`;
+    } else {
+        return `${hours} hour${hours !== 1 ? 's' : ''}`;
     }
 }
 

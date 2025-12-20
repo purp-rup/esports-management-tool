@@ -157,10 +157,76 @@
     justify-content: center;
 }
 
+/* --------------------------------------------
+   DELETE CONFIRMATION STYLING
+   Time-limited deletion warnings
+   -------------------------------------------- */
 #deleteTeamBtn {
     flex-shrink: 0;
     align-self: center;
     margin-right: 1rem;
+    background: transparent;
+    color: #ef4444;
+    border: 1px solid #ef4444;
+    transition: all 0.2s;
+}
+
+#deleteTeamBtn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    transform: translateY(-1px);
+}
+
+.delete-confirmation-event-name {
+    color: var(--stockton-blue);
+    font-weight: 600;
+}
+
+.delete-time-warning {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 8px;
+}
+
+.delete-time-warning-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.delete-time-warning-header i {
+    color: #ffc107;
+}
+
+.delete-time-warning-header strong {
+    color: #ffc107;
+}
+
+.delete-warning-details {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(255, 82, 82, 0.1);
+    border: 1px solid rgba(255, 82, 82, 0.3);
+    border-radius: 8px;
+}
+
+.delete-warning-details ul {
+    margin: 0.5rem 0 0 1.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.delete-warning-details li {
+    margin: 0.25rem 0;
+}
+
+.delete-warning-permanent {
+    margin: 0.5rem 0 0 0;
+    color: #ff5252;
+    font-size: 0.875rem;
+    font-weight: 600;
 }
 
 /* Team Detail Collapse Button */

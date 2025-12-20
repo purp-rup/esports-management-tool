@@ -401,27 +401,63 @@
     font-size: 0.875rem;
 }
 
-/* --------------------------------------------
-   FORM MESSAGES
-   Success and error feedback
-   -------------------------------------------- */
-.form-message {
-    padding: 0.75rem 1rem;
+/* ============================================
+   DELETE NOTIFICATION CARDS
+   Success/error notifications after deletion
+   ============================================ */
+
+.delete-notification-card {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    padding: 1rem 1.5rem;
     border-radius: 8px;
-    font-size: 0.875rem;
-    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateX(400px);
+    transition: all 0.3s ease-out;
+    max-width: 400px;
 }
 
-.form-message.success {
-    background: rgba(121, 189, 233, 0.1);
-    border: 1px solid var(--stockton-blue);
-    color: var(--stockton-blue);
+.delete-notification-card.show {
+    opacity: 1;
+    transform: translateX(0);
 }
 
-.form-message.error {
-    background: rgba(255, 82, 82, 0.1);
-    border: 1px solid #ff5252;
-    color: #ff8a8a;
+/* Success variant */
+.delete-notification-card[data-type="success"] {
+    background: #10b981;
+    border: 1px solid #059669;
+    color: white;
+}
+
+.delete-notification-card[data-type="success"] i {
+    color: white;
+    font-size: 1.25rem;
+}
+
+/* Error variant */
+.delete-notification-card[data-type="error"] {
+    background: #ef4444;
+    border: 1px solid #dc2626;
+    color: white;
+}
+
+.delete-notification-card[data-type="error"] i {
+    color: white;
+    font-size: 1.25rem;
+}
+
+.delete-notification-card p {
+    margin: 0;
+    flex: 1;
+    line-height: 1.4;
 }
 
 /* --------------------------------------------
@@ -543,6 +579,13 @@
 
     .modal-body {
         padding: 1rem 1.5rem 1.5rem;
+    }
+
+    .delete-notification-card {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
     }
 }
 

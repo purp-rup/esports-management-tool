@@ -33,11 +33,13 @@
  * @type {Object.<string, Function>}
  */
 const MODAL_CLOSE_HANDLERS = {
+    // Universal delete confirmation modal
+    'deleteConfirmModal': closeDeleteConfirmModal,
+
     // Event-related modals
     'dayEventsModal': closeDayModal,
     'eventDetailsModal': closeEventModal,
     'createEventModal': closeCreateEventModal,
-    'deleteEventConfirmModal': closeDeleteConfirmModal,
 
     // Game/Community-related modals
     'createGameModal': closeCreateGameModal,
@@ -54,14 +56,22 @@ const MODAL_CLOSE_HANDLERS = {
     'changePasswordModal': closeChangePasswordModal,
 
     // Scheduled events
+    'scheduleDetailsModal': closeScheduleModal,
     'createScheduledEventModal': closeCreateScheduledEventModal,
-    'deleteScheduleConfirmModal': closeDeleteScheduleConfirmModal,
 
-    //VOD Modal
-    'showAddVodModal': closeAddVodModal,
+    // Stats modal
+    'recordMatchResultModal': closeRecordResultModal,
+    'matchDetailsModal': closeMatchDetailsModal,
+
+    // VOD Modals
+    'addVodModal': closeAddVodModal,
+    'vodPlayerModal': closeVodPlayerModal,
 
     //Seasons Modal
-    'manageSeasonsModal': closeManageSeasonsModal
+    'manageSeasonsModal': closeManageSeasonsModal,
+
+    // Leagues Modal
+    'manageLeaguesModal': closeManageLeaguesModal
 };
 
 // ============================================
@@ -114,9 +124,9 @@ function initializeEscapeKeyHandler() {
         // Check if ESC key was pressed
         if (event.key === 'Escape') {
             // Find all currently visible modals
-            // Supports both display:block style and .active class
+            // Supports both display:block, display:flex, and .active class
             const visibleModals = document.querySelectorAll(
-                '.modal[style*="display: block"], .modal.active, .delete-confirmation-modal.active'
+                '.modal[style*="display: block"], .modal[style*="display: flex"], .modal.active, .delete-confirmation-modal.active'
             );
 
             // Close all visible modals

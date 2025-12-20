@@ -1086,9 +1086,7 @@ function getScheduleDeletionTimeRemaining(createdAt) {
 
 /**
  * Confirm schedule deletion with user
- * Shows styled confirmation modal (consistent with event deletion)
- *
- * @param {number} scheduleId - ID of schedule to delete
+ * Uses universal delete modal system
  */
 function confirmDeleteSchedule(scheduleId) {
     const schedule = ScheduleState.findSchedule(scheduleId) ||
@@ -1099,89 +1097,49 @@ function confirmDeleteSchedule(scheduleId) {
         return;
     }
 
-    // Store schedule ID for deletion
     ScheduleState.pendingDeleteScheduleId = scheduleId;
 
     const timeRemaining = getScheduleDeletionTimeRemaining(schedule.created_at);
 
-    // Update modal content
-    const scheduleNameSpan = document.getElementById('deleteScheduleName');
-    if (scheduleNameSpan) {
-        scheduleNameSpan.textContent = `"${schedule.event_name}"`;
+    // Build additional info
+    let additionalInfo = '<br><br>All events created by this schedule will be deleted as well.';
+
+    if (timeRemaining) {
+        additionalInfo += `
+            <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(251, 191, 36, 0.1);
+                        border: 1px solid #fbbf24; border-radius: 6px; font-size: 0.875rem;">
+                <i class="fas fa-clock" style="color: #fbbf24;"></i>
+                <strong style="color: #fbbf24;">Deletion window:</strong> ${timeRemaining}
+            </div>
+        `;
     }
 
-    const confirmModal = document.getElementById('deleteScheduleConfirmModal');
-    const messageDiv = confirmModal?.querySelector('.delete-confirmation-message');
-
-    if (messageDiv) {
-        let message = `Are you sure you want to delete the schedule <span class="delete-confirmation-event-name">"${schedule.event_name}"</span>?<br><br>All events created by this schedule will be deleted as well.`;
-
-        if (timeRemaining) {
-            message += `
-                <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(251, 191, 36, 0.1); border: 1px solid #fbbf24; border-radius: 6px; font-size: 0.875rem;">
-                    <i class="fas fa-clock" style="color: #fbbf24;"></i>
-                    <strong style="color: #fbbf24;">Deletion window:</strong> ${timeRemaining}
-                </div>
-            `;
-        }
-
-        messageDiv.innerHTML = message;
-    }
-
-    // Show modal
-    confirmModal?.classList.add('active');
-    document.body.style.overflow = 'hidden';
+    // Open universal modal
+    window.openDeleteConfirmModal({
+        title: 'Delete Schedule?',
+        itemName: schedule.event_name,
+        message: `Are you sure you want to delete "${schedule.event_name}"?`,
+        additionalInfo: additionalInfo,
+        buttonText: 'Delete Schedule',
+        onConfirm: confirmDeleteScheduleAction,
+        itemId: scheduleId
+    });
 }
 
 /**
- * Close delete schedule confirmation modal
+ * Execute the schedule deletion (called by universal modal)
  */
-function closeDeleteScheduleConfirmModal() {
-    const modal = document.getElementById('deleteScheduleConfirmModal');
-    modal?.classList.remove('active');
-
-    // Check if schedule details modal is still open
-    const scheduleModal = document.getElementById('scheduleDetailsModal');
-    if (scheduleModal && scheduleModal.style.display === 'block') {
-        // Keep overflow hidden because schedule modal is still open
-        document.body.style.overflow = 'hidden';
-    } else {
-        // Restore scrolling
-        document.body.style.overflow = 'auto';
-    }
-
-    ScheduleState.pendingDeleteScheduleId = null;
-}
-
-/**
- * Execute the schedule deletion after confirmation
- */
-async function confirmDeleteScheduleAction() {
-    const scheduleId = ScheduleState.pendingDeleteScheduleId;
-
-    if (!scheduleId) {
-        console.error('No schedule ID to delete');
-        return;
-    }
-
-    const confirmBtn = document.querySelector('#deleteScheduleConfirmModal .btn-confirm-delete');
-    if (confirmBtn) {
-        confirmBtn.disabled = true;
-        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
-    }
-
+async function confirmDeleteScheduleAction(scheduleId) {
     try {
         const response = await fetch(`/api/scheduled-events/${scheduleId}`, {
             method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Content-Type': 'application/json' }
         });
 
         const data = await response.json();
 
         if (data.success) {
-            closeDeleteScheduleConfirmModal();
+            window.closeDeleteConfirmModal();
             closeScheduleModal();
 
             // Show success message
@@ -1196,41 +1154,32 @@ async function confirmDeleteScheduleAction() {
 
             setTimeout(() => {
                 successDiv.remove();
-                // Reload schedule tab if function exists
                 if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
                     loadScheduleTab(currentSelectedTeamId);
                 }
             }, 2000);
         } else {
-            // RE-ENABLE BUTTON on error
-            if (confirmBtn) {
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = 'Delete Schedule';
-            }
-
-            // Handle specific error cases
-            if (data.message.includes('expired') || data.message.includes('24')) {
-                alert(`⏰ ${data.message}\n\nOnly developers can delete schedules after 24 hours.`);
-            } else if (data.message.includes('creator') || data.message.includes('Manager')) {
-                alert(`🚫 ${data.message}`);
-            } else {
-                alert('Error: ' + data.message);
-            }
-
-            closeDeleteScheduleConfirmModal();
+            handleScheduleDeleteError(data.message);
         }
     } catch (error) {
         console.error('Error deleting schedule:', error);
-
-        // RE-ENABLE BUTTON on error
-        if (confirmBtn) {
-            confirmBtn.disabled = false;
-            confirmBtn.innerHTML = 'Delete Schedule';
-        }
-
         alert('Failed to delete schedule. Please try again.');
-        closeDeleteScheduleConfirmModal();
+        window.closeDeleteConfirmModal();
     }
+}
+
+/**
+ * Handle schedule delete errors
+ */
+function handleScheduleDeleteError(message) {
+    if (message.includes('expired') || message.includes('24')) {
+        alert(`⏰ ${message}\n\nOnly developers can delete schedules after 24 hours.`);
+    } else if (message.includes('creator') || message.includes('Manager')) {
+        alert(`🚫 ${message}`);
+    } else {
+        alert('Error: ' + message);
+    }
+    window.closeDeleteConfirmModal();
 }
 
 // ============================================
@@ -1253,5 +1202,4 @@ window.updateVisibilityLabels = updateVisibilityLabels;
 window.canUserDeleteSchedule = canUserDeleteSchedule;
 window.getScheduleDeletionTimeRemaining = getScheduleDeletionTimeRemaining;
 window.confirmDeleteSchedule = confirmDeleteSchedule;
-window.closeDeleteScheduleConfirmModal = closeDeleteScheduleConfirmModal;
 window.confirmDeleteScheduleAction = confirmDeleteScheduleAction;
