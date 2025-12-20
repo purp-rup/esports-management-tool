@@ -233,21 +233,32 @@
     gap: 1rem;
 }
 
+/* FIX: Add proper form-group styling */
 .event-form-modal .form-group {
+    display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    margin-bottom: 0; /* Remove default margin since parent has gap */
 }
 
 .event-form-modal .form-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1rem;
+    margin-bottom: 0; /* Remove default margin since parent has gap */
+}
+
+/* FIX: Ensure form-row children don't have conflicting margins */
+.event-form-modal .form-row .form-group {
+    margin-bottom: 0;
 }
 
 .event-form-modal label {
     font-weight: 600;
     font-size: 0.875rem;
     color: var(--text-primary);
+    display: block; /* FIX: Ensure label is block-level */
+    margin-bottom: 0.25rem; /* FIX: Add small margin for spacing */
 }
 
 /* Form inputs */
@@ -263,6 +274,7 @@
     font-size: 0.875rem;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     transition: all 0.2s;
+    box-sizing: border-box; /* FIX: Ensure padding doesn't break width */
 }
 
 .event-form-modal input:focus,
@@ -281,6 +293,15 @@
 .event-form-modal textarea {
     resize: vertical;
     min-height: 100px;
+}
+
+/* FIX: Ensure small helper text doesn't overlap */
+.event-form-modal small {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    margin-top: 0.25rem;
+    line-height: 1.4;
 }
 
 /* File input styling */

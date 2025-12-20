@@ -651,7 +651,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             cursor.execute("""
                 UPDATE generalevents
                 SET EventName = %s, EventType = %s, Game = %s, game_id = %s, Date = %s,
-                    StartTime = %s, EndTime = %s, Location = %s, Description = %s, season_id = %s
+                    StartTime = %s, EndTime = %s, Location = %s, Description = %s, 
+                    season_id = %s, league_id = %s
                 WHERE EventID = %s
             """, (
                 data['event_name'],
@@ -664,7 +665,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 data['location'],
                 data['description'],
                 season_id,
-                int(league_id) if league_id else None,  
+                int(league_id) if league_id else None, 
                 event_id
             ))
 
