@@ -1339,6 +1339,17 @@
                         </div>
                     </div>
 
+                    <div class="form-group" id="scheduledLeagueGroup" style="display: none;">
+                        <label for="scheduledLeagueSelect">League (Optional)</label>
+                        <select id="scheduledLeagueSelect" name="league_id">
+                            <option value="">No league (optional)</option>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                            Select the league this match is part of (if applicable)
+                        </small>
+                    </div>
+
                     <div class="form-group">
                         <label for="scheduledLocation">Location *</label>
                         <select id="scheduledLocation" name="location" required>

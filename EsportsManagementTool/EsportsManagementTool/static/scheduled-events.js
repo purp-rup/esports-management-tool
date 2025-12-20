@@ -427,6 +427,25 @@ function openCreateScheduledEventModal() {
         form.reset();
     }
 
+    const leagueGroup = document.getElementById('scheduledLeagueGroup');
+    const dayOfWeekGroup = document.getElementById('scheduledDayOfWeekGroup');
+    const specificDateGroup = document.getElementById('scheduledSpecificDateGroup');
+    const endDateGroup = document.querySelector('label[for="scheduledEndDate"]')?.parentElement;
+
+    if (leagueGroup) leagueGroup.style.display = 'none';
+    if (dayOfWeekGroup) dayOfWeekGroup.style.display = 'block';
+    if (specificDateGroup) specificDateGroup.style.display = 'none';
+    if (endDateGroup) endDateGroup.style.display = 'block';
+
+    const dayOfWeekSelect = document.getElementById('scheduledDayOfWeek');
+    const specificDateInput = document.getElementById('scheduledSpecificDate');
+    const endDateInput = document.getElementById('scheduledEndDate');
+
+    if (dayOfWeekSelect) dayOfWeekSelect.setAttribute('required', 'required');
+    if (specificDateInput) specificDateInput.removeAttribute('required');
+    if (endDateInput) endDateInput.setAttribute('required', 'required');
+
+
     // Clear any previous messages
     const messageDiv = document.getElementById('scheduledEventMessage');
     if (messageDiv) {
@@ -437,6 +456,13 @@ function openCreateScheduledEventModal() {
     const teamId = ScheduleState.currentTeamId || currentScheduleTeamId;
     const gameId = ScheduleState.currentGameId || currentScheduleGameId;
     updateVisibilityLabels(teamId, gameId);
+
+    // Attach event type change listener for league dropdown
+    const eventTypeSelect = document.getElementById('scheduledEventType');
+    if (eventTypeSelect) {
+        eventTypeSelect.removeEventListener('change', handleEventTypeChangeForLeague);
+        eventTypeSelect.addEventListener('change', handleEventTypeChangeForLeague);
+    }
 
     // Show modal
     modal.style.display = 'block';
@@ -452,6 +478,20 @@ function closeCreateScheduledEventModal() {
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
     }
+
+    const form = document.getElementById('createScheduledEventForm');
+        if (form) {
+            form.reset();
+        }    
+        const leagueGroup = document.getElementById('scheduledLeagueGroup');
+        const dayOfWeekGroup = document.getElementById('scheduledDayOfWeekGroup');
+        const specificDateGroup = document.getElementById('scheduledSpecificDateGroup');
+        const endDateGroup = document.querySelector('label[for="scheduledEndDate"]')?.parentElement;
+
+        if (leagueGroup) leagueGroup.style.display = 'none';
+        if (dayOfWeekGroup) dayOfWeekGroup.style.display = 'block';
+        if (specificDateGroup) specificDateGroup.style.display = 'none';
+        if (endDateGroup) endDateGroup.style.display = 'block';
 }
 
 /**
@@ -533,13 +573,17 @@ async function handleScheduledEventSubmit(event) {
         location: location
     };
 
+    // Add league_id for Match events
+    const leagueSelect = document.getElementById('scheduledLeagueSelect');
+    if (formData.event_type === 'Match' && leagueSelect && leagueSelect.value) {
+        formData.league_id = parseInt(leagueSelect.value);
+    }
+
     // Add frequency-specific fields
     if (formData.frequency === 'Once') {
-        // One-time event: use specific date
         formData.specific_date = document.getElementById('scheduledSpecificDate').value;
-        formData.end_date = formData.specific_date; // Same as event date
+        formData.end_date = formData.specific_date;
     } else {
-        // Recurring event: use day of week and end date
         formData.day_of_week = document.getElementById('scheduledDayOfWeek').value;
         formData.end_date = document.getElementById('scheduledEndDate').value;
     }
@@ -556,7 +600,6 @@ async function handleScheduledEventSubmit(event) {
         const data = await response.json();
 
         if (data.success) {
-            // Show success message
             messageDiv.textContent = data.message;
             messageDiv.className = 'form-message success';
             messageDiv.style.display = 'block';
@@ -564,7 +607,6 @@ async function handleScheduledEventSubmit(event) {
             setTimeout(() => {
                 closeCreateScheduledEventModal();
 
-                // Reload team details if function exists
                 if (typeof selectTeam === 'function') {
                     selectTeam(teamId);
                 }
@@ -573,12 +615,10 @@ async function handleScheduledEventSubmit(event) {
             throw new Error(data.message);
         }
     } catch (error) {
-        // Show error message
         messageDiv.textContent = error.message || 'Failed to create scheduled event';
         messageDiv.className = 'form-message error';
         messageDiv.style.display = 'block';
 
-        // Reset button state
         submitBtn.disabled = false;
         btnText.style.display = 'inline';
         btnSpinner.style.display = 'none';
@@ -1007,6 +1047,77 @@ function confirmDeleteSchedule(scheduleId) {
     }
 }
 
+// ============================================
+// LEAGUE SELECTION FOR MATCHES
+// ============================================
+
+/**
+ * Show/hide league dropdown based on event type
+ */
+function handleEventTypeChangeForLeague() {
+    const eventType = document.getElementById('scheduledEventType').value;
+    const leagueGroup = document.getElementById('scheduledLeagueGroup');
+    const leagueSelect = document.getElementById('scheduledLeagueSelect');
+    
+    if (eventType === 'Match') {
+        // Show league dropdown for matches
+        leagueGroup.style.display = 'block';
+        
+        // Load leagues for current team if not already loaded
+        if (ScheduleState.currentTeamId && leagueSelect.options.length <= 1) {
+            loadTeamLeaguesForSchedule(ScheduleState.currentTeamId);
+        }
+    } else {
+        // Hide league dropdown for other event types
+        leagueGroup.style.display = 'none';
+        leagueSelect.value = ''; // Clear selection
+    }
+}
+
+/**
+ * Load team leagues into the schedule modal dropdown
+ */
+async function loadTeamLeaguesForSchedule(teamId) {
+    const leagueSelect = document.getElementById('scheduledLeagueSelect');
+    
+    if (!leagueSelect) {
+        console.warn('League select not found');
+        return;
+    }
+    
+    // Show loading
+    leagueSelect.innerHTML = '<option value="">Loading leagues...</option>';
+    leagueSelect.disabled = true;
+    
+    try {
+        const response = await fetch(`/api/teams/${teamId}/leagues`);
+        const data = await response.json();
+        
+        if (data.success && data.leagues) {
+            // Rebuild dropdown
+            leagueSelect.innerHTML = '<option value="">No league (optional)</option>';
+            
+            if (data.leagues.length === 0) {
+                leagueSelect.innerHTML += '<option value="" disabled>No leagues assigned to team</option>';
+            } else {
+                data.leagues.forEach(league => {
+                    const option = document.createElement('option');
+                    option.value = league.id;
+                    option.textContent = league.name;
+                    leagueSelect.appendChild(option);
+                });
+            }
+        } else {
+            leagueSelect.innerHTML = '<option value="">Error loading leagues</option>';
+        }
+    } catch (error) {
+        console.error('Error loading team leagues:', error);
+        leagueSelect.innerHTML = '<option value="">Error loading leagues</option>';
+    } finally {
+        leagueSelect.disabled = false;
+    }
+}
+
 /**
  * Delete a schedule and all its associated events
  *
@@ -1055,3 +1166,14 @@ window.loadScheduleTab = loadScheduleTab;
 window.openEditScheduleMode = openEditScheduleMode;
 window.cancelEditSchedule = cancelEditSchedule;
 window.updateVisibilityLabels = updateVisibilityLabels;
+window.handleEventTypeChangeForLeague = handleEventTypeChangeForLeague;
+window.loadTeamLeaguesForSchedule = loadTeamLeaguesForSchedule;
+// ============================================
+// MODAL CLICK-OUTSIDE-TO-CLOSE HANDLER (handles scheduledevents modal bugs)
+// ============================================
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('createScheduledEventModal');
+    if (event.target === modal) {
+        closeCreateScheduledEventModal();
+    }
+});

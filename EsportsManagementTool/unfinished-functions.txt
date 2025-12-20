@@ -1,14 +1,6 @@
 Functionality notes:
 Needs doing:
-            Forgot password button on login
-
-            Viewing other profiles.
-
-            Organizing Files (remaining):
-            All Py files
-
-           
-
-
-
-
+fix all leagues dropdown
+editing leagues in schedules
+removing optional from leagues
+fix events editing visual bugs

@@ -831,3 +831,9 @@ app.get_current_time = get_current_time
 app.localize_datetime = localize_datetime
 app.EST = EST
 
+#This is used for debugging, It will show the app routes that are registered.
+# if __name__ != '__main__':
+#     print("\n=== REGISTERED ROUTES ===")
+#     for rule in app.url_map.iter_rules():
+#         print(f"{rule.endpoint}: {rule.rule}")
+#     print("=========================\n")

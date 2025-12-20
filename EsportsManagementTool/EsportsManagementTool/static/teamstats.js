@@ -48,22 +48,38 @@ let matchEvents = [];
 let teamStats = null;
 
 // ============================================
+// LEAGUE FILTERING STATE
+// ============================================
+
+/**
+ * Currently selected league filter (null = all leagues)
+ * @type {number|null}
+ */
+let currentLeagueFilter = null;
+
+/**
+ * Available leagues for current team
+ * @type {Array}
+ */
+let availableLeagues = [];
+// ============================================
 // STATS TAB LOADING
 // ============================================
 
 /**
- * Load the stats tab when selected
- * Fetches team statistics and match history from API
+ * Load the stats tab when selected (with optional league filter)
  *
  * @param {string} teamId - ID of team to load stats for
  * @param {string} gameId - ID of game associated with team
+ * @param {number|null} leagueId - Optional league ID to filter by
  */
-async function loadStatsTab(teamId, gameId) {
-    console.log('Loading stats tab for team:', teamId, 'game:', gameId);
+async function loadStatsTab(teamId, gameId, leagueId = null) {
+    console.log('Loading stats tab for team:', teamId, 'game:', gameId, 'league:', leagueId);
 
     // Store current context
     currentStatsTeamId = teamId;
     currentStatsGameId = gameId;
+    currentLeagueFilter = leagueId;
 
     const statsPanel = document.getElementById('statsTabContent');
 
@@ -81,14 +97,21 @@ async function loadStatsTab(teamId, gameId) {
     `;
 
     try {
+        // Build URL with optional league filter
+        let url = `/api/teams/${teamId}/stats`;
+        if (leagueId) {
+            url += `?league_id=${leagueId}`;
+        }
+
         // Fetch team statistics from API
-        const response = await fetch(`/api/teams/${teamId}/stats`);
+        const response = await fetch(url);
         const data = await response.json();
 
         if (data.success) {
             // Store statistics and match events
             teamStats = data.stats;
             matchEvents = data.match_events || [];
+            availableLeagues = data.team_leagues || [];
 
             // Render the complete stats UI
             renderStatsContent();
@@ -110,11 +133,11 @@ async function loadStatsTab(teamId, gameId) {
 }
 
 // ============================================
-// STATS RENDERING
+// STATS RENDERING WITH LEAGUE FILTER
 // ============================================
 
 /**
- * Render the complete stats content
+ * Render the complete stats content with league filter dropdown
  * Displays summary cards and match history
  */
 function renderStatsContent() {
@@ -131,9 +154,32 @@ function renderStatsContent() {
         winPercentage = (rawPercentage % 1 === 0) ? rawPercentage.toFixed(0) : rawPercentage.toFixed(1);
     }
 
+    // Build league filter dropdown
+    let leagueFilterHTML = '';
+    if (availableLeagues && availableLeagues.length > 0) {
+        leagueFilterHTML = `
+            <div class="stats-league-filter">
+                <label for="statsLeagueFilter">
+                    <i class="fas fa-trophy"></i> Filter by League:
+                </label>
+                <select id="statsLeagueFilter" onchange="handleLeagueFilterChange()">
+                    <option value="">All Leagues</option>
+                    ${availableLeagues.map(league => `
+                        <option value="${league.id}" ${currentLeagueFilter === league.id ? 'selected' : ''}>
+                            ${league.name}
+                        </option>
+                    `).join('')}
+                </select>
+            </div>
+        `;
+    }
+
     // Build stats UI
     statsPanel.innerHTML = `
         <div class="stats-container">
+            <!-- League Filter Dropdown -->
+            ${leagueFilterHTML}
+
             <!-- Stats Summary Cards -->
             <div class="stats-summary-grid">
                 <!-- Wins Card -->
@@ -184,13 +230,11 @@ function renderStatsContent() {
             <!-- Match History Section -->
             <div class="match-history-section">
                 <div class="section-header">
-                    <h3><i class="fas fa-history"></i> Match History</h3>
-                    <button id="recordResultBtn"
-                            class="btn btn-primary btn-sm"
-                            onclick="openRecordResultModal()"
-                            style="display: none;">
-                        <i class="fas fa-plus"></i> Record Result
-                    </button>
+                    <h3>
+                        <i class="fas fa-history"></i> 
+                        Match History
+                        ${currentLeagueFilter ? `<span style="color: var(--stockton-blue); font-size: 0.875rem; font-weight: normal; margin-left: 0.5rem;">(${availableLeagues.find(l => l.id === currentLeagueFilter)?.name})</span>` : ''}
+                    </h3>
                 </div>
 
                 ${renderMatchHistory()}
@@ -198,29 +242,43 @@ function renderStatsContent() {
         </div>
     `;
 
-    // Check if current user is the GM for THIS game
-    const currentTeam = allTeamsData.find(t => t.TeamID === currentStatsTeamId);
-    const isGameManager = currentTeam && currentTeam.gm_id === window.currentUserId;
-
-    // Show button ONLY for the game's GM
-    const recordBtn = document.getElementById('recordResultBtn');
-    if (recordBtn && isGameManager) {
-        recordBtn.style.display = 'inline-flex';
-    }
 }
 
+// ============================================
+// LEAGUE FILTER HANDLER
+// ============================================
+
 /**
- * Render match history list
+ * Handle league filter dropdown change
+ * Reloads stats with selected league filter
+ */
+function handleLeagueFilterChange() {
+    const filterSelect = document.getElementById('statsLeagueFilter');
+    if (!filterSelect) return;
+
+    const selectedLeagueId = filterSelect.value ? parseInt(filterSelect.value) : null;
+    
+    // Reload stats with new filter
+    loadStatsTab(currentStatsTeamId, currentStatsGameId, selectedLeagueId);
+}
+
+// ============================================
+// UPDATED MATCH HISTORY RENDERING
+// ============================================
+
+/**
+ * Render match history list with league badges
  * Displays all recorded match results in chronological order
  *
  * @returns {string} HTML string for match history
  */
 function renderMatchHistory() {
     if (!matchEvents || matchEvents.length === 0) {
+        const filterText = currentLeagueFilter ? ' for this league' : '';
         return `
             <div class="match-history-empty">
                 <i class="fas fa-calendar-times"></i>
-                <p>No match results recorded yet</p>
+                <p>No match results recorded yet${filterText}</p>
             </div>
         `;
     }
@@ -238,6 +296,13 @@ function renderMatchHistory() {
                           'fa-clock';
         const resultText = match.result ? match.result.toUpperCase() : 'PENDING';
 
+        // League badge (if match has league)
+        const leagueBadge = match.league_name ? `
+            <span class="match-league-badge" title="League: ${match.league_name}">
+                <i class="fas fa-trophy"></i> ${match.league_name}
+            </span>
+        ` : '';
+
         html += `
             <div class="match-history-item" 
                  onclick="openMatchDetailsModal(${match.event_id})"
@@ -254,6 +319,7 @@ function renderMatchHistory() {
                             <i class="fas fa-map-marker-alt"></i> ${match.location}
                         </div>
                     ` : ''}
+                    ${leagueBadge}
                 </div>
 
                 <div class="match-result match-result-${resultClass}">
@@ -635,85 +701,66 @@ async function openMatchDetailsModal(eventId) {
     const contentDiv = document.getElementById('matchDetailsContent');
     const editBtn = document.getElementById('editMatchDetailsBtn');
 
-    // Show modal with loading state
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
     loadingDiv.style.display = 'block';
     contentDiv.style.display = 'none';
 
     try {
-        // Find match in current data
         const match = matchEvents.find(m => m.event_id === eventId);
-        
-        if (!match) {
-            throw new Error('Match not found');
-        }
+        if (!match) throw new Error('Match not found');
 
-        // Format date nicely
+        // Date
         const matchDate = new Date(match.date + 'T00:00:00');
-        const formattedDate = matchDate.toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
+        const formattedDate = matchDate.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
         });
 
-        // Format time
-        let timeDisplay = 'Time not set';
-        if (match.start_time) {
-            timeDisplay = match.start_time;
-        }
+        // Time
+        const timeDisplay = match.start_time || 'Time not set';
 
-        // Determine result display
-        let resultHTML = '';
+        // Result
+        let resultHTML = `
+            <span class="match-detail-result pending">
+                <i class="fas fa-clock"></i>
+                PENDING
+            </span>
+        `;
+
         if (match.result) {
             const resultClass = match.result.toLowerCase();
             const resultIcon = match.result === 'win' ? 'fa-trophy' : 'fa-times-circle';
+
             resultHTML = `
                 <span class="match-detail-result ${resultClass}">
                     <i class="fas ${resultIcon}"></i>
                     ${match.result.toUpperCase()}
                 </span>
             `;
-        } else {
-            resultHTML = `
-                <span class="match-detail-result pending">
-                    <i class="fas fa-clock"></i>
-                    PENDING
-                </span>
-            `;
         }
 
-        // Build metadata section
-        let metadataHTML = '';
-        if (match.result && match.recorded_by) {
-            metadataHTML = `
-                <div class="match-detail-section full-width">
+        // League
+        let leagueHTML = '';
+        if (match.league_name) {
+            leagueHTML = `
+                <div class="match-detail-section">
                     <div class="match-detail-label">
-                        <i class="fas fa-info-circle"></i>
-                        Recording Information
+                        <i class="fas fa-trophy"></i>
+                        League
                     </div>
-                    <div class="match-detail-metadata">
-                        <div class="match-detail-metadata-item">
-                            <i class="fas fa-user"></i>
-                            <span>Recorded by ${match.recorded_by}</span>
-                        </div>
-                        <div class="match-detail-metadata-item">
-                            <i class="fas fa-clock"></i>
-                            <span>Recorded on ${new Date(match.recorded_at).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            })}</span>
-                        </div>
+                    <div class="match-detail-value">
+                        <span class="match-league-badge">
+                            <i class="fas fa-trophy"></i> ${match.league_name}
+                        </span>
                     </div>
                 </div>
             `;
         }
 
-        // Build notes section
+        // Notes
         let notesHTML = '';
         if (match.notes && match.notes.trim()) {
             notesHTML = `
@@ -729,10 +776,41 @@ async function openMatchDetailsModal(eventId) {
             `;
         }
 
-        // Update modal title
+        // Metadata
+        let metadataHTML = '';
+        if (match.result && match.recorded_by) {
+            metadataHTML = `
+                <div class="match-detail-section full-width">
+                    <div class="match-detail-label">
+                        <i class="fas fa-info-circle"></i>
+                        Recording Information
+                    </div>
+                    <div class="match-detail-metadata">
+                        <div class="match-detail-metadata-item">
+                            <i class="fas fa-user"></i>
+                            <span>Recorded by ${match.recorded_by}</span>
+                        </div>
+                        <div class="match-detail-metadata-item">
+                            <i class="fas fa-clock"></i>
+                            <span>
+                                Recorded on ${new Date(match.recorded_at).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Title
         document.getElementById('matchDetailsTitle').textContent = match.name;
 
-        // Populate content
+        // Render ONCE
         contentDiv.innerHTML = `
             <div class="match-details-grid">
                 <div class="match-detail-section">
@@ -769,15 +847,16 @@ async function openMatchDetailsModal(eventId) {
                     </div>
                 </div>
 
+                ${leagueHTML}
                 ${notesHTML}
                 ${metadataHTML}
             </div>
         `;
 
-        // Show/hide edit button based on permissions
+        // Edit permissions
         const currentTeam = allTeamsData.find(t => t.TeamID === currentStatsTeamId);
         const isGameManager = currentTeam && currentTeam.gm_id === window.currentUserId;
-        
+
         if (editBtn && isGameManager && match.result) {
             editBtn.style.display = 'flex';
             editBtn.onclick = () => {
@@ -788,7 +867,6 @@ async function openMatchDetailsModal(eventId) {
             editBtn.style.display = 'none';
         }
 
-        // Hide loading, show content
         loadingDiv.style.display = 'none';
         contentDiv.style.display = 'block';
 
@@ -805,6 +883,7 @@ async function openMatchDetailsModal(eventId) {
         contentDiv.style.display = 'block';
     }
 }
+
 
 /**
  * Close match details modal
@@ -830,4 +909,4 @@ window.closeRecordResultModal = closeRecordResultModal;
 window.handleResultSelection = handleResultSelection;
 window.submitMatchResult = submitMatchResult;
 window.editMatchResult = editMatchResult;
-
+window.handleLeagueFilterChange = handleLeagueFilterChange;

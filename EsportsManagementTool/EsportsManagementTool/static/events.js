@@ -1757,18 +1757,26 @@ function createEditForm() {
 
     const event = EventState.currentEventData;
 
-    editForm.innerHTML = `
-        <form id="editEventFormData" class="event-form-modal">
-            ${createEditFormFields(event)}
-            <div id="editFormMessage" class="form-message" style="display: none;"></div>
-            ${createFormActionButtons()}
-        </form>
-    `;
+    editForm.innerHTML = createEditFormFields(event);
 
-    // Initialize edit form
+    // Initialize game tag selector
     initializeGameTagSelector('edit', event.game);
+    
+    // Setup location dropdown
     setupEditLocationDropdown(event.location);
+    
+    // Handle event type (will show/hide league field)
     handleEditEventTypeChange();
+    
+    // Load and set league if this is a Match event
+    if (event.event_type === 'Match') {
+        loadLeaguesForEventEdit().then(() => {
+            const leagueDropdown = document.getElementById('editEventLeagueDropdown');
+            if (leagueDropdown && event.league_id) {
+                leagueDropdown.value = event.league_id;
+            }
+        });
+    }
 }
 
 /**
@@ -1784,7 +1792,7 @@ function createEditFormFields(event) {
         </div>
 
         <div class="form-group">
-            <label for="editEventType"> Type</label>
+            <label for="editEventType">Event Type</label>
             <select id="editEventType" name="eventType" required onchange="handleEditEventTypeChange()">
                 ${createEventTypeOptions(event.event_type)}
             </select>
@@ -1792,13 +1800,24 @@ function createEditFormFields(event) {
 
         ${createGameTagField('edit')}
 
+        <!-- ADD THIS NEW LEAGUE FIELD -->
+        <div class="form-group" id="editEventLeagueFieldGroup" style="display: ${event.event_type === 'Match' ? 'block' : 'none'};">
+            <label for="editEventLeagueDropdown">League ${event.event_type === 'Match' ? '*' : '(Optional)'}</label>
+            <select id="editEventLeagueDropdown" name="league_id" class="game-dropdown-single" ${event.event_type === 'Match' ? 'required' : ''}>
+                <option value="">Select league</option>
+                <!-- Will be populated by JavaScript -->
+            </select>
+            <div id="editEventLeagueLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                <i class="fas fa-spinner fa-spin"></i> Loading leagues...
+            </div>
+        </div>
+
         <div class="form-group">
             <label for="editDate">Date</label>
             <input type="date" id="editDate" name="eventDate" value="${event.date_raw}" required>
         </div>
 
         ${createTimeFields(event)}
-
         ${createLocationFields('edit', event.location)}
 
         <div class="form-group">
@@ -1974,12 +1993,72 @@ function setupEditLocationDropdown(currentLocation) {
 function handleEditEventTypeChange() {
     const eventType = document.getElementById('editEventType')?.value;
     const gameFieldGroup = document.getElementById('editGameFieldGroup');
+    const leagueFieldGroup = document.getElementById('editEventLeagueFieldGroup');
+    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
 
     if (eventType === 'Misc') {
         setElementDisplay(gameFieldGroup, 'none');
+        setElementDisplay(leagueFieldGroup, 'none');
         clearSelectedGames('edit');
+        if (leagueDropdown) {
+            leagueDropdown.removeAttribute('required');
+        }
+    } else if (eventType === 'Match') {
+        setElementDisplay(gameFieldGroup, 'block');
+        setElementDisplay(leagueFieldGroup, 'block');
+        
+        if (leagueDropdown) {
+            leagueDropdown.setAttribute('required', 'required');
+            // Update label to show required
+            const label = document.querySelector('label[for="editEventLeagueDropdown"]');
+            if (label) label.innerHTML = 'League *';
+        }
+        
+        // Load leagues if not already loaded
+        loadLeaguesForEventEdit();
     } else {
         setElementDisplay(gameFieldGroup, 'block');
+        setElementDisplay(leagueFieldGroup, 'none');
+        
+        if (leagueDropdown) {
+            leagueDropdown.removeAttribute('required');
+        }
+    }
+}
+
+async function loadLeaguesForEventEdit() {
+    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
+    const loadingIndicator = document.getElementById('editEventLeagueLoadingIndicator');
+    
+    if (!leagueDropdown) return;
+    
+    // Don't reload if already populated (more than just the placeholder)
+    if (leagueDropdown.options.length > 1) return;
+    
+    setElementDisplay(loadingIndicator, 'block');
+    leagueDropdown.disabled = true;
+    
+    try {
+        const response = await fetch('/league/all');
+        const data = await response.json();
+        
+        if (data.leagues && data.leagues.length > 0) {
+            // Keep the placeholder and add leagues
+            data.leagues.forEach(league => {
+                const option = document.createElement('option');
+                option.value = league.id;
+                option.textContent = league.name;
+                leagueDropdown.appendChild(option);
+            });
+        } else {
+            leagueDropdown.innerHTML = '<option value="">No leagues available</option>';
+        }
+    } catch (error) {
+        console.error('Error loading leagues for edit:', error);
+        leagueDropdown.innerHTML = '<option value="">Error loading leagues</option>';
+    } finally {
+        setElementDisplay(loadingIndicator, 'none');
+        leagueDropdown.disabled = false;
     }
 }
 
@@ -2046,6 +2125,7 @@ function gatherEditFormData() {
         : locationSelect?.value;
 
     const gamesInput = document.getElementById('editSelectedGamesInput');
+    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
 
     return {
         event_id: EventState.currentEventId,
@@ -2056,7 +2136,8 @@ function gatherEditFormData() {
         start_time: document.getElementById('editStartTime')?.value,
         end_time: document.getElementById('editEndTime')?.value,
         location: locationValue,
-        description: document.getElementById('editDescription')?.value
+        description: document.getElementById('editDescription')?.value,
+        league_id: leagueDropdown?.value || null  // ADD THIS LINE
     };
 }
 
