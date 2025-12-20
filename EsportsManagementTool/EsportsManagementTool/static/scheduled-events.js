@@ -541,10 +541,24 @@ function handleFrequencyChange() {
 async function handleScheduledEventSubmit(event) {
     event.preventDefault();
 
+    const eventType = document.getElementById('scheduledEventType').value;
+    const leagueSelect = document.getElementById('scheduledLeagueSelect');
+    const messageDiv = document.getElementById('scheduledEventMessage');
+
+    // Validate league selection for Match events
+    if (eventType === 'Match' && !leagueSelect.value) {
+        messageDiv.textContent = 'Please select a league for this match event.';
+        messageDiv.className = 'form-message error';
+        messageDiv.style.display = 'block';
+        
+        // Scroll to the league field
+        leagueSelect.focus();
+        return;
+    }
+
     const submitBtn = event.target.querySelector('button[type="submit"]');
     const btnText = submitBtn.querySelector('.btn-text');
     const btnSpinner = submitBtn.querySelector('.btn-spinner');
-    const messageDiv = document.getElementById('scheduledEventMessage');
 
     // Handle location (custom or preset)
     const locationSelect = document.getElementById('scheduledLocation');
@@ -564,7 +578,7 @@ async function handleScheduledEventSubmit(event) {
     const formData = {
         team_id: teamId,
         event_name: document.getElementById('scheduledEventName').value,
-        event_type: document.getElementById('scheduledEventType').value,
+        event_type: eventType,
         frequency: document.getElementById('scheduledFrequency').value,
         start_time: document.getElementById('scheduledStartTime').value,
         end_time: document.getElementById('scheduledEndTime').value,
@@ -573,9 +587,8 @@ async function handleScheduledEventSubmit(event) {
         location: location
     };
 
-    // Add league_id for Match events
-    const leagueSelect = document.getElementById('scheduledLeagueSelect');
-    if (formData.event_type === 'Match' && leagueSelect && leagueSelect.value) {
+    // Add league_id for Match events (now guaranteed to have a value)
+    if (eventType === 'Match' && leagueSelect.value) {
         formData.league_id = parseInt(leagueSelect.value);
     }
 
@@ -806,6 +819,17 @@ function openEditScheduleMode(scheduleId) {
         return;
     }
 
+    // Get team_id from schedule or from current context
+    // For team-specific schedules, use schedule.team_id
+    // For game-wide schedules, use the current team context
+    const teamId = schedule.team_id || ScheduleState.currentTeamId || currentScheduleTeamId;
+    
+    if (!teamId) {
+        console.error('Cannot determine team_id for schedule:', schedule);
+        alert('Cannot edit schedule: missing team information');
+        return;
+    }
+
     const modalBody = document.getElementById('scheduleModalBody');
     const eventTypeClass = schedule.event_type.toLowerCase();
 
@@ -821,7 +845,7 @@ function openEditScheduleMode(scheduleId) {
     ];
     const isCustomLocation = !presetLocations.includes(schedule.location);
 
-    // Build edit form
+    // Build edit form WITH league field support
     modalBody.innerHTML = `
         <form id="editScheduleForm" class="schedule-edit-form">
             <input type="hidden" id="editScheduleId" value="${scheduleId}">
@@ -837,11 +861,24 @@ function openEditScheduleMode(scheduleId) {
 
             <div class="form-group">
                 <label for="editScheduleType">Event Type *</label>
-                <select id="editScheduleType" name="event_type" required>
+                <select id="editScheduleType" name="event_type" required onchange="handleEditEventTypeChange()">
                     <option value="Match" ${schedule.event_type === 'Match' ? 'selected' : ''}>Match</option>
                     <option value="Practice" ${schedule.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
                     <option value="Misc" ${schedule.event_type === 'Misc' ? 'selected' : ''}>Misc</option>
                 </select>
+            </div>
+
+            <!-- League field for Match events -->
+            <div class="form-group" id="editScheduleLeagueGroup" style="display: ${schedule.event_type === 'Match' ? 'block' : 'none'};">
+                <label for="editScheduleLeagueSelect" id="editScheduleLeagueLabel">
+                    League ${schedule.event_type === 'Match' ? '<span style="color: #ff5252;">*</span>' : '(Optional)'}
+                </label>
+                <select id="editScheduleLeagueSelect" name="league_id" ${schedule.event_type === 'Match' ? 'required' : ''}>
+                    <option value="">Select a league</option>
+                </select>
+                <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                    Select the league this match is part of
+                </small>
             </div>
 
             <div class="form-group">
@@ -905,12 +942,117 @@ function openEditScheduleMode(scheduleId) {
     // Attach location dropdown handler
     setupEditLocationHandler();
 
+    // ✅ FIXED: Load leagues using team_id from schedule or context
+    if (schedule.event_type === 'Match' && teamId) {
+        console.log('Loading leagues for team_id:', teamId, 'current league:', schedule.league_id);
+        loadEditScheduleLeagues(teamId, schedule.league_id);
+    }
+
     // Attach form submit handler
     document.getElementById('editScheduleForm').addEventListener('submit', handleEditScheduleSubmit);
 
     // Hide edit/delete buttons while in edit mode
     document.getElementById('editScheduleBtn').style.display = 'none';
     document.getElementById('deleteScheduleBtn').style.display = 'none';
+}
+
+
+/**
+ *  Handle event type change in edit mode
+ */
+function handleEditEventTypeChange() {
+    const eventType = document.getElementById('editScheduleType').value;
+    const leagueGroup = document.getElementById('editScheduleLeagueGroup');
+    const leagueSelect = document.getElementById('editScheduleLeagueSelect');
+    const leagueLabel = document.getElementById('editScheduleLeagueLabel');
+    
+    if (eventType === 'Match') {
+        leagueGroup.style.display = 'block';
+        leagueSelect.setAttribute('required', 'required');
+        
+        if (leagueLabel) {
+            leagueLabel.innerHTML = 'League <span style="color: #ff5252;">*</span>';
+        }
+        
+        // ✅ FIXED: Get team_id from schedule or context
+        const scheduleId = document.getElementById('editScheduleId').value;
+        const schedule = ScheduleState.findSchedule(parseInt(scheduleId)) ||
+                        currentSchedules.find(s => s.schedule_id === parseInt(scheduleId));
+        
+        // Use schedule.team_id if available, otherwise use current team context
+        const teamId = schedule?.team_id || ScheduleState.currentTeamId || currentScheduleTeamId;
+        
+        if (teamId && leagueSelect.options.length <= 1) {
+            console.log('Loading leagues for team_id:', teamId);
+            loadEditScheduleLeagues(teamId, null);
+        }
+    } else {
+        leagueGroup.style.display = 'none';
+        leagueSelect.removeAttribute('required');
+        leagueSelect.value = '';
+        
+        if (leagueLabel) {
+            leagueLabel.innerHTML = 'League (Optional)';
+        }
+    }
+}
+
+
+/**
+ * Load leagues for edit modal
+ * @param {number} gameId - Game ID to load leagues for
+ * @param {number} currentLeagueId - Currently selected league ID (if any)
+ */
+async function loadEditScheduleLeagues(teamId, currentLeagueId) {
+    const leagueSelect = document.getElementById('editScheduleLeagueSelect');
+    
+    if (!leagueSelect) {
+        console.warn('Edit league select not found');
+        return;
+    }
+    
+    // Show loading state
+    leagueSelect.innerHTML = '<option value="">Loading leagues...</option>';
+    leagueSelect.disabled = true;
+    
+    try {
+        // Fetch leagues for the TEAM (not game)
+        const response = await fetch(`/api/teams/${teamId}/leagues`);
+        const data = await response.json();
+        
+        // Clear loading option
+        leagueSelect.innerHTML = '';
+        
+        if (data.success && data.leagues) {
+            // Add placeholder option
+            leagueSelect.innerHTML = '<option value="">Select a league</option>';
+            
+            if (data.leagues.length === 0) {
+                leagueSelect.innerHTML = '<option value="">No leagues assigned to team</option>';
+            } else {
+                // Add each league
+                data.leagues.forEach(league => {
+                    const option = document.createElement('option');
+                    option.value = league.id;
+                    option.textContent = league.name;
+                    
+                    // Select the current league if it matches
+                    if (currentLeagueId && league.id === currentLeagueId) {
+                        option.selected = true;
+                    }
+                    
+                    leagueSelect.appendChild(option);
+                });
+            }
+        } else {
+            leagueSelect.innerHTML = '<option value="">Error loading leagues</option>';
+        }
+    } catch (error) {
+        console.error('Error loading edit schedule leagues:', error);
+        leagueSelect.innerHTML = '<option value="">Error loading leagues</option>';
+    } finally {
+        leagueSelect.disabled = false;
+    }
 }
 
 /**
@@ -951,10 +1093,24 @@ function cancelEditSchedule(scheduleId) {
 async function handleEditScheduleSubmit(event) {
     event.preventDefault();
 
+    const eventType = document.getElementById('editScheduleType').value;
+    const leagueSelect = document.getElementById('editScheduleLeagueSelect');
+    const messageDiv = document.getElementById('editScheduleMessage');
+
+    // Validate league selection for Match events
+    if (eventType === 'Match' && !leagueSelect.value) {
+        messageDiv.textContent = 'Please select a league for this match event.';
+        messageDiv.className = 'form-message error';
+        messageDiv.style.display = 'block';
+        
+        // Focus on the league field
+        leagueSelect.focus();
+        return;
+    }
+
     const submitBtn = event.target.querySelector('button[type="submit"]');
     const btnText = submitBtn.querySelector('.btn-text');
     const btnSpinner = submitBtn.querySelector('.btn-spinner');
-    const messageDiv = document.getElementById('editScheduleMessage');
 
     // Set loading state
     submitBtn.disabled = true;
@@ -974,11 +1130,16 @@ async function handleEditScheduleSubmit(event) {
     const formData = {
         schedule_id: scheduleId,
         event_name: document.getElementById('editScheduleName').value,
-        event_type: document.getElementById('editScheduleType').value,
+        event_type: eventType,
         visibility: document.getElementById('editScheduleVisibility').value,
         location: location,
         description: document.getElementById('editScheduleDescription').value
     };
+
+    //  Add league_id for Match events
+    if (eventType === 'Match' && leagueSelect.value) {
+        formData.league_id = parseInt(leagueSelect.value);
+    }
 
     try {
         const response = await fetch('/api/scheduled-events/update', {
@@ -1051,8 +1212,10 @@ function confirmDeleteSchedule(scheduleId) {
 // LEAGUE SELECTION FOR MATCHES
 // ============================================
 
+
 /**
  * Show/hide league dropdown based on event type
+ * Makes league REQUIRED for Match events
  */
 function handleEventTypeChangeForLeague() {
     const eventType = document.getElementById('scheduledEventType').value;
@@ -1063,6 +1226,15 @@ function handleEventTypeChangeForLeague() {
         // Show league dropdown for matches
         leagueGroup.style.display = 'block';
         
+        // Make league field REQUIRED
+        leagueSelect.setAttribute('required', 'required');
+        
+        // Update the label to show it's required
+        const leagueLabel = leagueGroup.querySelector('label');
+        if (leagueLabel && !leagueLabel.textContent.includes('*')) {
+            leagueLabel.innerHTML = 'League <span style="color: #ff5252;">*</span>';
+        }
+        
         // Load leagues for current team if not already loaded
         if (ScheduleState.currentTeamId && leagueSelect.options.length <= 1) {
             loadTeamLeaguesForSchedule(ScheduleState.currentTeamId);
@@ -1070,7 +1242,16 @@ function handleEventTypeChangeForLeague() {
     } else {
         // Hide league dropdown for other event types
         leagueGroup.style.display = 'none';
+        
+        // Remove required attribute
+        leagueSelect.removeAttribute('required');
         leagueSelect.value = ''; // Clear selection
+        
+        // Reset label
+        const leagueLabel = leagueGroup.querySelector('label');
+        if (leagueLabel) {
+            leagueLabel.textContent = 'League (Optional)';
+        }
     }
 }
 
@@ -1095,7 +1276,8 @@ async function loadTeamLeaguesForSchedule(teamId) {
         
         if (data.success && data.leagues) {
             // Rebuild dropdown
-            leagueSelect.innerHTML = '<option value="">No league (optional)</option>';
+            leagueSelect.innerHTML = ''; // Clear everything first
+            leagueSelect.innerHTML = '<option value="">Select a league</option>';
             
             if (data.leagues.length === 0) {
                 leagueSelect.innerHTML += '<option value="" disabled>No leagues assigned to team</option>';

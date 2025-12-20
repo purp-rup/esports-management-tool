@@ -73,6 +73,14 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                         'message': f'Missing required field: {field}'
                     }), 400
 
+            if data['event_type'] == 'Match':
+                league_id = data.get('league_id')
+                if not league_id:
+                    return jsonify({
+                        'success': False,
+                        'message': 'League selection is required for Match events'
+                    }), 400
+
             # Additional validation based on frequency
             if data['frequency'] == 'Once':
                 if 'specific_date' not in data or not data['specific_date']:
@@ -369,6 +377,8 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
     # ============================================
     # UPDATE SCHEDULED EVENT
     # ============================================
+    # In scheduled_events.py - Update the update_scheduled_event route
+
     @app.route('/api/scheduled-events/update', methods=['POST'])
     @login_required
     @roles_required('gm')
@@ -376,11 +386,21 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
         """
         Update a scheduled event and all its generated events
         Cannot change frequency/timing - only metadata
+        NOW SUPPORTS: Updating league_id for Match events
         """
         try:
             data = request.get_json()
             user_id = session['id']
             schedule_id = data.get('schedule_id')
+
+            # NEW: Validate league for Match events
+            if data.get('event_type') == 'Match':
+                league_id = data.get('league_id')
+                if not league_id:
+                    return jsonify({
+                        'success': False,
+                        'message': 'League selection is required for Match events'
+                    }), 400
 
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -407,14 +427,29 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                         'message': 'You do not have permission to edit this schedule'
                     }), 403
 
-                # Update the schedule
+                # NEW: Validate league if provided
+                league_id = data.get('league_id')
+                if league_id and data.get('event_type') == 'Match':
+                    cursor.execute("""
+                        SELECT 1 FROM team_leagues 
+                        WHERE team_id = %s AND league_id = %s
+                    """, (schedule['team_id'], league_id))
+                    
+                    if not cursor.fetchone():
+                        return jsonify({
+                            'success': False,
+                            'message': 'Selected league is not assigned to this team'
+                        }), 400
+
+                # Update the schedule WITH league_id
                 cursor.execute("""
                     UPDATE scheduled_events 
                     SET event_name = %s,
                         event_type = %s,
                         visibility = %s,
                         location = %s,
-                        description = %s
+                        description = %s,
+                        league_id = %s
                     WHERE schedule_id = %s
                 """, (
                     data['event_name'],
@@ -422,22 +457,25 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                     data['visibility'],
                     data['location'],
                     data.get('description', ''),
+                    league_id,  # NEW: Update league_id
                     schedule_id
                 ))
 
-                # Update all associated events in generalevents table
+                # Update all associated events in generalevents table WITH league_id
                 cursor.execute("""
                     UPDATE generalevents
                     SET EventName = %s,
                         EventType = %s,
                         Location = %s,
-                        Description = %s
+                        Description = %s,
+                        league_id = %s
                     WHERE schedule_id = %s
                 """, (
                     data['event_name'],
                     data['event_type'],
                     data['location'],
                     data.get('description', ''),
+                    league_id,  # NEW: Update league_id for all events
                     schedule_id
                 ))
 

@@ -1,5 +1,3 @@
 Functionality notes:
 Needs doing:
-editing leagues in schedules
-removing optional from leagues
-fix events editing visual bugs
+Showing leagues in view schedule modal
