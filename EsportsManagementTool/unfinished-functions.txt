@@ -1,6 +1,5 @@
 Functionality notes:
 Needs doing:
-fix all leagues dropdown
 editing leagues in schedules
 removing optional from leagues
 fix events editing visual bugs

@@ -571,6 +571,25 @@
     box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
 }
 
+/* Fix for league filter dropdown options visibility */
+.stats-league-filter select option {
+    background: var(--dark-bg);
+    color: var(--text-primary);
+    padding: 0.5rem;
+}
+
+/* Ensure selected option is visible */
+.stats-league-filter select option:checked {
+    background: var(--stockton-blue);
+    color: white;
+}
+
+/* Hover state for options */
+.stats-league-filter select option:hover {
+    background: var(--stockton-blue);
+    color: white;
+}
+
 /* ============================================
    LEAGUE BADGES IN MATCH HISTORY
    ============================================ */
