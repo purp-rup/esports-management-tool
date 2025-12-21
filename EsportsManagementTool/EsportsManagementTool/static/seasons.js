@@ -323,16 +323,16 @@ async function handleCreateSeason(event) {
         const data = await response.json();
 
         if (data.success) {
-            showMessage('seasonsMessage', data.message, 'success');
+            showDeleteSuccessMessage(data.message);
             // Reload the seasons data
             await loadSeasonsData();
         } else {
-            showMessage('seasonsMessage', data.message, 'error');
+            showDeleteErrorMessage(data.message);
         }
 
     } catch (error) {
         console.error('Error creating season:', error);
-        showMessage('seasonsMessage', 'Failed to create season', 'error');
+        showDeleteErrorMessage('Failed to create season');
     } finally {
         btn.disabled = false;
         btnText.style.display = 'inline';
@@ -375,16 +375,16 @@ async function handleUpdateSeason(event) {
         const data = await response.json();
 
         if (data.success) {
-            showMessage('seasonsMessage', data.message, 'success');
+            showDeleteSuccessMessage(data.message);
             // Reload the seasons data
             await loadSeasonsData();
         } else {
-            showMessage('seasonsMessage', data.message, 'error');
+            showDeleteErrorMessage(data.message);
         }
 
     } catch (error) {
         console.error('Error updating season:', error);
-        showMessage('seasonsMessage', 'Failed to update season', 'error');
+        showDeleteErrorMessage('Failed to update season');
     } finally {
         btn.disabled = false;
         btnText.style.display = 'inline';
@@ -393,45 +393,53 @@ async function handleUpdateSeason(event) {
 }
 
 /**
- * Confirm ending the current season
+ * Confirm ending the current season using delete confirmation modal
  */
 function confirmEndSeason() {
     if (!currentSeason) return;
 
-    const confirmed = confirm(
-        `Are you sure you want to end "${currentSeason.season_name}"?\n\n` +
-        `This will make the season inactive and you'll be able to create a new one.`
-    );
-
-    if (confirmed) {
-        endCurrentSeason();
-    }
+    openDeleteConfirmModal({
+        title: 'End Season?',
+        itemName: currentSeason.season_name,
+        message: `Are you sure you want to end ${currentSeason.season_name}?`,
+        additionalInfo: `
+            <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 6px; color: #fbbf24;">
+                <i class="fas fa-info-circle"></i> This will make the season inactive and you'll be able to create a new one.
+            </div>
+        `,
+        buttonText: 'End Season',
+        onConfirm: endCurrentSeasonConfirmed,
+        itemId: currentSeason.season_id
+    });
 }
 
 /**
- * End the current season
+ * End the current season (called by confirmation modal)
  */
-async function endCurrentSeason() {
-    if (!currentSeason) return;
-
+async function endCurrentSeasonConfirmed(seasonId) {
     try {
-        const response = await fetch(`/api/seasons/${currentSeason.season_id}/end`, {
+        const response = await fetch(`/api/seasons/${seasonId}/end`, {
             method: 'POST'
         });
 
         const data = await response.json();
 
+        // Close the confirmation modal first
+        closeDeleteConfirmModal();
+
         if (data.success) {
-            showMessage('seasonsMessage', data.message, 'success');
+            // Show success notification
+            showDeleteSuccessMessage(data.message);
             // Reload the seasons data
             await loadSeasonsData();
         } else {
-            showMessage('seasonsMessage', data.message, 'error');
+            showDeleteErrorMessage(data.message);
         }
 
     } catch (error) {
         console.error('Error ending season:', error);
-        showMessage('seasonsMessage', 'Failed to end season', 'error');
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Failed to end season');
     }
 }
 

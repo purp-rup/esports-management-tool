@@ -2,10 +2,24 @@ Functionality notes:
 Needs doing:
             Forgot password button on login
 
+            remove match type event from general event creation
+
             Viewing other profiles.
 
             Organizing Files (remaining):
             All Py files
+
+            Restructure Communities:
+            List of communities in Create-Community Button (like leagues)
+            Assign/Remove GM from here
+            "Hide" Community (hides on community tab, slightly transparent in Create Community modal)
+            Edit Community functionality
+            Delete Community functionality (exclusive to Dev)
+
+
+
+
+
 
            
 

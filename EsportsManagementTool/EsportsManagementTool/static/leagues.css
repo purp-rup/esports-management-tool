@@ -238,6 +238,19 @@
     margin-top: 1rem;
 }
 
+/* League delete button styling */
+.btn-league-delete {
+    background: transparent !important;
+    color: #ef4444 !important;
+    border: 1px solid #ef4444 !important;
+    transition: all 0.2s;
+}
+
+.btn-league-delete:hover {
+    background: rgba(239, 68, 68, 0.1) !important;
+    transform: translateY(-1px);
+}
+
 /* Delete confirmation for leagues */
 .league-delete-warning {
     background: rgba(239, 68, 68, 0.1);
