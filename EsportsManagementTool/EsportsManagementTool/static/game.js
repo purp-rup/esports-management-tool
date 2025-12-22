@@ -1013,7 +1013,7 @@ function setupCreateTeamForm() {
                 // Reload page after brief delay
                 setTimeout(() => {
                     window.location.reload();
-                }, 1500);
+                }, 350);
             } else {
                 throw new Error(data.message || 'Failed to create team');
             }

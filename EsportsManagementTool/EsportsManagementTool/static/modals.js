@@ -33,11 +33,13 @@
  * @type {Object.<string, Function>}
  */
 const MODAL_CLOSE_HANDLERS = {
+    // Universal delete confirmation modal
+    'deleteConfirmModal': closeDeleteConfirmModal,
+
     // Event-related modals
     'dayEventsModal': closeDayModal,
     'eventDetailsModal': closeEventModal,
     'createEventModal': closeCreateEventModal,
-    'deleteEventConfirmModal': closeDeleteConfirmModal,
 
     // Game/Community-related modals
     'createGameModal': closeCreateGameModal,
@@ -54,13 +56,22 @@ const MODAL_CLOSE_HANDLERS = {
     'changePasswordModal': closeChangePasswordModal,
 
     // Scheduled events
+    'scheduleDetailsModal': closeScheduleModal,
     'createScheduledEventModal': closeCreateScheduledEventModal,
 
-    //VOD Modal
-    'showAddVodModal': closeAddVodModal,
+    // Stats modal
+    'recordMatchResultModal': closeRecordResultModal,
+    'matchDetailsModal': closeMatchDetailsModal,
+
+    // VOD Modals
+    'addVodModal': closeAddVodModal,
+    'vodPlayerModal': closeVodPlayerModal,
 
     //Seasons Modal
-    'manageSeasonsModal': closeManageSeasonsModal
+    'manageSeasonsModal': closeManageSeasonsModal,
+
+    // Leagues Modal
+    'manageLeaguesModal': closeManageLeaguesModal
 };
 
 // ============================================
@@ -87,17 +98,15 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeClickOutsideHandler() {
     window.addEventListener('click', function(event) {
         // Check if the clicked element is a modal background
-        if (event.target.classList.contains('modal')) {
+        // Support both .modal and .delete-confirmation-modal classes
+        if (event.target.classList.contains('modal') ||
+            event.target.classList.contains('delete-confirmation-modal')) {
             const modalId = event.target.id;
 
             // Look up and execute the appropriate close handler
             if (MODAL_CLOSE_HANDLERS[modalId]) {
                 MODAL_CLOSE_HANDLERS[modalId]();
             }
-
-            // Always reset scroll as a safety measure
-            // Ensures body scrolling is restored even if close handler fails
-            document.body.style.overflow = 'auto';
         }
     });
 }
@@ -115,9 +124,9 @@ function initializeEscapeKeyHandler() {
         // Check if ESC key was pressed
         if (event.key === 'Escape') {
             // Find all currently visible modals
-            // Supports both display:block style and .active class
+            // Supports both display:block, display:flex, and .active class
             const visibleModals = document.querySelectorAll(
-                '.modal[style*="display: block"], .modal.active'
+                '.modal[style*="display: block"], .modal[style*="display: flex"], .modal.active, .delete-confirmation-modal.active'
             );
 
             // Close all visible modals
@@ -129,9 +138,6 @@ function initializeEscapeKeyHandler() {
                     MODAL_CLOSE_HANDLERS[modalId]();
                 }
             });
-
-            // Always reset scroll as a safety measure
-            document.body.style.overflow = 'auto';
         }
     });
 }

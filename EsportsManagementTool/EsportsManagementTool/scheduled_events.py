@@ -12,6 +12,114 @@ from EsportsManagementTool import get_current_time, localize_datetime, EST
 from EsportsManagementTool.events import get_season_for_event_date
 
 """
+Method to determine if a user is eligible to delete a schedule.
+"""
+
+
+def can_delete_schedule(cursor, schedule_id, user_id, is_developer):
+    """
+    Determine if a user can delete a scheduled event based on time-based rules.
+
+    Rules:
+    1. Developers can ALWAYS delete any schedule
+    2. Game Managers for the schedule's game can delete within 24 hours of creation
+    3. After 24 hours, only developers can delete
+
+    Args:
+        cursor: MySQL cursor
+        schedule_id: ID of the schedule
+        user_id: ID of the user attempting deletion
+        is_developer: Whether user is a developer
+
+    Returns:
+        tuple: (can_delete: bool, reason: str)
+    """
+    from datetime import timedelta
+    from EsportsManagementTool import get_current_time, localize_datetime
+
+    # Developers can always delete
+    if is_developer:
+        return (True, "Developer privileges")
+
+    # Fetch schedule creation info AND the game's GM
+    cursor.execute("""
+        SELECT se.created_at, g.gm_id, g.GameTitle
+        FROM scheduled_events se
+        JOIN games g ON se.game_id = g.gameID
+        WHERE se.schedule_id = %s
+    """, (schedule_id,))
+
+    schedule = cursor.fetchone()
+
+    if not schedule:
+        return (False, "Schedule not found")
+
+    # Check if user is the GM for this game
+    if schedule['gm_id'] != user_id:
+        return (False, f"Only the Game Manager for {schedule['GameTitle']} or a developer can delete this schedule")
+
+    # Check if within 24-hour window
+    if not schedule['created_at']:
+        # If no creation timestamp, deny deletion (safety measure)
+        return (False, "Schedule creation time not recorded")
+
+    created_at = schedule['created_at']
+    current_time = get_current_time()
+
+    # Ensure both datetimes are timezone-aware for comparison
+    if created_at.tzinfo is None:
+        created_at = localize_datetime(created_at)
+
+    time_since_creation = current_time - created_at
+    within_24_hours = time_since_creation <= timedelta(hours=24)
+
+    # GM can delete within 24 hours
+    if within_24_hours:
+        return (True, "Within 24-hour deletion window")
+    else:
+        hours_ago = int(time_since_creation.total_seconds() / 3600)
+        return (False, f"Deletion window expired (created {hours_ago} hours ago)")
+
+
+def get_schedule_deletion_time_remaining(created_at):
+    """
+    Get time remaining for deletion window
+
+    Args:
+        created_at: ISO timestamp of creation
+
+    Returns:
+        str: Human-readable time remaining or None if expired
+    """
+    from datetime import timedelta
+    from EsportsManagementTool import get_current_time, localize_datetime
+
+    if not created_at:
+        return None
+
+    if isinstance(created_at, str):
+        from datetime import datetime
+        created_at = datetime.fromisoformat(created_at)
+
+    if created_at.tzinfo is None:
+        created_at = localize_datetime(created_at)
+
+    now = get_current_time()
+    deletion_deadline = created_at + timedelta(hours=24)
+
+    if now >= deletion_deadline:
+        return None  # Window expired
+
+    ms_remaining = (deletion_deadline - now).total_seconds() * 1000
+    hours_remaining = int(ms_remaining / (1000 * 60 * 60))
+    minutes_remaining = int((ms_remaining % (1000 * 60 * 60)) / (1000 * 60))
+
+    if hours_remaining > 0:
+        return f"{hours_remaining}h {minutes_remaining}m remaining"
+    else:
+        return f"{minutes_remaining}m remaining"
+
+"""
 Formats schedule-related time to 12Hr format.
 """
 def format_time_to_12hr(time_value):
@@ -145,6 +253,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
 
                 # Only store team_id for team-specific schedules
                 schedule_team_id = data['team_id'] if data['visibility'] == 'team' else None
+                created_at = get_current_time()
 
                 # Check if scheduled_events table has league_id column
                 # If not, you need to add it with: ALTER TABLE scheduled_events ADD COLUMN league_id INT NULL;
@@ -153,9 +262,11 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                 cursor.execute("""
                     INSERT INTO scheduled_events 
                     (team_id, game_id, event_name, event_type, day_of_week, specific_date,
+
                     start_time, end_time, frequency, visibility, description, 
-                    location, schedule_end_date, created_by, league_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    location, schedule_end_date, created_by, league_id, created_at)
+
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     schedule_team_id,
                     game_id,
@@ -171,7 +282,8 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                     data.get('location', 'TBD'),
                     data['end_date'],
                     user_id,
-                    league_id  # NEW FIELD
+                    league_id,  # NEW FIELD
+                    created_at
                 ))
 
                 schedule_id = cursor.lastrowid
@@ -284,9 +396,11 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                         'location': schedule['location'],
                         'schedule_end_date': schedule['schedule_end_date'].strftime('%Y-%m-%d'),
                         'game_title': schedule['GameTitle'],
-                        'game_id': schedule['game_id'],  # ADD THIS LINE
+                        'game_id': schedule['game_id'],
                         'team_name': team_name,
+                        'created_by': schedule['created_by'],
                         'created_by_name': f"{schedule['firstname']} {schedule['lastname']}",
+                        'created_at': schedule['created_at'].isoformat() if schedule.get('created_at') else None,
                         'last_generated': schedule['last_generated'].strftime('%Y-%m-%d') if schedule['last_generated'] else None
                     })
 
@@ -314,33 +428,42 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
     def delete_scheduled_event(schedule_id):
         """
         Delete a scheduled event and all associated generated events
+        NOW WITH: Time-based deletion permissions (24-hour window)
         """
         try:
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
             user_id = session['id']
 
             try:
-                # Verify ownership/permission
+                # Get user permissions
+                permissions = get_user_permissions(user_id)
+                is_developer = permissions['is_developer']
+
+                # Check deletion permissions using the new helper function
+                can_delete, reason = can_delete_schedule(cursor, schedule_id, user_id, is_developer)
+
+                if not can_delete:
+                    cursor.close()
+                    return jsonify({
+                        'success': False,
+                        'message': reason
+                    }), 403
+
+                # Get schedule name for confirmation message
                 cursor.execute("""
-                    SELECT se.*, g.gm_id
-                    FROM scheduled_events se
-                    JOIN games g ON se.game_id = g.GameID
-                    WHERE se.schedule_id = %s
+                    SELECT event_name
+                    FROM scheduled_events
+                    WHERE schedule_id = %s
                 """, (schedule_id,))
 
                 schedule = cursor.fetchone()
 
                 if not schedule:
+                    cursor.close()
                     return jsonify({
                         'success': False,
-                        'message': 'Scheduled event not found'
+                        'message': 'Schedule not found'
                     }), 404
-
-                if schedule['gm_id'] != user_id:
-                    return jsonify({
-                        'success': False,
-                        'message': 'You do not have permission to delete this schedule'
-                    }), 403
 
                 # Step 1: Delete all associated events from generalevents
                 cursor.execute("""
@@ -360,7 +483,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
 
                 return jsonify({
                     'success': True,
-                    'message': f'Schedule deleted successfully. {deleted_events_count} associated event(s) removed.'
+                    'message': f'Schedule "{schedule["event_name"]}" deleted successfully. {deleted_events_count} associated event(s) removed.'
                 }), 200
 
             finally:

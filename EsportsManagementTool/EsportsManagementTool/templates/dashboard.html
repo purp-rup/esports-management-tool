@@ -122,7 +122,7 @@
                                                 {% set day_events = events_by_date[day_date] %}
 
                                                 {% for event in day_events[:3] %}
-                                                    <div class="event-link" onclick="openEventModal({{ event.id }})">
+                                                    <div class="event-link" onclick="openEventModal({{ event.id }}, 'calendar')">
                                                         <div class="event {{ event.event_type|lower }} {% if event.is_scheduled %}scheduled-event{% endif %}"
                                                              data-event-type="{{ event.event_type|lower }}"
                                                              {% if event.is_scheduled %}data-scheduled="true" data-schedule-id="{{ event.schedule_id }}"{% endif %}
@@ -182,7 +182,6 @@
                             <div class="legend-color event"></div>
                             <span class="legend-label">Event</span>
                         </div>
-                        <!-- ADD THIS -->
                         <div class="legend-item">
                             <div class="legend-color misc"></div>
                             <span class="legend-label">Misc</span>
@@ -200,7 +199,7 @@
                     {% if today_events %}
                         <div class="today-events-list">
                             {% for event in today_events %}
-                                <div class="today-event-item" onclick="openEventModal({{ event.id }})">
+                                <div class="today-event-item" onclick="openEventModal({{ event.id }}, 'calendar')">
                                     <div class="today-event-time">
                                         {% if event.time %}
                                             <i class="fas fa-clock"></i> {{ event.time }}
@@ -449,8 +448,6 @@
 
     <!-- ========================================
      DISCORD INTEGRATION CARD
-     Add this AFTER the Notification Settings Card
-     in your Profile Tab (around line 280)
      ======================================== -->
 
 <div class="content-card" style="margin-top: 2rem;">
@@ -799,6 +796,8 @@
                                 <option value="past30">Last 30 days</option>
                                 {% if user.is_admin or user.is_developer or user.is_gm %}
                                 <option value="created_by_me">Created by Me</option>
+                                {% endif %}
+                                {% if user.is_admin or user.is_developer %}
                                 <option value="past_season">Past Seasons</option>
                                 {% endif %}
                                 <option value="type">Type</option>
@@ -883,25 +882,6 @@
                 <h3>No Subscribed Events Found</h3>
                 <p>Subscribe to events to see them here, or check back later</p>
                 {% endif %}
-            </div>
-        </div>
-
-        <!-- Delete Confirmation Modal -->
-        <div id="deleteEventConfirmModal" class="delete-confirmation-modal">
-            <div class="delete-confirmation-content">
-                <div class="delete-confirmation-header">
-                    <div class="delete-confirmation-icon">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                    <h3>Delete Event?</h3>
-                </div>
-                <div class="delete-confirmation-message">
-                    Are you sure you want to delete <span id="deleteEventName" class="delete-confirmation-event-name"></span>? This action cannot be undone.
-                </div>
-                <div class="delete-confirmation-actions">
-                    <button class="btn btn-cancel" onclick="closeDeleteConfirmModal()">Cancel</button>
-                    <button class="btn btn-confirm-delete" onclick="confirmDeleteEvent()">Delete Event</button>
-                </div>
             </div>
         </div>
 
@@ -1657,7 +1637,7 @@
                         onclick="toggleEditMode()">
                     <i class="fas fa-edit"></i>
                 </button>
-                {% if user.is_admin or user.is_developer %}
+                {% if user.is_admin or user.is_developer or user.is_gm %}
                 <button id="deleteEventBtn"
                         class="btn-delete-event"
                         style="display: none;"
@@ -2340,11 +2320,34 @@
         </div>
     </div>
 </div>
+
+<!-- Universal Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="delete-confirmation-modal">
+    <div class="delete-confirmation-content">
+        <div class="delete-confirmation-header">
+            <div class="delete-confirmation-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 id="deleteConfirmTitle">Confirm Deletion</h3>
+        </div>
+        <div class="delete-confirmation-message" id="deleteConfirmMessage">
+            <!-- Dynamic message will be inserted here -->
+        </div>
+        <div class="delete-confirmation-actions">
+            <button class="btn btn-cancel" onclick="closeDeleteConfirmModal()">Cancel</button>
+            <button class="btn btn-confirm-delete" id="deleteConfirmButton" onclick="executeDeleteConfirm()">
+                Delete
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <!-- Image Cropper -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<!-- Delete Modal js (must be called first -->
+<script src="{{ url_for('static', filename='modalDelete.js') }}"></script>
 <!-- Rest of js imports -->
 <script src="{{ url_for('static', filename='badges.js') }}"></script>
 <script src="{{ url_for('static', filename='discord.js') }}"></script>

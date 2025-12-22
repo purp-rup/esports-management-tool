@@ -906,6 +906,8 @@ function closeMatchDetailsModal() {
 window.loadStatsTab = loadStatsTab;
 window.openRecordResultModal = openRecordResultModal;
 window.closeRecordResultModal = closeRecordResultModal;
+window.openMatchDetailsModal = openMatchDetailsModal;
+window.closeMatchDetailsModal = closeMatchDetailsModal;
 window.handleResultSelection = handleResultSelection;
 window.submitMatchResult = submitMatchResult;
 window.editMatchResult = editMatchResult;

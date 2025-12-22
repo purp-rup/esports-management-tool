@@ -111,6 +111,9 @@ function renderLeagueGrid() {
 
     gridEl.innerHTML = '';
 
+    // Check if user is developer
+    const isDeveloper = window.userPermissions?.is_developer || false;
+
     allLeagues.forEach(league => {
         const card = document.createElement('div');
         card.className = 'league-card';
@@ -130,6 +133,13 @@ function renderLeagueGrid() {
                </a>`
             : '<span style="color: var(--text-secondary); font-size: 0.875rem;">No website</span>';
 
+        // Only show delete button if user is developer
+        const deleteButtonHtml = isDeveloper
+            ? `<button class="btn btn-secondary btn-league-delete" onclick="confirmDeleteLeague(${league.id}); event.stopPropagation();">
+                    <i class="fas fa-trash"></i> Delete
+               </button>`
+            : '';
+
         card.innerHTML = `
             <div class="league-card-header">
                 <div class="league-logo-container">
@@ -144,9 +154,7 @@ function renderLeagueGrid() {
                 <button class="btn btn-secondary" onclick="editLeague(${league.id}); event.stopPropagation();">
                     <i class="fas fa-edit"></i> Edit
                 </button>
-                <button class="btn btn-secondary" onclick="confirmDeleteLeague(${league.id}); event.stopPropagation();">
-                    <i class="fas fa-trash"></i> Delete
-                </button>
+                ${deleteButtonHtml}
             </div>
         `;
 
@@ -211,12 +219,13 @@ function showLeagueForm(league = null) {
 
             <div class="league-form-group">
                 <label for="leagueWebsite">League Website (Optional)</label>
-                <input type="url"
+                <input type="text"
                        id="leagueWebsite"
                        name="website_url"
                        placeholder="https://example.com"
+                       pattern="https?://.+"
                        value="${league && league.website_url ? escapeHtml(league.website_url) : ''}">
-                <small>Full URL to the league's official website</small>
+                <small>Full URL to the league's official website (must start with http:// or https://)</small>
             </div>
 
             <div id="leagueFormMessage" class="form-message" style="display: none;"></div>
@@ -419,19 +428,20 @@ async function submitLeagueForm(event) {
         const data = await response.json();
 
         if (response.ok) {
-            showLeagueMessage(
-                data.message || (isEditing ? 'League updated successfully' : 'League created successfully'),
-                'success'
+            // Show success notification using universal system
+            showDeleteSuccessMessage(
+                data.message || (isEditing ? 'League updated successfully' : 'League created successfully')
             );
 
             // Clear cropped image after successful upload
             croppedImageBlob = null;
 
-            // Reload leagues after a short delay
+            // Reload leagues after a short delay (modal stays open)
             setTimeout(() => {
                 loadLeagues();
             }, 1500);
         } else {
+            // Show error message in form (not notification)
             showLeagueMessage(data.error || 'Failed to save league', 'error');
 
             // Reset button state
@@ -459,23 +469,47 @@ function editLeague(leagueId) {
 }
 
 /**
- * Confirm league deletion
+ * Confirm league deletion using universal delete modal
  */
 function confirmDeleteLeague(leagueId) {
     const league = allLeagues.find(l => l.id === leagueId);
     if (!league) return;
 
-    const confirmMsg = `Are you sure you want to delete "${league.name}"? This action cannot be undone.`;
+    // Build additional info for the modal
+    const additionalInfo = `
+        <div style="margin-top: 1rem; padding: 1rem; background: rgba(255, 82, 82, 0.1); border: 1px solid rgba(255, 82, 82, 0.3); border-radius: 8px;">
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.875rem;">
+                <i class="fas fa-exclamation-triangle" style="color: #ff5252;"></i>
+                This will permanently delete:
+            </p>
+            <ul style="margin: 0.5rem 0 0 1.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                <li>League information and logo</li>
+                <li>All team assignments to this league</li>
+                <li>League website URL</li>
+            </ul>
+            <p style="margin: 0.5rem 0 0 0; color: #ff5252; font-size: 0.875rem; font-weight: 600;">
+                This action cannot be undone.
+            </p>
+        </div>
+    `;
 
-    if (confirm(confirmMsg)) {
-        deleteLeague(leagueId);
-    }
+    // Open universal delete modal
+    openDeleteConfirmModal({
+        title: 'Delete League?',
+        itemName: league.name,
+        message: `Are you sure you want to delete ${league.name}?`,
+        additionalInfo: additionalInfo,
+        buttonText: 'Delete League',
+        onConfirm: executeLeagueDeletion,
+        itemId: leagueId
+    });
 }
 
 /**
- * Delete a league
+ * Execute the actual league deletion
+ * Called by the universal delete modal
  */
-async function deleteLeague(leagueId) {
+async function executeLeagueDeletion(leagueId) {
     try {
         const response = await fetch(`/league/${leagueId}`, {
             method: 'DELETE'
@@ -484,23 +518,30 @@ async function deleteLeague(leagueId) {
         const data = await response.json();
 
         if (response.ok) {
-            showLeagueMessage(data.message || 'League deleted successfully', 'success');
+            // Close the delete confirmation modal first
+            closeDeleteConfirmModal();
 
-            // Reload leagues after a short delay
+            // Show success notification using universal system
+            showDeleteSuccessMessage(data.message || 'League deleted successfully');
+
+            // Reload leagues after a short delay (modal stays open)
             setTimeout(() => {
                 loadLeagues();
             }, 1500);
         } else {
-            showLeagueMessage(data.error || 'Failed to delete league', 'error');
+            // Close modal and show error notification
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage(data.error || 'Failed to delete league');
         }
     } catch (error) {
         console.error('Error deleting league:', error);
-        showLeagueMessage('Failed to delete league', 'error');
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Failed to delete league');
     }
 }
 
 /**
- * Show message in league modal
+ * Show message in league modal (for form validation errors only)
  */
 function showLeagueMessage(message, type) {
     const messageEl = document.getElementById('leaguesMessage');
@@ -527,29 +568,3 @@ function showLeagueMessage(message, type) {
         messageEl.style.display = 'none';
     }, 5000);
 }
-
-/**
- * Escape HTML to prevent XSS
- */
-function escapeHtml(unsafe) {
-    if (!unsafe) return '';
-    return unsafe
-        .toString()
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-// Close modal when clicking outside
-document.addEventListener('DOMContentLoaded', () => {
-    const modal = document.getElementById('manageLeaguesModal');
-    if (modal) {
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) {
-                closeManageLeaguesModal();
-            }
-        });
-    }
-});

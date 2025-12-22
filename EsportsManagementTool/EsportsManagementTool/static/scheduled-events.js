@@ -31,6 +31,9 @@ const ScheduleState = {
     /** Loaded schedules for current team */
     currentSchedules: [],
 
+    /** Pending schedule deletion ID */
+    pendingDeleteScheduleId: null,  // ADD THIS LINE
+
     /**
      * Reset state to defaults
      */
@@ -38,6 +41,7 @@ const ScheduleState = {
         this.currentTeamId = null;
         this.currentGameId = null;
         this.currentSchedules = [];
+        this.pendingDeleteScheduleId = null;
     },
 
     /**
@@ -648,7 +652,7 @@ async function handleScheduledEventSubmit(event) {
  *
  * @param {number} scheduleId - ID of the schedule to display
  */
-function openScheduleModal(scheduleId) {
+async function openScheduleModal(scheduleId) {
     const schedule = ScheduleState.findSchedule(scheduleId) ||
                      currentSchedules.find(s => s.schedule_id === scheduleId);
 
@@ -673,7 +677,7 @@ function openScheduleModal(scheduleId) {
     renderScheduleDetails(schedule);
 
     // Configure action buttons (edit/delete) based on permissions
-    configureScheduleButtons(scheduleId);
+    await configureScheduleButtons(scheduleId);
 
     // Show modal
     modal.style.display = 'block';
@@ -769,23 +773,47 @@ function renderScheduleDetails(schedule) {
  * Configure edit and delete buttons based on user permissions
  * @param {number} scheduleId - Schedule ID for button actions
  */
-function configureScheduleButtons(scheduleId) {
+async function configureScheduleButtons(scheduleId) {
     const editBtn = document.getElementById('editScheduleBtn');
     const deleteBtn = document.getElementById('deleteScheduleBtn');
     const isAdmin = window.userPermissions?.is_admin || window.userPermissions?.is_developer || false;
     const isGM = window.userPermissions?.is_gm || false;
 
-    // Show/hide buttons based on permissions
-    const canModify = isAdmin || isGM;
+    // Get the schedule data
+    const schedule = ScheduleState.findSchedule(scheduleId) ||
+                     currentSchedules.find(s => s.schedule_id === scheduleId);
 
+    if (!schedule) {
+        if (editBtn) editBtn.style.display = 'none';
+        if (deleteBtn) deleteBtn.style.display = 'none';
+        return;
+    }
+
+    // Edit button - GMs/Admins can always edit
+    const canModify = isAdmin || isGM;
     if (editBtn) {
         editBtn.style.display = canModify ? 'flex' : 'none';
         editBtn.onclick = () => openEditScheduleMode(scheduleId);
     }
 
+    // Delete button - time-based permissions for GMs managing this game
     if (deleteBtn) {
-        deleteBtn.style.display = canModify ? 'flex' : 'none';
-        deleteBtn.onclick = () => confirmDeleteSchedule(scheduleId);
+        const canDelete = await canUserDeleteSchedule(schedule);
+
+        if (canDelete) {
+            const timeRemaining = getScheduleDeletionTimeRemaining(schedule.created_at);
+
+            if (timeRemaining) {
+                deleteBtn.title = `Delete schedule (${timeRemaining})`;
+            } else {
+                deleteBtn.title = 'Delete schedule';
+            }
+
+            deleteBtn.style.display = 'flex';
+            deleteBtn.onclick = () => confirmDeleteSchedule(scheduleId);
+        } else {
+            deleteBtn.style.display = 'none';
+        }
     }
 }
 
@@ -1187,10 +1215,79 @@ async function handleEditScheduleSubmit(event) {
 // ============================================
 
 /**
+ * Check if current user can delete a schedule
+ * @param {Object} schedule - Schedule object with game_id and created_at
+ * @returns {boolean} True if user can delete
+ */
+async function canUserDeleteSchedule(schedule) {
+    const is_developer = window.userPermissions?.is_developer || false;
+    const sessionUserId = window.currentUserId || 0;
+
+    // Developers can always delete
+    if (is_developer) {
+        return true;
+    }
+
+    // Check if within 24-hour window
+    if (!schedule.created_at) {
+        return false;
+    }
+
+    const createdAt = new Date(schedule.created_at);
+    const now = new Date();
+    const hoursSinceCreation = (now - createdAt) / (1000 * 60 * 60);
+    const within24Hours = hoursSinceCreation <= 24;
+
+    if (!within24Hours) {
+        return false;
+    }
+
+    // Check if user is the GM for this game
+    try {
+        const response = await fetch(`/api/user/${sessionUserId}/manages-game/${schedule.game_id}`);
+        const data = await response.json();
+
+        if (data.success && data.manages_game) {
+            return true;
+        }
+    } catch (error) {
+        console.error('Error checking GM status:', error);
+        return false;
+    }
+
+    return false;
+}
+
+/**
+ * Get time remaining for deletion window
+ * @param {string} createdAt - ISO timestamp of creation
+ * @returns {string|null} Human-readable time remaining or null if expired
+ */
+function getScheduleDeletionTimeRemaining(createdAt) {
+    if (!createdAt) return null;
+
+    const created = new Date(createdAt);
+    const now = new Date();
+    const deletionDeadline = new Date(created.getTime() + (24 * 60 * 60 * 1000));
+
+    if (now >= deletionDeadline) {
+        return null; // Window expired
+    }
+
+    const msRemaining = deletionDeadline - now;
+    const hoursRemaining = Math.floor(msRemaining / (1000 * 60 * 60));
+    const minutesRemaining = Math.floor((msRemaining % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hoursRemaining > 0) {
+        return `${hoursRemaining}h ${minutesRemaining}m remaining`;
+    } else {
+        return `${minutesRemaining}m remaining`;
+    }
+}
+
+/**
  * Confirm schedule deletion with user
- * Shows confirmation dialog before deleting
- *
- * @param {number} scheduleId - ID of schedule to delete
+ * Uses universal delete modal system
  */
 function confirmDeleteSchedule(scheduleId) {
     const schedule = ScheduleState.findSchedule(scheduleId) ||
@@ -1201,11 +1298,33 @@ function confirmDeleteSchedule(scheduleId) {
         return;
     }
 
-    const confirmMessage = `Are you sure you want to delete the schedule "${schedule.event_name}"?\n\nAll events created by this schedule will be deleted as well.`;
+    ScheduleState.pendingDeleteScheduleId = scheduleId;
 
-    if (confirm(confirmMessage)) {
-        deleteSchedule(scheduleId);
+    const timeRemaining = getScheduleDeletionTimeRemaining(schedule.created_at);
+
+    // Build additional info
+    let additionalInfo = '<br><br>All events created by this schedule will be deleted as well.';
+
+    if (timeRemaining) {
+        additionalInfo += `
+            <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(251, 191, 36, 0.1);
+                        border: 1px solid #fbbf24; border-radius: 6px; font-size: 0.875rem;">
+                <i class="fas fa-clock" style="color: #fbbf24;"></i>
+                <strong style="color: #fbbf24;">Deletion window:</strong> ${timeRemaining}
+            </div>
+        `;
     }
+
+    // Open universal modal
+    window.openDeleteConfirmModal({
+        title: 'Delete Schedule?',
+        itemName: schedule.event_name,
+        message: `Are you sure you want to delete "${schedule.event_name}"?`,
+        additionalInfo: additionalInfo,
+        buttonText: 'Delete Schedule',
+        onConfirm: confirmDeleteScheduleAction,
+        itemId: scheduleId
+    });
 }
 
 // ============================================
@@ -1301,36 +1420,59 @@ async function loadTeamLeaguesForSchedule(teamId) {
 }
 
 /**
- * Delete a schedule and all its associated events
- *
- * @param {number} scheduleId - ID of schedule to delete
+ * Execute the schedule deletion (called by universal modal)
  */
-async function deleteSchedule(scheduleId) {
+async function confirmDeleteScheduleAction(scheduleId) {
     try {
         const response = await fetch(`/api/scheduled-events/${scheduleId}`, {
             method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Content-Type': 'application/json' }
         });
 
         const data = await response.json();
 
         if (data.success) {
-            alert(data.message);
+            window.closeDeleteConfirmModal();
             closeScheduleModal();
 
-            // Reload schedule tab if function exists
-            if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
-                loadScheduleTab(currentSelectedTeamId);
-            }
+            // Show success message
+            const successDiv = document.createElement('div');
+            successDiv.className = 'events-info-message';
+            successDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000; background: #10b981; border-color: #10b981; color: white;';
+            successDiv.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <p>${data.message}</p>
+            `;
+            document.body.appendChild(successDiv);
+
+            setTimeout(() => {
+                successDiv.remove();
+                if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
+                    loadScheduleTab(currentSelectedTeamId);
+                }
+            }, 2000);
         } else {
-            alert(`Error: ${data.message}`);
+            handleScheduleDeleteError(data.message);
         }
     } catch (error) {
         console.error('Error deleting schedule:', error);
-        alert('Failed to delete schedule');
+        alert('Failed to delete schedule. Please try again.');
+        window.closeDeleteConfirmModal();
     }
+}
+
+/**
+ * Handle schedule delete errors
+ */
+function handleScheduleDeleteError(message) {
+    if (message.includes('expired') || message.includes('24')) {
+        alert(`⏰ ${message}\n\nOnly developers can delete schedules after 24 hours.`);
+    } else if (message.includes('creator') || message.includes('Manager')) {
+        alert(`🚫 ${message}`);
+    } else {
+        alert('Error: ' + message);
+    }
+    window.closeDeleteConfirmModal();
 }
 
 // ============================================
@@ -1348,6 +1490,12 @@ window.loadScheduleTab = loadScheduleTab;
 window.openEditScheduleMode = openEditScheduleMode;
 window.cancelEditSchedule = cancelEditSchedule;
 window.updateVisibilityLabels = updateVisibilityLabels;
+//Deletion
+window.canUserDeleteSchedule = canUserDeleteSchedule;
+window.getScheduleDeletionTimeRemaining = getScheduleDeletionTimeRemaining;
+window.confirmDeleteSchedule = confirmDeleteSchedule;
+window.confirmDeleteScheduleAction = confirmDeleteScheduleAction;
+//League Scheduling
 window.handleEventTypeChangeForLeague = handleEventTypeChangeForLeague;
 window.loadTeamLeaguesForSchedule = loadTeamLeaguesForSchedule;
 // ============================================
@@ -1359,3 +1507,4 @@ window.addEventListener('click', function(event) {
         closeCreateScheduledEventModal();
     }
 });
+
