@@ -21,6 +21,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='vods.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='seasons.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='leagues.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='manage-communities.css') }}">
 
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
@@ -1478,13 +1479,13 @@
                 </div>
                 <div style="display: flex; gap: 1rem;">
                     <button class="btn btn-primary" onclick="openManageLeaguesModal()">
-                        <i class="fas fa-trophy"></i> Manage Leagues
+                        <i class="fas fa-trophy"></i> Leagues
                     </button>
                     <button class="btn btn-primary" onclick="openManageSeasonsModal()">
-                        <i class="fas fa-calendar-alt"></i> Manage Seasons
+                        <i class="fas fa-calendar-alt"></i> Seasons
                     </button>
-                    <button class="btn btn-primary" onclick="openCreateGameModal()">
-                        <i class="fas fa-plus"></i> Create Community
+                    <button class="btn btn-primary" onclick="openManageCommunitiesModal()">
+                        <i class="fas fa-cog"></i> Communities
                     </button>
                 </div>
             </div>
@@ -2100,6 +2101,34 @@
     </div>
 </div>
 
+<div id="manageCommunitiesModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <div class="modal-header">
+            <h2>Manage Communities</h2>
+            <button class="modal-close" onclick="closeManageCommunitiesModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Create, edit, and view game communities for organizing teams, events, or competitions</p>
+
+            <!-- Message Area -->
+            <div id="communitiesMessage" class="form-message" style="display: none;"></div>
+
+            <!-- Loading State -->
+            <div id="communitiesManageLoading" style="display: block; text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading communities...</p>
+            </div>
+
+            <!-- Content Area -->
+            <div id="communitiesManageContent" style="display: none;">
+                <!-- Dynamic content will be loaded here by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Add VOD Modal -->
 <div id="addVodModal" class="modal" style="display:none;">
     <div class="modal-content">
@@ -2351,6 +2380,7 @@
 <script src="{{ url_for('static', filename='vods.js') }}"></script>
 <script src="{{ url_for('static', filename='seasons.js') }}"></script>
 <script src="{{ url_for('static', filename='leagues.js') }}"></script>
+<script src="{{ url_for('static', filename='manage-communities.js') }}"></script>
 <!-- Must load second-to-last -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <!-- Must load last -->

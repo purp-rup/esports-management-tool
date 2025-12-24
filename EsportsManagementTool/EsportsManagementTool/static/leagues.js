@@ -358,27 +358,66 @@ function cropReset() {
 
 /**
  * Apply crop and close modal
+ * Routes to the correct handler based on context
  */
 function applyCrop() {
     if (!cropper) return;
 
-    cropper.getCroppedCanvas({
-        width: 400,
-        height: 400,
-        imageSmoothingEnabled: true,
-        imageSmoothingQuality: 'high',
-    }).toBlob((blob) => {
-        croppedImageBlob = blob;
+    // Check which feature is using the cropper
+    switch(currentImageField) {
+        case 'league':
+            // League-specific handling
+            cropper.getCroppedCanvas({
+                width: 400,
+                height: 400,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            }).toBlob((blob) => {
+                croppedImageBlob = blob;  // League uses croppedImageBlob
 
-        // Update preview
-        const preview = document.getElementById('leagueLogoPreview');
-        if (preview) {
-            const url = URL.createObjectURL(blob);
-            preview.innerHTML = `<img src="${url}" alt="Cropped logo">`;
-        }
+                const preview = document.getElementById('leagueLogoPreview');
+                if (preview) {
+                    const url = URL.createObjectURL(blob);
+                    preview.innerHTML = `<img src="${url}" alt="Cropped logo">`;
+                }
 
-        closeImageCropper();
-    }, 'image/png');
+                closeImageCropper();
+            }, 'image/png');
+            break;
+
+        case 'community':
+            // Community-specific handling
+            cropper.getCroppedCanvas({
+                width: 400,
+                height: 400,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            }).toBlob((blob) => {
+                communityCroppedImageBlob = blob;  // Community uses communityCroppedImageBlob
+
+                const preview = document.getElementById('communityImagePreview');
+                if (preview) {
+                    const url = URL.createObjectURL(blob);
+                    preview.innerHTML = `<img src="${url}" alt="Cropped icon">`;
+                }
+
+                closeImageCropper();
+            }, 'image/png');
+            break;
+
+        default:
+            console.warn('Unknown image field type:', currentImageField);
+            // Fallback to league behavior
+            cropper.getCroppedCanvas({
+                width: 400,
+                height: 400,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            }).toBlob((blob) => {
+                croppedImageBlob = blob;
+                closeImageCropper();
+            }, 'image/png');
+    }
 }
 
 /**

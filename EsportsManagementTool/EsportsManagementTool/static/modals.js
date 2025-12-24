@@ -45,6 +45,7 @@ const MODAL_CLOSE_HANDLERS = {
     'createGameModal': closeCreateGameModal,
     'gameDetailsModal': closeGameDetailsModal,
     'assignGMModal': closeAssignGMModal,
+    'manageCommunitiesModal': closeManageCommunitiesModal,
 
     // Team-related modals
     'createTeamModal': closeCreateTeamModal,

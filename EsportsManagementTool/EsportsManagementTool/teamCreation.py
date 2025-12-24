@@ -3,9 +3,14 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import MySQLdb.cursors
 from EsportsManagementTool import get_current_time, localize_datetime, EST
 
-def idgen(text, existing_ids):
-    words = text.split()
-    prefix = ''.join(word[0].upper() for word in words if word)
+def idgen(abbreviation, existing_ids):
+    """
+    Generate team ID using game abbreviation + counter
+    @param abbreviation: Game abbreviation (max 5 chars)
+    @param existing_ids: List of existing team IDs to avoid duplicates
+    """
+    # Use abbreviation directly (already uppercase)
+    prefix = abbreviation
 
     counter = 1
     while f"{prefix}{counter}" in existing_ids:
@@ -45,17 +50,18 @@ def create_team(game_id):
         # ============================================
         # STEP 2: VALIDATE GAME EXISTS AND USER HAS PERMISSION
         # ============================================
-        cursor.execute('SELECT GameTitle FROM games WHERE GameID = %s AND gm_id = %s', (game_id, session['id']))
+        cursor.execute('SELECT GameTitle, Abbreviation FROM games WHERE GameID = %s AND gm_id = %s', (game_id, session['id']))
         games = cursor.fetchone()
 
         if not games:
             return jsonify({'success': False, 'message': 'Game does not exist or you do not have permission.'}), 400
 
-        gamesGM = games['GameTitle']
+        game_title = games['GameTitle']
+        game_abbreviation = games['Abbreviation']
         team_title = request.form.get('team_title', '').strip()
         true_size = request.form.get('team_sizes')
 
-        # NEW: Get league IDs from form data (JSON string)
+        # Get league IDs from form data (JSON string)
         leagues_json = request.form.get('leagues', '[]')
         import json
         league_ids = json.loads(leagues_json) if leagues_json else []
@@ -83,7 +89,7 @@ def create_team(game_id):
         cursor.execute('SELECT TeamID FROM teams WHERE gameID = %s', (game_id,))
         teams = cursor.fetchall()
         existingTeams = [team['TeamID'] for team in teams] if teams else []
-        newID = idgen(gamesGM, existingTeams)
+        newID = idgen(game_abbreviation, existingTeams)
 
         # ============================================
         # STEP 5: CREATE TEAM WITH SEASON ASSIGNMENT

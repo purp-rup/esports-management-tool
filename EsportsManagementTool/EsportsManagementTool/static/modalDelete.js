@@ -139,9 +139,15 @@ function closeDeleteConfirmModal() {
     modal.classList.remove('active');
 
     // Check if there are other modals still open
-    const openModals = document.querySelectorAll('.modal[style*="display: block"], .modal.active');
+    // Check for display: block, display: flex, or active class
+    const openModals = document.querySelectorAll('.modal');
+    const hasOpenModals = Array.from(openModals).some(m => {
+        if (m.id === 'deleteConfirmModal') return false; // Exclude the modal we're closing
+        const style = window.getComputedStyle(m);
+        return style.display === 'block' || style.display === 'flex' || m.classList.contains('active');
+    });
 
-    if (openModals.length > 0) {
+    if (hasOpenModals) {
         // Other modals are open, keep overflow hidden
         document.body.style.overflow = 'hidden';
     } else {
