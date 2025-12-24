@@ -1830,18 +1830,27 @@ function createEditForm() {
 
     const event = EventState.currentEventData;
 
-    editForm.innerHTML = `
-        <form id="editEventFormData" class="event-form-modal">
-            ${createEditFormFields(event)}
-            <div id="editFormMessage" class="form-message" style="display: none;"></div>
-            ${createFormActionButtons()}
-        </form>
-    `;
+    // Set the HTML
+    editForm.innerHTML = createEditFormFields(event);
 
-    // Initialize edit form
+    // Initialize game tag selector
     initializeGameTagSelector('edit', event.game);
+    
+    // Setup location dropdown
     setupEditLocationDropdown(event.location);
+    
+    // Handle event type (will show/hide league field)
     handleEditEventTypeChange();
+    
+    // Load and set league if this is a Match event
+    if (event.event_type === 'Match') {
+        loadLeaguesForEventEdit().then(() => {
+            const leagueDropdown = document.getElementById('editEventLeagueDropdown');
+            if (leagueDropdown && event.league_id) {
+                leagueDropdown.value = event.league_id;
+            }
+        });
+    }
 }
 
 /**
@@ -1850,34 +1859,141 @@ function createEditForm() {
  * @returns {string} HTML string for form fields
  */
 function createEditFormFields(event) {
+    // Escape the description to prevent HTML injection and quote issues
+    const escapedDescription = (event.description || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
     return `
-        <div class="form-group">
-            <label for="editEventName">Event Name</label>
-            <input type="text" id="editEventName" name="eventName" value="${event.name}" required>
-        </div>
+        <form id="editEventFormData" class="event-form-modal">
+            <div class="form-group">
+                <label for="editEventName">Event Name *</label>
+                <input type="text" 
+                       id="editEventName" 
+                       name="eventName" 
+                       value="${event.name || ''}" 
+                       required>
+            </div>
 
-        <div class="form-group">
-            <label for="editEventType"> Type</label>
-            <select id="editEventType" name="eventType" required onchange="handleEditEventTypeChange()">
-                ${createEventTypeOptions(event.event_type)}
-            </select>
-        </div>
+            <div class="form-group">
+                <label for="editEventType">Event Type *</label>
+                <select id="editEventType" name="eventType" required onchange="handleEditEventTypeChange()">
+                    <option value="Event" ${event.event_type === 'Event' ? 'selected' : ''}>Event</option>
+                    <option value="Match" ${event.event_type === 'Match' ? 'selected' : ''}>Match</option>
+                    <option value="Practice" ${event.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
+                    <option value="Tournament" ${event.event_type === 'Tournament' ? 'selected' : ''}>Tournament</option>
+                    <option value="Misc" ${event.event_type === 'Misc' ? 'selected' : ''}>Misc</option>
+                </select>
+            </div>
 
-        ${createGameTagField('edit')}
+            <!-- Games Field -->
+            <div class="form-group" id="editGameFieldGroup">
+                <label for="editGameDropdown">Games (Optional)</label>
+                <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
+                    Select games from the dropdown - they'll appear as tags below
+                </div>
 
-        <div class="form-group">
-            <label for="editDate">Date</label>
-            <input type="date" id="editDate" name="eventDate" value="${event.date_raw}" required>
-        </div>
+                <div id="editSelectedGamesContainer" class="selected-games-container"></div>
 
-        ${createTimeFields(event)}
+                <select id="editGameDropdown" class="game-dropdown-single">
+                    <option value="">+ Add a game</option>
+                </select>
 
-        ${createLocationFields('edit', event.location)}
+                <div id="editGameLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading games...
+                </div>
 
-        <div class="form-group">
-            <label for="editDescription">Description</label>
-            <textarea id="editDescription" name="eventDescription" required>${event.description}</textarea>
-        </div>
+                <input type="hidden" id="editSelectedGamesInput" name="games" value="[]">
+            </div>
+
+            <!-- League Field (only shown for Match events) -->
+            <div class="form-group" id="editEventLeagueFieldGroup" style="display: ${event.event_type === 'Match' ? 'flex' : 'none'};">
+                <label for="editEventLeagueDropdown">League ${event.event_type === 'Match' ? '*' : '(Optional)'}</label>
+                <select id="editEventLeagueDropdown" 
+                        name="league_id" 
+                        class="game-dropdown-single" 
+                        ${event.event_type === 'Match' ? 'required' : ''}>
+                    <option value="">Select league</option>
+                    <!-- Will be populated by JavaScript -->
+                </select>
+                <div id="editEventLeagueLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading leagues...
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="editDate">Date *</label>
+                <input type="date" 
+                       id="editDate" 
+                       name="eventDate" 
+                       value="${event.date_raw || ''}" 
+                       required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="editStartTime">Start Time *</label>
+                    <input type="time" 
+                           id="editStartTime" 
+                           name="startTime"
+                           value="${convertTo24Hour(event.start_time)}" 
+                           required>
+                </div>
+                <div class="form-group">
+                    <label for="editEndTime">End Time *</label>
+                    <input type="time" 
+                           id="editEndTime" 
+                           name="endTime"
+                           value="${convertTo24Hour(event.end_time)}" 
+                           required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="editLocation">Location *</label>
+                <select id="editLocation" name="eventLocation" required>
+                    <option value="">Select location</option>
+                    <option value="Campus Center">Campus Center</option>
+                    <option value="Campus Center Coffee House">Campus Center Coffee House</option>
+                    <option value="Campus Center Event Room">Campus Center Event Room</option>
+                    <option value="D-108">D-108</option>
+                    <option value="Esports Lab (Commons Building 80)">Esports Lab (Commons Building 80)</option>
+                    <option value="Lakeside Lodge">Lakeside Lodge</option>
+                    <option value="Online">Online</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="editCustomLocationGroup" style="display: none;">
+                <label for="editCustomLocation">Custom Location</label>
+                <input type="text" 
+                       id="editCustomLocation" 
+                       name="customLocation" 
+                       placeholder="Enter custom location">
+            </div>
+
+            <div class="form-group">
+                <label for="editDescription">Description *</label>
+                <textarea id="editDescription" 
+                          name="eventDescription" 
+                          rows="4"
+                          required>${escapedDescription}</textarea>
+            </div>
+
+            <div id="editFormMessage" class="form-message" style="display: none;"></div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="cancelEdit()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="submitEventEdit()">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </form>
     `;
 }
 
@@ -2047,12 +2163,72 @@ function setupEditLocationDropdown(currentLocation) {
 function handleEditEventTypeChange() {
     const eventType = document.getElementById('editEventType')?.value;
     const gameFieldGroup = document.getElementById('editGameFieldGroup');
+    const leagueFieldGroup = document.getElementById('editEventLeagueFieldGroup');
+    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
 
     if (eventType === 'Misc') {
         setElementDisplay(gameFieldGroup, 'none');
+        setElementDisplay(leagueFieldGroup, 'none');
         clearSelectedGames('edit');
+        if (leagueDropdown) {
+            leagueDropdown.removeAttribute('required');
+        }
+    } else if (eventType === 'Match') {
+        setElementDisplay(gameFieldGroup, 'block');
+        setElementDisplay(leagueFieldGroup, 'block');
+        
+        if (leagueDropdown) {
+            leagueDropdown.setAttribute('required', 'required');
+            // Update label to show required
+            const label = document.querySelector('label[for="editEventLeagueDropdown"]');
+            if (label) label.innerHTML = 'League *';
+        }
+        
+        // Load leagues if not already loaded
+        loadLeaguesForEventEdit();
     } else {
         setElementDisplay(gameFieldGroup, 'block');
+        setElementDisplay(leagueFieldGroup, 'none');
+        
+        if (leagueDropdown) {
+            leagueDropdown.removeAttribute('required');
+        }
+    }
+}
+
+async function loadLeaguesForEventEdit() {
+    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
+    const loadingIndicator = document.getElementById('editEventLeagueLoadingIndicator');
+    
+    if (!leagueDropdown) return;
+    
+    // Don't reload if already populated (more than just the placeholder)
+    if (leagueDropdown.options.length > 1) return;
+    
+    setElementDisplay(loadingIndicator, 'block');
+    leagueDropdown.disabled = true;
+    
+    try {
+        const response = await fetch('/league/all');
+        const data = await response.json();
+        
+        if (data.leagues && data.leagues.length > 0) {
+            // Keep the placeholder and add leagues
+            data.leagues.forEach(league => {
+                const option = document.createElement('option');
+                option.value = league.id;
+                option.textContent = league.name;
+                leagueDropdown.appendChild(option);
+            });
+        } else {
+            leagueDropdown.innerHTML = '<option value="">No leagues available</option>';
+        }
+    } catch (error) {
+        console.error('Error loading leagues for edit:', error);
+        leagueDropdown.innerHTML = '<option value="">Error loading leagues</option>';
+    } finally {
+        setElementDisplay(loadingIndicator, 'none');
+        leagueDropdown.disabled = false;
     }
 }
 
@@ -2119,6 +2295,7 @@ function gatherEditFormData() {
         : locationSelect?.value;
 
     const gamesInput = document.getElementById('editSelectedGamesInput');
+    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
 
     return {
         event_id: EventState.currentEventId,
@@ -2129,7 +2306,8 @@ function gatherEditFormData() {
         start_time: document.getElementById('editStartTime')?.value,
         end_time: document.getElementById('editEndTime')?.value,
         location: locationValue,
-        description: document.getElementById('editDescription')?.value
+        description: document.getElementById('editDescription')?.value,
+        league_id: leagueDropdown?.value || null  // ADD THIS LINE
     };
 }
 

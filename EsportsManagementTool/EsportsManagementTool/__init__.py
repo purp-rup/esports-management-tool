@@ -614,6 +614,7 @@ from EsportsManagementTool import teamCreation
 from EsportsManagementTool import vods
 from EsportsManagementTool import seasons
 from EsportsManagementTool import leagues
+from EsportsManagementTool import statistics
 
 # ================================
 # REGISTER SUSPENSION ROUTES
@@ -815,6 +816,7 @@ def get_event_details(event_id):
 # =====================================
 from EsportsManagementTool import team_stats
 team_stats.register_team_stats_routes(app, mysql, login_required, roles_required, get_user_permissions)
+statistics.register_statistics_routes(app, mysql, login_required, roles_required)
 
 # =====================================
 # REGISTER SCHEDULED EVENTS ROUTES
@@ -829,9 +831,9 @@ app.get_current_time = get_current_time
 app.localize_datetime = localize_datetime
 app.EST = EST
 
-# This is used for debugging, It will show the app routes that are registered.
-if __name__ != '__main__':
-    print("\n=== REGISTERED ROUTES ===")
-    for rule in app.url_map.iter_rules():
-        print(f"{rule.endpoint}: {rule.rule}")
-    print("=========================\n")
+#This is used for debugging, It will show the app routes that are registered.
+# if __name__ != '__main__':
+#     print("\n=== REGISTERED ROUTES ===")
+#     for rule in app.url_map.iter_rules():
+#         print(f"{rule.endpoint}: {rule.rule}")
+#     print("=========================\n")

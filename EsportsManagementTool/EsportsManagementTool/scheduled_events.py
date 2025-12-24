@@ -164,6 +164,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
     def create_scheduled_event():
         """
         Create a new scheduled event that generates recurring events
+        NOW SUPPORTS: League association for Match events
         """
         try:
             data = request.get_json()
@@ -171,13 +172,21 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
 
             # Validate required fields
             required_fields = ['team_id', 'event_name', 'event_type',
-                               'start_time', 'end_time', 'frequency', 'visibility', 'end_date']
+                            'start_time', 'end_time', 'frequency', 'visibility', 'end_date']
 
             for field in required_fields:
                 if field not in data:
                     return jsonify({
                         'success': False,
                         'message': f'Missing required field: {field}'
+                    }), 400
+
+            if data['event_type'] == 'Match':
+                league_id = data.get('league_id')
+                if not league_id:
+                    return jsonify({
+                        'success': False,
+                        'message': 'League selection is required for Match events'
                     }), 400
 
             # Additional validation based on frequency
@@ -193,6 +202,25 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                         'success': False,
                         'message': 'Day of week is required for recurring events'
                     }), 400
+
+            # Validate league_id if provided for Match events
+            league_id = data.get('league_id')
+            if data['event_type'] == 'Match' and league_id:
+                cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+                try:
+                    # Verify the team is associated with this league
+                    cursor.execute("""
+                        SELECT 1 FROM team_leagues 
+                        WHERE team_id = %s AND league_id = %s
+                    """, (data['team_id'], league_id))
+                    
+                    if not cursor.fetchone():
+                        return jsonify({
+                            'success': False,
+                            'message': 'Invalid league selection for this team'
+                        }), 400
+                finally:
+                    cursor.close()
 
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -227,13 +255,18 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                 schedule_team_id = data['team_id'] if data['visibility'] == 'team' else None
                 created_at = get_current_time()
 
-                # Insert scheduled event
+                # Check if scheduled_events table has league_id column
+                # If not, you need to add it with: ALTER TABLE scheduled_events ADD COLUMN league_id INT NULL;
+                
+                # Insert scheduled event WITH league_id support
                 cursor.execute("""
                     INSERT INTO scheduled_events 
                     (team_id, game_id, event_name, event_type, day_of_week, specific_date,
-                     start_time, end_time, frequency, visibility, description, 
-                     location, schedule_end_date, created_by, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+
+                    start_time, end_time, frequency, visibility, description, 
+                    location, schedule_end_date, created_by, league_id, created_at)
+
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     schedule_team_id,
                     game_id,
@@ -249,6 +282,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                     data.get('location', 'TBD'),
                     data['end_date'],
                     user_id,
+                    league_id,  # NEW FIELD
                     created_at
                 ))
 
@@ -271,7 +305,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
             print(f"❌ Error creating scheduled event: {str(e)}")
             print(f"   Error type: {type(e).__name__}")
             import traceback
-            traceback.print_exc()  # Print full stack trace
+            traceback.print_exc()
             mysql.connection.rollback()
             return jsonify({
                 'success': False,
@@ -466,6 +500,8 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
     # ============================================
     # UPDATE SCHEDULED EVENT
     # ============================================
+    # In scheduled_events.py - Update the update_scheduled_event route
+
     @app.route('/api/scheduled-events/update', methods=['POST'])
     @login_required
     @roles_required('gm')
@@ -473,11 +509,21 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
         """
         Update a scheduled event and all its generated events
         Cannot change frequency/timing - only metadata
+        NOW SUPPORTS: Updating league_id for Match events
         """
         try:
             data = request.get_json()
             user_id = session['id']
             schedule_id = data.get('schedule_id')
+
+            # NEW: Validate league for Match events
+            if data.get('event_type') == 'Match':
+                league_id = data.get('league_id')
+                if not league_id:
+                    return jsonify({
+                        'success': False,
+                        'message': 'League selection is required for Match events'
+                    }), 400
 
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -504,14 +550,29 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                         'message': 'You do not have permission to edit this schedule'
                     }), 403
 
-                # Update the schedule
+                # NEW: Validate league if provided
+                league_id = data.get('league_id')
+                if league_id and data.get('event_type') == 'Match':
+                    cursor.execute("""
+                        SELECT 1 FROM team_leagues 
+                        WHERE team_id = %s AND league_id = %s
+                    """, (schedule['team_id'], league_id))
+                    
+                    if not cursor.fetchone():
+                        return jsonify({
+                            'success': False,
+                            'message': 'Selected league is not assigned to this team'
+                        }), 400
+
+                # Update the schedule WITH league_id
                 cursor.execute("""
                     UPDATE scheduled_events 
                     SET event_name = %s,
                         event_type = %s,
                         visibility = %s,
                         location = %s,
-                        description = %s
+                        description = %s,
+                        league_id = %s
                     WHERE schedule_id = %s
                 """, (
                     data['event_name'],
@@ -519,22 +580,25 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                     data['visibility'],
                     data['location'],
                     data.get('description', ''),
+                    league_id,  # NEW: Update league_id
                     schedule_id
                 ))
 
-                # Update all associated events in generalevents table
+                # Update all associated events in generalevents table WITH league_id
                 cursor.execute("""
                     UPDATE generalevents
                     SET EventName = %s,
                         EventType = %s,
                         Location = %s,
-                        Description = %s
+                        Description = %s,
+                        league_id = %s
                     WHERE schedule_id = %s
                 """, (
                     data['event_name'],
                     data['event_type'],
                     data['location'],
                     data.get('description', ''),
+                    league_id,  # NEW: Update league_id for all events
                     schedule_id
                 ))
 
@@ -602,6 +666,58 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
             }), 500
         finally:
             cursor.close()
+
+    # ============================================
+    # Get team leagues for modal
+    # ============================================
+    @app.route('/api/teams/<team_id>/leagues', methods=['GET'])
+    @login_required
+    def get_team_leagues_for_schedule(team_id):
+        """
+        Get all leagues associated with a specific team
+        """
+        try:
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            
+            try:
+                # Get leagues for this team
+                cursor.execute("""
+                    SELECT 
+                        l.id,
+                        l.name,
+                        l.logo,
+                        l.logo_mime_type
+                    FROM league l
+                    INNER JOIN team_leagues tl ON l.id = tl.league_id
+                    WHERE tl.team_id = %s
+                    ORDER BY l.name
+                """, (team_id,))
+                
+                leagues = cursor.fetchall()
+                
+                # Format the response
+                formatted_leagues = []
+                for league in leagues:
+                    formatted_leagues.append({
+                        'id': league['id'],
+                        'name': league['name'],
+                        'has_logo': league['logo'] is not None
+                    })
+                
+                return jsonify({
+                    'success': True,
+                    'leagues': formatted_leagues
+                }), 200
+                
+            finally:
+                cursor.close()
+                
+        except Exception as e:
+            print(f"Error getting team leagues: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Failed to load team leagues'
+            }), 500
 
 
 # ============================================
@@ -749,6 +865,7 @@ Method to create one scheduled event within a set list of scheduled events based
 def create_scheduled_event_instance(cursor, schedule, event_date, connection):
     """
     Create a single event instance from a schedule
+    NOW INCLUDES: League assignment for match events
     """
     try:
         # Get the game title for this schedule
@@ -772,7 +889,7 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
                 if team_name not in event_name:
                     event_name = f"{event_name} ({team_name})"
 
-        # Calculate season based on the event_date (not creation date!)
+        # Calculate season based on the event_date
         from EsportsManagementTool.events import get_season_for_event_date
         season_id = get_season_for_event_date(cursor, event_date)
 
@@ -792,35 +909,35 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
             if team_result:
                 game_display = f"{game_title} ({team_result['teamName']})"
 
-        # ============================================
         # Only set team_id for team-specific events
-        # ============================================
         event_team_id = schedule['team_id'] if schedule['visibility'] == 'team' else None
 
-        # ============================================
-        # Correct column order and value mapping
-        # ============================================
+        # Get league_id from schedule (will be None for non-Match events)
+        league_id = schedule.get('league_id')
+
+        # Insert into generalevents WITH league_id
         cursor.execute("""
-                    INSERT INTO generalevents
-                    (EventName, Date, StartTime, EndTime, Description, EventType, 
-                     Game, game_id, Location, created_by, schedule_id, is_scheduled,
-                     team_id, visibility, season_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s)
-                """, (
-            event_name,  # EventName
-            event_date,  # Date
-            schedule['start_time'],  # StartTime
-            schedule['end_time'],  # EndTime
-            schedule['description'] or f"Recurring {schedule['event_type']}",  # Description
-            schedule['event_type'],  # EventType
-            game_display,  # Game (display string)
-            schedule['game_id'],  # game_id
-            schedule['location'] or 'TBD',  # Location
-            schedule['created_by'],  # created_by
-            schedule['schedule_id'],  # schedule_id
-            event_team_id,  # team_id
-            schedule['visibility'],  # visibility
-            season_id  # season_id
+            INSERT INTO generalevents
+            (EventName, Date, StartTime, EndTime, Description, EventType, 
+             Game, game_id, Location, created_by, schedule_id, is_scheduled,
+             team_id, visibility, season_id, league_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s, %s)
+        """, (
+            event_name,
+            event_date,
+            schedule['start_time'],
+            schedule['end_time'],
+            schedule['description'] or f"Recurring {schedule['event_type']}",
+            schedule['event_type'],
+            game_display,
+            schedule['game_id'],
+            schedule['location'] or 'TBD',
+            schedule['created_by'],
+            schedule['schedule_id'],
+            event_team_id,
+            schedule['visibility'],
+            season_id,
+            league_id  # NEW: Pass league_id to event
         ))
 
         event_id = cursor.lastrowid

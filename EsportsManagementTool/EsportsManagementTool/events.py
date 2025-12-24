@@ -487,7 +487,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     'schedule_id': event.get('schedule_id'),
                     'season_id': event.get('season_id'),
                     'season_name': event.get('season_name'),
-                    'season_is_active': event.get('season_is_active', 0)
+                    'season_is_active': event.get('season_is_active', 0),
+                    'league_id': event.get('league_id') 
                 }
                 events_list.append(event_data)
 
@@ -619,6 +620,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 game_result = cursor.fetchone()
                 if game_result:
                     primary_game_id = game_result['gameID']
+            league_id = data.get('league_id')
 
             # ============================================
             # RECALCULATE SEASON BASED ON NEW DATE
@@ -635,7 +637,8 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             cursor.execute("""
                 UPDATE generalevents
                 SET EventName = %s, EventType = %s, Game = %s, game_id = %s, Date = %s,
-                    StartTime = %s, EndTime = %s, Location = %s, Description = %s, season_id = %s
+                    StartTime = %s, EndTime = %s, Location = %s, Description = %s, 
+                    season_id = %s, league_id = %s
                 WHERE EventID = %s
             """, (
                 data['event_name'],
@@ -648,6 +651,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 data['location'],
                 data['description'],
                 season_id,
+                int(league_id) if league_id else None, 
                 event_id
             ))
 

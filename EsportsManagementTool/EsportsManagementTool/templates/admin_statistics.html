@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}Program Statistics - Stockton Esports{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin-statistics.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="statistics-header">
+        <div>
+            <h1>Esports Program Statistics</h1>
+            <p>Comprehensive overview of Stockton's competitive esports performance</p>
+        </div>
+        
+        <!-- Season Filter -->
+        <div class="season-filter">
+            <label for="seasonSelect">Season:</label>
+            <select id="seasonSelect" class="season-dropdown" onchange="filterBySeason(this.value)">
+                <option value="">All Time</option>
+                {% for season in seasons %}
+                <option value="{{ season.season_id }}" 
+                        {% if selected_season == season.season_id %}selected{% endif %}>
+                    {{ season.season_name }}
+                    {% if season.is_active %}(Current){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- ================================ -->
+    <!-- PROGRAM-WIDE SUMMARY CARDS -->
+    <!-- ================================ -->
+    <section class="stats-section">
+        <h2>Program Overview</h2>
+        <div class="stats-grid-large">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <i class="fas fa-gamepad"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ statistics.program_wide.unique_games }}</div>
+                    <div class="stat-label">Competitive Game Titles</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ statistics.program_wide.unique_leagues }}</div>
+                    <div class="stat-label">Unique Leagues</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ statistics.program_wide.unique_players }}</div>
+                    <div class="stat-label">Unique Players</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ statistics.program_wide.unique_teams }}</div>
+                    <div class="stat-label">Unique Teams</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #fa709a, #fee140);">
+                    <i class="fas fa-user-friends"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ statistics.program_wide.community_members }}</div>
+                    <div class="stat-label">Community Members</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #30cfd0, #330867);">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ statistics.program_wide.fielded_players }}</div>
+                    <div class="stat-label">Fielded Players</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================ -->
+    <!-- PLAYER STATISTICS -->
+    <!-- ================================ -->
+    <section class="stats-section">
+        <h2>Player Metrics</h2>
+        <div class="stats-grid-medium">
+            <div class="stat-card stat-card-highlight">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #11998e, #38ef7d);">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ statistics.player_stats.new_players }}</div>
+                    <div class="stat-label">New Players</div>
+                    <div class="stat-description">First time competitors</div>
+                </div>
+            </div>
+
+            <div class="stat-card stat-card-warning">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #ee0979, #ff6a00);">
+                    <i class="fas fa-user-times"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ statistics.player_stats.did_not_return }}</div>
+                    <div class="stat-label">Did Not Return</div>
+                    <div class="stat-description">From previous season</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #3b41c5, #a981bb);">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ statistics.player_stats.multi_team_players }}</div>
+                    <div class="stat-label">Multi-Team Players</div>
+                    <div class="stat-description">Competing in multiple teams</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================ -->
+    <!-- TOURNAMENT PLACEMENTS -->
+    <!-- ================================ -->
+    <section class="stats-section">
+        <h2>Tournament Performance</h2>
+        <div class="placements-grid">
+            <div class="placement-card gold">
+                <div class="placement-icon">
+                    <i class="fas fa-crown"></i>
+                </div>
+                <div class="placement-value">{{ statistics.tournament_placements.winners }}</div>
+                <div class="placement-label">Winners</div>
+            </div>
+
+            <div class="placement-card silver">
+                <div class="placement-icon">
+                    <i class="fas fa-medal"></i>
+                </div>
+                <div class="placement-value">{{ statistics.tournament_placements.finals }}</div>
+                <div class="placement-label">Finals</div>
+            </div>
+
+            <div class="placement-card bronze">
+                <div class="placement-icon">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <div class="placement-value">{{ statistics.tournament_placements.semifinals }}</div>
+                <div class="placement-label">Semifinals</div>
+            </div>
+
+            <div class="placement-card">
+                <div class="placement-icon">
+                    <i class="fas fa-award"></i>
+                </div>
+                <div class="placement-value">{{ statistics.tournament_placements.quarterfinals }}</div>
+                <div class="placement-label">Quarterfinals</div>
+            </div>
+
+            <div class="placement-card">
+                <div class="placement-icon">
+                    <i class="fas fa-chevron-up"></i>
+                </div>
+                <div class="placement-value">{{ statistics.tournament_placements.playoffs }}</div>
+                <div class="placement-label">Playoffs</div>
+            </div>
+
+            <div class="placement-card">
+                <div class="placement-icon">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div class="placement-value">{{ statistics.tournament_placements.regular_season }}</div>
+                <div class="placement-label">Regular Season</div>
+            </div>
+
+            <div class="placement-card">
+                <div class="placement-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="placement-value">{{ statistics.tournament_placements.in_progress }}</div>
+                <div class="placement-label">In Progress</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================ -->
+    <!-- LEAGUE BREAKDOWN -->
+    <!-- ================================ -->
+    <section class="stats-section">
+        <h2>League Breakdown</h2>
+        
+        {% if statistics.league_breakdown %}
+        <div class="league-stats-container">
+            {% for league in statistics.league_breakdown %}
+            <div class="league-card">
+                <div class="league-header">
+                    <div class="league-title">
+                        {% if league.league_name %}
+                        <h3>{{ league.league_name }}</h3>
+                        {% else %}
+                        <h3>No League</h3>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="league-stats-grid">
+                    <div class="league-stat">
+                        <div class="league-stat-value">{{ league.unique_players }}</div>
+                        <div class="league-stat-label">Unique Players</div>
+                    </div>
+                    <div class="league-stat">
+                        <div class="league-stat-value">{{ league.unique_esports }}</div>
+                        <div class="league-stat-label">Unique Esports</div>
+                    </div>
+                    <div class="league-stat">
+                        <div class="league-stat-value">{{ league.community_members }}</div>
+                        <div class="league-stat-label">Community Members</div>
+                    </div>
+                    <div class="league-stat">
+                        <div class="league-stat-value">{{ league.fielded_players }}</div>
+                        <div class="league-stat-label">Fielded Players</div>
+                    </div>
+                    <div class="league-stat">
+                        <div class="league-stat-value">{{ league.unique_teams }}</div>
+                        <div class="league-stat-label">Unique Teams</div>
+                    </div>
+                </div>
+
+                <!-- Bar Chart Visualization -->
+                <div class="league-chart">
+                    <canvas id="leagueChart{{ loop.index }}"></canvas>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-chart-bar"></i>
+            <p>No league data available for this period</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- ================================ -->
+    <!-- EXPORT ACTIONS -->
+    <!-- ================================ -->
+    <section class="stats-section">
+        <div class="export-actions">
+            <h2>Export Options</h2>
+            <div class="export-buttons">
+                <button class="btn btn-primary" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> Export to Excel
+                </button>
+                <button class="btn btn-secondary" onclick="exportToPDF()">
+                    <i class="fas fa-file-pdf"></i> Export to PDF
+                </button>
+                <button class="btn btn-secondary" onclick="printStatistics()">
+                    <i class="fas fa-print"></i> Print Report
+                </button>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- Store data for JavaScript -->
+<script>
+    window.statisticsData = {{ statistics | tojson }};
+    window.selectedSeason = {{ selected_season | tojson }};
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="{{ url_for('static', filename='admin-statistics.js') }}"></script>
+{% endblock %}
