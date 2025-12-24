@@ -499,104 +499,6 @@
 }
 
 /* --------------------------------------------
-   DELETE CONFIRMATION MODAL
-   Modal for confirming event deletion
-   -------------------------------------------- */
-.delete-confirmation-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 1001;
-    justify-content: center;
-    align-items: center;
-}
-
-.delete-confirmation-modal.active {
-    display: flex;
-}
-
-.delete-confirmation-content {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 2rem;
-    max-width: 450px;
-    width: 90%;
-}
-
-.delete-confirmation-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.delete-confirmation-icon {
-    width: 50px;
-    height: 50px;
-    background: rgba(239, 68, 68, 0.1);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ef4444;
-    font-size: 1.5rem;
-}
-
-.delete-confirmation-header h3 {
-    font-size: 1.25rem;
-    color: var(--text-primary);
-    margin: 0;
-}
-
-.delete-confirmation-message {
-    color: var(--text-secondary);
-    line-height: 1.6;
-    margin-bottom: 1.5rem;
-}
-
-.delete-confirmation-event-name {
-    color: var(--stockton-blue);
-    font-weight: 600;
-}
-
-.delete-confirmation-actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
-}
-
-.delete-confirmation-actions .btn {
-    padding: 0.75rem 1.5rem;
-    font-size: 0.875rem;
-}
-
-.delete-confirmation-actions .btn-cancel {
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-}
-
-.delete-confirmation-actions .btn-cancel:hover {
-    background: var(--hover-bg);
-    color: var(--text-primary);
-}
-
-.delete-confirmation-actions .btn-confirm-delete {
-    background: #ef4444;
-    color: white;
-    border: none;
-}
-
-.delete-confirmation-actions .btn-confirm-delete:hover {
-    background: #dc2626;
-}
-
-/* --------------------------------------------
    FILTER BUTTONS
    Alternative filter button style
    -------------------------------------------- */
@@ -911,10 +813,6 @@ select[multiple]:focus {
 
     .event-card-actions {
         flex-direction: column;
-    }
-
-    .delete-confirmation-content {
-        margin: 1rem;
     }
 
     .event-header-controls {

@@ -220,59 +220,45 @@ function connectDiscord() {
  * @returns {Promise<void>}
  */
 async function disconnectDiscord() {
-    // Confirm user wants to disconnect (prevents accidental disconnection)
-    if (!confirm('Are you sure you want to disconnect your Discord account?')) {
-        return;
-    }
+    openDeleteConfirmModal({
+        title: 'Disconnect Discord?',
+        itemName: discordInfo?.username ? `@${discordInfo.username}` : 'Discord Account',
+        message: 'Are you sure you want to disconnect your Discord account?',
+        additionalInfo: `
+            <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(88, 101, 242, 0.1); border: 1px solid rgba(88, 101, 242, 0.3); border-radius: 6px; color: #5865F2;">
+                <i class="fas fa-info-circle"></i> This will remove Discord integration from your profile. You can reconnect at any time.
+            </div>
+        `,
+        buttonText: 'Disconnect Discord',
+        onConfirm: async () => {
+            try {
+                const response = await fetch('/discord/disconnect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
 
-    const messageDiv = document.getElementById('discordActionMessage');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-    // Hide any previous messages
-    if (messageDiv) {
-        messageDiv.style.display = 'none';
-    }
+                const data = await response.json();
 
-    try {
-        // Send disconnect request to backend
-        const response = await fetch('/discord/disconnect', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
+                closeDeleteConfirmModal();
+
+                if (data.success) {
+                    showDeleteSuccessMessage('Discord account disconnected successfully!');
+
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    throw new Error(data.message || 'Failed to disconnect');
+                }
+            } catch (error) {
+                console.error('Error disconnecting Discord:', error);
+                closeDeleteConfirmModal();
+                showDeleteErrorMessage(error.message || 'Failed to disconnect Discord account. Please try again.');
             }
-        });
-
-        // Handle HTTP errors
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        const data = await response.json();
-
-        if (data.success) {
-            // Show success message
-            if (messageDiv) {
-                messageDiv.textContent = 'Discord account disconnected successfully!';
-                messageDiv.className = 'form-message success';
-                messageDiv.style.display = 'block';
-            }
-
-            // Reload page after short delay to show updated state
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        } else {
-            throw new Error(data.message || 'Failed to disconnect');
-        }
-    } catch (error) {
-        console.error('Error disconnecting Discord:', error);
-
-        // Show error message to user
-        if (messageDiv) {
-            messageDiv.textContent = error.message || 'Failed to disconnect Discord account. Please try again.';
-            messageDiv.className = 'form-message error';
-            messageDiv.style.display = 'block';
-        }
-    }
+    });
 }
 
 // ============================================

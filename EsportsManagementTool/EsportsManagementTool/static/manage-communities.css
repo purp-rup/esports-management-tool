@@ -1,0 +1,552 @@
+/**
+ * Manage Communities Modal Styles
+ * Similar to Manage Leagues modal design
+ */
+
+/* Modal container */
+#manageCommunitiesModal {
+    z-index: 10000;
+}
+
+#manageCommunitiesModal .modal-content {
+    max-width: 600px;
+    width: 90%;
+}
+
+/* Header actions bar */
+.communities-modal-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.communities-modal-actions h3 {
+    margin: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.communities-modal-actions h3 i {
+    color: var(--stockton-blue);
+}
+
+/* Communities grid */
+.communities-grid {
+    display: grid;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+/* Community card */
+.community-manage-card {
+    background: var(--background-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.community-manage-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border-color: var(--stockton-blue);
+}
+
+/* Community header */
+.community-manage-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.community-manage-icon {
+    width: 60px;
+    height: 60px;
+    min-width: 60px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.community-manage-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12%;
+    border: 3px solid black;
+}
+
+.community-manage-icon i {
+    font-size: 1.75rem;
+    color: white;
+}
+
+.community-manage-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.community-manage-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.community-abbreviation {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.3rem;
+    background: rgba(121, 189, 233, 0.2);
+    border: 1px solid rgba(121, 189, 233, 0.4);
+    border-radius: 4px;
+    color: var(--stockton-blue);
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-block;
+    width: fit-content;
+}
+
+.community-division {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem !important;
+}
+
+/* ==========================
+ * HIDE COMMUNITY BUTTON
+ * ========================== */
+ .community-hide-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border: 2px solid #ff9800;
+    background: transparent;
+    color: #ff9800;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.community-hide-btn:hover {
+    background: rgba(255, 152, 0, 0.1);
+    transform: scale(1.05);
+}
+
+.community-hide-btn.hidden-active {
+    background: #ff9800;
+    color: white;
+}
+
+/* Hidden community card styling */
+.community-manage-card.hidden-community {
+    opacity: 0.5;
+    filter: grayscale(0.3);
+}
+
+.community-manage-card.hidden-community::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(255, 152, 0, 0.05) 10px,
+        rgba(255, 152, 0, 0.05) 20px
+    );
+    pointer-events: none;
+    border-radius: 12px;
+}
+
+/* Make sure card has position relative */
+.community-manage-card {
+    position: relative;
+}
+
+/* --------------------------------------------
+   GM SELECTION MODAL
+   List for selecting/assigning GMs
+   -------------------------------------------- */
+#assignGMModal {
+    z-index: 10001; /* Higher than manageCommunitiesModal */
+}
+
+.gm-selection-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.25rem;
+}
+
+.gm-selection-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--background-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.gm-selection-item:hover {
+    background: var(--hover-bg);
+    border-color: var(--stockton-blue);
+    transform: translateX(4px);
+}
+
+.gm-selection-item.selected {
+    background: rgba(121, 189, 233, 0.1);
+    border-color: var(--stockton-blue);
+}
+
+/* ======================================
+ * COMMUNITY ACTIONS
+ * ====================================== */
+ /* Header right side container */
+.community-header-right {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 10;
+}
+
+/* Header action buttons container */
+.community-header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Unified action button styling */
+.community-action-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border: 2px solid var(--border-color);
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.community-action-btn:hover {
+    background: var(--hover-bg);
+    transform: scale(1.05);
+}
+
+/* View community button */
+.community-action-btn:has(.fa-eye) {
+    border-color: var(--stockton-blue);
+    color: var(--stockton-blue);
+}
+
+.community-action-btn:has(.fa-eye):hover {
+    background: rgba(121, 189, 233, 0.1);
+}
+
+/* Assign GM button */
+.community-action-btn.assign-gm-btn {
+    border-color: #2196F3;
+    color: #2196F3;
+}
+
+.community-action-btn.assign-gm-btn:hover {
+    background: rgba(33, 150, 243, 0.1);
+}
+
+/* Remove GM button */
+.community-action-btn.remove-gm-btn {
+    border-color: #ff9800;
+    color: #ff9800;
+}
+
+.community-action-btn.remove-gm-btn:hover {
+    background: rgba(255, 152, 0, 0.1);
+}
+
+/* Hide/unhide button styling */
+.community-action-btn:has(.fa-eye-slash) {
+    border-color: #ff9800;
+    color: #ff9800;
+}
+
+.community-action-btn:has(.fa-eye-slash):hover {
+    background: rgba(255, 152, 0, 0.1);
+}
+
+.community-action-btn.hidden-active {
+    background: #ff9800;
+    color: white;
+}
+
+/* ==========================
+ * GM INFO
+ * ========================== */
+/* Compact GM info styling */
+.community-gm-compact {
+    border-top: none;
+    text-align: left;
+}
+
+.gm-compact-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
+
+.gm-compact-user {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.gm-compact-user span {
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* Small avatar for GM */
+.gm-avatar-small {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid black;
+    object-fit: cover;
+}
+
+.gm-avatar-initials-small {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--stockton-blue);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.625rem;
+    font-weight: 600;
+}
+
+/* No GM state */
+.community-gm-compact.no-gm .gm-compact-label {
+    color: var(--text-secondary);
+    margin-bottom: 0;
+}
+
+/* ===========================
+ * EDIT AND DELETE BUTTONS
+ * =========================== */
+.community-action-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 3px solid var(--border-color);
+    margin-left: 0.75rem;
+    margin-right: 0.75rem;
+}
+
+.community-action-buttons .btn {
+    padding: 0.5rem 0.75rem;
+}
+
+.community-action-buttons .btn-secondary,
+.community-action-buttons .btn-community-delete {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.btn-community-delete {
+    background: transparent;
+    color: #ef4444;
+    border: 1px solid #ef4444 !important;
+}
+
+.btn-community-delete:hover {
+    background: rgba(239, 68, 68, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Empty state */
+.communities-empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+.communities-empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+    color: var(--text-secondary);
+}
+
+.communities-empty-state h3 {
+    color: var(--text-primary);
+    margin: 0 0 0.5rem 0;
+}
+
+.communities-empty-state p {
+    color: var(--text-secondary);
+    margin: 0 0 1.5rem 0;
+}
+
+/* Loading state */
+.communities-loading {
+    text-align: center;
+    padding: 2rem;
+}
+
+.communities-loading i {
+    font-size: 2rem;
+    color: var(--stockton-blue);
+}
+
+.communities-loading p {
+    color: var(--text-secondary);
+    margin-top: 1rem;
+}
+
+/* Community form */
+.community-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.community-form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.community-form-group input[type="text"],
+.community-form-group textarea,
+.community-form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.community-form-group input:focus,
+.community-form-group textarea:focus,
+.community-form-group select:focus {
+    outline: none;
+    border-color: var(--stockton-blue);
+}
+
+.community-form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.community-form-group small {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+}
+
+/* Image upload section */
+.community-image-upload {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.community-image-preview {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+    border-radius: 12px;
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.community-image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.community-image-preview i {
+    font-size: 2rem;
+    color: var(--text-secondary);
+}
+
+/* Team sizes checkboxes (reuse existing styles) */
+.community-form-group .team-sizes-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.75rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    #manageCommunitiesModal .modal-content {
+        max-width: 95%;
+    }
+
+    .communities-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .communities-modal-actions {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .community-manage-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .community-form-group .team-sizes-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}

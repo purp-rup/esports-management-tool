@@ -36,6 +36,7 @@ def view_games():
                 gm_id,
                 CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image
             FROM games
+            WHERE hidden = 0
             ORDER BY GameTitle ASC
         """)
 
@@ -119,8 +120,9 @@ def create_game():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-        #Retrieves inputted title, description, sizes, and division for table.
+        # Retrieve inputted fields
         game_title = request.form.get('gameTitle', '').strip()
+        abbreviation = request.form.get('abbreviation', '').strip().upper()
         description = request.form.get('gameDescription', '').strip()
         team_sizes_json = request.form.get('team_sizes', '[]')
         division = request.form.get('division', 'Other').strip()
@@ -137,8 +139,19 @@ def create_game():
                 game_image = file.read()
                 image_mime_type = file.content_type
 
+        # Validation
         if not game_title:
             return jsonify({'success': False, 'message': 'Game title is required'}), 400
+
+        if not abbreviation:
+            return jsonify({'success': False, 'message': 'Game abbreviation is required'}), 400
+
+        # Validate abbreviation length (1-5 characters, alphanumeric only)
+        if len(abbreviation) > 5:
+            return jsonify({'success': False, 'message': 'Abbreviation must be 5 characters or less'}), 400
+
+        if not abbreviation.replace(' ', '').isalnum():
+            return jsonify({'success': False, 'message': 'Abbreviation must contain only letters and numbers'}), 400
 
         if not description:
             return jsonify({'success': False, 'message': 'Description is required'}), 400
@@ -146,13 +159,14 @@ def create_game():
         if not team_sizes or len(team_sizes) == 0:
             return jsonify({'success': False, 'message': 'At least one team size must be selected'}), 400
 
-        #Validate division
+        # Validate division
         valid_divisions = ['Strategy', 'Shooter', 'Sports', 'Other']
         if division not in valid_divisions:
             return jsonify({'success': False, 'message': 'Invalid division selected'}), 400
 
         team_sizes_str = ','.join(map(str, team_sizes))
 
+        # Check for duplicate title
         cursor.execute("SELECT GameID FROM games WHERE GameTitle = %s", (game_title,))
         existing_game = cursor.fetchone()
 
@@ -160,10 +174,18 @@ def create_game():
             cursor.close()
             return jsonify({'success': False, 'message': 'A game with this title already exists'}), 400
 
-        # UPDATED: Include Division in INSERT
+        # Check for duplicate abbreviation
+        cursor.execute("SELECT GameID FROM games WHERE Abbreviation = %s", (abbreviation,))
+        existing_abbrev = cursor.fetchone()
+
+        if existing_abbrev:
+            cursor.close()
+            return jsonify({'success': False, 'message': 'This abbreviation is already in use'}), 400
+
+        # Insert with abbreviation
         cursor.execute(
-            "INSERT INTO games (GameTitle, Description, TeamSizes, Division, GameImage, ImageMimeType) VALUES (%s, %s, %s, %s, %s, %s)",
-            (game_title, description, team_sizes_str, division, game_image, image_mime_type))
+            "INSERT INTO games (GameTitle, Abbreviation, Description, TeamSizes, Division, GameImage, ImageMimeType) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (game_title, abbreviation, description, team_sizes_str, division, game_image, image_mime_type))
 
         game_id = cursor.lastrowid
         print(f"Game inserted with ID: {game_id}")
@@ -1051,6 +1073,345 @@ def get_gm_game_mappings():
             'message': 'Failed to load GM mappings',
             'mappings': {}
         }), 500
+
+"""
+New Community Modal methods
+"""
+@app.route('/api/games/manage/all', methods=['GET'])
+@roles_required('admin', 'developer')
+def get_all_games_for_management():
+    """
+    Get all games with their details for the Manage Communities modal
+    Returns game info, current GM, and basic stats
+    """
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Get all games with GM info
+        cursor.execute("""
+            SELECT 
+                g.GameID,
+                g.GameTitle,
+                g.Abbreviation,
+                g.Description,
+                g.Division,
+                g.TeamSizes,
+                g.gm_id,
+                g.hidden,
+                CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image,
+                u.username as gm_username,
+                u.firstname as gm_firstname,
+                u.lastname as gm_lastname
+            FROM games g
+            LEFT JOIN users u ON g.gm_id = u.id
+            ORDER BY g.GameTitle ASC
+        """)
+
+        games = cursor.fetchall()
+
+        if not games:
+            return jsonify({'success': True, 'games': []}), 200
+
+        # Get member counts for all games
+        game_ids = [game['GameID'] for game in games]
+        placeholders = ','.join(['%s'] * len(game_ids))
+
+        cursor.execute(f"""
+            SELECT game_id, COUNT(DISTINCT user_id) as member_count
+            FROM in_communities
+            WHERE game_id IN ({placeholders})
+            GROUP BY game_id
+        """, game_ids)
+
+        member_counts = {row['game_id']: row['member_count'] for row in cursor.fetchall()}
+
+        # Get team counts (season-aware)
+        cursor.execute(f"""
+            SELECT t.gameID, COUNT(*) as team_count
+            FROM teams t
+            INNER JOIN seasons s ON t.season_id = s.season_id
+            WHERE t.gameID IN ({placeholders})
+            AND s.is_active = 1
+            GROUP BY t.gameID
+        """, game_ids)
+
+        team_counts = {row['gameID']: row['team_count'] for row in cursor.fetchall()}
+
+        # Build response
+        games_data = []
+        for game in games:
+            game_id = game['GameID']
+
+            gm_info = None
+            if game['gm_id']:
+                # Fetch GM profile picture
+                cursor.execute(
+                    "SELECT profile_picture FROM users WHERE id = %s",
+                    (game['gm_id'],)
+                )
+                gm_pic_result = cursor.fetchone()
+                gm_profile_pic = None
+                if gm_pic_result and gm_pic_result['profile_picture']:
+                    gm_profile_pic = f"/static/uploads/avatars/{gm_pic_result['profile_picture']}"
+
+                gm_info = {
+                    'user_id': game['gm_id'],
+                    'username': game['gm_username'],
+                    'full_name': f"{game['gm_firstname']} {game['gm_lastname']}",
+                    'profile_picture': gm_profile_pic
+                }
+
+            games_data.append({
+                'id': game_id,
+                'title': game['GameTitle'],
+                'abbreviation': game['Abbreviation'],
+                'description': game['Description'],
+                'division': game['Division'],
+                'team_sizes': game['TeamSizes'],
+                'image_url': f'/game-image/{game_id}' if game['has_image'] else None,
+                'member_count': member_counts.get(game_id, 0),
+                'team_count': team_counts.get(game_id, 0),
+                'current_gm': gm_info,
+                'hidden': bool(game['hidden'])
+            })
+
+        return jsonify({'success': True, 'games': games_data}), 200
+
+    except Exception as e:
+        print(f"Error fetching games for management: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': 'Failed to fetch games'}), 500
+
+    finally:
+        cursor.close()
+
+
+@app.route('/api/games/manage/<int:game_id>', methods=['POST', 'PUT'])
+@roles_required('admin', 'developer')
+def update_game_details(game_id):
+    """Update game details from Manage Communities modal"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Check if game exists
+        cursor.execute("SELECT GameID, GameImage FROM games WHERE GameID = %s", (game_id,))
+        existing = cursor.fetchone()
+
+        if not existing:
+            return jsonify({'success': False, 'message': 'Game not found'}), 404
+
+        # Get form data
+        title = request.form.get('title', '').strip()
+        abbreviation = request.form.get('abbreviation', '').strip().upper()
+        description = request.form.get('description', '').strip()
+        division = request.form.get('division', '').strip()
+        team_sizes_json = request.form.get('team_sizes', '[]')
+
+        import json
+        team_sizes = json.loads(team_sizes_json)
+
+        # Validation
+        if not title:
+            return jsonify({'success': False, 'message': 'Game title is required'}), 400
+
+        if not abbreviation:
+            return jsonify({'success': False, 'message': 'Game abbreviation is required'}), 400
+
+        if len(abbreviation) > 5:
+            return jsonify({'success': False, 'message': 'Abbreviation must be 5 characters or less'}), 400
+
+        if not abbreviation.replace(' ', '').isalnum():
+            return jsonify({'success': False, 'message': 'Abbreviation must contain only letters and numbers'}), 400
+
+        if not description:
+            return jsonify({'success': False, 'message': 'Description is required'}), 400
+
+        if not team_sizes or len(team_sizes) == 0:
+            return jsonify({'success': False, 'message': 'At least one team size must be selected'}), 400
+
+        # Validate division
+        valid_divisions = ['Strategy', 'Shooter', 'Sports', 'Other']
+        if division not in valid_divisions:
+            return jsonify({'success': False, 'message': 'Invalid division selected'}), 400
+
+        team_sizes_str = ','.join(map(str, team_sizes))
+
+        # Check for duplicate title (excluding current game)
+        cursor.execute(
+            "SELECT GameID FROM games WHERE GameTitle = %s AND GameID != %s",
+            (title, game_id)
+        )
+        if cursor.fetchone():
+            return jsonify({'success': False, 'message': 'A game with this title already exists'}), 400
+
+        # Check for duplicate abbreviation (excluding current game)
+        cursor.execute(
+            "SELECT GameID FROM games WHERE Abbreviation = %s AND GameID != %s",
+            (abbreviation, game_id)
+        )
+        if cursor.fetchone():
+            return jsonify({'success': False, 'message': 'This abbreviation is already in use'}), 400
+
+        # Handle image upload if present
+        game_image = existing['GameImage']  # Keep existing by default
+        image_mime_type = None
+
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename:
+                game_image = file.read()
+                image_mime_type = file.content_type
+
+        # Update database
+        if image_mime_type:
+            # Update with new image
+            cursor.execute("""
+                UPDATE games 
+                SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, 
+                    TeamSizes = %s, GameImage = %s, ImageMimeType = %s
+                WHERE GameID = %s
+            """, (title, abbreviation, description, division, team_sizes_str, game_image, image_mime_type, game_id))
+        else:
+            # Update without changing image
+            cursor.execute("""
+                UPDATE games 
+                SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, TeamSizes = %s
+                WHERE GameID = %s
+            """, (title, abbreviation, description, division, team_sizes_str, game_id))
+
+        mysql.connection.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Game "{title}" updated successfully',
+            'game_id': game_id
+        }), 200
+
+    except Exception as e:
+        print(f"Error updating game: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        mysql.connection.rollback()
+        return jsonify({'success': False, 'message': f'Failed to update game: {str(e)}'}), 500
+
+    finally:
+        cursor.close()
+
+
+@app.route('/api/games/manage/<int:game_id>', methods=['DELETE'])
+@roles_required('admin', 'developer')
+def delete_game_from_management(game_id):
+    """
+    Delete a game from Manage Communities modal
+    Includes validation for associated events and teams
+    """
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Check if game exists
+        cursor.execute("SELECT GameID, GameTitle FROM games WHERE GameID = %s", (game_id,))
+        game = cursor.fetchone()
+
+        if not game:
+            return jsonify({'success': False, 'message': 'Game not found'}), 404
+
+        game_title = game['GameTitle']
+
+        # Check for associated events
+        cursor.execute(
+            "SELECT COUNT(*) as event_count FROM generalevents WHERE Game = %s",
+            (game_title,)
+        )
+        event_check = cursor.fetchone()
+
+        if event_check['event_count'] > 0:
+            return jsonify({
+                'success': False,
+                'message': f'Cannot delete game. {event_check["event_count"]} event(s) are associated with this game.'
+            }), 400
+
+        # Check for associated teams (all seasons)
+        cursor.execute(
+            "SELECT COUNT(*) as team_count FROM teams WHERE gameID = %s",
+            (game_id,)
+        )
+        team_check = cursor.fetchone()
+
+        if team_check['team_count'] > 0:
+            return jsonify({
+                'success': False,
+                'message': f'Cannot delete game. {team_check["team_count"]} team(s) are associated with this game.'
+            }), 400
+
+        # Safe to delete - remove community members first
+        cursor.execute("DELETE FROM in_communities WHERE game_id = %s", (game_id,))
+
+        # Delete the game
+        cursor.execute("DELETE FROM games WHERE GameID = %s", (game_id,))
+
+        mysql.connection.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'"{game_title}" and its community have been deleted successfully'
+        }), 200
+
+    except Exception as e:
+        print(f"Error deleting game: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        mysql.connection.rollback()
+        return jsonify({'success': False, 'message': 'Failed to delete game'}), 500
+
+    finally:
+        cursor.close()
+
+"""
+Method to toggle whether a game is declared hidden or not in the database.
+"""
+@app.route('/api/games/manage/<int:game_id>/toggle-hidden', methods=['POST'])
+@roles_required('admin', 'developer')
+def toggle_game_hidden(game_id):
+    """Toggle hidden status of a game"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Get current hidden status
+        cursor.execute("SELECT GameID, GameTitle, hidden FROM games WHERE GameID = %s", (game_id,))
+        game = cursor.fetchone()
+
+        if not game:
+            return jsonify({'success': False, 'message': 'Game not found'}), 404
+
+        # Toggle hidden status
+        new_hidden_status = 0 if game['hidden'] else 1
+
+        cursor.execute(
+            "UPDATE games SET hidden = %s WHERE GameID = %s",
+            (new_hidden_status, game_id)
+        )
+
+        mysql.connection.commit()
+
+        action = 'hidden' if new_hidden_status else 'unhidden'
+
+        return jsonify({
+            'success': True,
+            'message': f'"{game["GameTitle"]}" has been {action}',
+            'hidden': bool(new_hidden_status)
+        }), 200
+
+    except Exception as e:
+        print(f"Error toggling hidden status: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        mysql.connection.rollback()
+        return jsonify({'success': False, 'message': 'Failed to toggle hidden status'}), 500
+
+    finally:
+        cursor.close()
+
 ## =================================================
 ## THE ABOVE WAS PRODUCED IN TANDEM WITH CLAUDEAI
 ## =================================================

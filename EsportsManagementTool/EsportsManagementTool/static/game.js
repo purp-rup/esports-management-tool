@@ -90,34 +90,30 @@ function setupGameImagePreview() {
  * Load all games from database
  * Fetches games and displays them in the rosters grid
  * Shows loading state while fetching
- */
+ **/
 async function loadGames() {
     const loadingDiv = document.getElementById('rostersLoading');
     const gridDiv = document.getElementById('rostersGrid');
     const emptyDiv = document.getElementById('rostersEmpty');
 
-    // Show loading state, hide other states
     loadingDiv.style.display = 'block';
     gridDiv.style.display = 'none';
     emptyDiv.style.display = 'none';
 
     try {
-        // Fetch games from API
         const response = await fetch('/games');
         const data = await response.json();
 
         if (data.success && data.games && data.games.length > 0) {
-            // Display games in grid
-            displayGames(data.games);
+            // Use division grouping display
+            displayGamesWithDivisions(data.games);
             loadingDiv.style.display = 'none';
             gridDiv.style.display = 'block';
         } else {
-            // No games available, show empty state
             loadingDiv.style.display = 'none';
             emptyDiv.style.display = 'block';
         }
     } catch (error) {
-        // Handle errors and show empty state
         console.error('Error loading games:', error);
         loadingDiv.style.display = 'none';
         emptyDiv.style.display = 'block';
@@ -167,15 +163,6 @@ function createGameCard(game, isAdmin) {
                 onerror="this.onerror=null; this.parentElement.innerHTML='<i class=&quot;fas fa-gamepad&quot;></i>';">`
         : `<i class="fas fa-gamepad"></i>`;
 
-    // Delete button (admin only)
-    const deleteButtonHTML = isAdmin
-        ? `<button class="game-delete-btn"
-                    onclick="confirmDeleteGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')"
-                    title="Delete game">
-                <i class="fas fa-trash"></i>
-           </button>`
-        : '';
-
     // Join/Leave button based on membership status
     const joinButtonHTML = isMember
         ? `<button class="btn btn-secondary"
@@ -204,7 +191,6 @@ function createGameCard(game, isAdmin) {
 
     // Build complete card HTML
     card.innerHTML = `
-        ${deleteButtonHTML}
         <div class="roster-card-header">
             <div class="roster-icon">
                 ${iconHTML}
@@ -256,6 +242,10 @@ function escapeHtml(text) {
     };
     return text.replace(/['&<>"]/g, m => map[m]);
 }
+
+// =============================
+// GAME DROPDOWNS
+// =============================
 
 /**
  * Load games for dropdown in event creation
@@ -318,421 +308,27 @@ async function loadGamesForDropdown() {
     }
 }
 
-// ============================================
-// GAME DETAILS MODAL
-// ============================================
-
-/**
- * Open game details modal
- * Fetches and displays comprehensive game information
- * @param {number} gameId - Game ID to display details for
+/*
+ * Refresh all game dropdowns on the current page
+ * Loops through common dropdown IDs and refreshes if they exist
+ * Used after game creation/deletion to update all dropdowns
  */
-async function openGameDetailsModal(gameId) {
-    currentGameId = gameId;
-    const modal = document.getElementById('gameDetailsModal');
-    const loading = document.getElementById('gameDetailsLoading');
-    const content = document.getElementById('gameDetailsContent');
+async function refreshAllGameDropdowns() {
+    // List of all game dropdown IDs that might exist on the page
+    // Each includes the select element ID and its loading indicator ID
+    const dropdownIds = [
+        { selectId: 'game', loadingId: 'gameLoadingIndicator' },           // Create event modal
+        { selectId: 'editGame', loadingId: 'editGameLoadingIndicator' },   // Edit event modal
+        { selectId: 'gameFilter', loadingId: 'gameFilterLoadingIndicator' } // Events filter
+    ];
 
-    // Show modal and loading state
-    modal.style.display = 'block';
-    loading.style.display = 'block';
-    content.style.display = 'none';
-    document.body.style.overflow = 'hidden';
-
-    try {
-        // Fetch game details from API
-        const response = await fetch(`/api/game/${gameId}/details`);
-        const data = await response.json();
-
-        if (data.success) {
-            const game = data.game;
-
-            // Update modal header with game title
-            document.getElementById('gameDetailsModalTitle').textContent = game.title;
-            document.getElementById('gameDetailsTitle').textContent = game.title;
-            document.getElementById('gameDetailsDescription').textContent = game.description;
-
-            // Update game icon/image
-            updateGameIcon(game);
-
-            // Load and display leagues + stats
-            await displayGameStatsWithLeagues(gameId, game);
-
-            // Populate members list
-            populateMembersList(game.members, gameId);
-
-            // Update join/leave buttons
-            updateActionButtons(game, gameId);
-
-            // Add GM assignment button for admins
-            updateGMAssignmentButton(game, gameId);
-
-            // Show content, hide loading
-            loading.style.display = 'none';
-            content.style.display = 'block';
-
-            // Load next scheduled event
-            await loadGameNextScheduledEvent(gameId);
-        } else {
-            throw new Error(data.message || 'Failed to load game details');
-        }
-    } catch (error) {
-        // Handle errors and show error message
-        console.error('Error loading game details:', error);
-        loading.innerHTML = `
-            <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ff5252;"></i>
-            <p style="color: var(--text-secondary); margin-top: 1rem;">Failed to load game details</p>
-        `;
-    }
-}
-
-/**
- * Update game icon in details modal
- * @param {Object} game - Game object
- */
-function updateGameIcon(game) {
-    const iconDiv = document.getElementById('gameDetailsIcon');
-    if (game.image_url) {
-        iconDiv.innerHTML = `<img src="${game.image_url}" alt="${game.title}" class="game-details-image">`;
-    } else {
-        iconDiv.innerHTML = '<i class="fas fa-gamepad"></i>';
-    }
-}
-
-/**
- * Display game stats with leagues
- * @param {number} gameId - Game ID
- * @param {Object} game - Game object
- */
-async function displayGameStatsWithLeagues(gameId, game) {
-    // Load leagues for this game's current season
-    let leaguesHtml = '';
-    try {
-        const leaguesResponse = await fetch(`/api/game/${gameId}/current-leagues`);
-        const leaguesData = await leaguesResponse.json();
-
-        if (leaguesData.success && leaguesData.leagues && leaguesData.leagues.length > 0) {
-            // Build league badges
-            const leagueBadgesHtml = leaguesData.leagues.map(league => {
-                const logoHtml = league.logo
-                    ? `<img src="${league.logo}" alt="${league.name}" class="game-league-badge-logo">`
-                    : '<i class="fas fa-trophy game-league-badge-icon"></i>';
-
-                // If there's a website URL, make it a link
-                if (league.website_url) {
-                    return `
-                        <a href="${league.website_url}"
-                           target="_blank"
-                           rel="noopener noreferrer"
-                           class="game-league-badge"
-                           title="Visit ${league.name} website">
-                            ${logoHtml}
-                            <span class="game-league-badge-name">${league.name}</span>
-                            <i class="fas fa-external-link-alt game-league-badge-external"></i>
-                        </a>
-                    `;
-                } else {
-                    return `
-                        <span class="game-league-badge">
-                            ${logoHtml}
-                            <span class="game-league-badge-name">${league.name}</span>
-                        </span>
-                    `;
-                }
-            }).join('');
-
-            // Create leagues stat card with just icon, label, and badges
-            leaguesHtml = `
-                <div class="game-stat-card leagues-card">
-                    <i class="fas fa-trophy"></i>
-                    <div class="game-stat-label">Leagues</div>
-                    <div class="game-leagues-badges">
-                        ${leagueBadgesHtml}
-                    </div>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Error loading leagues:', error);
-    }
-
-    // Build stats row HTML
-    const statsRowHtml = `
-        ${leaguesHtml}
-        <div class="game-stat-card">
-            <i class="fas fa-users"></i>
-            <div class="game-stat-number">${game.member_count || 0}</div>
-            <div class="game-stat-label">Members</div>
-        </div>
-        <div class="game-stat-card">
-            <i class="fas fa-shield-alt"></i>
-            <div class="game-stat-number">${game.team_count || 0}</div>
-            <div class="game-stat-label">Teams</div>
-        </div>
-    `;
-
-    // Find the stats row container and update it
-    const statsRow = document.querySelector('.game-stats-row');
-    if (statsRow) {
-        statsRow.innerHTML = statsRowHtml;
-    }
-}
-
-/**
- * Populate members list in game details modal
- * @param {Array} members - Array of member objects
- * @param {number} gameId - Current game ID for context
- */
-function populateMembersList(members, gameId) {
-    const membersList = document.getElementById('gameMembersList');
-    const noMembers = document.getElementById('gameNoMembers');
-    const searchInput = document.getElementById('memberSearch');
-
-    if (members.length > 0) {
-        membersList.innerHTML = '';
-        membersList.style.display = 'block';
-        noMembers.style.display = 'none';
-
-        // Show search input
-        if (searchInput) {
-            searchInput.style.display = 'block';
-            searchInput.value = ''; // Clear previous search
-        }
-
-        // Create member item for each member
-        members.forEach(member => {
-            const memberItem = createMemberItem(member, gameId);
-            membersList.appendChild(memberItem);
-        });
-    } else {
-        // No members, show empty state
-        membersList.style.display = 'none';
-        noMembers.style.display = 'block';
-        if (searchInput) {
-            searchInput.style.display = 'none';
+    // Refresh each dropdown that exists on the page
+    for (const dropdown of dropdownIds) {
+        const selectElement = document.getElementById(dropdown.selectId);
+        if (selectElement && typeof populateGameDropdown === 'function') {
+            await populateGameDropdown(dropdown.selectId, dropdown.loadingId);
         }
     }
-}
-
-/**
- * Create a member item element
- * @param {Object} member - Member object
- * @param {number} gameId - Current game ID for context highlighting
- * @returns {HTMLElement} The created member item element
- */
-function createMemberItem(member, gameId) {
-    const memberItem = document.createElement('div');
-    const isAssignedGM = member.is_game_manager;
-
-    memberItem.className = 'member-item' + (isAssignedGM ? ' assigned-gm' : '');
-    memberItem.setAttribute('data-username', member.username.toLowerCase());
-    memberItem.setAttribute('data-name', member.name.toLowerCase());
-
-    // Profile picture or initials
-    let profilePicHTML;
-    if (member.profile_picture) {
-        profilePicHTML = `<img src="${member.profile_picture}" alt="${member.name}" class="member-avatar">`;
-    } else {
-        const initials = member.name.split(' ').map(n => n[0]).join('');
-        profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
-    }
-
-    // Build role badges using shared function
-    const badgesHTML = buildUniversalRoleBadges({
-        userId: member.id,
-        roles: member.roles || [],
-        contextGameId: gameId  // Pass the game ID for context highlighting
-    });
-
-    memberItem.innerHTML = `
-        ${profilePicHTML}
-        <div class="member-info">
-            <div class="member-name">${member.name}</div>
-            <div class="member-username">@${member.username}</div>
-        </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            ${badgesHTML}
-        </div>
-    `;
-
-    return memberItem;
-}
-
-/**
- * Update join/leave action buttons based on membership status
- * @param {Object} game - Game object
- * @param {number} gameId - Game ID
- */
-function updateActionButtons(game, gameId) {
-    const joinBtn = document.getElementById('gameDetailsJoinBtn');
-    const leaveBtn = document.getElementById('gameDetailsLeaveBtn');
-
-    if (game.is_member) {
-        // User is a member, show leave button
-        if (joinBtn) joinBtn.style.display = 'none';
-        if (leaveBtn) {
-            leaveBtn.style.display = 'inline-flex';
-            leaveBtn.onclick = () => confirmLeaveGame(gameId, game.title);
-        }
-    } else {
-        // User is not a member, show join button
-        if (leaveBtn) leaveBtn.style.display = 'none';
-        if (joinBtn) {
-            joinBtn.style.display = 'inline-flex';
-            joinBtn.onclick = () => confirmJoinGame(gameId, game.title);
-        }
-    }
-}
-
-/**
- * Update GM assignment button in modal header (admin only)
- * @param {Object} game - Game object
- * @param {number} gameId - Game ID
- */
-function updateGMAssignmentButton(game, gameId) {
-    const gmButtonContainer = document.getElementById('gmButtonContainer');
-    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
-
-    if (isAdmin && gmButtonContainer) {
-        gmButtonContainer.innerHTML = ''; // Clear existing
-
-        if (game.assigned_gm_id) {
-            // Show "Remove GM" button
-            gmButtonContainer.innerHTML = `
-                <button class="btn-header-action btn-remove-gm-header"
-                        onclick="removeGameManager(${gameId})"
-                        title="Remove Game Manager">
-                    <i class="fas fa-user-minus"></i>
-                </button>
-            `;
-        } else {
-            // Show "Assign GM" button
-            gmButtonContainer.innerHTML = `
-                <button class="btn-header-action btn-assign-gm-header"
-                        onclick="openAssignGMModal(${gameId})"
-                        title="Assign Game Manager">
-                    <i class="fas fa-user-shield"></i>
-                </button>
-            `;
-        }
-    }
-}
-
-/**
- * Close game details modal
- */
-function closeGameDetailsModal() {
-    const modal = document.getElementById('gameDetailsModal');
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-    currentGameId = null;
-}
-
-/**
- * Load next scheduled event for game community
- * Displays the upcoming event in the game details modal
- * @param {number} gameId - Game ID to load event for
- */
-async function loadGameNextScheduledEvent(gameId) {
-    const container = document.getElementById('gameNextScheduledEventContainer');
-
-    if (!container) {
-        console.error('gameNextScheduledEventContainer not found');
-        return;
-    }
-
-    // Show loading state
-    container.innerHTML = `
-        <div style="text-align: center; padding: 1rem; color: var(--text-secondary);">
-            <i class="fas fa-spinner fa-spin"></i> Loading...
-        </div>
-    `;
-
-    try {
-        console.log(`Fetching scheduled event for game ${gameId}`);
-        const response = await fetch(`/api/games/${gameId}/next-scheduled-event`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        console.log('Game scheduled event response:', data);
-
-        if (data.success && data.event) {
-            const event = data.event;
-
-            // Add a badge to show if it's from a schedule or a regular event
-            const sourceBadge = event.source === 'scheduled'
-                ? '<span class="event-source-badge scheduled">Recurring</span>'
-                : '<span class="event-source-badge regular">One-time</span>';
-
-            // Format event card
-            container.innerHTML = `
-                <div class="game-next-event-card" onclick="openEventModal(${event.id})">
-                    <div class="game-next-event-header">
-                        <i class="fas fa-calendar-plus"></i>
-                        <h4>Next Community Event</h4>
-                        ${sourceBadge}
-                    </div>
-                    <div class="game-next-event-content">
-                        <div class="game-next-event-time">
-                            ${event.is_all_day
-                                ? '<i class="fas fa-calendar"></i> All Day'
-                                : `<i class="fas fa-clock"></i> ${event.start_time}`
-                            }
-                        </div>
-                        <div class="game-next-event-title">${event.name}</div>
-                        <div class="game-next-event-date">
-                            <i class="fas fa-calendar-day"></i> ${event.date}
-                        </div>
-                        <span class="game-next-event-type ${event.event_type.toLowerCase()}">
-                            ${event.event_type}
-                        </span>
-                    </div>
-                </div>
-            `;
-        } else {
-            // No scheduled events
-            container.innerHTML = `
-                <div class="game-next-event-empty">
-                    <i class="fas fa-calendar-times"></i>
-                    <p>No upcoming community events</p>
-                </div>
-            `;
-        }
-    } catch (error) {
-        // Handle errors
-        console.error('Error loading game next scheduled event:', error);
-        container.innerHTML = `
-            <div class="game-next-event-empty">
-                <i class="fas fa-exclamation-circle"></i>
-                <p>Failed to load scheduled events</p>
-            </div>
-        `;
-    }
-}
-
-/**
- * Filter members in the game details modal
- * Searches by username or full name
- */
-function filterMembers() {
-    const searchInput = document.getElementById('memberSearch');
-    const filter = searchInput.value.toLowerCase();
-    const memberItems = document.querySelectorAll('#gameMembersList .member-item');
-
-    memberItems.forEach(item => {
-        const username = item.getAttribute('data-username');
-        const name = item.getAttribute('data-name');
-
-        // Show item if username or name matches search
-        if (username.includes(filter) || name.includes(filter)) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
-        }
-    });
 }
 
 // ============================================
@@ -939,7 +535,7 @@ function closeCreateTeamModal() {
     const submitBtnSpinner = document.getElementById('submitTeamBtnSpinner');
     const formMessage = document.getElementById('teamFormMessage');
 
-    // ✅ RESET BUTTON STATE
+    // RESET BUTTON STATE
     if (submitBtn) {
         submitBtn.disabled = false;
     }
@@ -1052,13 +648,7 @@ window.setupGameImagePreview = setupGameImagePreview;
 window.loadGames = loadGames;
 window.displayGames = displayGames;
 window.loadGamesForDropdown = loadGamesForDropdown;
-
-// Game details modal
-window.openGameDetailsModal = openGameDetailsModal;
-window.closeGameDetailsModal = closeGameDetailsModal;
-window.displayGameStatsWithLeagues = displayGameStatsWithLeagues;
-window.loadGameNextScheduledEvent = loadGameNextScheduledEvent;
-window.filterMembers = filterMembers;
+window.refreshAllGameDropdowns = refreshAllGameDropdowns;
 
 // Team creation
 window.openCreateTeamModal = openCreateTeamModal;

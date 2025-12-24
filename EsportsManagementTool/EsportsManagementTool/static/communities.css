@@ -337,7 +337,7 @@
 /* Games grid inside expanded division */
 .division-games-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
 }
 
@@ -418,6 +418,9 @@
    GAME DETAILS MODAL
    Modal displaying full game information
    -------------------------------------------- */
+#gameDetailsModal {
+    z-index: 10001; /* Higher than manageCommunitiesModal */
+}
 
 /* Modal header section */
 .game-details-header {
@@ -914,43 +917,6 @@
 .member-item .role-badge.member {
     background-color: #868e96;
     color: white;
-}
-
-/* --------------------------------------------
-   GM SELECTION MODAL
-   List for selecting/assigning GMs
-   -------------------------------------------- */
-.gm-selection-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    max-height: 400px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 0.25rem;
-}
-
-.gm-selection-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    background: var(--background-secondary);
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.gm-selection-item:hover {
-    background: var(--hover-bg);
-    border-color: var(--stockton-blue);
-    transform: translateX(4px);
-}
-
-.gm-selection-item.selected {
-    background: rgba(121, 189, 233, 0.1);
-    border-color: var(--stockton-blue);
 }
 
 /* --------------------------------------------

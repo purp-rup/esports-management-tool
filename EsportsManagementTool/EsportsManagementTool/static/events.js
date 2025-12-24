@@ -2514,8 +2514,6 @@ window.handleEditEventTypeChange = handleEditEventTypeChange;
 
 // Delete Event Functions
 window.deleteEvent = deleteEvent;
-window.openDeleteEventModal = openDeleteEventModal;
-window.closeDeleteConfirmModal = closeDeleteConfirmModal;
 window.confirmDeleteEvent = confirmDeleteEvent;
 window.canUserDeleteEvent = canUserDeleteEvent;
 window.getDeletionTimeRemaining = getDeletionTimeRemaining;

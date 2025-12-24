@@ -408,39 +408,30 @@ function confirmEndSeason() {
             </div>
         `,
         buttonText: 'End Season',
-        onConfirm: endCurrentSeasonConfirmed,
+        onConfirm: async (seasonId) => {
+            try {
+                const response = await fetch(`/api/seasons/${seasonId}/end`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                closeDeleteConfirmModal();
+
+                if (data.success) {
+                    showDeleteSuccessMessage(data.message);
+                    await loadSeasonsData();
+                } else {
+                    showDeleteErrorMessage(data.message);
+                }
+            } catch (error) {
+                console.error('Error ending season:', error);
+                closeDeleteConfirmModal();
+                showDeleteErrorMessage('Failed to end season');
+            }
+        },
         itemId: currentSeason.season_id
     });
-}
-
-/**
- * End the current season (called by confirmation modal)
- */
-async function endCurrentSeasonConfirmed(seasonId) {
-    try {
-        const response = await fetch(`/api/seasons/${seasonId}/end`, {
-            method: 'POST'
-        });
-
-        const data = await response.json();
-
-        // Close the confirmation modal first
-        closeDeleteConfirmModal();
-
-        if (data.success) {
-            // Show success notification
-            showDeleteSuccessMessage(data.message);
-            // Reload the seasons data
-            await loadSeasonsData();
-        } else {
-            showDeleteErrorMessage(data.message);
-        }
-
-    } catch (error) {
-        console.error('Error ending season:', error);
-        closeDeleteConfirmModal();
-        showDeleteErrorMessage('Failed to end season');
-    }
 }
 
 /**

@@ -1,116 +1,209 @@
-# This Flask project is set up in the packages format, meaning we can
-# separate our application into multiple modules that are then imported
-# into __init__.py here
+"""
+Esports Management Tool - Main Application Module
+================================================
+This module serves as the entry point for the Flask application, configured in
+the packages format for modular organization.
 
+Features:
+---------
+- User authentication (login, registration, logout) with bcrypt password hashing
+- Email verification system for new user accounts
+- Role-based access control (Admin, GM, Player, Developer)
+- Timezone management (EST/EDT with automatic DST handling)
+- Session security with HTTPS enforcement
+- Calendar event system with AJAX endpoints
+- User activity tracking
+- "Remember Me" functionality with secure tokens
+
+Security:
+---------
+- SSL/TLS encryption for database connections
+- bcrypt password hashing with salt
+- Secure session cookies (HTTPOnly, Secure, SameSite)
+- CSRF protection via Flask's session management
+- Role-based authorization decorators
+
+Dependencies:
+------------
+- Flask: Web framework
+- Flask-MySQLdb: MySQL database integration
+- Flask-Mail: Email functionality
+- bcrypt: Password hashing
+- pytz: Timezone management
+- python-dotenv: Environment variable management
+
+Authors: 5 Brain Cells Team (developed in part with Claude.ai)
+"""
+
+# =========================================
+# CORE IMPORTS
+# =========================================
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, make_response
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
-from datetime import datetime
+from datetime import datetime, timedelta
+from functools import wraps
 import calendar as cal
 import MySQLdb.cursors
 import re
 import bcrypt
 import secrets
-from dotenv import load_dotenv
 import os
 import requests
-from datetime import datetime, timedelta
-from functools import wraps
 import pytz
 
+# =========================================
+# APPLICATION INITIALIZATION
+# =========================================
 app = Flask(__name__)
 
 # =========================================
-# IMPORTS THAT DON'T RELY ON INITIALIZATION
+# EARLY MODULE IMPORTS (No initialization dependencies)
 # =========================================
 import EsportsManagementTool.exampleModule
 import EsportsManagementTool.UpdateProfile
 
-# Change this to your secret key (can be anything, it's for extra protection)
+# =========================================
+# CONFIGURATION
+# =========================================
+# Security: Change this to a strong random key in production
 app.secret_key = 'your secret key'
 
-# Enter your database connection details below
+# Database Configuration (loaded from environment variables)
 app.config['MYSQL_HOST'] = os.environ.get('MYSQL_HOST')
 app.config['MYSQL_USER'] = os.environ.get('MYSQL_USER')
 app.config['MYSQL_PASSWORD'] = os.environ.get('MYSQL_PASSWORD')
 app.config['MYSQL_DB'] = os.environ.get('MYSQL_DB')
 
+# SSL Configuration for MySQL (enforces encrypted connections)
+app.config['MYSQL_SSL_DISABLED'] = False
+app.config['MYSQL_CUSTOM_OPTIONS'] = {
+    'ssl_mode': 'REQUIRED'
+}
+
+# Email Configuration (Brevo SMTP)
 app.config['MAIL_SERVER'] = 'smtp-relay.brevo.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
+
+# API Keys
 app.config['YOUTUBE_API_KEY'] = os.environ.get('YOUTUBE_API_KEY')
 
-app.config['MYSQL_SSL_DISABLED'] = False
-app.config['MYSQL_CUSTOM_OPTIONS'] = {
-    'ssl_mode': 'REQUIRED'
-}
+# Session Security (HTTPS enforcement)
+# Note: SESSION_COOKIE_SECURE should be True in production with HTTPS
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
-"""
-All security settings were developed in part with Claude.ai.
-Forcing HTTPS developed in part with Claude.ai.
-SSL security and bcrypt set to hash and salt passwords, and to ensure no data
-leakage across packet transferring. 
-"""
+# Initialize extensions
 mysql = MySQL(app)
 mail = Mail(app)
 
 # =========================================
 # TIMEZONE CONFIGURATION
 # =========================================
-EST = pytz.timezone('America/New_York')  # EST/EDT timezone
+# Eastern Time Zone (handles DST automatically)
+EST = pytz.timezone('America/New_York')
 
 
 def get_current_time():
-    """Get current time in EST"""
+    """
+    Get current time in EST/EDT timezone.
+
+    Returns:
+        datetime: Current time with EST timezone information
+    """
     return datetime.now(EST)
 
 
 def localize_datetime(dt):
-    """Convert naive datetime to EST"""
+    """
+    Convert naive datetime to EST or convert aware datetime to EST.
+
+    Args:
+        dt (datetime): Datetime object to localize
+
+    Returns:
+        datetime: Timezone-aware datetime in EST
+    """
     if dt.tzinfo is None:
         return EST.localize(dt)
     return dt.astimezone(EST)
 
 
-##Set timezone, accounting for DST dynamically.
 @app.before_request
 def set_mysql_timezone():
-    """Set MySQL session timezone to match EST/EDT dynamically"""
+    """
+    Set MySQL session timezone to match EST/EDT dynamically.
+
+    This hook runs before each request to ensure database timestamps
+    are consistent with application timezone. Handles DST transitions
+    automatically.
+    """
     if mysql.connection:
         cursor = mysql.connection.cursor()
-        # Get current UTC offset for America/New_York (handles DST automatically)
-        est_now = datetime.now(EST)
-        offset_seconds = est_now.utcoffset().total_seconds()
-        offset_hours = int(offset_seconds / 3600)
-        offset_minutes = int((offset_seconds % 3600) / 60)
+        try:
+            # Calculate current UTC offset for EST (accounts for DST)
+            est_now = datetime.now(EST)
+            offset_seconds = est_now.utcoffset().total_seconds()
+            offset_hours = int(offset_seconds / 3600)
+            offset_minutes = int((offset_seconds % 3600) / 60)
 
-        offset_str = f"{offset_hours:+03d}:{offset_minutes:02d}"
-        cursor.execute(f"SET time_zone = '{offset_str}';")
-        cursor.close()
+            offset_str = f"{offset_hours:+03d}:{offset_minutes:02d}"
+            cursor.execute(f"SET time_zone = '{offset_str}';")
+        finally:
+            cursor.close()
 
 
-##Template to display times.
+# =========================================
+# TEMPLATE FILTERS
+# =========================================
 @app.template_filter('format_datetime')
 def format_datetime_filter(dt, format='%B %d, %Y at %I:%M %p'):
-    """Format datetime in EST for templates"""
+    """
+    Format datetime for display in templates with EST timezone.
+
+    Args:
+        dt: Datetime object or ISO format string
+        format (str): strftime format string
+
+    Returns:
+        str: Formatted datetime string with 'EST' suffix, or 'N/A' if None
+
+    Example:
+        {{ event.date|format_datetime }} -> "December 24, 2025 at 03:30 PM EST"
+    """
     if dt is None:
         return 'N/A'
+
+    # Handle string input (ISO format)
     if isinstance(dt, str):
         try:
             dt = datetime.fromisoformat(dt)
         except:
             return dt
+
+    # Ensure timezone awareness
     if dt.tzinfo is None:
         dt = EST.localize(dt)
+
     return dt.strftime(format) + ' EST'
 
 
 @app.template_filter('to_est')
 def to_est_filter(dt):
-    """Convert datetime to EST"""
+    """
+    Convert datetime to EST timezone for template use.
+
+    Args:
+        dt (datetime): Datetime to convert
+
+    Returns:
+        datetime: EST timezone-aware datetime, or None if input is None
+    """
     if dt is None:
         return None
     if dt.tzinfo is None:
@@ -118,19 +211,28 @@ def to_est_filter(dt):
     return dt.astimezone(EST)
 
 
-# For production, force HTTPS
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-
 # ============================================
-# ROLE-BASED SECURITY SYSTEM (the following was developed in part with CLaudeAI)
+# ROLE-BASED SECURITY SYSTEM
 # ============================================
-"""
-Method to ensure users must login before accessing program.
-"""
 def login_required(f):
-    """Require user to be logged in"""
+    """
+    Decorator to ensure user is authenticated before accessing a route.
+
+    Also updates the user's last_seen timestamp on each request to track
+    active users in the system.
+
+    Args:
+        f: View function to wrap
+
+    Returns:
+        Decorated function that checks authentication
+
+    Example:
+        @app.route('/dashboard')
+        @login_required
+        def dashboard():
+            return render_template('dashboard.html')
+    """
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -138,7 +240,7 @@ def login_required(f):
             flash('Please log in to access this page.', 'error')
             return redirect(url_for('login'))
 
-        # Update last_seen timestamp on each request
+        # Update user activity tracking
         if 'id' in session:
             update_user_last_seen(session['id'])
 
@@ -147,17 +249,31 @@ def login_required(f):
     return decorated_function
 
 
-"""
-Method defining role hierarchy functionality.
-@param - required_roles is the necessary roles for the action attempting to be performed.
-"""
 def roles_required(*required_roles):
     """
-    Flexible decorator that checks if user has ANY of the specified roles.
+    Flexible decorator to check if user has ANY of the specified roles.
+
+    Checks against the permissions table in the database. User must have
+    at least one of the specified roles to access the route.
+
+    Args:
+        *required_roles: Variable number of role names ('admin', 'gm', 
+                        'player', 'developer')
+
+    Returns:
+        Decorator function
+
+    Example:
+        @app.route('/admin')
+        @roles_required('admin', 'developer')
+        def admin_panel():
+            return render_template('admin.html')
     """
+
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
+            # Ensure user is logged in
             if 'loggedin' not in session:
                 flash('Please log in to access this page.', 'error')
                 return redirect(url_for('login'))
@@ -165,6 +281,7 @@ def roles_required(*required_roles):
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             try:
+                # Fetch user permissions from database
                 cursor.execute("""
                     SELECT is_admin, is_gm, is_player, is_developer 
                     FROM permissions 
@@ -197,15 +314,21 @@ def roles_required(*required_roles):
                 cursor.close()
 
         return decorated_function
+
     return decorator
 
 
-"""
-Method that retrieves all roles a user has from the database.
-@param - user_id is the id of the user being checked.
-"""
 def get_user_permissions(user_id):
-    """Fetch user permissions from database"""
+    """
+    Fetch all permissions/roles for a specific user.
+
+    Args:
+        user_id (int): User ID to look up
+
+    Returns:
+        dict: Permission flags (is_admin, is_gm, is_player, is_developer)
+              Returns all flags as 0 if user has no permission record
+    """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
@@ -219,6 +342,7 @@ def get_user_permissions(user_id):
         if permissions:
             return permissions
         else:
+            # Default permissions if none exist
             return {
                 'is_admin': 0,
                 'is_gm': 0,
@@ -229,13 +353,21 @@ def get_user_permissions(user_id):
         cursor.close()
 
 
-"""
-Method that checks if a user has a specific role for certain actions, including accessing admin panel, etc.
-@param - role_name is the title of the role being checked from the user.
-"""
 def has_role(role_name):
     """
-    Check if current user has a specific role.
+    Check if currently logged-in user has a specific role.
+
+    Utility function for checking roles in templates or view functions.
+
+    Args:
+        role_name (str): Role to check ('admin', 'gm', 'player', 'developer')
+
+    Returns:
+        bool: True if user has the role, False otherwise
+
+    Example:
+        if has_role('admin'):
+            # Show admin controls
     """
     if 'loggedin' not in session:
         return False
@@ -251,14 +383,18 @@ def has_role(role_name):
     return role_map.get(role_name, 0) == 1
 
 
-"""
-Method to show when a user was last seen active. Displays on Admin Panel.
-@param - user_id is the id of the user being changed.
-"""
+# ============================================
+# USER ACTIVITY TRACKING
+# ============================================
 def update_user_last_seen(user_id):
     """
-    Update user's last_seen timestamp
-    Called on each authenticated request to keep them marked as active
+    Update user's last_seen timestamp and mark them as active.
+
+    Called automatically on each authenticated request to maintain
+    accurate active user tracking for the admin panel.
+
+    Args:
+        user_id (int): User ID to update
     """
     try:
         cursor = mysql.connection.cursor()
@@ -273,15 +409,17 @@ def update_user_last_seen(user_id):
         print(f"Error updating last_seen: {str(e)}")
 
 
-"""
-Method to remove inactive users from the active users list in the database.
-"""
 def cleanup_inactive_users():
     """
-    Mark users as inactive if they haven't been seen in 15 minutes
-    This can be called periodically or before displaying the admin panel
+    Mark users as inactive if they haven't been seen in 15 minutes.
+
+    This function should be called periodically (e.g., before displaying
+    the admin panel) to maintain accurate active user counts. Also cleans
+    up old suspension invalidations.
     """
+    # Clean up expired suspensions first
     EsportsManagementTool.suspensions.cleanup_old_invalidations(mysql)
+
     try:
         cursor = mysql.connection.cursor()
         cursor.execute("""
@@ -297,81 +435,67 @@ def cleanup_inactive_users():
 
 
 # ============================================
-# ROUTES (The following was developed in part with ClaudeAI
+# EMAIL VERIFICATION
 # ============================================
-
-# Home/Landing Page
-@app.route('/')
-def index():
-    """Landing page - calendar loads events via AJAX"""
-    remember_token = request.cookies.get('remember_token')
-    if remember_token:
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        try:
-            cursor.execute('SELECT * FROM users WHERE remember_token = %s', (remember_token,))
-            account = cursor.fetchone()
-
-            if account:
-                # Check for suspensions
-                is_suspended, suspension_info = EsportsManagementTool.suspensions.check_user_suspension(mysql, account['id'])
-
-                if not is_suspended:
-                    # Auto log the user in
-                    session['loggedin'] = True
-                    session['id'] = account['id']
-                    session['username'] = account['username']
-                    session['login_time'] = get_current_time().isoformat()
-
-                    cursor.execute("""
-                        INSERT INTO user_activity (userid, is_active, last_seen)
-                        VALUES (%s, 1, NOW())
-                        ON DUPLICATE KEY UPDATE
-                            is_active = 1,
-                            last_seen = NOW()
-                        """, (account['id'],))
-                    mysql.connection.commit()
-        finally:
-            cursor.close()
-
-    return render_template('index.html')
-
-
-"""
-Method to send a verification email to newly registered users.
-@param - email is the inputted email from the user
-@param - token is the email to be sent to the user.
-"""
 def send_verify_email(email, token):
+    """
+    Send verification email to newly registered users.
+
+    Constructs and sends an email containing a verification link that
+    expires after 24 hours.
+
+    Args:
+        email (str): Recipient email address
+        token (str): Unique verification token
+
+    Raises:
+        Exception: If email sending fails
+    """
     verify_url = url_for('verify_email', token=token, _external=True)
     msg = Message('Verify Your Stockton University Email Account', recipients=[email])
     msg.body = f'''Hello,
-    Please click the link below to verify your Stockton Esports Management Tool account:
+Please click the link below to verify your Stockton Esports Management Tool account:
 
-    {verify_url}
+{verify_url}
 
-    This link will expire after 24 hours.
+This link will expire after 24 hours.
 
-    If you did not create this account, please ignore this email.
+If you did not create this account, please ignore this email.
 
-    - 5 Brain Cells: SU Esports MGMT Tool Team.
-    '''
+- 5 Brain Cells: SU Esports MGMT Tool Team.
+'''
     mail.send(msg)
 
 
-"""
-Route to let users successfully verify their email through the email sent to their inbox.
-"""
 @app.route('/verify/<token>')
 def verify_email(token):
+    """
+    Process email verification when user clicks verification link.
+
+    Verifies the token is valid and not expired, then marks the user's
+    account as verified in the database.
+
+    Args:
+        token (str): Verification token from URL
+
+    Returns:
+        Redirect to login page on success, or registration page on failure
+    """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
+        # Look up token and check expiry
         cursor.execute(
-            'SELECT * FROM verified_users WHERE verification_token = %s AND token_expiry > NOW()', (token,))
+            'SELECT * FROM verified_users WHERE verification_token = %s AND token_expiry > NOW()',
+            (token,)
+        )
         user = cursor.fetchone()
 
         if user:
+            # Mark user as verified and clear token
             cursor.execute(
-                'UPDATE verified_users SET is_verified = TRUE, verification_token = NULL, token_expiry = NULL where userid = %s',
+                '''UPDATE verified_users 
+                   SET is_verified = TRUE, verification_token = NULL, token_expiry = NULL 
+                   WHERE userid = %s''',
                 (user['userid'],)
             )
             mysql.connection.commit()
@@ -384,12 +508,79 @@ def verify_email(token):
         cursor.close()
 
 
-"""
-Route to let users login on the login page.
-"""
+# ============================================
+# AUTHENTICATION ROUTES
+# ============================================
+@app.route('/')
+def index():
+    """
+    Landing page with calendar view.
+
+    Checks for "remember me" cookie and auto-logs user in if valid.
+    Verifies user is not suspended before allowing auto-login.
+
+    Returns:
+        Rendered index.html template
+    """
+    remember_token = request.cookies.get('remember_token')
+
+    if remember_token:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            cursor.execute('SELECT * FROM users WHERE remember_token = %s', (remember_token,))
+            account = cursor.fetchone()
+
+            if account:
+                # Check for active suspensions
+                is_suspended, suspension_info = EsportsManagementTool.suspensions.check_user_suspension(
+                    mysql, account['id']
+                )
+
+                if not is_suspended:
+                    # Auto-login user
+                    session['loggedin'] = True
+                    session['id'] = account['id']
+                    session['username'] = account['username']
+                    session['login_time'] = get_current_time().isoformat()
+
+                    # Update activity tracking
+                    cursor.execute("""
+                        INSERT INTO user_activity (userid, is_active, last_seen)
+                        VALUES (%s, 1, NOW())
+                        ON DUPLICATE KEY UPDATE
+                            is_active = 1,
+                            last_seen = NOW()
+                    """, (account['id'],))
+                    mysql.connection.commit()
+        finally:
+            cursor.close()
+
+    return render_template('index.html')
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    """
+    Handle user login with optional "remember me" functionality.
+
+    Features:
+    - bcrypt password verification
+    - Email verification requirement
+    - Suspension checking
+    - Activity tracking
+    - Secure "remember me" tokens
+
+    POST Parameters:
+        username (str): User's username
+        password (str): User's password (plaintext, hashed for comparison)
+        remember (str): Optional "remember me" checkbox
+
+    Returns:
+        Rendered login.html on GET or validation failure
+        Redirect to dashboard on successful login
+    """
     msg = ''
+
     if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
         username = request.form['username']
         password = request.form['password']
@@ -397,23 +588,30 @@ def login():
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
+            # Fetch user account
             cursor.execute('SELECT * FROM users WHERE username = %s', [username])
             account = cursor.fetchone()
 
             if account:
+                # Check email verification status
                 cursor.execute('SELECT is_verified FROM verified_users WHERE userid = %s', (account['id'],))
                 is_verified = cursor.fetchone()
 
-                if account and bcrypt.checkpw(password.encode('utf-8'), account['password'].encode('utf-8')):
+                # Verify password with bcrypt
+                if bcrypt.checkpw(password.encode('utf-8'), account['password'].encode('utf-8')):
                     if is_verified['is_verified'] == 0:
+                        # Resend verification email
                         flash(
-                            'Account is still not verified! A new email has been sent, check your inbox! If mail does not appear, please check your spam!')
+                            'Account is still not verified! A new email has been sent, check your inbox! '
+                            'If mail does not appear, please check your spam!'
+                        )
                         verification_token = secrets.token_urlsafe(32)
                         token_expiry = get_current_time() + timedelta(hours=24)
 
                         cursor.execute(
                             'UPDATE verified_users SET verification_token = %s, token_expiry = %s WHERE userid = %s',
-                            (verification_token, token_expiry, account['id']))
+                            (verification_token, token_expiry, account['id'])
+                        )
                         mysql.connection.commit()
 
                         try:
@@ -422,13 +620,13 @@ def login():
                         except Exception as e:
                             msg = f'Email failed to send. Error: {str(e)}'
                     else:
-                        # ============================================
-                        # CHECK FOR SUSPENSION BEFORE ALLOWING LOGIN
-                        # ============================================
-                        is_suspended, suspension_info = EsportsManagementTool.suspensions.check_user_suspension(mysql, account['id'])
+                        # Check for active suspension
+                        is_suspended, suspension_info = EsportsManagementTool.suspensions.check_user_suspension(
+                            mysql, account['id']
+                        )
 
                         if is_suspended:
-                            # Format remaining time
+                            # Build suspension message
                             if suspension_info['remaining_days'] > 0:
                                 time_remaining = f"{suspension_info['remaining_days']} day(s)"
                                 if suspension_info['remaining_hours'] > 0:
@@ -436,17 +634,19 @@ def login():
                             else:
                                 time_remaining = f"{suspension_info['remaining_hours']} hour(s)"
 
-                            msg = (f"Your account has been suspended until {suspension_info['suspended_until']}. "
-                                   f"Reason: {suspension_info['reason']}. "
-                                   f"Time remaining: {time_remaining}.")
+                            msg = (
+                                f"Your account has been suspended until {suspension_info['suspended_until']}. "
+                                f"Reason: {suspension_info['reason']}. "
+                                f"Time remaining: {time_remaining}."
+                            )
                         else:
-                            # User is NOT suspended - proceed with login
+                            # Successful login - create session
                             session['loggedin'] = True
                             session['id'] = account['id']
                             session['username'] = account['username']
                             session['login_time'] = get_current_time().isoformat()
 
-                            # Update user activity tracking
+                            # Update activity tracking
                             try:
                                 cursor.execute("""
                                     INSERT INTO user_activity (userid, is_active, last_seen)
@@ -459,31 +659,39 @@ def login():
                             except Exception as e:
                                 print(f"Error updating user activity: {str(e)}")
 
-                            #Handling "Remember Me" functionalities
+                            # Handle "remember me" functionality
                             response = make_response(redirect(url_for('dashboard')))
 
                             if remember_me:
+                                # Generate secure token
                                 remember_token = secrets.token_urlsafe(32)
 
-                                cursor.execute('UPDATE users SET remember_token = %s WHERE id = %s', (remember_token, account['id']))
+                                cursor.execute(
+                                    'UPDATE users SET remember_token = %s WHERE id = %s',
+                                    (remember_token, account['id'])
+                                )
                                 mysql.connection.commit()
 
+                                # Set cookie (30 days expiration)
+                                # NOTE: 'secure' should be True in production with HTTPS
                                 response.set_cookie(
                                     'remember_token',
                                     remember_token,
-                                    max_age=30*24*60*60,
+                                    max_age=30 * 24 * 60 * 60,  # 30 days in seconds
                                     httponly=True,
-                                    secure=False, # WHEN WE PORT TO SERVER THIS *NEEDS* TO BE TRUE!!!!!!! I CANNOT STRESS THIS ENOUGH!!!!!
+                                    secure=False,  # MUST BE TRUE IN PRODUCTION WITH HTTPS
                                     samesite='Lax'
                                 )
                             else:
                                 # Clear any existing token
-                                cursor.execute('UPDATE users SET remember_token = NULL WHERE id = %s', (account['id'],))
+                                cursor.execute(
+                                    'UPDATE users SET remember_token = NULL WHERE id = %s',
+                                    (account['id'],)
+                                )
                                 mysql.connection.commit()
                                 response.set_cookie('remember_token', '', max_age=0)
 
                             return response
-
                 else:
                     msg = 'Incorrect username/password!'
             else:
@@ -494,15 +702,23 @@ def login():
     return render_template('login.html', msg=msg)
 
 
-"""
-Route to let users logout of their account whenever they please.
-"""
 @app.route('/logout', methods=['POST'])
 def logout():
+    """
+    Handle user logout and cleanup.
+
+    Marks user as inactive, clears remember token, and destroys session.
+    Uses POST method to prevent CSRF attacks.
+
+    Returns:
+        Redirect to login page with cleared cookies
+    """
     # Mark user as inactive before logging out
     if 'id' in session:
         try:
             cursor = mysql.connection.cursor()
+
+            # Update activity status
             cursor.execute("""
                 UPDATE user_activity 
                 SET is_active = 0, last_seen = NOW()
@@ -510,6 +726,7 @@ def logout():
             """, (session['id'],))
             mysql.connection.commit()
 
+            # Clear remember token from database
             cursor.execute('UPDATE users SET remember_token = NULL WHERE id = %s', (session['id'],))
             mysql.connection.commit()
 
@@ -517,24 +734,46 @@ def logout():
         except Exception as e:
             print(f"Error updating logout activity: {str(e)}")
 
+    # Clear session data
     session.pop('loggedin', None)
     session.pop('id', None)
     session.pop('username', None)
     flash('Successfully logged out.')
 
+    # Clear remember cookie
     response = make_response(redirect(url_for('login')))
     response.set_cookie('remember_token', '', max_age=0)
     return response
 
 
-"""
-Route to allow users to register their account using email, password, and other fields.
-"""
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    msg = ''
-    if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'passwordconfirm' in request.form and 'email' in request.form:
+    """
+    Handle new user registration with email verification.
 
+    Validation includes:
+    - Unique username
+    - Valid email format
+    - Stockton email domain requirement
+    - Password confirmation match
+    - All required fields filled
+
+    POST Parameters:
+        firstname (str): User's first name
+        lastname (str): User's last name
+        username (str): Desired username (alphanumeric only)
+        password (str): Desired password
+        passwordconfirm (str): Password confirmation
+        email (str): Stockton email address
+
+    Returns:
+        Rendered register.html with validation messages
+    """
+    msg = ''
+
+    if request.method == 'POST' and all(field in request.form for field in
+                                        ['username', 'password', 'passwordconfirm', 'email']):
+        # Extract form data
         firstname = request.form['firstname']
         lastname = request.form['lastname']
         username = request.form['username']
@@ -544,9 +783,11 @@ def register():
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
+            # Check if username already exists
             cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
             account = cursor.fetchone()
 
+            # Validation checks
             if account:
                 msg = 'Account already exists!'
             elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
@@ -560,15 +801,21 @@ def register():
             elif not username or not password or not email:
                 msg = 'Please fill out the form!'
             else:
+                # Hash password with bcrypt
                 hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+                # Insert new user
                 cursor.execute(
                     'INSERT INTO users (firstname, lastname, username, password, email) VALUES (%s, %s, %s, %s, %s)',
-                    (firstname, lastname, username, hashed_password, email))
+                    (firstname, lastname, username, hashed_password, email)
+                )
                 mysql.connection.commit()
 
+                # Get newly created user ID
                 cursor.execute('SELECT id FROM users WHERE username = %s', [username])
                 newUser = cursor.fetchone()
 
+                # Initialize related records
                 cursor.execute('INSERT INTO verified_users (userid) VALUES (%s)', (newUser['id'],))
                 mysql.connection.commit()
 
@@ -582,15 +829,20 @@ def register():
                 """, (newUser['id'],))
                 mysql.connection.commit()
 
+                # Generate verification token
                 verification_token = secrets.token_urlsafe(32)
                 token_expiry = get_current_time() + timedelta(hours=24)
 
-                cursor.execute('UPDATE verified_users SET verification_token = %s, token_expiry = %s WHERE userid = %s',
-                               (verification_token, token_expiry, newUser['id']))
+                cursor.execute(
+                    'UPDATE verified_users SET verification_token = %s, token_expiry = %s WHERE userid = %s',
+                    (verification_token, token_expiry, newUser['id'])
+                )
                 mysql.connection.commit()
 
+                # Send verification email
                 send_verify_email(email, verification_token)
-                msg = 'You have successfully created an account! Please check your email for verification! If the email does not appear in your inbox, please check your spam!'
+                msg = ('You have successfully created an account! Please check your email for verification! '
+                       'If the email does not appear in your inbox, please check your spam!')
         finally:
             cursor.close()
 
@@ -601,7 +853,7 @@ def register():
 
 
 # =======================================
-# IMPORTS THAT RELY ON INITIALIZATION
+# MODULE IMPORTS (After Initialization)
 # =======================================
 import EsportsManagementTool.exampleModule
 import EsportsManagementTool.UpdateProfile
@@ -614,32 +866,67 @@ from EsportsManagementTool import teamCreation
 from EsportsManagementTool import vods
 from EsportsManagementTool import seasons
 from EsportsManagementTool import leagues
-from EsportsManagementTool import statistics
 
 # ================================
-# REGISTER SUSPENSION ROUTES
+# REGISTER MODULE ROUTES
 # ==================================
+# Register suspension management routes
 EsportsManagementTool.suspensions.register_suspension_routes(app, mysql, roles_required)
 
-# =====================================
-# PULLS EVENT AND SEASON AND LEAGUE METHODS
-# =====================================
+# Register event, season, and league routes
 EsportsManagementTool.events.register_event_routes(app, mysql, login_required, roles_required, get_user_permissions)
 EsportsManagementTool.seasons.register_seasons_routes(app, mysql, login_required, roles_required, get_user_permissions)
 leagues.register_league_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
+# Register team statistics routes
+from EsportsManagementTool import team_stats
+
+team_stats.register_team_stats_routes(app, mysql, login_required, roles_required, get_user_permissions)
+
+# Register scheduled events routes
+from EsportsManagementTool import scheduled_events
+
+scheduled_events.register_scheduled_events_routes(app, mysql, login_required, roles_required, get_user_permissions)
+
+
 # =======================================
-# CALENDAR API ENDPOINT FOR LANDING PAGE
+# CALENDAR API ENDPOINTS
 # =======================================
 @app.route('/api/calendar/events')
 def get_calendar_events():
     """
-    Fetch events for the landing page calendar via AJAX.
-    Returns events based on user permissions.
+    Fetch events for calendar view via AJAX with visibility filtering.
+
+    Returns events based on:
+    - User login status (public events only if not logged in)
+    - User permissions (events they created or have access to)
+    - Event visibility settings (all_members, team, game_players, game_community)
+
+    Query Parameters:
+        year (int): Year to fetch events for
+        month (int): Month to fetch events for (1-12)
+
+    Returns:
+        JSON: Dictionary of events grouped by date string (YYYY-MM-DD)
+
+    Example Response:
+        {
+            "2025-12-25": [
+                {
+                    "id": 1,
+                    "title": "Team Practice",
+                    "time": "3:00 PM",
+                    "description": "Practice session",
+                    "event_type": "practice",
+                    "date": "2025-12-25"
+                }
+            ]
+        }
     """
     year = request.args.get('year', type=int)
     month = request.args.get('month', type=int)
 
+    # Validate required parameters
     if not year or not month:
         return jsonify({'error': 'Year and month parameters required'}), 400
 
@@ -660,9 +947,8 @@ def get_calendar_events():
                 )
                 ORDER BY ge.Date, ge.StartTime
             """, (year, month))
-
         else:
-            # Logged in: show events based on permissions
+            # Logged in: show events based on permissions and visibility
             user_id = session.get('id')
             cursor.execute("""
                 SELECT ge.* 
@@ -695,17 +981,17 @@ def get_calendar_events():
 
         events = cursor.fetchall()
 
-        # Group events by date and format
+        # Process and group events by date
         for event in events:
             date_str = event['Date'].strftime('%Y-%m-%d')
 
-            # Handle timedelta for StartTime
+            # Handle timedelta for StartTime and convert to 12-hour format
             if event['StartTime']:
                 total_seconds = int(event['StartTime'].total_seconds())
                 hours = total_seconds // 3600
                 minutes = (total_seconds % 3600) // 60
 
-                # Check if all-day event
+                # Check if all-day event (00:00 to 23:59)
                 if event['EndTime']:
                     end_total_seconds = int(event['EndTime'].total_seconds())
                     end_hours = end_total_seconds // 3600
@@ -716,14 +1002,15 @@ def get_calendar_events():
 
                 # Convert to 12-hour format
                 period = 'AM' if hours < 12 else 'PM'
-                display_hours = hours if hours == 0 else (hours if hours <= 12 else hours - 12)
+                display_hours = hours if hours <= 12 else hours - 12
                 if display_hours == 0:
-                    display_hours = 12
+                    display_hours = 12  # Midnight = 12 AM
 
                 time_str = None if is_all_day else f"{display_hours}:{minutes:02d} {period}"
             else:
                 time_str = None
 
+            # Build event object
             event_obj = {
                 'id': event['EventID'],
                 'title': event['EventName'],
@@ -737,6 +1024,7 @@ def get_calendar_events():
                 'game_name': None
             }
 
+            # Group by date
             if date_str not in events_by_date:
                 events_by_date[date_str] = []
             events_by_date[date_str].append(event_obj)
@@ -756,7 +1044,19 @@ def get_calendar_events():
 def get_event_details(event_id):
     """
     Fetch detailed information for a specific event.
-    Used by the event details modal.
+
+    Used by the event details modal on the calendar.
+
+    Args:
+        event_id (int): Event ID to fetch
+
+    Returns:
+        JSON: Event details including title, description, times, location
+
+    Status Codes:
+        200: Success
+        404: Event not found
+        500: Server error
     """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -771,7 +1071,7 @@ def get_event_details(event_id):
         if not event:
             return jsonify({'error': 'Event not found'}), 404
 
-        # Format times
+        # Format times as HH:MM strings
         start_time_str = ''
         end_time_str = ''
 
@@ -812,28 +1112,18 @@ def get_event_details(event_id):
 
 
 # =====================================
-# REGISTER TEAM STATISTICS ROUTES
-# =====================================
-from EsportsManagementTool import team_stats
-team_stats.register_team_stats_routes(app, mysql, login_required, roles_required, get_user_permissions)
-statistics.register_statistics_routes(app, mysql, login_required, roles_required)
-
-# =====================================
-# REGISTER SCHEDULED EVENTS ROUTES
-# =====================================
-from EsportsManagementTool import scheduled_events
-scheduled_events.register_scheduled_events_routes(app, mysql, login_required, roles_required, get_user_permissions)
-
-# =====================================
 # EXPORT TIMEZONE FUNCTIONS
 # =====================================
+# Make timezone functions available to other modules
 app.get_current_time = get_current_time
 app.localize_datetime = localize_datetime
 app.EST = EST
 
-#This is used for debugging, It will show the app routes that are registered.
-# if __name__ != '__main__':
-#     print("\n=== REGISTERED ROUTES ===")
-#     for rule in app.url_map.iter_rules():
-#         print(f"{rule.endpoint}: {rule.rule}")
-#     print("=========================\n")
+# =====================================
+# DEBUG ROUTE LISTING
+# =====================================
+if __name__ != '__main__':
+    print("\n=== REGISTERED ROUTES ===")
+    for rule in app.url_map.iter_rules():
+        print(f"{rule.endpoint}: {rule.rule}")
+    print("=========================\n")

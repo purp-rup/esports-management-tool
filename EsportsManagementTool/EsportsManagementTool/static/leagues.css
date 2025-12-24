@@ -34,7 +34,7 @@
     height: 60px;
     border-radius: 50%;
     background: var(--dark-bg);
-    border: 2px solid var(--border-color);
+    border: 2px solid black;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -269,8 +269,13 @@
 }
 
 /* Image Cropper Modal */
+
+#imageCropperModal {
+    z-index: 10002;
+}
 #imageCropperModal .modal-content {
-    max-width: 700px;
+    max-width: 600px;
+    width: 90%;
 }
 
 .cropper-container-wrapper {

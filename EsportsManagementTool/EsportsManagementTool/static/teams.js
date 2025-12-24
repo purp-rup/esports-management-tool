@@ -1165,7 +1165,7 @@ function closeEditTeamModal() {
     const submitBtnSpinner = document.getElementById('updateTeamBtnSpinner');
     const formMessage = document.getElementById('editTeamFormMessage');
 
-    // ✅ RESET BUTTON STATE
+    // RESET BUTTON STATE
     if (submitBtn) {
         submitBtn.disabled = false;
     }
