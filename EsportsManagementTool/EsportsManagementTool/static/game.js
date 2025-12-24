@@ -243,6 +243,10 @@ function escapeHtml(text) {
     return text.replace(/['&<>"]/g, m => map[m]);
 }
 
+// =============================
+// GAME DROPDOWNS
+// =============================
+
 /**
  * Load games for dropdown in event creation
  * Populates dropdown with available games from database
@@ -301,6 +305,29 @@ async function loadGamesForDropdown() {
             loadingIndicator.style.display = 'none';
         }
         gameSelect.disabled = false;
+    }
+}
+
+/*
+ * Refresh all game dropdowns on the current page
+ * Loops through common dropdown IDs and refreshes if they exist
+ * Used after game creation/deletion to update all dropdowns
+ */
+async function refreshAllGameDropdowns() {
+    // List of all game dropdown IDs that might exist on the page
+    // Each includes the select element ID and its loading indicator ID
+    const dropdownIds = [
+        { selectId: 'game', loadingId: 'gameLoadingIndicator' },           // Create event modal
+        { selectId: 'editGame', loadingId: 'editGameLoadingIndicator' },   // Edit event modal
+        { selectId: 'gameFilter', loadingId: 'gameFilterLoadingIndicator' } // Events filter
+    ];
+
+    // Refresh each dropdown that exists on the page
+    for (const dropdown of dropdownIds) {
+        const selectElement = document.getElementById(dropdown.selectId);
+        if (selectElement && typeof populateGameDropdown === 'function') {
+            await populateGameDropdown(dropdown.selectId, dropdown.loadingId);
+        }
     }
 }
 
@@ -621,6 +648,7 @@ window.setupGameImagePreview = setupGameImagePreview;
 window.loadGames = loadGames;
 window.displayGames = displayGames;
 window.loadGamesForDropdown = loadGamesForDropdown;
+window.refreshAllGameDropdowns = refreshAllGameDropdowns;
 
 // Team creation
 window.openCreateTeamModal = openCreateTeamModal;
