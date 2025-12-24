@@ -21,11 +21,15 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
     def get_team_stats(team_id):
         """
         Get statistics for a specific team including:
-        - Win/Loss record
+        - Win/Loss record (optionally filtered by league)
         - Win percentage
         - Match history with results
+        - League filter dropdown data
         """
         try:
+            # Get optional league filter from query params
+            league_id = request.args.get('league_id', type=int)
+            
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             try:
@@ -44,45 +48,102 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                         'message': 'Team not found'
                     }), 404
 
-                # Calculate wins and losses
+                # Get all leagues associated with this team for filter dropdown
                 cursor.execute("""
                     SELECT 
-                        SUM(CASE WHEN result = 'win' THEN 1 ELSE 0 END) as wins,
-                        SUM(CASE WHEN result = 'loss' THEN 1 ELSE 0 END) as losses
-                    FROM match_results
-                    WHERE team_id = %s
+                        l.id,
+                        l.name
+                    FROM league l
+                    INNER JOIN team_leagues tl ON l.id = tl.league_id
+                    WHERE tl.team_id = %s
+                    ORDER BY l.name
                 """, (team_id,))
+                
+                team_leagues = cursor.fetchall()
+
+                # Calculate wins and losses (with optional league filter)
+                if league_id:
+                    cursor.execute("""
+                        SELECT 
+                            SUM(CASE WHEN mr.result = 'win' THEN 1 ELSE 0 END) as wins,
+                            SUM(CASE WHEN mr.result = 'loss' THEN 1 ELSE 0 END) as losses
+                        FROM match_results mr
+                        INNER JOIN generalevents ge ON mr.event_id = ge.EventID
+                        WHERE mr.team_id = %s
+                        AND ge.league_id = %s
+                    """, (team_id, league_id))
+                else:
+                    cursor.execute("""
+                        SELECT 
+                            SUM(CASE WHEN mr.result = 'win' THEN 1 ELSE 0 END) as wins,
+                            SUM(CASE WHEN mr.result = 'loss' THEN 1 ELSE 0 END) as losses
+                        FROM match_results mr
+                        INNER JOIN generalevents ge ON mr.event_id = ge.EventID
+                        WHERE mr.team_id = %s
+                    """, (team_id,))
 
                 stats = cursor.fetchone()
                 wins = int(stats['wins']) if stats['wins'] is not None else 0
                 losses = int(stats['losses']) if stats['losses'] is not None else 0
 
-                # Get match history with results
-                # Now includes matches where start time has passed
-                cursor.execute("""
-                    SELECT 
-                        ge.EventID as event_id,
-                        ge.EventName as name,
-                        ge.Date as date,
-                        ge.StartTime as start_time,
-                        ge.Location as location,
-                        mr.result,
-                        mr.notes,
-                        mr.recorded_at,
-                        u.firstname,
-                        u.lastname
-                    FROM generalevents ge
-                    LEFT JOIN match_results mr ON ge.EventID = mr.event_id AND mr.team_id = %s
-                    LEFT JOIN users u ON mr.recorded_by = u.id
-                    WHERE ge.EventType = 'Match'
-                    AND ge.team_id = %s
-                    AND (
-                        ge.Date < CURDATE()
-                        OR (ge.Date = CURDATE() AND ge.StartTime <= CURTIME())
-                    )
-                    ORDER BY ge.Date DESC, ge.StartTime DESC
-                    LIMIT 50
-                """, (team_id, team_id))
+                # Get match history with results (with optional league filter)
+                if league_id:
+                    cursor.execute("""
+                        SELECT 
+                            ge.EventID as event_id,
+                            ge.EventName as name,
+                            ge.Date as date,
+                            ge.StartTime as start_time,
+                            ge.Location as location,
+                            ge.league_id,
+                            l.name as league_name,
+                            mr.result,
+                            mr.notes,
+                            mr.recorded_at,
+                            u.firstname,
+                            u.lastname
+                        FROM generalevents ge
+                        LEFT JOIN match_results mr ON ge.EventID = mr.event_id AND mr.team_id = %s
+                        LEFT JOIN users u ON mr.recorded_by = u.id
+                        LEFT JOIN league l ON ge.league_id = l.id
+                        WHERE ge.EventType = 'Match'
+                        AND ge.team_id = %s
+                        AND ge.league_id = %s
+                        AND (
+                            ge.Date < CURDATE()
+                            OR (ge.Date = CURDATE() AND ge.StartTime <= CURTIME())
+                        )
+                        ORDER BY ge.Date DESC, ge.StartTime DESC
+                        LIMIT 50
+                    """, (team_id, team_id, league_id))
+                else:
+                    cursor.execute("""
+                        SELECT 
+                            ge.EventID as event_id,
+                            ge.EventName as name,
+                            ge.Date as date,
+                            ge.StartTime as start_time,
+                            ge.Location as location,
+                            ge.league_id,
+                            l.name as league_name,
+                            mr.result,
+                            mr.notes,
+                            mr.recorded_at,
+                            u.firstname,
+                            u.lastname
+                        FROM generalevents ge
+                        LEFT JOIN match_results mr ON ge.EventID = mr.event_id AND mr.team_id = %s
+                        LEFT JOIN users u ON mr.recorded_by = u.id
+                        LEFT JOIN league l ON ge.league_id = l.id
+                        WHERE ge.EventType = 'Match'
+                        AND ge.team_id = %s
+                        AND (
+                            ge.Date < CURDATE()
+                            OR (ge.Date = CURDATE() AND ge.StartTime <= CURTIME())
+                        )
+                        ORDER BY ge.Date DESC, ge.StartTime DESC
+                        LIMIT 50
+                    """, (team_id, team_id))
 
                 match_events = []
                 for match in cursor.fetchall():
@@ -92,6 +153,8 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                         'date': match['date'].strftime('%Y-%m-%d') if match['date'] else None,
                         'start_time': str(match['start_time']) if match['start_time'] else None,
                         'location': match['location'],
+                        'league_id': match['league_id'],
+                        'league_name': match['league_name'],
                         'result': match['result'],
                         'notes': match['notes'],
                         'recorded_at': match['recorded_at'].strftime('%Y-%m-%d %H:%M:%S') if match['recorded_at'] else None,
@@ -106,7 +169,9 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                         'total_matches': wins + losses
                     },
                     'match_events': match_events,
-                    'game_title': team['GameTitle']
+                    'game_title': team['GameTitle'],
+                    'team_leagues': [{'id': l['id'], 'name': l['name']} for l in team_leagues],
+                    'current_league_filter': league_id
                 }), 200
 
             finally:
