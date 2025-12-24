@@ -866,6 +866,7 @@ from EsportsManagementTool import teamCreation
 from EsportsManagementTool import vods
 from EsportsManagementTool import seasons
 from EsportsManagementTool import leagues
+from EsportsManagementTool import statistics
 
 # ================================
 # REGISTER MODULE ROUTES
@@ -882,6 +883,7 @@ leagues.register_league_routes(app, mysql, login_required, roles_required, get_u
 from EsportsManagementTool import team_stats
 
 team_stats.register_team_stats_routes(app, mysql, login_required, roles_required, get_user_permissions)
+statistics.register_statistics_routes(app, mysql, login_required, roles_required)
 
 # Register scheduled events routes
 from EsportsManagementTool import scheduled_events
