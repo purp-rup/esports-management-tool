@@ -5,16 +5,52 @@ Handles CRUD operations for seasons in the Esports Management Tool
 
 from flask import jsonify, request, session
 import MySQLdb.cursors
-from datetime import datetime
+from datetime import datetime, date
 
 
 def register_seasons_routes(app, mysql, login_required, roles_required, get_user_permissions):
     """Register all season-related routes"""
 
+    def check_and_end_expired_season():
+        """Helper function to automatically end seasons that have passed their end date"""
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            # Find active seasons that have passed their end date
+            cursor.execute("""
+                SELECT season_id, season_name, end_date
+                FROM seasons
+                WHERE is_active = 1 AND end_date < %s
+            """, (date.today(),))
+
+            expired_seasons = cursor.fetchall()
+
+            for season in expired_seasons:
+                # Automatically end the expired season
+                cursor.execute("""
+                    UPDATE seasons
+                    SET is_active = 0
+                    WHERE season_id = %s
+                """, (season['season_id'],))
+
+                print(f"Auto-ended expired season: {season['season_name']} (ended {season['end_date']})")
+
+            if expired_seasons:
+                mysql.connection.commit()
+
+        except Exception as e:
+            mysql.connection.rollback()
+            print(f"Error checking/ending expired seasons: {str(e)}")
+        finally:
+            cursor.close()
+
     @app.route('/api/seasons/current', methods=['GET'])
     @login_required
     def get_current_season():
         """Get the currently active season"""
+        # Check for expired seasons before fetching current
+        check_and_end_expired_season()
+
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         try:

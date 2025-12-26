@@ -290,6 +290,29 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                         'message': 'Team not found'
                     }), 404
 
+                # Check if team's season is active
+                cursor.execute("""
+                    SELECT s.is_active
+                    FROM teams t
+                    LEFT JOIN seasons s ON t.season_id = s.season_id
+                    WHERE t.TeamID = %s
+                """, (data['team_id'],))
+
+                season_result = cursor.fetchone()
+                season_is_active = season_result['is_active'] == 1 if season_result and season_result[
+                    'is_active'] is not None else True
+
+                # Check if user is developer
+                cursor.execute("SELECT is_developer FROM permissions WHERE userid = %s", (user_id,))
+                perm = cursor.fetchone()
+                is_developer = perm['is_developer'] == 1 if perm else False
+
+                if not season_is_active and not is_developer:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Cannot record match results for teams from past seasons'
+                    }), 403
+
                 game_id = team['gameID']
 
                 # Verify GM manages this game

@@ -2,6 +2,7 @@ from EsportsManagementTool import app, mysql, login_required, roles_required, ge
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import MySQLdb.cursors
 from EsportsManagementTool import get_current_time, localize_datetime, EST
+from EsportsManagementTool import season_roles
 
 def idgen(abbreviation, existing_ids):
     """
@@ -412,27 +413,37 @@ def add_members_to_team(team_id):
         if not member_ids:
             return jsonify({'success': False, 'message': 'No members selected'}), 400
 
-        # Check team max size
-        cursor.execute('SELECT teamMaxSize FROM teams WHERE TeamID = %s', (team_id,))
+        # Get team info including season
+        cursor.execute('''
+            SELECT teamMaxSize, season_id, gameID 
+            FROM teams 
+            WHERE TeamID = %s
+        ''', (team_id,))
         team = cursor.fetchone()
+
+        season_is_active, is_developer = is_team_season_active(mysql, team_id)
+        if not season_is_active and not is_developer:
+            return jsonify({
+                'success': False,
+                'message': 'Cannot add players to teams from past seasons'
+            }), 403
 
         if not team:
             return jsonify({'success': False, 'message': 'Team not found'}), 404
 
         max_size = team['teamMaxSize']
+        season_id = team['season_id']
 
         # Check current team size
         cursor.execute('SELECT COUNT(*) as current_size FROM team_members WHERE team_id = %s', (team_id,))
         current_size = cursor.fetchone()['current_size']
 
-        # Check if adding these members would exceed max size
         if current_size + len(member_ids) > max_size:
             return jsonify({
                 'success': False,
                 'message': f'Cannot add {len(member_ids)} members. Team has {current_size}/{max_size} members.'
             }), 400
 
-        # Add members to team
         added_count = 0
         for member_id in member_ids:
             try:
@@ -440,22 +451,55 @@ def add_members_to_team(team_id):
                 cursor.execute('SELECT 1 FROM team_members WHERE team_id = %s AND user_id = %s',
                                (team_id, member_id))
                 if cursor.fetchone():
-                    continue  # Skip if already a member
+                    continue
 
+                # Add to team_members
                 cursor.execute(
                     'INSERT INTO team_members (team_id, user_id, joined_at) VALUES (%s, %s, %s)',
                     (team_id, member_id, get_current_time())
                 )
                 added_count += 1
 
+                # Update permissions.is_player if needed
                 cursor.execute('SELECT is_player FROM permissions WHERE userid = %s', (member_id,))
                 playercheck = cursor.fetchone()
-                plBoolean = playercheck['is_player']
-                if plBoolean:
-                    continue
+                plBoolean = playercheck['is_player'] if playercheck else 0
 
                 if not plBoolean:
                     cursor.execute('UPDATE permissions SET is_player = 1 WHERE userid = %s', (member_id,))
+
+                # ==========================================
+                # POPULATE season_roles FOR THIS USER
+                # ==========================================
+                if season_id:
+                    # Get user's current permissions
+                    cursor.execute('''
+                        SELECT is_admin, is_gm, is_player, is_developer 
+                        FROM permissions 
+                        WHERE userid = %s
+                    ''', (member_id,))
+                    perms = cursor.fetchone()
+
+                    if perms:
+                        # Insert or update their roles for this season
+                        cursor.execute('''
+                            INSERT INTO season_roles 
+                                (userid, season_id, is_admin, is_gm, is_player, is_developer)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                            ON DUPLICATE KEY UPDATE
+                                is_admin = VALUES(is_admin),
+                                is_gm = VALUES(is_gm),
+                                is_player = VALUES(is_player),
+                                is_developer = VALUES(is_developer),
+                                updated_date = NOW()
+                        ''', (
+                            member_id,
+                            season_id,
+                            perms['is_admin'],
+                            perms['is_gm'],
+                            1,  # Always set is_player to 1 since they're joining a team
+                            perms['is_developer']
+                        ))
 
             except Exception as e:
                 print(f"Error adding member {member_id}: {str(e)}")
@@ -491,6 +535,14 @@ Method to remove a player from a team.
 def remove_member_from_team(team_id):
     """Remove a member from a team"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Check if season is active
+    season_is_active, is_developer = is_team_season_active(mysql, team_id)
+    if not season_is_active and not is_developer:
+        return jsonify({
+            'success': False,
+            'message': 'Cannot remove players from teams from past seasons'
+        }), 403
 
     try:
         data = request.get_json()
@@ -566,6 +618,14 @@ def update_team(team_id):
             LEFT JOIN games g ON t.gameID = g.GameID
             WHERE t.TeamID = %s
         ''', (team_id,))
+
+        # Check if season is active
+        season_is_active, is_developer = is_team_season_active(mysql, team_id)
+        if not season_is_active and not is_developer:
+            return jsonify({
+                'success': False,
+                'message': 'Cannot edit teams from past seasons'
+            }), 403
 
         team = cursor.fetchone()
 
@@ -887,14 +947,17 @@ def get_available_team_views():
 Method to retrieve details for a specific team to be displayed to the user.
 @param - team_id is the team whose details are being retrieved.
 """
+
+
 @app.route('/api/teams/<team_id>/details')
 @login_required
 def team_details(team_id):
-    """Get detailed information about a team including members"""
+    """Get detailed information about a team including members with season-appropriate roles"""
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         try:
+            # Get team and season info
             cursor.execute("""
                 SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, t.season_id,
                        s.season_name, s.start_date, s.end_date, s.is_active
@@ -914,14 +977,14 @@ def team_details(team_id):
             season_name = team['season_name']
             season_is_active = team['is_active']
 
-            # Checking if a user can manage given team
+            # Check if user can manage
             user_id = session.get('id')
             cursor.execute('''
                 SELECT p.is_admin, p.is_developer, g.gm_id
                 FROM permissions p
                 LEFT JOIN games g on g.GameID = %s
                 WHERE p.userid = %s
-                ''', (game_id, user_id))
+            ''', (game_id, user_id))
 
             perm_check = cursor.fetchone()
             can_manage = False
@@ -931,6 +994,7 @@ def team_details(team_id):
                 is_game_gm = (perm_check['gm_id'] == user_id)
                 can_manage = (is_admin or is_developer or is_game_gm)
 
+            # Check membership
             try:
                 cursor.execute(f"SELECT 1 FROM team_members WHERE user_id = %s AND team_id = %s",
                                (session['id'], team_id))
@@ -938,24 +1002,50 @@ def team_details(team_id):
             except:
                 is_member = False
 
+            # Count members
             try:
                 cursor.execute(f"SELECT COUNT(*) as count FROM team_members WHERE team_id = %s", (team_id,))
                 member_count = cursor.fetchone()['count']
             except:
                 member_count = 0
 
+            # Fetch members with season-appropriate roles
             formatted_members = []
             try:
-                cursor.execute("""
-                               SELECT u.id, u.firstname, u.lastname, u.username,
-                                      u.profile_picture, p.is_admin, p.is_developer, p.is_gm,
-                                      p.is_player, tm.joined_at
-                               FROM team_members tm
-                               JOIN teams t ON tm.team_id = t.teamID
-                               JOIN users u ON tm.user_id = u.id
-                               LEFT JOIN permissions p ON u.id = p.userid
-                               WHERE tm.team_id = %s
-                               """, (team_id,))
+                # Determine if we should use season_roles or permissions
+                use_season_roles = (season_id is not None and season_is_active == 0)
+
+                if use_season_roles:
+                    # Past season - use frozen season_roles data
+                    cursor.execute("""
+                        SELECT u.id, u.firstname, u.lastname, u.username,
+                               u.profile_picture, tm.joined_at,
+                               COALESCE(sr.is_admin, 0) as is_admin,
+                               COALESCE(sr.is_developer, 0) as is_developer,
+                               COALESCE(sr.is_gm, 0) as is_gm,
+                               COALESCE(sr.is_player, 0) as is_player
+                        FROM team_members tm
+                        JOIN users u ON tm.user_id = u.id
+                        LEFT JOIN season_roles sr ON u.id = sr.userid AND sr.season_id = %s
+                        WHERE tm.team_id = %s
+                        ORDER BY u.firstname, u.lastname
+                    """, (season_id, team_id))
+                else:
+                    # Current season or no season - use live permissions data
+                    cursor.execute("""
+                        SELECT u.id, u.firstname, u.lastname, u.username,
+                               u.profile_picture, tm.joined_at,
+                               COALESCE(p.is_admin, 0) as is_admin,
+                               COALESCE(p.is_developer, 0) as is_developer,
+                               COALESCE(p.is_gm, 0) as is_gm,
+                               COALESCE(p.is_player, 0) as is_player
+                        FROM team_members tm
+                        JOIN users u ON tm.user_id = u.id
+                        LEFT JOIN permissions p ON u.id = p.userid
+                        WHERE tm.team_id = %s
+                        ORDER BY u.firstname, u.lastname
+                    """, (team_id,))
+
                 members = cursor.fetchall()
 
                 for m in members:
@@ -990,40 +1080,43 @@ def team_details(team_id):
                 import traceback
                 traceback.print_exc()
 
-            # Get game info including icon
+            # Get game info
             cursor.execute('SELECT GameTitle, GameImage, Division FROM games WHERE GameID = %s', (game_id,))
             game_info = cursor.fetchone()
             game_title = game_info['GameTitle'] if game_info else 'Unknown Game'
             game_division = game_info['Division'] if game_info else None
 
-            # Generate game icon URL
             game_icon_url = None
             if game_info and game_info['GameImage']:
                 game_icon_url = f'/game-image/{game_id}'
 
-            return jsonify({'success': True,
-                            'team': {
-                                'id': team['TeamID'],
-                                'title': team_name,
-                                'team_max_size': team_max,
-                                'member_count': member_count,
-                                'members': formatted_members,
-                                'is_member': is_member,
-                                'game_id': game_id,
-                                'game_title': game_title,
-                                'game_icon_url': game_icon_url,
-                                'division': game_division,
-                                'can_manage': can_manage,
-                                'season_id': season_id,
-                                'season_name': season_name,
-                                'season_is_active': season_is_active
-                            }}), 200
+            return jsonify({
+                'success': True,
+                'team': {
+                    'id': team['TeamID'],
+                    'title': team_name,
+                    'team_max_size': team_max,
+                    'member_count': member_count,
+                    'members': formatted_members,
+                    'is_member': is_member,
+                    'game_id': game_id,
+                    'game_title': game_title,
+                    'game_icon_url': game_icon_url,
+                    'division': game_division,
+                    'can_manage': can_manage,
+                    'season_id': season_id,
+                    'season_name': season_name,
+                    'season_is_active': season_is_active,
+                    'uses_season_roles': use_season_roles  # Flag for frontend
+                }
+            }), 200
+
         finally:
             cursor.close()
 
     except Exception as e:
-        print(f"Error getting game details: {str(e)}")
-        return jsonify({'success': False, 'message': 'Failed to load game details'}), 500
+        print(f"Error getting team details: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to load team details'}), 500
 
 """
 Method to get the details of the next scheduled event for a game.
@@ -1219,6 +1312,39 @@ def get_game_next_scheduled_event(game_id):
         return jsonify({'success': False, 'message': 'Failed to fetch event'}), 500
 
 """
+Method to determine whether the season a team is part of is active or not.
+"""
+def is_team_season_active(mysql, team_id):
+    """
+    Check if a team's season is currently active
+    Returns (is_active, is_developer_user)
+    """
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT s.is_active
+            FROM teams t
+            LEFT JOIN seasons s ON t.season_id = s.season_id
+            WHERE t.TeamID = %s
+        """, (team_id,))
+
+        result = cursor.fetchone()
+        if not result:
+            return False, False
+
+        season_is_active = result['is_active'] == 1 if result['is_active'] is not None else True
+
+        # Check if user is developer
+        user_id = session.get('id')
+        cursor.execute("SELECT is_developer FROM permissions WHERE userid = %s", (user_id,))
+        perm = cursor.fetchone()
+        is_developer = perm['is_developer'] == 1 if perm else False
+
+        return season_is_active, is_developer
+    finally:
+        cursor.close()
+
+"""
 Method to delete a shell team for a game.
 """
 @app.route('/delete-team', methods=['POST'])
@@ -1235,16 +1361,19 @@ def delete_team():
             return jsonify({'success': False, 'message': 'No team specified'}), 400
 
         # Get team details including creation date and game GM
-        cursor.execute('''
-            SELECT t.teamName, t.created_at, t.gameID, g.gm_id
+        cursor.execute("""
+            SELECT t.teamName, t.created_at, t.gameID, g.gm_id, s.is_active as season_is_active
             FROM teams t
             LEFT JOIN games g ON t.gameID = g.GameID
+            LEFT JOIN seasons s ON t.season_id = s.season_id
             WHERE t.TeamID = %s
-        ''', (team_id,))
+        """, (team_id,))
         team = cursor.fetchone()
 
         if not team:
             return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        season_is_active = team['season_is_active'] == 1 if team['season_is_active'] is not None else True
 
         # Get user permissions
         permissions = get_user_permissions(session['id'])
@@ -1280,8 +1409,10 @@ def delete_team():
 
         if is_developer:
             can_delete = True
-        elif (is_admin or is_game_gm) and within_30_days:
+        elif (is_admin or is_game_gm) and season_is_active and within_30_days:
             can_delete = True
+        elif (is_admin or is_game_gm) and not season_is_active:
+            denial_reason = "Cannot delete teams from past seasons. Only developers can delete historical team data."
         elif (is_admin or is_game_gm) and not within_30_days:
             denial_reason = f"Team was created {days_since_creation} days ago. Only developers can delete teams older than 30 days."
         else:

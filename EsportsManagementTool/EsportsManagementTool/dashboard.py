@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 import calendar as cal
 from EsportsManagementTool import discord_integration
+from EsportsManagementTool import season_roles
 
 from EsportsManagementTool import mysql
 
@@ -184,9 +185,9 @@ def dashboard(year=None, month=None):
                 'title': event['EventName'],
                 'description': event['Description'] if event['Description'] else '',
                 'event_type': event['EventType'] if event.get('EventType') else 'Event',
-                'is_all_day': is_all_day,  # Add flag for template
-                'is_scheduled': event.get('is_scheduled', False),  # Add this line
-                'schedule_id': event.get('schedule_id')  # Add this line too
+                'is_all_day': is_all_day,
+                'is_scheduled': event.get('is_scheduled', False),
+                'schedule_id': event.get('schedule_id')
             }
 
             if date_str not in events_by_date:
@@ -195,6 +196,7 @@ def dashboard(year=None, month=None):
 
         # --- Admin Panel Stats ---
         total_users = active_users = admins = gms = players = developers = 0
+        current_season_name = None
 
         if user['is_admin'] == 1 or user['is_developer'] == 1:
             try:
@@ -211,25 +213,12 @@ def dashboard(year=None, month=None):
                 active_users_result = cursor.fetchone()
                 active_users = active_users_result['active_users'] if active_users_result else 0
 
-                # Count admins from permissions table
-                cursor.execute("""
-                    SELECT COUNT(DISTINCT u.id) AS admins
-                    FROM users u
-                    INNER JOIN permissions p ON p.userid = u.id
-                    WHERE p.is_admin = 1
-                """)
-                admins = cursor.fetchone()['admins']
-
-                # Count game managers
-                cursor.execute("SELECT COUNT(*) AS gms FROM permissions WHERE is_gm = 1")
-                gms = cursor.fetchone()['gms']
-
-                # Count unique players (users who are on at least one team)**
-                cursor.execute("""
-                    SELECT COUNT(DISTINCT user_id) AS players
-                    FROM team_members
-                """)
-                players = cursor.fetchone()['players']
+                # Get season-based role statistics
+                season_stats = season_roles.get_season_role_stats(mysql)
+                admins = season_stats['admins']
+                gms = season_stats['gms']
+                players = season_stats['players']
+                current_season_name = season_stats['season_name']
 
                 # Count developers
                 cursor.execute("SELECT COUNT(*) AS developers FROM permissions WHERE is_developer = 1")
@@ -290,6 +279,7 @@ def dashboard(year=None, month=None):
             next_month=next_month,
             total_users=total_users,
             active_users=active_users,
+            current_season_name=current_season_name,
             admins=admins,
             gms=gms,
             players=players,
@@ -436,6 +426,18 @@ def manage_role():
             # Update the permissions table
             query = f"UPDATE permissions SET {role_column} = %s WHERE userid = %s"
             cursor.execute(query, (new_value, user_id))
+
+            # Also update season-specific role
+            active_season_id = season_roles.get_active_season_id(mysql)
+            if active_season_id:
+                role_name = 'gm' if role == 'Game Manager' else 'admin'
+                season_roles.assign_season_role(
+                    mysql,
+                    user_id,
+                    active_season_id,
+                    role_name,
+                    value=(action == 'assign')
+                )
 
             # If removing Game Manager role, clear their game associations**
             if action == 'remove' and role == 'Game Manager':

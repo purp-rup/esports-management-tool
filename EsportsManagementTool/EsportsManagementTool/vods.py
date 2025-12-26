@@ -61,6 +61,22 @@ def add_team_vod(team_id):
         cursor.close()
         return jsonify({'error': 'Only admins or the Game Manager can add VODs!'}), 403
 
+    # Check if team's season is active
+    cursor.execute("""
+        SELECT s.is_active
+        FROM teams t
+        LEFT JOIN seasons s ON t.season_id = s.season_id
+        WHERE t.TeamID = %s
+    """, (team_id,))
+
+    season_result = cursor.fetchone()
+    season_is_active = season_result['is_active'] == 1 if season_result and season_result[
+        'is_active'] is not None else True
+
+    if not season_is_active and not is_developer:
+        cursor.close()
+        return jsonify({'error': 'Cannot add VODs to teams from past seasons'}), 403
+
     # Adding a VOD to a team
     data = request.get_json()
     youtube_video_id = data.get('youtube_video_id')
@@ -149,6 +165,23 @@ def delete_vod(vod_id):
     if not (is_admin or is_developer or is_game_gm):
         cursor.close()
         return jsonify({'error': 'Only admins or the game manager can delete VODs!'}), 403
+
+    # Check if team's season is active
+    cursor.execute("""
+        SELECT s.is_active
+        FROM team_vods v
+        JOIN teams t ON v.teamID = t.TeamID
+        LEFT JOIN seasons s ON t.season_id = s.season_id
+        WHERE v.id = %s
+    """, (vod_id,))
+
+    season_result = cursor.fetchone()
+    season_is_active = season_result['is_active'] == 1 if season_result and season_result[
+        'is_active'] is not None else True
+
+    if not season_is_active and not is_developer:
+        cursor.close()
+        return jsonify({'error': 'Cannot delete VODs from teams in past seasons'}), 403
 
     # Deleting a VOD
     cursor.execute('DELETE FROM team_vods WHERE id = %s', (vod_id,))
@@ -248,6 +281,23 @@ def add_vod_comment(vod_id):
     if not (is_admin or is_developer or is_game_gm):
         cursor.close()
         return jsonify({'error': 'Only admins or the game manager can leave comments!'}), 403
+
+    # Check if team's season is active
+    cursor.execute("""
+        SELECT s.is_active
+        FROM team_vods v
+        JOIN teams t ON v.teamID = t.TeamID
+        LEFT JOIN seasons s ON t.season_id = s.season_id
+        WHERE v.id = %s
+    """, (vod_id,))
+
+    season_result = cursor.fetchone()
+    season_is_active = season_result['is_active'] == 1 if season_result and season_result[
+        'is_active'] is not None else True
+
+    if not season_is_active and not is_developer:
+        cursor.close()
+        return jsonify({'error': 'Cannot add comments to VODs from teams in past seasons'}), 403
 
     # Get comment data
     data = request.get_json()

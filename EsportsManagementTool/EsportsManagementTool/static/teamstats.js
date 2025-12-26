@@ -263,7 +263,7 @@ function handleLeagueFilterChange() {
 }
 
 // ============================================
-// UPDATED MATCH HISTORY RENDERING
+// MATCH HISTORY RENDERING
 // ============================================
 
 /**
@@ -283,9 +283,12 @@ function renderMatchHistory() {
         `;
     }
 
-    // Check if current user is the game manager
     const currentTeam = allTeamsData.find(t => t.TeamID === currentStatsTeamId);
     const isGameManager = currentTeam && currentTeam.gm_id === window.currentUserId;
+    const isActiveSeason = window.currentTeamSeasonIsActive === 1;
+
+    // Only allow editing if active season AND user is GM
+    const canEdit = isGameManager && isActiveSeason;
 
     let html = '<div class="match-history-list">';
 
@@ -296,7 +299,6 @@ function renderMatchHistory() {
                           'fa-clock';
         const resultText = match.result ? match.result.toUpperCase() : 'PENDING';
 
-        // League badge (if match has league)
         const leagueBadge = match.league_name ? `
             <span class="match-league-badge" title="League: ${match.league_name}">
                 <i class="fas fa-trophy"></i> ${match.league_name}
@@ -327,7 +329,7 @@ function renderMatchHistory() {
                     ${resultText}
                 </div>
 
-                ${isGameManager ? `
+                ${canEdit ? `
                     <div class="match-actions" onclick="event.stopPropagation()">
                         <button class="btn-icon"
                                 onclick="editMatchResult(${match.event_id})"
@@ -353,6 +355,13 @@ function renderMatchHistory() {
  * Resets form and populates match events dropdown
  */
 function openRecordResultModal() {
+    // Check if season is active
+    const isActiveSeason = window.currentTeamSeasonIsActive === 1;
+    if (!isActiveSeason) {
+        alert('Cannot record match results for teams from past seasons.');
+        return;
+    }
+
     const modal = document.getElementById('recordMatchResultModal');
     if (!modal) {
         console.error('Record match result modal not found');
@@ -856,8 +865,10 @@ async function openMatchDetailsModal(eventId) {
         // Edit permissions
         const currentTeam = allTeamsData.find(t => t.TeamID === currentStatsTeamId);
         const isGameManager = currentTeam && currentTeam.gm_id === window.currentUserId;
+        const isActiveSeason = window.currentTeamSeasonIsActive === 1;
 
-        if (editBtn && isGameManager && match.result) {
+         // Only show edit button if: GM + active season + match has result
+        if (editBtn && isGameManager && isActiveSeason && match.result) {
             editBtn.style.display = 'flex';
             editBtn.onclick = () => {
                 closeMatchDetailsModal();

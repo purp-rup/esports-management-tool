@@ -53,6 +53,10 @@ function loadTeamVods(teamID) {
     // Store team ID for use in other functions
     currentTeamIdForVods = teamID;
 
+    const isActiveSeason = window.currentTeamSeasonIsActive === 1;
+    const isDeveloper = window.userPermissions?.is_developer || false;
+    const canAddVods = (window.currentTeamCanManage || isDeveloper) && isActiveSeason;
+
     // Fetch VODs from API
     fetch(`/api/vods/team/${teamID}`)
         .then(response => response.json())
@@ -103,12 +107,12 @@ function loadTeamVods(teamID) {
  * @param {string} vod.youtube_video_id - YouTube video ID
  * @returns {HTMLElement} The created VOD card element
  */
-function createVodElement(vod) {
+function createVodElement(vod, canDelete) {
     const vodItem = document.createElement('div');
     vodItem.className = 'vod-item';
 
     // Check if user has permission to delete VODs (admin or GM)
-    const canDelete = window.currentTeamCanManage || false;
+     const showDelete = canDelete && (window.currentTeamSeasonIsActive === 1);
 
     // Build VOD card HTML with conditional delete button
     vodItem.innerHTML = `
@@ -164,6 +168,8 @@ function playVideo(vod) {
     document.body.style.overflow = 'hidden';
 
     const commentForm = document.getElementById('vodCommentForm');
+    const isActiveSeason = window.currentTeamSeasonIsActive === 1;
+
     if (commentForm && window.currentTeamCanManage) {
         commentForm.style.display = 'block';
     } else if (commentForm) {

@@ -435,12 +435,12 @@
     font-size: 0.75rem;
 }
 
-/* Hide game groups when not in "all" or "division" view */
-.teams-sidebar:not([data-view="all"]):not([data-view="division"]) .game-group {
+/* Hide game groups when not in "all" or "division" or "past_seasons" view */
+.teams-sidebar:not([data-view="all"]):not([data-view="division"]):not([data-view="past_seasons"]) .game-group {
     display: contents;
 }
 
-.teams-sidebar:not([data-view="all"]):not([data-view="division"]) .team-collapse-btn {
+.teams-sidebar:not([data-view="all"]):not([data-view="division"]):not([data-view="past_seasons"]) .team-collapse-btn {
     display: none;
 }
 
