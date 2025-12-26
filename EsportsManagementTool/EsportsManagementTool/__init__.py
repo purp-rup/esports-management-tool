@@ -829,6 +829,19 @@ def register():
                 """, (newUser['id'],))
                 mysql.connection.commit()
 
+                # If there's an active season, add user to season_roles
+                cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+                active_season = cursor.fetchone()
+
+                if active_season:
+                    season_id = active_season['season_id']
+                    # New users start with no roles (all 0s) but are tracked in the season
+                    cursor.execute("""
+                                        INSERT INTO season_roles (userid, season_id, is_admin, is_gm, is_player, is_developer)
+                                        VALUES (%s, %s, 0, 0, 0, 0)
+                                    """, (newUser['id'], season_id))
+                    mysql.connection.commit()
+
                 # Generate verification token
                 verification_token = secrets.token_urlsafe(32)
                 token_expiry = get_current_time() + timedelta(hours=24)

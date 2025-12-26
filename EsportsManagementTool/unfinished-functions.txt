@@ -1,14 +1,13 @@
 Functionality notes:
 Needs doing:
-            Default teams tab to be folded up.
-
             Consolidation options:
             Check dropdowns between events.js and game.js
 
-            Seasons:
-                     Old season badges still switch what GM they are (should stay static)
+            Next-Community-Event-Modal appears behind community modal
 
-
+            Player count not automatically set to 0 upon season ending.
+            Role badges updates wrongfully on teams when no active season.
+            Player count completely wrong on Admin Panel
 
 
 

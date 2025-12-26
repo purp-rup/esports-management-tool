@@ -133,7 +133,10 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
     @login_required
     @roles_required('admin', 'developer')
     def create_season():
-        """Create a new season"""
+        """
+        Create a new season
+        NOW INCLUDES: Automatic reassignment of events that fall within the new season's date range
+        """
         data = request.get_json()
         season_name = data.get('season_name')
         start_date = data.get('start_date')
@@ -184,10 +187,30 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
             mysql.connection.commit()
             new_season_id = cursor.lastrowid
 
+            # Snapshot all current permissions to this season
+            from EsportsManagementTool import season_roles
+            users_snapshotted = season_roles.snapshot_all_permissions_to_season(mysql, new_season_id)
+
+            print(f"Snapshotted {users_snapshotted} users' permissions to season {new_season_id}")
+
+            # Reassign events that fall within this new season's date range
+            cursor.execute("""
+                UPDATE generalevents
+                SET season_id = %s
+                WHERE Date BETWEEN %s AND %s
+            """, (new_season_id, start_date, end_date))
+
+            reassigned_events = cursor.rowcount
+            mysql.connection.commit()
+
+            if reassigned_events > 0:
+                print(f"✅ Reassigned {reassigned_events} events to new season '{season_name}'")
+
             return jsonify({
                 'success': True,
-                'message': f'Season "{season_name}" created successfully',
-                'season_id': new_season_id
+                'message': f'Season "{season_name}" created successfully with {users_snapshotted} users and {reassigned_events} events reassigned',
+                'season_id': new_season_id,
+                'events_reassigned': reassigned_events
             })
 
         except Exception as e:
@@ -204,7 +227,10 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
     @login_required
     @roles_required('admin', 'developer')
     def update_season(season_id):
-        """Update an existing season"""
+        """
+        Update an existing season
+        NOW INCLUDES: Reassign events if end date changes to include new dates
+        """
         data = request.get_json()
         season_name = data.get('season_name')
         end_date = data.get('end_date')
@@ -257,11 +283,23 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
                 WHERE season_id = %s
             """, (season_name, end_date, season_id))
 
+            # Reassign events that now fall within this season's updated date range
+            cursor.execute("""
+                UPDATE generalevents
+                SET season_id = %s
+                WHERE Date BETWEEN %s AND %s
+            """, (season_id, start, end_date))
+
+            reassigned_events = cursor.rowcount
             mysql.connection.commit()
+
+            if reassigned_events > 0:
+                print(f"✅ Reassigned {reassigned_events} events to season '{season_name}' after date update")
 
             return jsonify({
                 'success': True,
-                'message': f'Season "{season_name}" updated successfully'
+                'message': f'Season "{season_name}" updated successfully. {reassigned_events} events reassigned.',
+                'events_reassigned': reassigned_events
             })
 
         except Exception as e:
@@ -278,7 +316,12 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
     @login_required
     @roles_required('admin', 'developer')
     def end_season(season_id):
-        """End the current season"""
+        """
+        End the current season
+        NOW INCLUDES:
+        - Final snapshot of GM game assignments before ending
+        - Removal of Player role from all users (they're no longer on teams)
+        """
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         try:
@@ -297,6 +340,48 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
                     'message': 'Active season not found'
                 }), 404
 
+            # IMPORTANT: Take a final snapshot of all GM game assignments
+            # This preserves which games each GM managed at the end of the season
+            cursor.execute("""
+                SELECT userid, is_gm
+                FROM season_roles
+                WHERE season_id = %s AND is_gm = 1
+            """, (season_id,))
+
+            gms = cursor.fetchall()
+
+            for gm in gms:
+                user_id = gm['userid']
+
+                # Get current game assignment from games table
+                cursor.execute("""
+                    SELECT GameID 
+                    FROM games 
+                    WHERE gm_id = %s 
+                    LIMIT 1
+                """, (user_id,))
+
+                game_result = cursor.fetchone()
+
+                if game_result:
+                    gm_game_id = game_result['GameID']
+
+                    # Update season_roles with the game assignment
+                    cursor.execute("""
+                        UPDATE season_roles
+                        SET gm_game_id = %s
+                        WHERE userid = %s AND season_id = %s
+                    """, (gm_game_id, user_id, season_id))
+
+            # Remove Player role from ALL users since season is ending
+            # Teams are dissolved, so no one is a "player" anymore
+            cursor.execute("""
+                UPDATE permissions
+                SET is_player = 0
+            """)
+
+            print(f"Removed Player role from all users as season {season['season_name']} ended")
+
             # Deactivate season
             cursor.execute("""
                 UPDATE seasons
@@ -308,7 +393,7 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
 
             return jsonify({
                 'success': True,
-                'message': f'Season "{season["season_name"]}" has been ended'
+                'message': f'Season "{season["season_name"]}" has been ended. All player roles have been removed.'
             })
 
         except Exception as e:

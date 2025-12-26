@@ -544,24 +544,10 @@ function handleFrequencyChange() {
 async function handleScheduledEventSubmit(event) {
     event.preventDefault();
 
-    const eventType = document.getElementById('scheduledEventType').value;
-    const leagueSelect = document.getElementById('scheduledLeagueSelect');
-    const messageDiv = document.getElementById('scheduledEventMessage');
-
-    // Validate league selection for Match events
-    if (eventType === 'Match' && !leagueSelect.value) {
-        messageDiv.textContent = 'Please select a league for this match event.';
-        messageDiv.className = 'form-message error';
-        messageDiv.style.display = 'block';
-        
-        // Scroll to the league field
-        leagueSelect.focus();
-        return;
-    }
-
     const submitBtn = event.target.querySelector('button[type="submit"]');
     const btnText = submitBtn.querySelector('.btn-text');
     const btnSpinner = submitBtn.querySelector('.btn-spinner');
+    const messageDiv = document.getElementById('scheduledEventMessage');
 
     // Handle location (custom or preset)
     const locationSelect = document.getElementById('scheduledLocation');
@@ -581,7 +567,7 @@ async function handleScheduledEventSubmit(event) {
     const formData = {
         team_id: teamId,
         event_name: document.getElementById('scheduledEventName').value,
-        event_type: eventType,
+        event_type: document.getElementById('scheduledEventType').value,
         frequency: document.getElementById('scheduledFrequency').value,
         start_time: document.getElementById('scheduledStartTime').value,
         end_time: document.getElementById('scheduledEndTime').value,
@@ -590,16 +576,13 @@ async function handleScheduledEventSubmit(event) {
         location: location
     };
 
-    // Add league_id for Match events (now guaranteed to have a value)
-    if (eventType === 'Match' && leagueSelect.value) {
-        formData.league_id = parseInt(leagueSelect.value);
-    }
-
     // Add frequency-specific fields
     if (formData.frequency === 'Once') {
+        // One-time event: use specific date
         formData.specific_date = document.getElementById('scheduledSpecificDate').value;
-        formData.end_date = formData.specific_date;
+        formData.end_date = formData.specific_date; // Same as event date
     } else {
+        // Recurring event: use day of week and end date
         formData.day_of_week = document.getElementById('scheduledDayOfWeek').value;
         formData.end_date = document.getElementById('scheduledEndDate').value;
     }
@@ -616,13 +599,20 @@ async function handleScheduledEventSubmit(event) {
         const data = await response.json();
 
         if (data.success) {
+            // Show success message
             messageDiv.textContent = data.message;
             messageDiv.className = 'form-message success';
             messageDiv.style.display = 'block';
 
+            // Reset button state BEFORE closing modal
+            submitBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnSpinner.style.display = 'none';
+
             setTimeout(() => {
                 closeCreateScheduledEventModal();
 
+                // Reload team details if function exists
                 if (typeof selectTeam === 'function') {
                     selectTeam(teamId);
                 }
@@ -631,10 +621,12 @@ async function handleScheduledEventSubmit(event) {
             throw new Error(data.message);
         }
     } catch (error) {
+        // Show error message
         messageDiv.textContent = error.message || 'Failed to create scheduled event';
         messageDiv.className = 'form-message error';
         messageDiv.style.display = 'block';
 
+        // Reset button state
         submitBtn.disabled = false;
         btnText.style.display = 'inline';
         btnSpinner.style.display = 'none';
@@ -684,11 +676,13 @@ async function openScheduleModal(scheduleId) {
 }
 
 /**
- * Render game icon in modal header
+ * Render game icon in modal header WITH event count
+ * FIXED: Now properly removes event count when viewing one-time schedules
  * @param {Object} schedule - Schedule object with game info
  */
-function renderGameIcon(schedule) {
+async function renderGameIcon(schedule) {
     const gameIconContainer = document.getElementById('scheduleModalGameIcon');
+    const titleElement = document.getElementById('scheduleModalTitle');
 
     if (schedule.game_id && gameIconContainer) {
         gameIconContainer.innerHTML = `
@@ -702,6 +696,56 @@ function renderGameIcon(schedule) {
         gameIconContainer.style.display = 'flex';
     } else if (gameIconContainer) {
         gameIconContainer.style.display = 'none';
+    }
+
+    // ALWAYS remove any existing event count first
+    const existingCount = document.querySelector('.schedule-event-count');
+    if (existingCount) {
+        existingCount.remove();
+    }
+
+    // ONLY add event count for recurring schedules (not "Once")
+    if (schedule.frequency !== 'Once') {
+        const eventCount = await fetchScheduleEventCount(schedule.schedule_id);
+
+        // Create wrapper for title + count if it doesn't exist
+        let titleWrapper = titleElement.parentElement;
+        if (!titleWrapper.classList.contains('schedule-modal-title-wrapper')) {
+            titleWrapper = document.createElement('div');
+            titleWrapper.className = 'schedule-modal-title-wrapper';
+            titleElement.parentNode.insertBefore(titleWrapper, titleElement);
+            titleWrapper.appendChild(titleElement);
+        }
+
+        // Create and insert event count element
+        const countElement = document.createElement('div');
+        countElement.className = 'schedule-event-count';
+        countElement.innerHTML = `
+            <i class="fas fa-calendar-check"></i>
+            ${eventCount} ${eventCount === 1 ? 'event' : 'events'}
+        `;
+
+        titleWrapper.appendChild(countElement);
+    }
+}
+
+/**
+ * Fetch the count of events associated with a schedule
+ * @param {number} scheduleId - Schedule ID
+ * @returns {number} Count of associated events
+ */
+async function fetchScheduleEventCount(scheduleId) {
+    try {
+        const response = await fetch(`/api/scheduled-events/${scheduleId}/event-count`);
+        const data = await response.json();
+
+        if (data.success) {
+            return data.count;
+        }
+        return 0;
+    } catch (error) {
+        console.error('Error fetching event count:', error);
+        return 0;
     }
 }
 
@@ -1307,13 +1351,13 @@ function confirmDeleteSchedule(scheduleId) {
     }
 
     ScheduleState.pendingDeleteScheduleId = scheduleId;
-
+    const isDeveloper = window.userPermissions?.is_developer || false;
     const timeRemaining = getScheduleDeletionTimeRemaining(schedule.created_at);
 
     // Build additional info
     let additionalInfo = '<br><br>All events created by this schedule will be deleted as well.';
 
-    if (timeRemaining) {
+    if (!isDeveloper && timeRemaining) {
         additionalInfo += `
             <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(251, 191, 36, 0.1);
                         border: 1px solid #fbbf24; border-radius: 6px; font-size: 0.875rem;">
@@ -1333,6 +1377,56 @@ function confirmDeleteSchedule(scheduleId) {
         onConfirm: confirmDeleteScheduleAction,
         itemId: scheduleId
     });
+}
+
+/**
+ * Check if a schedule has any events left and auto-delete if empty
+ * Called after deleting individual scheduled events
+ * @param {number} scheduleId - Schedule ID to check
+ * @returns {Promise<Object>} Cleanup result
+ */
+async function checkAndCleanupSchedule(scheduleId) {
+    try {
+        const response = await fetch(`/api/scheduled-events/${scheduleId}/check-and-cleanup`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.deleted) {
+            console.log(`✓ Auto-deleted empty schedule: ${data.schedule_name}`);
+
+            // Show notification to user
+            showScheduleCleanupNotification(data.schedule_name);
+
+            // Reload schedule tab if currently viewing it
+            if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
+                loadScheduleTab(currentSelectedTeamId);
+            }
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error checking schedule cleanup:', error);
+        return { success: false, deleted: false };
+    }
+}
+
+/**
+ * Show notification when a schedule is auto-deleted
+ * Uses existing notification system with INFO variant
+ * @param {string} scheduleName - Name of deleted schedule
+ */
+function showScheduleCleanupNotification(scheduleName) {
+    if (typeof window.showInfoMessage === 'function') {
+        window.showInfoMessage(
+            `Schedule "${scheduleName}" was automatically removed (no events remaining)`,
+            4000
+        );
+    }
 }
 
 // ============================================
@@ -1501,6 +1595,7 @@ window.addEventListener('click', function(event) {
 window.openCreateScheduledEventModal = openCreateScheduledEventModal;
 window.closeCreateScheduledEventModal = closeCreateScheduledEventModal;
 window.initScheduleButton = initScheduleButton;
+window.fetchScheduleEventCount = fetchScheduleEventCount;
 window.handleFrequencyChange = handleFrequencyChange;
 window.openScheduleModal = openScheduleModal;
 window.closeScheduleModal = closeScheduleModal;
@@ -1513,6 +1608,8 @@ window.canUserDeleteSchedule = canUserDeleteSchedule;
 window.getScheduleDeletionTimeRemaining = getScheduleDeletionTimeRemaining;
 window.confirmDeleteSchedule = confirmDeleteSchedule;
 window.confirmDeleteScheduleAction = confirmDeleteScheduleAction;
+window.checkAndCleanupSchedule = checkAndCleanupSchedule;
+window.showScheduleCleanupNotification = showScheduleCleanupNotification;
 //League Scheduling
 window.handleEventTypeChangeForLeague = handleEventTypeChangeForLeague;
 window.loadTeamLeaguesForSchedule = loadTeamLeaguesForSchedule;

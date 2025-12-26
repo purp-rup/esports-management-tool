@@ -361,6 +361,8 @@ def upload_avatar():
 """
 Route meant to assign and remove roles.
 """
+
+
 @app.route('/admin/manage-role', methods=['POST'])
 @roles_required('admin', 'developer')
 def manage_role():
@@ -431,15 +433,30 @@ def manage_role():
             active_season_id = season_roles.get_active_season_id(mysql)
             if active_season_id:
                 role_name = 'gm' if role == 'Game Manager' else 'admin'
+
+                # For GM role, get their current game assignment
+                gm_game_id = None
+                if role == 'Game Manager' and action == 'assign':
+                    cursor.execute("""
+                        SELECT GameID 
+                        FROM games 
+                        WHERE gm_id = %s 
+                        LIMIT 1
+                    """, (user_id,))
+                    game_result = cursor.fetchone()
+                    if game_result:
+                        gm_game_id = game_result['GameID']
+
                 season_roles.assign_season_role(
                     mysql,
                     user_id,
                     active_season_id,
                     role_name,
-                    value=(action == 'assign')
+                    value=(action == 'assign'),
+                    gm_game_id=gm_game_id  # Pass the game ID
                 )
 
-            # If removing Game Manager role, clear their game associations**
+            # If removing Game Manager role, clear their game associations
             if action == 'remove' and role == 'Game Manager':
                 cursor.execute("""
                     UPDATE games 

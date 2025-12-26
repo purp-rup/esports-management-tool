@@ -104,7 +104,7 @@ def get_season_role_stats(mysql, season_id=None):
         cursor.close()
 
 
-def assign_season_role(mysql, user_id, season_id, role_name, value=True):
+def assign_season_role(mysql, user_id, season_id, role_name, value=True, gm_game_id=None):
     """
     Assign or remove a role for a user in a specific season
 
@@ -114,6 +114,7 @@ def assign_season_role(mysql, user_id, season_id, role_name, value=True):
         season_id: Season ID
         role_name: One of 'admin', 'gm', 'player', 'developer'
         value: True to assign, False to remove
+        gm_game_id: Optional game ID for GM role (preserves which game they managed)
 
     Returns:
         bool: True if successful, False otherwise
@@ -133,12 +134,23 @@ def assign_season_role(mysql, user_id, season_id, role_name, value=True):
 
     cursor = mysql.connection.cursor()
     try:
-        # Insert or update the role assignment
-        cursor.execute(f"""
-            INSERT INTO season_roles (userid, season_id, {column})
-            VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE {column} = %s, updated_date = NOW()
-        """, (user_id, season_id, int_value, int_value))
+        # If assigning GM role and game_id provided, include it
+        if role_name.lower() == 'gm' and gm_game_id is not None:
+            cursor.execute(f"""
+                INSERT INTO season_roles (userid, season_id, {column}, gm_game_id)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE 
+                    {column} = %s, 
+                    gm_game_id = %s,
+                    updated_date = NOW()
+            """, (user_id, season_id, int_value, gm_game_id, int_value, gm_game_id))
+        else:
+            # For non-GM roles or when removing GM role
+            cursor.execute(f"""
+                INSERT INTO season_roles (userid, season_id, {column})
+                VALUES (%s, %s, %s)
+                ON DUPLICATE KEY UPDATE {column} = %s, updated_date = NOW()
+            """, (user_id, season_id, int_value, int_value))
 
         mysql.connection.commit()
         return True
@@ -265,5 +277,76 @@ def get_users_by_season_role(mysql, role_name, season_id=None):
         results = cursor.fetchall()
 
         return [dict(zip(columns, row)) for row in results]
+    finally:
+        cursor.close()
+
+
+def snapshot_all_permissions_to_season(mysql, season_id):
+    """
+    Snapshot all current user permissions into season_roles for a new season
+    This should be called when a season is created or activated
+    NOW INCLUDES: GM game assignments to preserve history
+
+    Args:
+        mysql: MySQL connection object
+        season_id: The season ID to snapshot permissions for
+
+    Returns:
+        int: Number of users whose permissions were snapshotted
+    """
+    cursor = mysql.connection.cursor()
+    try:
+        # Get all users with any role assigned
+        cursor.execute("""
+            SELECT userid, is_admin, is_gm, is_player, is_developer
+            FROM permissions
+            WHERE is_admin = 1 OR is_gm = 1 OR is_player = 1 OR is_developer = 1
+        """)
+
+        users_with_roles = cursor.fetchall()
+
+        if not users_with_roles:
+            return 0
+
+        # Insert all users into season_roles for this season
+        for user_row in users_with_roles:
+            userid = user_row[0]
+            is_admin = user_row[1]
+            is_gm = user_row[2]
+            is_player = user_row[3]
+            is_developer = user_row[4]
+
+            # Get the game this user manages (if they're a GM)
+            gm_game_id = None
+            if is_gm == 1:
+                cursor.execute("""
+                    SELECT GameID 
+                    FROM games 
+                    WHERE gm_id = %s 
+                    LIMIT 1
+                """, (userid,))
+                game_result = cursor.fetchone()
+                if game_result:
+                    gm_game_id = game_result[0]
+
+            cursor.execute("""
+                INSERT INTO season_roles (userid, season_id, is_admin, is_gm, is_player, is_developer, gm_game_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    is_admin = VALUES(is_admin),
+                    is_gm = VALUES(is_gm),
+                    is_player = VALUES(is_player),
+                    is_developer = VALUES(is_developer),
+                    gm_game_id = VALUES(gm_game_id),
+                    updated_date = NOW()
+            """, (userid, season_id, is_admin, is_gm, is_player, is_developer, gm_game_id))
+
+        mysql.connection.commit()
+        return len(users_with_roles)
+
+    except Exception as e:
+        print(f"Error snapshotting permissions to season: {str(e)}")
+        mysql.connection.rollback()
+        return 0
     finally:
         cursor.close()

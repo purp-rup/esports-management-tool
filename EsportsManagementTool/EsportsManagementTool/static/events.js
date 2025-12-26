@@ -2403,21 +2403,36 @@ async function confirmDeleteEvent(eventId) {
                 EventState.deletionFromModal = false;
             }
 
-            // Show success notification
+            // Show success notification FIRST
             showDeleteSuccessMessage(data.message);
+
+            // If schedule was auto-deleted, show additional notification with proper delay
+            if (data.schedule_deleted && data.schedule_name) {
+                // Wait for first notification to appear and settle
+                setTimeout(() => {
+                    if (typeof window.showInfoMessage === 'function') {
+                        window.showInfoMessage(
+                            `Schedule "${data.schedule_name}" was automatically removed (no events remaining)`,
+                            4000
+                        );
+                    } else if (typeof window.showScheduleCleanupNotification === 'function') {
+                        window.showScheduleCleanupNotification(data.schedule_name);
+                    }
+                }, 600); // Increased delay to ensure proper stacking
+            }
 
             // Route based on deletion source
             setTimeout(() => {
                 if (EventState.deletionSource === 'events') {
                     // Reload events tab only
                     loadEvents();
-                    //Manually restore scrolling
+                    // Manually restore scrolling
                     document.body.style.overflow = 'auto';
                 } else {
                     // Calendar view - ALWAYS full page reload
                     window.location.reload();
                 }
-            }, 350);
+            }, data.schedule_deleted ? 2000 : 1000); // Longer delay if showing two notifications
         } else {
             handleDeleteError(data.message);
         }
