@@ -1055,6 +1055,31 @@ def get_calendar_events():
         cursor.close()
 
 
+@app.route('/api/season/<int:season_id>/gm-game-mappings')
+@login_required
+def get_season_gm_mappings(season_id):
+    """
+    Get historical GM-game mappings for a specific season
+    Used to display correct GM badges for past season teams
+    """
+    try:
+        from EsportsManagementTool import season_roles
+
+        mappings = season_roles.get_gm_game_mappings_for_season(mysql, season_id)
+
+        return jsonify({
+            'success': True,
+            'mappings': mappings,
+            'season_id': season_id
+        })
+    except Exception as e:
+        print(f"Error getting season GM mappings: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to load season GM mappings'
+        }), 500
+
+
 @app.route('/api/events/<int:event_id>')
 def get_event_details(event_id):
     """

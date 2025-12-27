@@ -361,13 +361,12 @@ def upload_avatar():
 """
 Route meant to assign and remove roles.
 """
-
-
 @app.route('/admin/manage-role', methods=['POST'])
 @roles_required('admin', 'developer')
 def manage_role():
     """
     Assign or remove roles from users
+    NOW INCLUDES: Prevent role changes when no active season exists
     """
     try:
         data = request.get_json()
@@ -429,9 +428,13 @@ def manage_role():
             query = f"UPDATE permissions SET {role_column} = %s WHERE userid = %s"
             cursor.execute(query, (new_value, user_id))
 
-            # Also update season-specific role
-            active_season_id = season_roles.get_active_season_id(mysql)
-            if active_season_id:
+            # ONLY update season-specific role if there's an ACTIVE season
+            # Do NOT update if using fallback to most recent past season
+            cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+            active_season = cursor.fetchone()
+
+            if active_season:
+                active_season_id = active_season['season_id']
                 role_name = 'gm' if role == 'Game Manager' else 'admin'
 
                 # For GM role, get their current game assignment
@@ -455,6 +458,10 @@ def manage_role():
                     value=(action == 'assign'),
                     gm_game_id=gm_game_id  # Pass the game ID
                 )
+            else:
+                # No active season - only update permissions table, not season_roles
+                print(
+                    f"⚠️ No active season - role change for {username} applied to permissions only (not season_roles)")
 
             # If removing Game Manager role, clear their game associations
             if action == 'remove' and role == 'Game Manager':

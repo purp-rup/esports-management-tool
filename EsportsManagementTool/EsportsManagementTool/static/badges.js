@@ -9,6 +9,7 @@
  * - GM-to-game associations with game icons
  * - Context-aware badge highlighting
  * - Dynamic badge refresh after role changes
+ * - Historical badge freezing for past seasons
  *
  * This system ensures consistent badge display across all modules and pages.
  * ============================================================================
@@ -24,6 +25,13 @@
  * @type {Object.<number, Array>}
  */
 let gmGameMappings = {};
+
+/**
+ * Cache for season-specific GM-game mappings (historical data)
+ * Structure: { season_id: { user_id: [{ game_id, game_title, game_icon_url }, ...] } }
+ * @type {Object.<number, Object>}
+ */
+let seasonGMGameMappings = {};
 
 /**
  * Flag to track if GM mappings have been loaded
@@ -68,6 +76,40 @@ async function loadGMGameMappings() {
     }
 }
 
+/**
+ * Load season-specific GM-game mappings for historical badge display
+ * Used when viewing past season teams to show frozen GM assignments
+ *
+ * @param {number} seasonId - Season ID to load mappings for
+ * @returns {Promise<void>}
+ */
+async function loadSeasonGMGameMappings(seasonId) {
+    // Return if already loaded for this season
+    if (seasonGMGameMappings[seasonId]) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/season/${seasonId}/gm-game-mappings`);
+        const data = await response.json();
+
+        if (data.success) {
+            seasonGMGameMappings[seasonId] = data.mappings || {};
+
+            // Make available globally for badge system
+            window.seasonGMGameMappings = seasonGMGameMappings;
+
+            console.log(`Loaded historical GM-game mappings for season ${seasonId}:`, seasonGMGameMappings[seasonId]);
+        } else {
+            console.warn(`Failed to load GM mappings for season ${seasonId}`);
+            seasonGMGameMappings[seasonId] = {};
+        }
+    } catch (error) {
+        console.error(`Error loading season GM mappings for season ${seasonId}:`, error);
+        seasonGMGameMappings[seasonId] = {};
+    }
+}
+
 // ============================================
 // UNIVERSAL BADGE BUILDER
 // ============================================
@@ -83,12 +125,14 @@ async function loadGMGameMappings() {
  *                                               When provided, highlights GM badge if user is assigned to this game
  * @param {Array<string>} options.excludeRoles - Optional: Array of role names to exclude from display
  *                                                Useful for hiding specific roles in certain contexts
+ * @param {number|null} options.seasonId - Optional: Season ID for historical badge display
+ *                                          When provided, uses frozen season_roles data instead of current assignments
  * @returns {string} HTML string containing all role badges for the user
  *
  */
 function buildUniversalRoleBadges(options) {
     // Destructure options with defaults
-    const { userId, roles = [], contextGameId = null, excludeRoles = [] } = options;
+    const { userId, roles = [], contextGameId = null, excludeRoles = [], seasonId = null } = options;
     let badgesHTML = '';
 
     try {
@@ -116,8 +160,18 @@ function buildUniversalRoleBadges(options) {
         // GAME MANAGER BADGES (WITH GAME ICONS)
         // ============================================
         if (hasGMRole && !excludeRoles.includes('Game Manager')) {
-            // Get games this user is GM for from cached mappings
-            const userGames = gmGameMappings[userId] || [];
+            // CRITICAL: Use season-specific GM mappings if seasonId is provided
+            // This ensures historical accuracy for past season teams
+            let userGames = [];
+
+            if (seasonId && window.seasonGMGameMappings && window.seasonGMGameMappings[seasonId]) {
+                // Use historical season data (frozen)
+                userGames = window.seasonGMGameMappings[seasonId][userId] || [];
+                console.log(`Using historical GM mappings for season ${seasonId}, user ${userId}:`, userGames);
+            } else {
+                // Use current live data (default behavior)
+                userGames = gmGameMappings[userId] || [];
+            }
 
             if (userGames.length > 0) {
                 // User is GM of specific games - create a badge for each game
@@ -223,5 +277,6 @@ document.addEventListener('DOMContentLoaded', function() {
  * - Any other module that needs to display user roles
  */
 window.loadGMGameMappings = loadGMGameMappings;
+window.loadSeasonGMGameMappings = loadSeasonGMGameMappings;
 window.buildUniversalRoleBadges = buildUniversalRoleBadges;
 window.refreshGMGameMappings = refreshGMGameMappings;

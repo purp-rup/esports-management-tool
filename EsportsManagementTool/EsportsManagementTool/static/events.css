@@ -468,6 +468,9 @@
    MODAL - EVENT DETAILS
    Event detail modal icon colors
    -------------------------------------------- */
+#eventDetailsModal {
+    z-index: 10002;
+}
 .modal-content[data-event-type="tournament"] .event-detail-icon,
 #eventDetailsModal[data-event-type="tournament"] .event-detail-icon {
     background: var(--event-tournament-light);

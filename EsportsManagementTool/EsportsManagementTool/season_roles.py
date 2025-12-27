@@ -350,3 +350,59 @@ def snapshot_all_permissions_to_season(mysql, season_id):
         return 0
     finally:
         cursor.close()
+
+def get_gm_game_mappings_for_season(mysql, season_id=None):
+    """
+    Get GM-game mappings for a specific season (or active season if not specified)
+    This returns the HISTORICAL game assignments preserved in season_roles
+
+    Args:
+        mysql: MySQL connection object
+        season_id: Season ID (uses active season if None)
+
+    Returns:
+        dict: Mapping of user_id -> list of game info dicts
+              Format: { user_id: [{ game_id, game_title, game_icon_url }, ...] }
+    """
+    if season_id is None:
+        season_id = get_active_season_id(mysql)
+
+    if season_id is None:
+        return {}
+
+    cursor = mysql.connection.cursor()
+    mappings = {}
+
+    try:
+        cursor.execute("""
+            SELECT sr.userid, sr.gm_game_id, g.GameTitle
+            FROM season_roles sr
+            INNER JOIN games g ON sr.gm_game_id = g.GameID
+            WHERE sr.season_id = %s 
+            AND sr.is_gm = 1 
+            AND sr.gm_game_id IS NOT NULL
+        """, (season_id,))
+
+        results = cursor.fetchall()
+
+        for row in results:
+            user_id = row[0]
+            game_id = row[1]
+            game_title = row[2]
+
+            if user_id not in mappings:
+                mappings[user_id] = []
+
+            mappings[user_id].append({
+                'game_id': game_id,
+                'game_title': game_title,
+                'game_icon_url': f'/game-image/{game_id}'
+            })
+
+        return mappings
+
+    except Exception as e:
+        print(f"Error getting GM game mappings for season: {str(e)}")
+        return {}
+    finally:
+        cursor.close()

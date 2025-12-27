@@ -978,45 +978,6 @@ renderTeamsSidebar = function(teams) {
     }
 };
 
-/**
- * Updated original render function with division sorting
- */
-function updatedOriginalRenderTeamsSidebar(teams) {
-    const sidebarList = document.getElementById('teamsSidebarList');
-    sidebarList.innerHTML = '';
-
-    const sortedTeams = sortTeamsByDivision(teams);
-
-    sortedTeams.forEach(team => {
-        const teamItem = document.createElement('div');
-        teamItem.className = 'team-sidebar-item';
-        teamItem.setAttribute('data-team-id', team.TeamID);
-        teamItem.setAttribute('data-gm-id', team.gm_id || '');
-
-        const isGameManager = team.gm_id && team.gm_id === window.currentUserId;
-
-        teamItem.innerHTML = `
-            <div class="team-sidebar-content" onclick="selectTeam('${team.TeamID}')">
-                <div class="team-sidebar-name">${team.teamName}</div>
-                <div class="team-sidebar-game">${team.GameTitle || 'Unknown Game'}</div>
-                <div class="team-sidebar-meta">
-                    <span><i class="fas fa-users"></i> ${team.member_count || 0}</span>
-                    <span><i class="fas fa-trophy"></i> ${team.teamMaxSize}</span>
-                </div>
-            </div>
-            ${isGameManager && team.season_is_active !== 0 ? `
-                <button class="team-edit-btn"
-                        onclick="event.stopPropagation(); openEditTeamModal('${team.TeamID}', '${team.teamName.replace(/'/g, "\\'")}', ${team.teamMaxSize}, '${team.TeamSizes || ''}')"
-                        title="Edit team">
-                    <i class="fas fa-edit"></i>
-                </button>
-            ` : ''}
-        `;
-
-        sidebarList.appendChild(teamItem);
-    });
-}
-
 // ============================================
 // DIVISION FILTER
 // ============================================
@@ -1133,7 +1094,6 @@ function handleDivisionFilterChange(event) {
 
 window.loadTeams = loadTeams;
 window.toggleGameCollapse = toggleGameCollapse;
-window.originalRenderTeamsSidebar = updatedOriginalRenderTeamsSidebar;
 window.sortTeamsByDivision = sortTeamsByDivision;
 window.getDivisionSortPriority = getDivisionSortPriority;
 window.renderTeamsSidebarWithGroups = renderTeamsSidebarWithGroups;

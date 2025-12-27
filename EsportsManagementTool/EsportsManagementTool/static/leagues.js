@@ -5,9 +5,6 @@
 
 let currentEditingLeague = null;
 let allLeagues = [];
-let cropper = null;
-let croppedImageBlob = null;
-let currentImageField = null; // Track which field is being edited
 
 /**
  * Open the Manage Leagues modal
@@ -271,153 +268,8 @@ function previewLeagueLogo(event) {
         return;
     }
 
-    currentImageField = 'league';
-    openImageCropper(file);
-}
-
-/**
- * Open image cropper modal
- */
-function openImageCropper(file) {
-    const modal = document.getElementById('imageCropperModal');
-    if (!modal) {
-        console.error('Image cropper modal not found');
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const imageElement = document.getElementById('imageToCrop');
-        imageElement.src = e.target.result;
-
-        modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-
-        // Initialize Cropper.js after a short delay to ensure image is loaded
-        setTimeout(() => {
-            if (cropper) {
-                cropper.destroy();
-            }
-
-            cropper = new Cropper(imageElement, {
-                aspectRatio: 1, // Square crop for logos
-                viewMode: 1,
-                dragMode: 'move',
-                autoCropArea: 0.8,
-                restore: false,
-                guides: true,
-                center: true,
-                highlight: false,
-                cropBoxMovable: true,
-                cropBoxResizable: true,
-                toggleDragModeOnDblclick: false,
-            });
-        }, 100);
-    };
-    reader.readAsDataURL(file);
-}
-
-/**
- * Close image cropper modal
- */
-function closeImageCropper() {
-    const modal = document.getElementById('imageCropperModal');
-    if (!modal) return;
-
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-
-    if (cropper) {
-        cropper.destroy();
-        cropper = null;
-    }
-}
-
-/**
- * Crop controls
- */
-function cropZoomIn() {
-    if (cropper) cropper.zoom(0.1);
-}
-
-function cropZoomOut() {
-    if (cropper) cropper.zoom(-0.1);
-}
-
-function cropRotateLeft() {
-    if (cropper) cropper.rotate(-90);
-}
-
-function cropRotateRight() {
-    if (cropper) cropper.rotate(90);
-}
-
-function cropReset() {
-    if (cropper) cropper.reset();
-}
-
-/**
- * Apply crop and close modal
- * Routes to the correct handler based on context
- */
-function applyCrop() {
-    if (!cropper) return;
-
-    // Check which feature is using the cropper
-    switch(currentImageField) {
-        case 'league':
-            // League-specific handling
-            cropper.getCroppedCanvas({
-                width: 400,
-                height: 400,
-                imageSmoothingEnabled: true,
-                imageSmoothingQuality: 'high',
-            }).toBlob((blob) => {
-                croppedImageBlob = blob;  // League uses croppedImageBlob
-
-                const preview = document.getElementById('leagueLogoPreview');
-                if (preview) {
-                    const url = URL.createObjectURL(blob);
-                    preview.innerHTML = `<img src="${url}" alt="Cropped logo">`;
-                }
-
-                closeImageCropper();
-            }, 'image/png');
-            break;
-
-        case 'community':
-            // Community-specific handling
-            cropper.getCroppedCanvas({
-                width: 400,
-                height: 400,
-                imageSmoothingEnabled: true,
-                imageSmoothingQuality: 'high',
-            }).toBlob((blob) => {
-                communityCroppedImageBlob = blob;  // Community uses communityCroppedImageBlob
-
-                const preview = document.getElementById('communityImagePreview');
-                if (preview) {
-                    const url = URL.createObjectURL(blob);
-                    preview.innerHTML = `<img src="${url}" alt="Cropped icon">`;
-                }
-
-                closeImageCropper();
-            }, 'image/png');
-            break;
-
-        default:
-            console.warn('Unknown image field type:', currentImageField);
-            // Fallback to league behavior
-            cropper.getCroppedCanvas({
-                width: 400,
-                height: 400,
-                imageSmoothingEnabled: true,
-                imageSmoothingQuality: 'high',
-            }).toBlob((blob) => {
-                croppedImageBlob = blob;
-                closeImageCropper();
-            }, 'image/png');
-    }
+    // Open universal image cropper with 'league' context
+    openImageCropper(file, 'league');
 }
 
 /**
@@ -439,9 +291,10 @@ async function submitLeagueForm(event) {
     formData.append('website_url', websiteInput ? websiteInput.value : '');
 
     // Add image: Priority is cropped image, then original file
-    if (croppedImageBlob) {
+    const croppedBlob = getCroppedImageBlob('league');
+    if (croppedBlob) {
         const filename = 'league_logo_' + Date.now() + '.png';
-        formData.append('logo', croppedImageBlob, filename);
+        formData.append('logo', croppedBlob, filename);
     } else {
         const fileInput = document.getElementById('leagueLogo');
         if (fileInput && fileInput.files && fileInput.files.length > 0) {
@@ -473,7 +326,7 @@ async function submitLeagueForm(event) {
             );
 
             // Clear cropped image after successful upload
-            croppedImageBlob = null;
+            clearCroppedImageBlob('league');
 
             // Reload leagues after a short delay (modal stays open)
             setTimeout(() => {

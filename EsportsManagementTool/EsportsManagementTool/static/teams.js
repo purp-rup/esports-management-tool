@@ -683,8 +683,9 @@ async function loadNextScheduledEvent(teamId, gameId) {
 
 /**
  * Load roster tab with team members
+ * Season-aware badge rendering for historical accuracy
  */
-function loadRosterTab(members) {
+async function loadRosterTab(members) {
     const rosterList = document.getElementById('rosterMembersList');
     const rosterEmpty = document.getElementById('rosterEmpty');
 
@@ -701,9 +702,16 @@ function loadRosterTab(members) {
     const isAdmin = window.userPermissions?.is_admin || false;
     const isGM = window.userPermissions?.is_gm || false;
     const isActiveSeason = window.currentTeamSeasonIsActive === 1;
+    const seasonId = window.currentTeamSeasonId;
 
     // Only allow management if active season AND user has permissions
     const canManage = (isAdmin || isGM) && isActiveSeason;
+
+    // CRITICAL: Load season-specific GM mappings for past seasons
+    if (seasonId && !isActiveSeason && typeof loadSeasonGMGameMappings === 'function') {
+        await loadSeasonGMGameMappings(seasonId);
+        console.log(`Loaded historical GM mappings for season ${seasonId}`);
+    }
 
     // Use DocumentFragment for better performance
     const fragment = document.createDocumentFragment();
@@ -726,28 +734,24 @@ function loadRosterTab(members) {
             avatarHTML = `<div class="roster-member-initials">${initials}</div>`;
         }
 
-        // Use cached badges
-        const cacheKey = `${member.id}-${(member.roles || []).join(',')}`;
+        // Generate badges with season context for historical accuracy
         let badgesHTML = '';
 
-        if (badgeCache.has(cacheKey)) {
-            badgesHTML = badgeCache.get(cacheKey);
-        } else {
-            if (typeof buildUniversalRoleBadges === 'function') {
-                badgesHTML = buildUniversalRoleBadges({
-                    userId: member.id,
-                    roles: member.roles || [],
-                    contextGameId: null,
-                    excludeRoles: ['Player']
-                });
-            } else if (typeof buildRoleBadges === 'function') {
-                badgesHTML = buildRoleBadges({
-                    roles: member.roles || [],
-                    isAssignedGM: false,
-                    gameIconUrl: null
-                });
-            }
-            badgeCache.set(cacheKey, badgesHTML);
+        if (typeof buildUniversalRoleBadges === 'function') {
+            badgesHTML = buildUniversalRoleBadges({
+                userId: member.id,
+                roles: member.roles || [],
+                contextGameId: null,
+                excludeRoles: ['Player'],
+                seasonId: isActiveSeason ? null : seasonId  // Pass seasonId for past seasons
+            });
+        } else if (typeof buildRoleBadges === 'function') {
+            // Fallback to old badge system if universal system not available
+            badgesHTML = buildRoleBadges({
+                roles: member.roles || [],
+                isAssignedGM: false,
+                gameIconUrl: null
+            });
         }
 
         const removeBtn = canManage ? `
@@ -885,13 +889,15 @@ function displayAvailableMembersNew(members) {
             profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
         }
 
+        // Always use current/live badges for add member modal (no season context needed)
         let badgesHTML = '';
         if (typeof buildUniversalRoleBadges === 'function') {
             badgesHTML = buildUniversalRoleBadges({
                 userId: member.id,
                 roles: member.roles || [],
                 contextGameId: null,
-                excludeRoles: ['Player']
+                excludeRoles: ['Player'],
+                seasonId: null  // Always null - adding members only happens in active season
             });
         } else if (typeof buildRoleBadges === 'function') {
             badgesHTML = buildRoleBadges({
@@ -1441,7 +1447,7 @@ async function executeTeamDeletion(teamId) {
             // Reload after notification is visible
             setTimeout(() => {
                 window.loadTeams();
-            }, 1500);
+            }, 350);
         } else {
             // Close modal and show error
             closeDeleteConfirmModal();

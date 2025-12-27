@@ -1460,7 +1460,18 @@ function closeEventModal() {
     setElementDisplay(content, 'none');
     setElementDisplay(editForm, 'none');
 
-    document.body.style.overflow = "auto";
+    // Check if there are other modals still open before restoring scroll
+    const openModals = document.querySelectorAll('.modal');
+    const hasOpenModals = Array.from(openModals).some(m => {
+        if (m.id === 'eventDetailsModal') return false;
+        const style = window.getComputedStyle(m);
+        return style.display === 'block' || style.display === 'flex' || m.classList.contains('active');
+    });
+
+    if (!hasOpenModals) {
+        document.body.style.overflow = "auto";
+    }
+
     EventState.reset();
 }
 

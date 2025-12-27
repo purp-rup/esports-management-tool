@@ -36,6 +36,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========================================
 
     initializeTabNavigation();
+
+    // =======================================
+    // PAGE RELOAD CONSISTENCY SETUP
+    //========================================
+    const storedTab = sessionStorage.getItem('activeTab');
+
+    if (storedTab) {
+        // Clear the stored tab
+        sessionStorage.removeItem('activeTab');
+
+        // Find and click the stored tab
+        const tabElement = document.querySelector(`[data-tab="${storedTab}"]`);
+        if (tabElement) {
+            // Small delay to ensure everything is loaded
+            setTimeout(() => {
+                tabElement.click();
+            }, 100);
+        }
+    }
 });
 
 // ============================================

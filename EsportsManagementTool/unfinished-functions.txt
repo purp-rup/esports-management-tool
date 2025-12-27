@@ -3,12 +3,7 @@ Needs doing:
             Consolidation options:
             Check dropdowns between events.js and game.js
 
-            Next-Community-Event-Modal appears behind community modal
-
-            Player count not automatically set to 0 upon season ending.
-            Role badges updates wrongfully on teams when no active season.
-            Player count completely wrong on Admin Panel
-
+            Test season stuff with no active season.
 
 
 
