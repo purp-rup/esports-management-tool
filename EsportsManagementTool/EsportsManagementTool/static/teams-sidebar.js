@@ -93,7 +93,7 @@ const VIEW_STORAGE_KEY = 'teams_selected_view';
  * Storage key for collapsed games
  * @type {string}
  */
-const COLLAPSED_GAMES_KEY = 'teams_collapsed_games';
+const COLLAPSED_GAMES_KEY = 'teams_expanded_games';
 
 /**
  * Division filter storage key
@@ -525,7 +525,7 @@ function renderTeamsSidebar(teams) {
                     <span><i class="fas fa-trophy"></i> ${team.teamMaxSize}</span>
                 </div>
             </div>
-            ${isGameManager ? `
+            ${isGameManager && team.season_is_active !== 0 ? `
                 <button class="team-edit-btn"
                         onclick="event.stopPropagation(); openEditTeamModal('${team.TeamID}', '${team.teamName.replace(/'/g, "\\'")}', ${team.teamMaxSize}, '${team.TeamSizes || ''}')"
                         title="Edit team">
@@ -543,10 +543,11 @@ function renderTeamsSidebar(teams) {
 // ============================================
 
 /**
- * Get set of collapsed game IDs from sessionStorage
+ * Get set of expanded game IDs from sessionStorage. Not renaming because gross.
  */
 function getCollapsedGames() {
-    const stored = sessionStorage.getItem(COLLAPSED_GAMES_KEY);
+    const storageKey = `${COLLAPSED_GAMES_KEY}_${window.currentView || 'all'}`;
+    const stored = sessionStorage.getItem(storageKey);
     return stored ? new Set(JSON.parse(stored)) : new Set();
 }
 
@@ -554,7 +555,8 @@ function getCollapsedGames() {
  * Save collapsed games to sessionStorage
  */
 function saveCollapsedGames(collapsedGames) {
-    sessionStorage.setItem(COLLAPSED_GAMES_KEY, JSON.stringify([...collapsedGames]));
+    const storageKey = `${COLLAPSED_GAMES_KEY}_${window.currentView || 'all'}`;
+    sessionStorage.setItem(storageKey, JSON.stringify([...collapsedGames]));
 }
 
 /**
@@ -776,7 +778,7 @@ function handlePastSeasonFilterChange(event) {
     PastSeasonTeamsFilterState.selectedSeasonName = seasonSelect.options[seasonSelect.selectedIndex].text;
     setSelectedPastSeasonFilter(selectedSeasonId);
 
-    // CRITICAL: Invalidate cache to ensure fresh data for the selected season
+    // Invalidate cache to ensure fresh data for the selected season
     invalidateTeamsCache();
 
     // Reset team selection
@@ -800,8 +802,8 @@ function renderTeamsSidebarWithGroups(teams) {
         sidebar.setAttribute('data-view', window.currentView || 'all');
     }
 
-    // Use game grouping for "all" view AND "division" view
-    if (window.currentView !== 'all' && window.currentView !== 'division') {
+    // Use game grouping
+    if (window.currentView !== 'all' && window.currentView !== 'division' && window.currentView !== 'past_seasons') {
         const sortedTeams = sortTeamsByDivision(teams);
         originalRenderTeamsSidebar(sortedTeams);
         return;
@@ -840,7 +842,7 @@ function renderTeamsSidebarWithGroups(teams) {
     const collapsedGames = getCollapsedGames();
 
     sortedGroups.forEach(group => {
-        const isCollapsed = collapsedGames.has(group.gameId.toString());
+        const isCollapsed = !collapsedGames.has(group.gameId.toString());
 
         if (isCollapsed) {
             renderCollapsedGameFolder(group, sidebarList);
@@ -930,17 +932,26 @@ function renderExpandedGameGroup(group, container) {
             </button>
         ` : '';
 
+        // Season indicator - ONLY show for PAST teams (season_is_active = 0)
+        const seasonIndicator = (team.season_name && team.season_is_active === 0) ? `
+            <div class="team-sidebar-season" title="Past Season">
+                <span style="color: #94a3b8;">●</span>
+                ${team.season_name}
+            </div>
+        ` : '';
+
         teamItem.innerHTML = `
             ${collapseBtn}
             <div class="team-sidebar-content" onclick="selectTeam('${team.TeamID}')">
                 <div class="team-sidebar-name">${team.teamName}</div>
+                ${seasonIndicator}
                 <div class="team-sidebar-game">${team.GameTitle || 'Unknown Game'}</div>
                 <div class="team-sidebar-meta">
                     <span><i class="fas fa-users"></i> ${team.member_count || 0}</span>
                     <span><i class="fas fa-trophy"></i> ${team.teamMaxSize}</span>
                 </div>
             </div>
-            ${isGameManager ? `
+            ${isGameManager && team.season_is_active !== 0 ? `
                 <button class="team-edit-btn"
                         onclick="event.stopPropagation(); openEditTeamModal('${team.TeamID}', '${team.teamName.replace(/'/g, "\\'")}', ${team.teamMaxSize}, '${team.TeamSizes || ''}')"
                         title="Edit team">
@@ -960,51 +971,12 @@ function renderExpandedGameGroup(group, container) {
  */
 const originalRenderTeamsSidebar = renderTeamsSidebar;
 renderTeamsSidebar = function(teams) {
-    if (window.currentView === 'all' || window.currentView === 'division') {
+    if (window.currentView === 'all' || window.currentView === 'division' || window.currentView === 'past_seasons') {
         renderTeamsSidebarWithGroups(teams);
     } else {
         originalRenderTeamsSidebar(teams);
     }
 };
-
-/**
- * Updated original render function with division sorting
- */
-function updatedOriginalRenderTeamsSidebar(teams) {
-    const sidebarList = document.getElementById('teamsSidebarList');
-    sidebarList.innerHTML = '';
-
-    const sortedTeams = sortTeamsByDivision(teams);
-
-    sortedTeams.forEach(team => {
-        const teamItem = document.createElement('div');
-        teamItem.className = 'team-sidebar-item';
-        teamItem.setAttribute('data-team-id', team.TeamID);
-        teamItem.setAttribute('data-gm-id', team.gm_id || '');
-
-        const isGameManager = team.gm_id && team.gm_id === window.currentUserId;
-
-        teamItem.innerHTML = `
-            <div class="team-sidebar-content" onclick="selectTeam('${team.TeamID}')">
-                <div class="team-sidebar-name">${team.teamName}</div>
-                <div class="team-sidebar-game">${team.GameTitle || 'Unknown Game'}</div>
-                <div class="team-sidebar-meta">
-                    <span><i class="fas fa-users"></i> ${team.member_count || 0}</span>
-                    <span><i class="fas fa-trophy"></i> ${team.teamMaxSize}</span>
-                </div>
-            </div>
-            ${isGameManager ? `
-                <button class="team-edit-btn"
-                        onclick="event.stopPropagation(); openEditTeamModal('${team.TeamID}', '${team.teamName.replace(/'/g, "\\'")}', ${team.teamMaxSize}, '${team.TeamSizes || ''}')"
-                        title="Edit team">
-                    <i class="fas fa-edit"></i>
-                </button>
-            ` : ''}
-        `;
-
-        sidebarList.appendChild(teamItem);
-    });
-}
 
 // ============================================
 // DIVISION FILTER
@@ -1122,7 +1094,6 @@ function handleDivisionFilterChange(event) {
 
 window.loadTeams = loadTeams;
 window.toggleGameCollapse = toggleGameCollapse;
-window.originalRenderTeamsSidebar = updatedOriginalRenderTeamsSidebar;
 window.sortTeamsByDivision = sortTeamsByDivision;
 window.getDivisionSortPriority = getDivisionSortPriority;
 window.renderTeamsSidebarWithGroups = renderTeamsSidebarWithGroups;

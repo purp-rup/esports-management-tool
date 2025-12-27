@@ -829,6 +829,19 @@ def register():
                 """, (newUser['id'],))
                 mysql.connection.commit()
 
+                # If there's an active season, add user to season_roles
+                cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+                active_season = cursor.fetchone()
+
+                if active_season:
+                    season_id = active_season['season_id']
+                    # New users start with no roles (all 0s) but are tracked in the season
+                    cursor.execute("""
+                                        INSERT INTO season_roles (userid, season_id, is_admin, is_gm, is_player, is_developer)
+                                        VALUES (%s, %s, 0, 0, 0, 0)
+                                    """, (newUser['id'], season_id))
+                    mysql.connection.commit()
+
                 # Generate verification token
                 verification_token = secrets.token_urlsafe(32)
                 token_expiry = get_current_time() + timedelta(hours=24)
@@ -1040,6 +1053,31 @@ def get_calendar_events():
         return jsonify({'error': 'Failed to fetch events'}), 500
     finally:
         cursor.close()
+
+
+@app.route('/api/season/<int:season_id>/gm-game-mappings')
+@login_required
+def get_season_gm_mappings(season_id):
+    """
+    Get historical GM-game mappings for a specific season
+    Used to display correct GM badges for past season teams
+    """
+    try:
+        from EsportsManagementTool import season_roles
+
+        mappings = season_roles.get_gm_game_mappings_for_season(mysql, season_id)
+
+        return jsonify({
+            'success': True,
+            'mappings': mappings,
+            'season_id': season_id
+        })
+    except Exception as e:
+        print(f"Error getting season GM mappings: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to load season GM mappings'
+        }), 500
 
 
 @app.route('/api/events/<int:event_id>')

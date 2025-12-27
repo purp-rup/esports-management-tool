@@ -350,11 +350,16 @@ async function loadTeamDetails(teamId) {
                 timestamp: Date.now()
             };
 
+            window.currentTeamSeasonIsActive = team.season_is_active;
+            window.currentTeamSeasonId = team.season_id;
+
             window.currentTeamCanManage = team.can_manage;
 
+            const isActiveSeason = team.season_is_active === 1;
             const addVodBtn = document.querySelector('.btn[onclick="showAddVodModal()"]');
             if (addVodBtn) {
-                addVodBtn.style.display = team.can_manage ? 'inline-flex' : 'none';
+                // Only show for active seasons
+                addVodBtn.style.display = (team.can_manage && isActiveSeason) ? 'inline-flex' : 'none';
             }
 
             document.getElementById('teamDetailTitle').textContent = team.title;
@@ -438,23 +443,42 @@ async function loadTeamDetails(teamId) {
                 }
             }
 
-            const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
+            const isDeveloper = window.userPermissions?.is_developer || false;
+            const isAdmin = window.userPermissions?.is_admin || false;
             const isGM = window.userPermissions?.is_gm || false;
+            const canManage = team.can_manage;
 
+            // Add Player button - only show for active seasons
             const addPlayerBtn = document.getElementById('addPlayerBtn');
-            const deleteTeamBtn = document.getElementById('deleteTeamBtn');
-
             if (addPlayerBtn) {
-                addPlayerBtn.style.display = (isAdmin || isGM) ? 'inline-flex' : 'none';
-                addPlayerBtn.onclick = openAddTeamMembersModal;
+                const showAddPlayer = (isAdmin || isGM) && isActiveSeason;
+                addPlayerBtn.style.display = showAddPlayer ? 'inline-flex' : 'none';
+                if (showAddPlayer) {
+                    addPlayerBtn.onclick = openAddTeamMembersModal;
+                }
             }
 
+            // Delete Team button - show for developers always, admins/GMs only for active seasons
+            const deleteTeamBtn = document.getElementById('deleteTeamBtn');
             if (deleteTeamBtn) {
-                deleteTeamBtn.style.display = (isAdmin || isGM) ? 'inline-flex' : 'none';
+                const showDelete = isDeveloper || ((isAdmin || isGM) && isActiveSeason);
+                deleteTeamBtn.style.display = showDelete ? 'inline-flex' : 'none';
             }
 
+            // Store season active status globally for other functions
+            window.currentTeamCanManage = canManage && isActiveSeason;
+
+            // Schedule button - only for active seasons
             if (typeof initScheduleButton === 'function') {
-                await initScheduleButton(teamId, team.game_id);
+                if (isActiveSeason) {
+                    await initScheduleButton(teamId, team.game_id);
+                } else {
+                    // Hide schedule button for past seasons
+                    const createScheduleBtn = document.getElementById('createScheduleBtn');
+                    if (createScheduleBtn) {
+                        createScheduleBtn.style.display = 'none';
+                    }
+                }
             }
 
             loadRosterTab(team.members || []);
@@ -659,8 +683,9 @@ async function loadNextScheduledEvent(teamId, gameId) {
 
 /**
  * Load roster tab with team members
+ * Season-aware badge rendering for historical accuracy
  */
-function loadRosterTab(members) {
+async function loadRosterTab(members) {
     const rosterList = document.getElementById('rosterMembersList');
     const rosterEmpty = document.getElementById('rosterEmpty');
 
@@ -673,9 +698,20 @@ function loadRosterTab(members) {
     rosterList.style.display = 'grid';
     rosterEmpty.style.display = 'none';
 
-    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
+    const isDeveloper = window.userPermissions?.is_developer || false;
+    const isAdmin = window.userPermissions?.is_admin || false;
     const isGM = window.userPermissions?.is_gm || false;
-    const canManage = isAdmin || isGM;
+    const isActiveSeason = window.currentTeamSeasonIsActive === 1;
+    const seasonId = window.currentTeamSeasonId;
+
+    // Only allow management if active season AND user has permissions
+    const canManage = (isAdmin || isGM) && isActiveSeason;
+
+    // CRITICAL: Load season-specific GM mappings for past seasons
+    if (seasonId && !isActiveSeason && typeof loadSeasonGMGameMappings === 'function') {
+        await loadSeasonGMGameMappings(seasonId);
+        console.log(`Loaded historical GM mappings for season ${seasonId}`);
+    }
 
     // Use DocumentFragment for better performance
     const fragment = document.createDocumentFragment();
@@ -698,28 +734,24 @@ function loadRosterTab(members) {
             avatarHTML = `<div class="roster-member-initials">${initials}</div>`;
         }
 
-        // Use cached badges
-        const cacheKey = `${member.id}-${(member.roles || []).join(',')}`;
+        // Generate badges with season context for historical accuracy
         let badgesHTML = '';
 
-        if (badgeCache.has(cacheKey)) {
-            badgesHTML = badgeCache.get(cacheKey);
-        } else {
-            if (typeof buildUniversalRoleBadges === 'function') {
-                badgesHTML = buildUniversalRoleBadges({
-                    userId: member.id,
-                    roles: member.roles || [],
-                    contextGameId: null,
-                    excludeRoles: ['Player']
-                });
-            } else if (typeof buildRoleBadges === 'function') {
-                badgesHTML = buildRoleBadges({
-                    roles: member.roles || [],
-                    isAssignedGM: false,
-                    gameIconUrl: null
-                });
-            }
-            badgeCache.set(cacheKey, badgesHTML);
+        if (typeof buildUniversalRoleBadges === 'function') {
+            badgesHTML = buildUniversalRoleBadges({
+                userId: member.id,
+                roles: member.roles || [],
+                contextGameId: null,
+                excludeRoles: ['Player'],
+                seasonId: isActiveSeason ? null : seasonId  // Pass seasonId for past seasons
+            });
+        } else if (typeof buildRoleBadges === 'function') {
+            // Fallback to old badge system if universal system not available
+            badgesHTML = buildRoleBadges({
+                roles: member.roles || [],
+                isAssignedGM: false,
+                gameIconUrl: null
+            });
         }
 
         const removeBtn = canManage ? `
@@ -857,13 +889,15 @@ function displayAvailableMembersNew(members) {
             profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
         }
 
+        // Always use current/live badges for add member modal (no season context needed)
         let badgesHTML = '';
         if (typeof buildUniversalRoleBadges === 'function') {
             badgesHTML = buildUniversalRoleBadges({
                 userId: member.id,
                 roles: member.roles || [],
                 contextGameId: null,
-                excludeRoles: ['Player']
+                excludeRoles: ['Player'],
+                seasonId: null  // Always null - adding members only happens in active season
             });
         } else if (typeof buildRoleBadges === 'function') {
             badgesHTML = buildRoleBadges({
@@ -1413,7 +1447,7 @@ async function executeTeamDeletion(teamId) {
             // Reload after notification is visible
             setTimeout(() => {
                 window.loadTeams();
-            }, 1500);
+            }, 350);
         } else {
             // Close modal and show error
             closeDeleteConfirmModal();

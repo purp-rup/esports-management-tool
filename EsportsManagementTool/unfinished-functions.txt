@@ -1,8 +1,9 @@
 Functionality notes:
 Needs doing:
-            Default teams tab to be folded up.
+            Consolidation options:
+            Check dropdowns between events.js and game.js
 
-
+            Test season stuff with no active season.
 
 
 

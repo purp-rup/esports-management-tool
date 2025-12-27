@@ -420,7 +420,14 @@ function confirmEndSeason() {
 
                 if (data.success) {
                     showDeleteSuccessMessage(data.message);
-                    await loadSeasonsData();
+
+                    // Store the current tab before reload
+                    sessionStorage.setItem('activeTab', 'admin');
+
+                    // Reload the page after a short delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
                 } else {
                     showDeleteErrorMessage(data.message);
                 }

@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 import calendar as cal
 from EsportsManagementTool import discord_integration
+from EsportsManagementTool import season_roles
 
 from EsportsManagementTool import mysql
 
@@ -184,9 +185,9 @@ def dashboard(year=None, month=None):
                 'title': event['EventName'],
                 'description': event['Description'] if event['Description'] else '',
                 'event_type': event['EventType'] if event.get('EventType') else 'Event',
-                'is_all_day': is_all_day,  # Add flag for template
-                'is_scheduled': event.get('is_scheduled', False),  # Add this line
-                'schedule_id': event.get('schedule_id')  # Add this line too
+                'is_all_day': is_all_day,
+                'is_scheduled': event.get('is_scheduled', False),
+                'schedule_id': event.get('schedule_id')
             }
 
             if date_str not in events_by_date:
@@ -195,6 +196,7 @@ def dashboard(year=None, month=None):
 
         # --- Admin Panel Stats ---
         total_users = active_users = admins = gms = players = developers = 0
+        current_season_name = None
 
         if user['is_admin'] == 1 or user['is_developer'] == 1:
             try:
@@ -211,25 +213,12 @@ def dashboard(year=None, month=None):
                 active_users_result = cursor.fetchone()
                 active_users = active_users_result['active_users'] if active_users_result else 0
 
-                # Count admins from permissions table
-                cursor.execute("""
-                    SELECT COUNT(DISTINCT u.id) AS admins
-                    FROM users u
-                    INNER JOIN permissions p ON p.userid = u.id
-                    WHERE p.is_admin = 1
-                """)
-                admins = cursor.fetchone()['admins']
-
-                # Count game managers
-                cursor.execute("SELECT COUNT(*) AS gms FROM permissions WHERE is_gm = 1")
-                gms = cursor.fetchone()['gms']
-
-                # Count unique players (users who are on at least one team)**
-                cursor.execute("""
-                    SELECT COUNT(DISTINCT user_id) AS players
-                    FROM team_members
-                """)
-                players = cursor.fetchone()['players']
+                # Get season-based role statistics
+                season_stats = season_roles.get_season_role_stats(mysql)
+                admins = season_stats['admins']
+                gms = season_stats['gms']
+                players = season_stats['players']
+                current_season_name = season_stats['season_name']
 
                 # Count developers
                 cursor.execute("SELECT COUNT(*) AS developers FROM permissions WHERE is_developer = 1")
@@ -290,6 +279,7 @@ def dashboard(year=None, month=None):
             next_month=next_month,
             total_users=total_users,
             active_users=active_users,
+            current_season_name=current_season_name,
             admins=admins,
             gms=gms,
             players=players,
@@ -376,6 +366,7 @@ Route meant to assign and remove roles.
 def manage_role():
     """
     Assign or remove roles from users
+    NOW INCLUDES: Prevent role changes when no active season exists
     """
     try:
         data = request.get_json()
@@ -437,7 +428,42 @@ def manage_role():
             query = f"UPDATE permissions SET {role_column} = %s WHERE userid = %s"
             cursor.execute(query, (new_value, user_id))
 
-            # If removing Game Manager role, clear their game associations**
+            # ONLY update season-specific role if there's an ACTIVE season
+            # Do NOT update if using fallback to most recent past season
+            cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+            active_season = cursor.fetchone()
+
+            if active_season:
+                active_season_id = active_season['season_id']
+                role_name = 'gm' if role == 'Game Manager' else 'admin'
+
+                # For GM role, get their current game assignment
+                gm_game_id = None
+                if role == 'Game Manager' and action == 'assign':
+                    cursor.execute("""
+                        SELECT GameID 
+                        FROM games 
+                        WHERE gm_id = %s 
+                        LIMIT 1
+                    """, (user_id,))
+                    game_result = cursor.fetchone()
+                    if game_result:
+                        gm_game_id = game_result['GameID']
+
+                season_roles.assign_season_role(
+                    mysql,
+                    user_id,
+                    active_season_id,
+                    role_name,
+                    value=(action == 'assign'),
+                    gm_game_id=gm_game_id  # Pass the game ID
+                )
+            else:
+                # No active season - only update permissions table, not season_roles
+                print(
+                    f"⚠️ No active season - role change for {username} applied to permissions only (not season_roles)")
+
+            # If removing Game Manager role, clear their game associations
             if action == 'remove' and role == 'Game Manager':
                 cursor.execute("""
                     UPDATE games 

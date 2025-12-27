@@ -691,6 +691,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
         """
         Delete an event with time-based permissions
         REFACTORED: 24-hour window for creators, always for developers
+        NOW INCLUDES: Automatic schedule cleanup when last event is deleted
         """
         try:
             user_id = session['id']
@@ -707,20 +708,68 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 cursor.close()
                 return jsonify({'success': False, 'message': reason}), 403
 
-            # Get event name for confirmation message
-            cursor.execute("SELECT EventName FROM generalevents WHERE EventID = %s", (event_id,))
+            # Get event details (including schedule_id)
+            cursor.execute("""
+                SELECT EventName, schedule_id 
+                FROM generalevents 
+                WHERE EventID = %s
+            """, (event_id,))
             event = cursor.fetchone()
 
             if not event:
                 cursor.close()
                 return jsonify({'success': False, 'message': 'Event not found'}), 404
 
+            event_name = event['EventName']
+            schedule_id = event.get('schedule_id')
+
             # Delete the event
             cursor.execute("DELETE FROM generalevents WHERE EventID = %s", (event_id,))
             mysql.connection.commit()
-            cursor.close()
 
-            return jsonify({'success': True, 'message': f'Event "{event["EventName"]}" deleted successfully'}), 200
+            # If event was from a schedule, check if schedule should be cleaned up
+            if schedule_id:
+                cursor.execute("""
+                    SELECT COUNT(*) as event_count
+                    FROM generalevents
+                    WHERE schedule_id = %s
+                """, (schedule_id,))
+
+                result = cursor.fetchone()
+                event_count = result['event_count'] if result else 0
+
+                # If no events remain, delete the schedule
+                if event_count == 0:
+                    cursor.execute("""
+                        SELECT event_name
+                        FROM scheduled_events
+                        WHERE schedule_id = %s
+                    """, (schedule_id,))
+
+                    schedule = cursor.fetchone()
+                    schedule_name = schedule['event_name'] if schedule else 'Unknown'
+
+                    cursor.execute("""
+                        DELETE FROM scheduled_events
+                        WHERE schedule_id = %s
+                    """, (schedule_id,))
+
+                    mysql.connection.commit()
+                    cursor.close()
+
+                    return jsonify({
+                        'success': True,
+                        'message': f'Event "{event_name}" deleted successfully.',
+                        'schedule_deleted': True,
+                        'schedule_name': schedule_name
+                    }), 200
+
+            cursor.close()
+            return jsonify({
+                'success': True,
+                'message': f'Event "{event_name}" deleted successfully',
+                'schedule_deleted': False
+            }), 200
 
         except Exception as e:
             print(f"Error deleting event: {str(e)}")
@@ -738,6 +787,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
         """
         Delete an event from the modal view with time-based permissions
         REFACTORED: 24-hour window for creators, always for developers
+        NOW INCLUDES: Automatic schedule cleanup when last event is deleted
         """
         try:
             user_id = session['id']
@@ -760,20 +810,68 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 cursor.close()
                 return jsonify({'success': False, 'message': reason}), 403
 
-            # Get event name
-            cursor.execute("SELECT EventName FROM generalevents WHERE EventID = %s", (event_id,))
+            # Get event details (including schedule_id)
+            cursor.execute("""
+                SELECT EventName, schedule_id 
+                FROM generalevents 
+                WHERE EventID = %s
+            """, (event_id,))
             event = cursor.fetchone()
 
             if not event:
                 cursor.close()
                 return jsonify({'success': False, 'message': 'Event not found'}), 404
 
+            event_name = event['EventName']
+            schedule_id = event.get('schedule_id')
+
             # Delete the event
             cursor.execute("DELETE FROM generalevents WHERE EventID = %s", (event_id,))
             mysql.connection.commit()
-            cursor.close()
 
-            return jsonify({'success': True, 'message': f'Event "{event["EventName"]}" deleted successfully'}), 200
+            # If event was from a schedule, check if schedule should be cleaned up
+            if schedule_id:
+                cursor.execute("""
+                    SELECT COUNT(*) as event_count
+                    FROM generalevents
+                    WHERE schedule_id = %s
+                """, (schedule_id,))
+
+                result = cursor.fetchone()
+                event_count = result['event_count'] if result else 0
+
+                # If no events remain, delete the schedule
+                if event_count == 0:
+                    cursor.execute("""
+                        SELECT event_name
+                        FROM scheduled_events
+                        WHERE schedule_id = %s
+                    """, (schedule_id,))
+
+                    schedule = cursor.fetchone()
+                    schedule_name = schedule['event_name'] if schedule else 'Unknown'
+
+                    cursor.execute("""
+                        DELETE FROM scheduled_events
+                        WHERE schedule_id = %s
+                    """, (schedule_id,))
+
+                    mysql.connection.commit()
+                    cursor.close()
+
+                    return jsonify({
+                        'success': True,
+                        'message': f'Event "{event_name}" deleted successfully.',
+                        'schedule_deleted': True,
+                        'schedule_name': schedule_name
+                    }), 200
+
+            cursor.close()
+            return jsonify({
+                'success': True,
+                'message': f'Event "{event_name}" deleted successfully',
+                'schedule_deleted': False
+            }), 200
 
         except Exception as e:
             print(f"Error deleting event from modal: {str(e)}")

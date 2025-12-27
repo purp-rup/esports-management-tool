@@ -538,9 +538,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     font-size: 0.9375rem;
     font-weight: 500;
-    opacity: 0;
-    transform: translateX(400px);
-    transition: all 0.3s ease-out;
+    transition: all 0.3s ease-out, top 0.3s ease-out;
     max-width: 400px;
 }
 
@@ -569,6 +567,18 @@
 }
 
 .delete-notification-card[data-type="error"] i {
+    color: white;
+    font-size: 1.25rem;
+}
+
+/* Info variant (for informational messages like auto-cleanup) */
+.delete-notification-card[data-type="info"] {
+    background: #3b82f6;
+    border: 1px solid #2563eb;
+    color: white;
+}
+
+.delete-notification-card[data-type="info"] i {
     color: white;
     font-size: 1.25rem;
 }

@@ -200,6 +200,139 @@ async function executeDeleteConfirm() {
 }
 
 // ============================================
+// NOTIFICATION QUEUE SYSTEM
+// ============================================
+
+/**
+ * Queue state for managing multiple notifications
+ */
+const NotificationQueue = {
+    /** Array of active notifications */
+    active: [],
+
+    /** Vertical offset between stacked notifications (in pixels) */
+    stackOffset: 80,
+
+    /** Maximum notifications to show at once */
+    maxVisible: 4,
+
+    /**
+     * Add notification to queue and position it
+     */
+    add(notification) {
+        this.active.push(notification);
+        this.repositionAll();
+    },
+
+    /**
+     * Remove notification from queue
+     */
+    remove(notification) {
+        const index = this.active.indexOf(notification);
+        if (index > -1) {
+            this.active.splice(index, 1);
+            this.repositionAll();
+        }
+    },
+
+    /**
+     * Reposition all active notifications with stacking
+     */
+    repositionAll() {
+        this.active.forEach((notif, index) => {
+            // Stack from top down
+            const topPosition = 20 + (index * this.stackOffset);
+            notif.style.top = `${topPosition}px`;
+        });
+    }
+};
+
+/**
+ * Show a notification card (internal function)
+ *
+ * @param {string} message - Message to display
+ * @param {string} type - 'success', 'error', or 'info'
+ * @param {number} duration - Duration in milliseconds
+ */
+function showNotificationCard(message, type = 'success', duration = 3000) {
+    // Create notification element
+    const notification = document.createElement('div');
+
+    // Set colors based on type
+    let bgColor, borderColor;
+    let icon;
+    if (type === 'success') {
+        bgColor = '#10b981';
+        borderColor = '#059669';
+        icon = '<i class="fas fa-check-circle"></i>';
+    } else if (type === 'error') {
+        bgColor = '#ef4444';
+        borderColor = '#dc2626';
+        icon = '<i class="fas fa-exclamation-circle"></i>';
+    } else if (type === 'info') {
+        bgColor = '#3b82f6';
+        borderColor = '#2563eb';
+        icon = '<i class="fas fa-info-circle"></i>';
+    }
+
+    notification.innerHTML = `
+        ${icon}
+        <p style="margin: 0; flex: 1; line-height: 1.4;">${message}</p>
+    `;
+
+    // Apply inline styles directly (bypassing CSS classes that might not work)
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        font-size: 0.9375rem;
+        font-weight: 500;
+        max-width: 400px;
+        background: ${bgColor};
+        border: 1px solid ${borderColor};
+        color: white;
+        transform: translateX(400px);
+        opacity: 0;
+        transition: all 0.3s ease-out;
+    `;
+
+    // Add to body
+    document.body.appendChild(notification);
+
+    // Add to queue FIRST (this sets the vertical position via style.top)
+    NotificationQueue.add(notification);
+
+    // Trigger slide-in animation
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            notification.style.transform = 'translateX(0)';
+            notification.style.opacity = '1';
+        }, 50);
+    });
+
+    // Remove after duration
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(400px)';
+
+        // Remove from DOM after fade-out animation completes
+        setTimeout(() => {
+            NotificationQueue.remove(notification);
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, duration);
+}
+
+// ============================================
 // SUCCESS/ERROR NOTIFICATION SYSTEM
 // ============================================
 
@@ -230,47 +363,16 @@ function showDeleteErrorMessage(message, duration = 4000) {
 }
 
 /**
- * Show a notification card (internal function)
+ * Show an info notification card
  *
- * @param {string} message - Message to display
- * @param {string} type - 'success' or 'error'
- * @param {number} duration - Duration in milliseconds
+ * @param {string} message - Info message to display
+ * @param {number} duration - Duration in milliseconds (default: 4000)
+ *
+ * @example
+ * showInfoMessage('Schedule automatically cleaned up');
  */
-function showNotificationCard(message, type = 'success', duration = 3000) {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = 'delete-notification-card';
-    notification.setAttribute('data-type', type);
-
-    // Set icon based on type
-    const icon = type === 'success'
-        ? '<i class="fas fa-check-circle"></i>'
-        : '<i class="fas fa-exclamation-circle"></i>';
-
-    notification.innerHTML = `
-        ${icon}
-        <p>${message}</p>
-    `;
-
-    // Add to body
-    document.body.appendChild(notification);
-
-    // Trigger animation (add class after a small delay for CSS transition)
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 10);
-
-    // Remove after duration
-    setTimeout(() => {
-        notification.classList.remove('show');
-
-        // Remove from DOM after fade-out animation completes
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300); // Match CSS transition duration
-    }, duration);
+function showInfoMessage(message, duration = 4000) {
+    showNotificationCard(message, 'info', duration);
 }
 
 // ============================================
@@ -282,4 +384,6 @@ window.closeDeleteConfirmModal = closeDeleteConfirmModal;
 window.executeDeleteConfirm = executeDeleteConfirm;
 window.showDeleteSuccessMessage = showDeleteSuccessMessage;
 window.showDeleteErrorMessage = showDeleteErrorMessage;
+window.showInfoMessage = showInfoMessage;
 window.DeleteModalState = DeleteModalState;
+window.NotificationQueue = NotificationQueue;

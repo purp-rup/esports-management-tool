@@ -49,6 +49,7 @@
   font-size: 1.15rem;
   font-weight: 600;
   margin: 0;
+  text-align: center;
 }
 
 /* Summary card icons */
@@ -165,6 +166,7 @@
   width: 16px;
   height: 16px;
   border-radius: 3px;
+  border: 1px solid black;
   object-fit: cover;
 }
 

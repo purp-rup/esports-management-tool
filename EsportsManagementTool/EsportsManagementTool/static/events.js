@@ -1460,7 +1460,18 @@ function closeEventModal() {
     setElementDisplay(content, 'none');
     setElementDisplay(editForm, 'none');
 
-    document.body.style.overflow = "auto";
+    // Check if there are other modals still open before restoring scroll
+    const openModals = document.querySelectorAll('.modal');
+    const hasOpenModals = Array.from(openModals).some(m => {
+        if (m.id === 'eventDetailsModal') return false;
+        const style = window.getComputedStyle(m);
+        return style.display === 'block' || style.display === 'flex' || m.classList.contains('active');
+    });
+
+    if (!hasOpenModals) {
+        document.body.style.overflow = "auto";
+    }
+
     EventState.reset();
 }
 
@@ -2403,21 +2414,36 @@ async function confirmDeleteEvent(eventId) {
                 EventState.deletionFromModal = false;
             }
 
-            // Show success notification
+            // Show success notification FIRST
             showDeleteSuccessMessage(data.message);
+
+            // If schedule was auto-deleted, show additional notification with proper delay
+            if (data.schedule_deleted && data.schedule_name) {
+                // Wait for first notification to appear and settle
+                setTimeout(() => {
+                    if (typeof window.showInfoMessage === 'function') {
+                        window.showInfoMessage(
+                            `Schedule "${data.schedule_name}" was automatically removed (no events remaining)`,
+                            4000
+                        );
+                    } else if (typeof window.showScheduleCleanupNotification === 'function') {
+                        window.showScheduleCleanupNotification(data.schedule_name);
+                    }
+                }, 600); // Increased delay to ensure proper stacking
+            }
 
             // Route based on deletion source
             setTimeout(() => {
                 if (EventState.deletionSource === 'events') {
                     // Reload events tab only
                     loadEvents();
-                    //Manually restore scrolling
+                    // Manually restore scrolling
                     document.body.style.overflow = 'auto';
                 } else {
                     // Calendar view - ALWAYS full page reload
                     window.location.reload();
                 }
-            }, 350);
+            }, data.schedule_deleted ? 2000 : 1000); // Longer delay if showing two notifications
         } else {
             handleDeleteError(data.message);
         }

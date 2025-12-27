@@ -6,7 +6,6 @@
 
 let currentEditingCommunity = null;
 let allCommunities = [];
-let communityCroppedImageBlob = null;
 
 /**
  * Open the Manage Communities modal
@@ -408,9 +407,8 @@ function previewCommunityImage(event) {
         return;
     }
 
-    // Open cropper (reuse existing cropper from leagues or avatar)
-    currentImageField = 'community';
-    openImageCropper(file);
+    // Open universal image cropper with 'community' context
+    openImageCropper(file, 'community');
 }
 
 /**
@@ -459,10 +457,11 @@ async function submitCommunityForm(event) {
     }
 
     // Handle image with correct key based on operation
-    if (communityCroppedImageBlob) {
+    const croppedBlob = getCroppedImageBlob('community');
+    if (croppedBlob) {
         const filename = 'community_icon_' + Date.now() + '.png';
         const imageKey = isEditing ? 'image' : 'gameImage';
-        formData.append(imageKey, communityCroppedImageBlob, filename);
+        formData.append(imageKey, croppedBlob, filename);
     } else {
         const fileInput = document.getElementById('communityImage');
         if (fileInput && fileInput.files && fileInput.files.length > 0) {
@@ -494,7 +493,7 @@ async function submitCommunityForm(event) {
             );
 
             // Clear cropped image
-            communityCroppedImageBlob = null;
+            clearCroppedImageBlob('community');
 
             // Reload communities after delay
             setTimeout(() => {
@@ -526,32 +525,6 @@ function editCommunity(communityId) {
     if (community) {
         showCommunityForm(community);
     }
-}
-
-/**
- * Apply crop for community image
- * This needs to be called when the universal cropper's "Apply Crop" button is clicked
- */
-function applyCropForCommunity() {
-    if (!cropper) return;
-
-    cropper.getCroppedCanvas({
-        width: 400,
-        height: 400,
-        imageSmoothingEnabled: true,
-        imageSmoothingQuality: 'high',
-    }).toBlob((blob) => {
-        communityCroppedImageBlob = blob;
-
-        // Update preview
-        const preview = document.getElementById('communityImagePreview');
-        if (preview) {
-            const url = URL.createObjectURL(blob);
-            preview.innerHTML = `<img src="${url}" alt="Cropped icon">`;
-        }
-
-        closeImageCropper();
-    }, 'image/png');
 }
 
 /**
@@ -911,7 +884,6 @@ window.editCommunity = editCommunity;
 window.confirmDeleteCommunity = confirmDeleteCommunity;
 window.previewCommunityImage = previewCommunityImage;
 window.submitCommunityForm = submitCommunityForm;
-window.applyCropForCommunity = applyCropForCommunity;
 window.toggleCommunityHidden = toggleCommunityHidden;
 
 // GM assignment
