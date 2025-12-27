@@ -512,11 +512,16 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
         """Get detailed information about a specific event"""
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            # Gather event and season data
+            # ✅ UPDATED: Include league data
             cursor.execute("""
-                SELECT ge.*, s.season_name, s.is_active as season_is_active
+                SELECT ge.*, 
+                    s.season_name, 
+                    s.is_active as season_is_active,
+                    l.name as league_name,
+                    l.id as league_id
                 FROM generalevents ge
                 LEFT JOIN seasons s ON ge.season_id = s.season_id
+                LEFT JOIN league l ON ge.league_id = l.id
                 WHERE ge.EventID = %s
             """, (event_id,))
 
@@ -540,7 +545,9 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 'created_at': event['created_at'].isoformat() if event.get('created_at') else None,
                 'season_id': event.get('season_id'),
                 'season_name': event.get('season_name'),
-                'season_is_active': event.get('season_is_active', 0)
+                'season_is_active': event.get('season_is_active', 0),
+                'league_id': event.get('league_id'),        # ✅ NEW
+                'league_name': event.get('league_name')     # ✅ NEW
             }
 
             return jsonify(event_data)

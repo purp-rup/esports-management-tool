@@ -549,6 +549,19 @@ async function handleScheduledEventSubmit(event) {
     const btnSpinner = submitBtn.querySelector('.btn-spinner');
     const messageDiv = document.getElementById('scheduledEventMessage');
 
+    //Handle match league case
+    const eventType = document.getElementById('scheduledEventType').value;
+    const leagueSelect = document.getElementById('scheduledLeagueSelect');
+    
+    if (eventType === 'Match' && !leagueSelect?.value) {
+        messageDiv.textContent = 'Please select a league for Match events.';
+        messageDiv.className = 'form-message error';
+        messageDiv.style.display = 'block';
+        leagueSelect?.focus();
+        return;
+    }
+
+
     // Handle location (custom or preset)
     const locationSelect = document.getElementById('scheduledLocation');
     const customLocationInput = document.getElementById('scheduledCustomLocation');
@@ -575,6 +588,11 @@ async function handleScheduledEventSubmit(event) {
         description: document.getElementById('scheduledDescription').value,
         location: location
     };
+
+    //League select if match is selected
+        if (eventType === 'Match' && leagueSelect?.value) {
+        formData.league_id = parseInt(leagueSelect.value);
+    }
 
     // Add frequency-specific fields
     if (formData.frequency === 'Once') {
@@ -757,6 +775,20 @@ function renderScheduleDetails(schedule) {
     const modalBody = document.getElementById('scheduleModalBody');
     const eventTypeClass = schedule.event_type.toLowerCase();
 
+    // Build league section HTML if this is a Match event
+    let leagueSection = '';
+    if (schedule.event_type === 'Match' && schedule.league_name) {
+        leagueSection = `
+            <div class="schedule-modal-section full-width">
+                <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-trophy"></i></div>
+                <div class="schedule-modal-content">
+                    <h3>League</h3>
+                    <p>${schedule.league_name}</p>
+                </div>
+            </div>
+        `;
+    }
+
     modalBody.innerHTML = `
         <div class="schedule-modal-grid">
             <div class="schedule-modal-section">
@@ -766,6 +798,8 @@ function renderScheduleDetails(schedule) {
                     <span class="schedule-type-badge ${eventTypeClass}">${schedule.event_type}</span>
                 </div>
             </div>
+
+            ${leagueSection}
 
             <div class="schedule-modal-section full-width">
                 <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-redo"></i></div>
@@ -899,9 +933,6 @@ function openEditScheduleMode(scheduleId) {
         return;
     }
 
-    // Get team_id from schedule or from current context
-    // For team-specific schedules, use schedule.team_id
-    // For game-wide schedules, use the current team context
     const teamId = schedule.team_id || ScheduleState.currentTeamId || currentScheduleTeamId;
     
     if (!teamId) {
@@ -913,7 +944,6 @@ function openEditScheduleMode(scheduleId) {
     const modalBody = document.getElementById('scheduleModalBody');
     const eventTypeClass = schedule.event_type.toLowerCase();
 
-    // Determine if location is a preset or custom
     const presetLocations = [
         'Campus Center',
         'Campus Center Coffee House',
@@ -1022,7 +1052,7 @@ function openEditScheduleMode(scheduleId) {
     // Attach location dropdown handler
     setupEditLocationHandler();
 
-    // ✅ FIXED: Load leagues using team_id from schedule or context
+    // Load leagues using team_id from schedule or context
     if (schedule.event_type === 'Match' && teamId) {
         console.log('Loading leagues for team_id:', teamId, 'current league:', schedule.league_id);
         loadEditScheduleLeagues(teamId, schedule.league_id);
@@ -1036,10 +1066,6 @@ function openEditScheduleMode(scheduleId) {
     document.getElementById('deleteScheduleBtn').style.display = 'none';
 }
 
-
-/**
- *  Handle event type change in edit mode
- */
 function handleEditEventTypeChange() {
     const eventType = document.getElementById('editScheduleType').value;
     const leagueGroup = document.getElementById('editScheduleLeagueGroup');
@@ -1054,12 +1080,11 @@ function handleEditEventTypeChange() {
             leagueLabel.innerHTML = 'League <span style="color: #ff5252;">*</span>';
         }
         
-        // ✅ FIXED: Get team_id from schedule or context
+        // Get team_id from schedule or context
         const scheduleId = document.getElementById('editScheduleId').value;
         const schedule = ScheduleState.findSchedule(parseInt(scheduleId)) ||
                         currentSchedules.find(s => s.schedule_id === parseInt(scheduleId));
         
-        // Use schedule.team_id if available, otherwise use current team context
         const teamId = schedule?.team_id || ScheduleState.currentTeamId || currentScheduleTeamId;
         
         if (teamId && leagueSelect.options.length <= 1) {
@@ -1077,7 +1102,6 @@ function handleEditEventTypeChange() {
     }
 }
 
-
 /**
  * Load leagues for edit modal
  * @param {number} gameId - Game ID to load leagues for
@@ -1091,32 +1115,26 @@ async function loadEditScheduleLeagues(teamId, currentLeagueId) {
         return;
     }
     
-    // Show loading state
     leagueSelect.innerHTML = '<option value="">Loading leagues...</option>';
     leagueSelect.disabled = true;
     
     try {
-        // Fetch leagues for the TEAM (not game)
         const response = await fetch(`/api/teams/${teamId}/leagues`);
         const data = await response.json();
         
-        // Clear loading option
         leagueSelect.innerHTML = '';
         
         if (data.success && data.leagues) {
-            // Add placeholder option
             leagueSelect.innerHTML = '<option value="">Select a league</option>';
             
             if (data.leagues.length === 0) {
                 leagueSelect.innerHTML = '<option value="">No leagues assigned to team</option>';
             } else {
-                // Add each league
                 data.leagues.forEach(league => {
                     const option = document.createElement('option');
                     option.value = league.id;
                     option.textContent = league.name;
                     
-                    // Select the current league if it matches
                     if (currentLeagueId && league.id === currentLeagueId) {
                         option.selected = true;
                     }
@@ -1183,7 +1201,6 @@ async function handleEditScheduleSubmit(event) {
         messageDiv.className = 'form-message error';
         messageDiv.style.display = 'block';
         
-        // Focus on the league field
         leagueSelect.focus();
         return;
     }
@@ -1192,13 +1209,11 @@ async function handleEditScheduleSubmit(event) {
     const btnText = submitBtn.querySelector('.btn-text');
     const btnSpinner = submitBtn.querySelector('.btn-spinner');
 
-    // Set loading state
     submitBtn.disabled = true;
     btnText.style.display = 'none';
     btnSpinner.style.display = 'inline-block';
     messageDiv.style.display = 'none';
 
-    // Get schedule ID and location
     const scheduleId = document.getElementById('editScheduleId').value;
     const locationSelect = document.getElementById('editScheduleLocation');
     const customLocationInput = document.getElementById('editCustomLocation');
@@ -1206,7 +1221,6 @@ async function handleEditScheduleSubmit(event) {
         ? customLocationInput.value
         : locationSelect.value;
 
-    // Build update data object
     const formData = {
         schedule_id: scheduleId,
         event_name: document.getElementById('editScheduleName').value,
@@ -1216,7 +1230,7 @@ async function handleEditScheduleSubmit(event) {
         description: document.getElementById('editScheduleDescription').value
     };
 
-    //  Add league_id for Match events
+    // Add league_id for Match events
     if (eventType === 'Match' && leagueSelect.value) {
         formData.league_id = parseInt(leagueSelect.value);
     }
@@ -1233,7 +1247,6 @@ async function handleEditScheduleSubmit(event) {
         const data = await response.json();
 
         if (data.success) {
-            // Show success message
             messageDiv.textContent = data.message;
             messageDiv.className = 'form-message success';
             messageDiv.style.display = 'block';
@@ -1241,7 +1254,6 @@ async function handleEditScheduleSubmit(event) {
             setTimeout(() => {
                 closeScheduleModal();
 
-                // Reload the schedule tab if function exists
                 if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
                     loadScheduleTab(currentSelectedTeamId);
                 }
@@ -1250,12 +1262,10 @@ async function handleEditScheduleSubmit(event) {
             throw new Error(data.message);
         }
     } catch (error) {
-        // Show error message
         messageDiv.textContent = error.message || 'Failed to update schedule';
         messageDiv.className = 'form-message error';
         messageDiv.style.display = 'block';
 
-        // Reset button state
         submitBtn.disabled = false;
         btnText.style.display = 'inline';
         btnSpinner.style.display = 'none';
@@ -1443,6 +1453,11 @@ function handleEventTypeChangeForLeague() {
     const leagueGroup = document.getElementById('scheduledLeagueGroup');
     const leagueSelect = document.getElementById('scheduledLeagueSelect');
     
+    if (!leagueGroup || !leagueSelect) {
+        console.warn('League field elements not found');
+        return;
+    }
+    
     if (eventType === 'Match') {
         // Show league dropdown for matches
         leagueGroup.style.display = 'block';
@@ -1452,7 +1467,7 @@ function handleEventTypeChangeForLeague() {
         
         // Update the label to show it's required
         const leagueLabel = leagueGroup.querySelector('label');
-        if (leagueLabel && !leagueLabel.textContent.includes('*')) {
+        if (leagueLabel) {
             leagueLabel.innerHTML = 'League <span style="color: #ff5252;">*</span>';
         }
         
@@ -1613,4 +1628,6 @@ window.showScheduleCleanupNotification = showScheduleCleanupNotification;
 //League Scheduling
 window.handleEventTypeChangeForLeague = handleEventTypeChangeForLeague;
 window.loadTeamLeaguesForSchedule = loadTeamLeaguesForSchedule;
-
+//Match handling
+window.handleEditEventTypeChange = handleEditEventTypeChange;
+window.loadEditScheduleLeagues = loadEditScheduleLeagues;

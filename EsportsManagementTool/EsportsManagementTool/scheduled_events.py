@@ -350,10 +350,13 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                         se.*,
                         g.GameTitle,
                         u.firstname,
-                        u.lastname
+                        u.lastname,
+                        l.name as league_name,
+                        l.id as league_id  
                     FROM scheduled_events se
                     JOIN games g ON se.game_id = g.GameID
                     JOIN users u ON se.created_by = u.id
+                    LEFT JOIN league l ON se.league_id = l.id 
                     WHERE se.is_active = TRUE
                     AND se.game_id = %s
                     AND (
@@ -386,6 +389,8 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                         'event_name': schedule['event_name'],
                         'event_type': schedule['event_type'],
                         'frequency': schedule['frequency'],
+                        'league_id': schedule.get('league_id'),      
+                        'league_name': schedule.get('league_name'),   
                         'day_of_week': schedule.get('day_of_week'),
                         'day_of_week_name': calendar.day_name[schedule['day_of_week']] if schedule.get('day_of_week') is not None else None,
                         'specific_date': schedule['specific_date'].strftime('%Y-%m-%d') if schedule.get('specific_date') else None,
