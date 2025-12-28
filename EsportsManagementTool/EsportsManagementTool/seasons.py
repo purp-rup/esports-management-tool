@@ -6,50 +6,151 @@ Handles CRUD operations for seasons in the Esports Management Tool
 from flask import jsonify, request, session
 import MySQLdb.cursors
 from datetime import datetime, date
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
+import os
 
 
+# =====================================
+# Automatic End Season System
+# ======================================
+def check_and_end_expired_seasons(mysql, app):
+    """
+    Background task to automatically end seasons that have passed their end date.
+    Performs all end-season procedures:
+    1. Takes final snapshot of GM game assignments
+    2. Removes player roles from all users
+    3. Deactivates the season
+    """
+    print(f"[{datetime.now()}] Starting season expiration check...")
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Find active seasons that have passed their end date
+        cursor.execute("""
+            SELECT season_id, season_name, end_date
+            FROM seasons
+            WHERE is_active = 1 AND end_date < %s
+        """, (date.today(),))
+
+        expired_seasons = cursor.fetchall()
+
+        if not expired_seasons:
+            print(f"[{datetime.now()}] No expired seasons found")
+            return
+
+        for season in expired_seasons:
+            print(
+                f"[{datetime.now()}] Processing expired season: {season['season_name']} (ID: {season['season_id']})")
+
+            # Take final snapshot of GM game assignments
+            cursor.execute("""
+                SELECT userid, is_gm
+                FROM season_roles
+                WHERE season_id = %s AND is_gm = 1
+            """, (season['season_id'],))
+
+            gms = cursor.fetchall()
+            gm_count = 0
+
+            for gm in gms:
+                user_id = gm['userid']
+                cursor.execute("""
+                    SELECT GameID 
+                    FROM games 
+                    WHERE gm_id = %s 
+                    LIMIT 1
+                """, (user_id,))
+
+                game_result = cursor.fetchone()
+
+                if game_result:
+                    gm_game_id = game_result['GameID']
+                    cursor.execute("""
+                        UPDATE season_roles
+                        SET gm_game_id = %s
+                        WHERE userid = %s AND season_id = %s
+                    """, (gm_game_id, user_id, season['season_id']))
+                    gm_count += 1
+
+            print(f"[{datetime.now()}] Snapshotted {gm_count} GM game assignments")
+
+            # Remove Player role from ALL users
+            cursor.execute("""
+                UPDATE permissions
+                SET is_player = 0
+            """)
+
+            players_removed = cursor.rowcount
+            print(f"[{datetime.now()}] Removed player role from {players_removed} users")
+
+            # Deactivate the season
+            cursor.execute("""
+                UPDATE seasons
+                SET is_active = 0
+                WHERE season_id = %s
+            """, (season['season_id'],))
+
+            print(
+                f"[{datetime.now()}] ✅ Auto-ended expired season: {season['season_name']} (ended {season['end_date']})")
+
+        mysql.connection.commit()
+        print(f"[{datetime.now()}] Season expiration check completed - {len(expired_seasons)} season(s) ended")
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"[{datetime.now()}] ❌ Error checking/ending expired seasons: {str(e)}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        cursor.close()
+
+# ============================
+# SCHEDULER - Module level
+# ============================
+def initialize_season_scheduler(app, mysql):
+    """Initialize the season expiration scheduler"""
+
+    def scheduled_season_check_wrapper():
+        """Wrapper ensures the scheduler runs safely within the Flask app context"""
+        print(f"[{datetime.now()}] ===== SEASON EXPIRATION SCHEDULER TRIGGERED =====")
+        with app.app_context():
+            try:
+                check_and_end_expired_seasons(mysql, app)
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                print(f"[{datetime.now()}] Error in season expiration scheduler: {str(e)}")
+
+    # Only start scheduler in the main process
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+        season_scheduler = BackgroundScheduler()
+
+        season_scheduler.add_job(
+            func=scheduled_season_check_wrapper,
+            trigger="cron",
+            hour=0,
+            minute=5,
+            id="season_expiration_job",
+            replace_existing=True
+        )
+
+        season_scheduler.start()
+        print(f"[{datetime.now()}] Season expiration scheduler started - checking daily at 12:05 AM")
+
+        atexit.register(lambda: season_scheduler.shutdown(wait=False))
+
+## =================================
+## REGISTER SEASONS FUNCTIONS
+## =================================
 def register_seasons_routes(app, mysql, login_required, roles_required, get_user_permissions):
     """Register all season-related routes"""
-
-    def check_and_end_expired_season():
-        """Helper function to automatically end seasons that have passed their end date"""
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        try:
-            # Find active seasons that have passed their end date
-            cursor.execute("""
-                SELECT season_id, season_name, end_date
-                FROM seasons
-                WHERE is_active = 1 AND end_date < %s
-            """, (date.today(),))
-
-            expired_seasons = cursor.fetchall()
-
-            for season in expired_seasons:
-                # Automatically end the expired season
-                cursor.execute("""
-                    UPDATE seasons
-                    SET is_active = 0
-                    WHERE season_id = %s
-                """, (season['season_id'],))
-
-                print(f"Auto-ended expired season: {season['season_name']} (ended {season['end_date']})")
-
-            if expired_seasons:
-                mysql.connection.commit()
-
-        except Exception as e:
-            mysql.connection.rollback()
-            print(f"Error checking/ending expired seasons: {str(e)}")
-        finally:
-            cursor.close()
 
     @app.route('/api/seasons/current', methods=['GET'])
     @login_required
     def get_current_season():
         """Get the currently active season"""
-        # Check for expired seasons before fetching current
-        check_and_end_expired_season()
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 

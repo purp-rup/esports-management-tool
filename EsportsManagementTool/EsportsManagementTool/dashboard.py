@@ -213,12 +213,17 @@ def dashboard(year=None, month=None):
                 active_users_result = cursor.fetchone()
                 active_users = active_users_result['active_users'] if active_users_result else 0
 
-                # Get season-based role statistics
-                season_stats = season_roles.get_season_role_stats(mysql)
-                admins = season_stats['admins']
-                gms = season_stats['gms']
-                players = season_stats['players']
-                current_season_name = season_stats['season_name']
+                # Count Admins using live values from permissions
+                cursor.execute("SELECT COUNT(*) AS admins FROM permissions WHERE is_admin = 1")
+                admins = cursor.fetchone()['admins']
+
+                # Count GMs using live values from permissions
+                cursor.execute("SELECT COUNT(*) AS gms FROM permissions WHERE is_gm = 1")
+                gms = cursor.fetchone()['gms']
+
+                # Count Players (should be 0 between seasons
+                cursor.execute("SELECT COUNT(*) AS players FROM permissions WHERE is_player = 1")
+                players = cursor.fetchone()['players']
 
                 # Count developers
                 cursor.execute("SELECT COUNT(*) AS developers FROM permissions WHERE is_developer = 1")
