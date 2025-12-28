@@ -887,20 +887,21 @@ from EsportsManagementTool import statistics
 # Register suspension management routes
 EsportsManagementTool.suspensions.register_suspension_routes(app, mysql, roles_required)
 
-# Register event, season, and league routes
+# Register event and season routes
 EsportsManagementTool.events.register_event_routes(app, mysql, login_required, roles_required, get_user_permissions)
 EsportsManagementTool.seasons.register_seasons_routes(app, mysql, login_required, roles_required, get_user_permissions)
+seasons.initialize_season_scheduler(app, mysql)
+
+# Register League Routes
 leagues.register_league_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
 # Register team statistics routes
 from EsportsManagementTool import team_stats
-
 team_stats.register_team_stats_routes(app, mysql, login_required, roles_required, get_user_permissions)
 statistics.register_statistics_routes(app, mysql, login_required, roles_required)
 
 # Register scheduled events routes
 from EsportsManagementTool import scheduled_events
-
 scheduled_events.register_scheduled_events_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
 
