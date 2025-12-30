@@ -232,6 +232,8 @@ body {
     font-size: 2.5rem;
     margin-bottom: 1rem;
     display: block;
+    color: var(--stockton-blue);
+    padding-bottom: min(0.5rem, 10%);
 }
 
 .feature-card h3 {
