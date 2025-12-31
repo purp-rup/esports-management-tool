@@ -5,7 +5,7 @@
 
 /* Calendar Section Styling */
 .calendar-section {
-    padding: 4rem 2rem;
+    padding: 4rem 0;
     background: var(--card-bg);
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
@@ -16,14 +16,13 @@
     margin-bottom: 3rem;
 }
 
-.calendar-section .features-header h2 {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
+.calendar-section h2 {
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
 }
 
-.calendar-section .features-header p {
+.calendar-section p {
     color: var(--text-secondary);
-    font-size: 1.125rem;
+    font-size: clamp(1rem, 2.5vw, 1.125rem);
 }
 
 /* Adjust calendar container for landing page */
@@ -81,7 +80,7 @@ body {
 
 /* Hero Section */
 .hero {
-    min-height: calc(100vh - 73px);
+    min-height: calc(100dvh - 73px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -108,7 +107,7 @@ body {
 }
 
 .hero h1 {
-    font-size: 4rem;
+    font-size: clamp(3rem, 5vw, 4rem);
     margin-bottom: 1.5rem;
     line-height: 1.1;
 }
@@ -118,7 +117,7 @@ body {
 }
 
 .hero p {
-    font-size: 1.25rem;
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
     color: var(--text-secondary);
     max-width: 600px;
     margin: 0 auto 2rem;
@@ -184,7 +183,7 @@ body {
 
 /* Features Section */
 .features {
-    padding: 6rem 2rem;
+    padding: 6rem 0;
     background: var(--dark-bg);
     border-bottom: 1px solid var(--border-color);
 }
@@ -195,13 +194,13 @@ body {
 }
 
 .features-header h2 {
-    font-size: 2.5rem;
+    font-size: clamp(2rem, 3vw, 2.5rem);
     margin-bottom: 1rem;
 }
 
 .features-header p {
     color: var(--text-secondary);
-    font-size: 1.125rem;
+    font-size: clamp(1rem, 2.5vw, 1.125rem);
     max-width: 600px;
     margin: 0 auto;
 }
@@ -295,19 +294,6 @@ body {
 
 /* Responsive */
 @media (max-width: 768px) {
-    .hero h1 {
-        font-size: 2.5rem;
-    }
-
-    .hero p {
-        font-size: 1rem;
-    }
-
-    .features-header h2,
-    .cta h2,
-    .calendar-section .features-header h2 {
-        font-size: 2rem;
-    }
 
     .stat-item h3 {
         font-size: 2rem;

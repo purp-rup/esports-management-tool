@@ -34,17 +34,11 @@
             line-height: 1.6;
         }
 
+        /* USE CLAMPS FOR RESPONSIVENESS */
         .container {
-            max-width: 70%;
+            width: min(100%, 1400px);
             margin: 0 auto;
             padding: 0 2rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .container {
-                max-width: 90%;
-            }
         }
 
         /* Navigation */
@@ -55,6 +49,12 @@
             position: sticky;
             top: 0;
             z-index: 100;
+        }
+
+        @media (max-width: 520px) {
+            .nav-title {
+                display: none;
+            }
         }
 
         .navbar-content {
@@ -230,7 +230,7 @@
                 <div class="brand-icon">
                     <img src="{{ url_for('static', filename='images/stockton-esports-logo.png') }}" alt="Stockton Esports" onerror="this.style.display='none'; this.parentElement.innerHTML='SE';">
                 </div>
-                <span>Stockton Esports</span>
+                <span class="nav-title">Stockton Esports</span>
             </a>
             <div class="navbar-menu">
                 {% if session.loggedin %}
@@ -266,7 +266,7 @@
 
     <footer>
         <div class="container footer-content">
-            <div>&copy; 2025 Stockton University Esports Program</div>
+            <div>&copy; 2026 Stockton University Esports Program</div>
             <div class="footer-links">
                 <a href="https://stockton.edu">Stockton University</a>
                 <a href="#">Privacy Policy</a>

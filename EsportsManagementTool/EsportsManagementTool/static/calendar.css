@@ -18,7 +18,7 @@
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    padding: 1.5rem;
+    /*padding: 1.5rem;*/
     width: 100%;
 }
 
@@ -45,7 +45,8 @@
 }
 
 .calendar-month-year {
-    font-size: 1.5rem;
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    text-align: center;
     font-weight: 600;
     color: var(--text-primary);
 }
@@ -507,6 +508,7 @@
    -------------------------------------------- */
 .calendar-footer {
     margin-top: 1rem;
+    margin-bottom: 1rem;
     text-align: center;
 }
 
@@ -525,12 +527,8 @@
 /* Mobile devices */
 @media (max-width: 768px) {
     .calendar-navigation {
-        flex-direction: column;
+        flex-direction: row;
         gap: 1rem;
-    }
-
-    .calendar-month-year {
-        font-size: 1.25rem;
     }
 
     .calendar-day-name {
