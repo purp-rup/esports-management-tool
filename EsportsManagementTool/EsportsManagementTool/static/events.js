@@ -218,6 +218,124 @@ function clearGamesCache() {
 }
 
 // ============================================
+// LEAGUE DROPDOWN MANAGEMENT
+// ============================================
+
+/**
+ * Load leagues for any dropdown context
+ * Centralized league loading to avoid duplication
+ * @param {string} dropdownId - ID of the select element
+ * @param {number} selectedLeagueId - League to pre-select (optional)
+ * @returns {Promise<boolean>} Success status
+ */
+async function loadLeaguesForDropdown(dropdownId, selectedLeagueId = null) {
+    const dropdown = document.getElementById(dropdownId);
+    
+    if (!dropdown) {
+        console.warn(`League dropdown ${dropdownId} not found`);
+        return false;
+    }
+    
+    // **UPDATED: If we have a selectedLeagueId, force reload to ensure we set it**
+    const hasRealOptions = dropdown.options.length > 1 && 
+                           dropdown.options[1].value !== '';
+    
+    // Skip loading only if we have options AND no league to select
+    if (hasRealOptions && !selectedLeagueId) {
+        console.log(`Leagues already loaded for ${dropdownId}`);
+        return true;
+    }
+    
+    // Show loading state
+    dropdown.innerHTML = '<option value="">Loading leagues...</option>';
+    dropdown.disabled = true;
+    
+    try {
+        const response = await fetch('/league/all');
+        const data = await response.json();
+        
+        // Always rebuild the dropdown to ensure clean state
+        dropdown.innerHTML = '<option value="">Select league</option>';
+        
+        if (data.leagues && data.leagues.length > 0) {
+            data.leagues.forEach(league => {
+                const option = document.createElement('option');
+                option.value = league.id;
+                option.textContent = league.name;
+                
+                if (selectedLeagueId && league.id === selectedLeagueId) {
+                    option.selected = true;
+                    console.log(`Selected league ${league.id} (${league.name})`);
+                }
+                
+                dropdown.appendChild(option);
+            });
+            console.log(`Loaded ${data.leagues.length} leagues for ${dropdownId}`);
+            return true;
+        } else {
+            dropdown.innerHTML = '<option value="">No leagues available</option>';
+            console.warn(`No leagues found for ${dropdownId}`);
+            return false;
+        }
+    } catch (error) {
+        console.error('Error loading leagues:', error);
+        dropdown.innerHTML = '<option value="">Error loading leagues</option>';
+        return false;
+    } finally {
+        dropdown.disabled = false;
+    }
+}
+
+/**
+ * Show/hide and configure league field based on event type
+ * @param {string} context - 'create' or 'edit'
+ */
+function handleLeagueFieldVisibility(context) {
+    const prefix = context === 'edit' ? 'edit' : '';
+    const eventTypeId = prefix ? `${prefix}EventType` : 'eventType';
+    const leagueGroupId = prefix ? `${prefix}EventLeagueFieldGroup` : 'eventLeagueFieldGroup';
+    const leagueDropdownId = prefix ? `${prefix}EventLeagueDropdown` : 'eventLeagueDropdown';
+    
+    const eventTypeSelect = document.getElementById(eventTypeId);
+    const leagueGroup = document.getElementById(leagueGroupId);
+    const leagueDropdown = document.getElementById(leagueDropdownId);
+    
+    if (!eventTypeSelect || !leagueGroup || !leagueDropdown) {
+        console.warn(`League field elements not found for context: ${context}`);
+        return;
+    }
+    
+    const eventType = eventTypeSelect.value;
+    const isMatch = eventType === 'Match';
+    
+    // Show/hide league field
+    leagueGroup.style.display = isMatch ? 'flex' : 'none';
+    
+    // Update required attribute
+    if (isMatch) {
+        leagueDropdown.setAttribute('required', 'required');
+        
+        // Update label to show required
+        const label = leagueGroup.querySelector('label');
+        if (label && !label.innerHTML.includes('*')) {
+            label.innerHTML = 'League <span style="color: #ff5252;">*</span>';
+        }
+        
+        // Load leagues if not already loaded
+        loadLeaguesForDropdown(leagueDropdownId);
+    } else {
+        leagueDropdown.removeAttribute('required');
+        leagueDropdown.value = '';
+        
+        // Update label to show optional
+        const label = leagueGroup.querySelector('label');
+        if (label) {
+            label.textContent = 'League (Optional)';
+        }
+    }
+}
+
+// ============================================
 // UTILITY FUNCTIONS
 // ============================================
 
@@ -1317,6 +1435,10 @@ function buildEventDetailsHTML(event) {
     if (event.game) {
         sections.push(createDetailSection('gamepad', 'Game', event.game));
     }
+     // League section (only for Match events)
+    if (event.event_type === 'Match' && event.league_name) {
+        sections.push(createDetailSection('trophy', 'League', event.league_name, true));
+    }
 
     // Location section (full width)
     if (event.location) {
@@ -1475,6 +1597,45 @@ function closeEventModal() {
     EventState.reset();
 }
 
+/**
+ * Load leagues for event edit form
+ */
+async function loadLeaguesForEventEdit() {
+    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
+    const loadingIndicator = document.getElementById('editEventLeagueLoadingIndicator');
+    
+    if (!leagueDropdown) return;
+    
+    // Don't reload if already populated (more than just the placeholder)
+    if (leagueDropdown.options.length > 1) return;
+    
+    setElementDisplay(loadingIndicator, 'block');
+    leagueDropdown.disabled = true;
+    
+    try {
+        const response = await fetch('/league/all');
+        const data = await response.json();
+        
+        if (data.leagues && data.leagues.length > 0) {
+            // Keep the placeholder and add leagues
+            data.leagues.forEach(league => {
+                const option = document.createElement('option');
+                option.value = league.id;
+                option.textContent = league.name;
+                leagueDropdown.appendChild(option);
+            });
+        } else {
+            leagueDropdown.innerHTML = '<option value="">No leagues available</option>';
+        }
+    } catch (error) {
+        console.error('Error loading leagues for edit:', error);
+        leagueDropdown.innerHTML = '<option value="">Error loading leagues</option>';
+    } finally {
+        setElementDisplay(loadingIndicator, 'none');
+        leagueDropdown.disabled = false;
+    }
+}
+
 // ============================================
 // EVENT NOTIFICATIONS
 // ============================================
@@ -1558,6 +1719,7 @@ function openCreateEventModal() {
     const form = document.getElementById('createEventForm');
     const customLocationGroup = document.getElementById('customLocationGroup');
     const formMessage = document.getElementById('formMessage');
+    const leagueGroup = document.getElementById('eventLeagueFieldGroup'); // ADD THIS LINE
 
     // Show modal
     setElementDisplay(modal, 'block');
@@ -1567,6 +1729,7 @@ function openCreateEventModal() {
     form.reset();
     setElementDisplay(customLocationGroup, 'none');
     setElementDisplay(formMessage, 'none');
+    setElementDisplay(leagueGroup, 'none'); // ADD THIS LINE - Hide league field initially
     clearSelectedGames('create');
 
     // Load games after modal is rendered
@@ -1614,12 +1777,16 @@ function handleEventTypeChange() {
     const eventType = document.getElementById('eventType')?.value;
     const gameFieldGroup = document.getElementById('gameFieldGroup');
 
+    // Handle game field visibility for Misc events
     if (eventType === 'Misc') {
         setElementDisplay(gameFieldGroup, 'none');
         clearSelectedGames('create');
     } else {
         setElementDisplay(gameFieldGroup, 'block');
     }
+    
+    // Handle league field visibility
+    handleLeagueFieldVisibility('create'); 
 }
 
 /**
@@ -1688,6 +1855,17 @@ async function handleCreateEventSubmit(e) {
     const submitBtnText = document.getElementById('submitBtnText');
     const submitBtnSpinner = document.getElementById('submitBtnSpinner');
     const formMessage = document.getElementById('formMessage');
+
+    // Validate league for Match events
+    const eventType = document.getElementById('eventType')?.value;
+    const leagueDropdown = document.getElementById('eventLeagueDropdown');
+    
+    if (eventType === 'Match' && (!leagueDropdown?.value)) {
+        formMessage.textContent = 'Please select a league for Match events.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+        return;
+    }
 
     // Set loading state
     submitBtn.disabled = true;
@@ -1850,18 +2028,22 @@ function createEditForm() {
     // Setup location dropdown
     setupEditLocationDropdown(event.location);
     
-    // Handle event type (will show/hide league field)
-    handleEditEventTypeChange();
-    
-    // Load and set league if this is a Match event
-    if (event.event_type === 'Match') {
-        loadLeaguesForEventEdit().then(() => {
-            const leagueDropdown = document.getElementById('editEventLeagueDropdown');
-            if (leagueDropdown && event.league_id) {
-                leagueDropdown.value = event.league_id;
+    // **MOVED: Wait for DOM to be ready before calling these functions**
+    setTimeout(() => {
+        // Handle event type (will show/hide league field)
+        handleEditEventTypeChange();
+        
+        // Load leagues if this is a Match event
+        if (event.event_type === 'Match') {
+            const dropdown = document.getElementById('editEventLeagueDropdown');
+            if (dropdown) {
+                console.log('Loading leagues for edit event, current league_id:', event.league_id);
+                loadLeaguesForDropdown('editEventLeagueDropdown', event.league_id);
+            } else {
+                console.error('editEventLeagueDropdown not found!');
             }
-        });
-    }
+        }
+    }, 50); // Small delay to ensure DOM is ready
 }
 
 /**
@@ -1870,7 +2052,6 @@ function createEditForm() {
  * @returns {string} HTML string for form fields
  */
 function createEditFormFields(event) {
-    // Escape the description to prevent HTML injection and quote issues
     const escapedDescription = (event.description || '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -1900,6 +2081,20 @@ function createEditFormFields(event) {
                 </select>
             </div>
 
+            <!-- League Field (SINGLE INSTANCE - only shown for Match events) -->
+            <div class="form-group" id="editEventLeagueFieldGroup" style="display: ${event.event_type === 'Match' ? 'flex' : 'none'};">
+                <label for="editEventLeagueDropdown">League ${event.event_type === 'Match' ? '*' : '(Optional)'}</label>
+                <select id="editEventLeagueDropdown" 
+                        name="league_id" 
+                        class="game-dropdown-single" 
+                        ${event.event_type === 'Match' ? 'required' : ''}>
+                    <option value="">Select league</option>
+                </select>
+                <div id="editEventLeagueLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading leagues...
+                </div>
+            </div>
+
             <!-- Games Field -->
             <div class="form-group" id="editGameFieldGroup">
                 <label for="editGameDropdown">Games (Optional)</label>
@@ -1918,21 +2113,6 @@ function createEditFormFields(event) {
                 </div>
 
                 <input type="hidden" id="editSelectedGamesInput" name="games" value="[]">
-            </div>
-
-            <!-- League Field (only shown for Match events) -->
-            <div class="form-group" id="editEventLeagueFieldGroup" style="display: ${event.event_type === 'Match' ? 'flex' : 'none'};">
-                <label for="editEventLeagueDropdown">League ${event.event_type === 'Match' ? '*' : '(Optional)'}</label>
-                <select id="editEventLeagueDropdown" 
-                        name="league_id" 
-                        class="game-dropdown-single" 
-                        ${event.event_type === 'Match' ? 'required' : ''}>
-                    <option value="">Select league</option>
-                    <!-- Will be populated by JavaScript -->
-                </select>
-                <div id="editEventLeagueLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                    <i class="fas fa-spinner fa-spin"></i> Loading leagues...
-                </div>
             </div>
 
             <div class="form-group">
@@ -2174,74 +2354,62 @@ function setupEditLocationDropdown(currentLocation) {
 function handleEditEventTypeChange() {
     const eventType = document.getElementById('editEventType')?.value;
     const gameFieldGroup = document.getElementById('editGameFieldGroup');
-    const leagueFieldGroup = document.getElementById('editEventLeagueFieldGroup');
+    const leagueGroup = document.getElementById('editEventLeagueFieldGroup');
     const leagueDropdown = document.getElementById('editEventLeagueDropdown');
 
+    // Only proceed if we have the event type
+    if (!eventType) {
+        console.warn('handleEditEventTypeChange: editEventType not found');
+        return;
+    }
+
+    // Handle game field visibility
     if (eventType === 'Misc') {
-        setElementDisplay(gameFieldGroup, 'none');
-        setElementDisplay(leagueFieldGroup, 'none');
-        clearSelectedGames('edit');
-        if (leagueDropdown) {
-            leagueDropdown.removeAttribute('required');
+        if (gameFieldGroup) {
+            setElementDisplay(gameFieldGroup, 'none');
+            clearSelectedGames('edit');
         }
-    } else if (eventType === 'Match') {
-        setElementDisplay(gameFieldGroup, 'block');
-        setElementDisplay(leagueFieldGroup, 'block');
+    } else {
+        if (gameFieldGroup) {
+            setElementDisplay(gameFieldGroup, 'block');
+        }
+    }
+    
+    // Handle league field visibility
+    if (!leagueGroup || !leagueDropdown) {
+        console.warn('handleEditEventTypeChange: League elements not found');
+        return;
+    }
+    
+    const isMatch = eventType === 'Match';
+    
+    // Show/hide league field
+    leagueGroup.style.display = isMatch ? 'flex' : 'none';
+    
+    // Update required attribute
+    if (isMatch) {
+        leagueDropdown.setAttribute('required', 'required');
         
-        if (leagueDropdown) {
-            leagueDropdown.setAttribute('required', 'required');
-            // Update label to show required
-            const label = document.querySelector('label[for="editEventLeagueDropdown"]');
-            if (label) label.innerHTML = 'League *';
+        // Update label to show required
+        const label = leagueGroup.querySelector('label');
+        if (label && !label.innerHTML.includes('*')) {
+            label.innerHTML = 'League <span style="color: #ff5252;">*</span>';
         }
         
         // Load leagues if not already loaded
-        loadLeaguesForEventEdit();
+        loadLeaguesForDropdown('editEventLeagueDropdown');
     } else {
-        setElementDisplay(gameFieldGroup, 'block');
-        setElementDisplay(leagueFieldGroup, 'none');
+        leagueDropdown.removeAttribute('required');
+        leagueDropdown.value = '';
         
-        if (leagueDropdown) {
-            leagueDropdown.removeAttribute('required');
+        // Update label to show optional
+        const label = leagueGroup.querySelector('label');
+        if (label) {
+            label.textContent = 'League (Optional)';
         }
     }
 }
 
-async function loadLeaguesForEventEdit() {
-    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
-    const loadingIndicator = document.getElementById('editEventLeagueLoadingIndicator');
-    
-    if (!leagueDropdown) return;
-    
-    // Don't reload if already populated (more than just the placeholder)
-    if (leagueDropdown.options.length > 1) return;
-    
-    setElementDisplay(loadingIndicator, 'block');
-    leagueDropdown.disabled = true;
-    
-    try {
-        const response = await fetch('/league/all');
-        const data = await response.json();
-        
-        if (data.leagues && data.leagues.length > 0) {
-            // Keep the placeholder and add leagues
-            data.leagues.forEach(league => {
-                const option = document.createElement('option');
-                option.value = league.id;
-                option.textContent = league.name;
-                leagueDropdown.appendChild(option);
-            });
-        } else {
-            leagueDropdown.innerHTML = '<option value="">No leagues available</option>';
-        }
-    } catch (error) {
-        console.error('Error loading leagues for edit:', error);
-        leagueDropdown.innerHTML = '<option value="">Error loading leagues</option>';
-    } finally {
-        setElementDisplay(loadingIndicator, 'none');
-        leagueDropdown.disabled = false;
-    }
-}
 
 /**
  * Submit event edit
@@ -2251,6 +2419,17 @@ async function submitEventEdit() {
     const submitBtn = document.querySelector('#editEventFormData .btn-primary');
 
     if (!submitBtn) return;
+
+    const eventType = document.getElementById('editEventType')?.value;
+    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
+    
+    if (eventType === 'Match' && (!leagueDropdown?.value)) {
+        formMessage.textContent = 'Please select a league for Match events.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+        leagueDropdown?.focus();
+        return;
+    }
 
     // Set loading state
     submitBtn.disabled = true;
@@ -2306,7 +2485,7 @@ function gatherEditFormData() {
         : locationSelect?.value;
 
     const gamesInput = document.getElementById('editSelectedGamesInput');
-    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
+    const leagueDropdown = document.getElementById('editEventLeagueDropdown'); 
 
     return {
         event_id: EventState.currentEventId,
@@ -2318,7 +2497,7 @@ function gatherEditFormData() {
         end_time: document.getElementById('editEndTime')?.value,
         location: locationValue,
         description: document.getElementById('editDescription')?.value,
-        league_id: leagueDropdown?.value || null  // ADD THIS LINE
+        league_id: leagueDropdown?.value || null  
     };
 }
 
@@ -2560,3 +2739,7 @@ window.loadEventsForPastSeason = loadEventsForPastSeason;
 // Utility Functions
 window.loadGamesForFilter = loadGamesForFilter;
 window.clearGamesCache = clearGamesCache;
+
+//Leagues added to modals for match case
+window.handleLeagueFieldVisibility = handleLeagueFieldVisibility;
+window.loadLeaguesForDropdown = loadLeaguesForDropdown;
