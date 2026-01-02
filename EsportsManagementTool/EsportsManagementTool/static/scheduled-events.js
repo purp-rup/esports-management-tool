@@ -846,6 +846,19 @@ function renderScheduleDetails(schedule) {
     `;
 }
 
+// Initialize league dropdown state BEFORE attaching event handler
+const leagueSelectInit = document.getElementById('editScheduleLeagueSelect');
+if (leagueSelectInit) {
+    // Ensure dropdown has proper initial state
+    if (schedule.event_type !== 'Match') {
+        leagueSelectInit.innerHTML = '<option value="">Select a league</option>';
+    } else {
+        // For Match events, load leagues immediately
+        leagueSelectInit.innerHTML = '<option value="">Loading leagues...</option>';
+        loadEditScheduleLeagues(teamId, schedule.league_id);
+    }
+}
+
 /**
  * Configure edit and delete buttons based on user permissions
  * @param {number} scheduleId - Schedule ID for button actions
@@ -1067,12 +1080,20 @@ function openEditScheduleMode(scheduleId) {
 }
 
 function handleEditEventTypeChange() {
-    const eventType = document.getElementById('editScheduleType').value;
+    const eventType = document.getElementById('editScheduleType');
     const leagueGroup = document.getElementById('editScheduleLeagueGroup');
     const leagueSelect = document.getElementById('editScheduleLeagueSelect');
     const leagueLabel = document.getElementById('editScheduleLeagueLabel');
     
-    if (eventType === 'Match') {
+    // Add null checks to prevent errors
+    if (!eventType || !leagueGroup || !leagueSelect) {
+        console.warn('Required elements not found in handleEditEventTypeChange');
+        return;
+    }
+    
+    const eventTypeValue = eventType.value;
+    
+    if (eventTypeValue === 'Match') {
         leagueGroup.style.display = 'block';
         leagueSelect.setAttribute('required', 'required');
         
@@ -1080,16 +1101,22 @@ function handleEditEventTypeChange() {
             leagueLabel.innerHTML = 'League <span style="color: #ff5252;">*</span>';
         }
         
-        // Get team_id from schedule or context
-        const scheduleId = document.getElementById('editScheduleId').value;
-        const schedule = ScheduleState.findSchedule(parseInt(scheduleId)) ||
-                        currentSchedules.find(s => s.schedule_id === parseInt(scheduleId));
+        // Get team_id from schedule or context - with proper null check
+        const scheduleIdInput = document.getElementById('editScheduleId');
+        if (!scheduleIdInput) {
+            console.warn('Schedule ID input not found');
+            return;
+        }
+        
+        const scheduleId = parseInt(scheduleIdInput.value);
+        const schedule = ScheduleState.findSchedule(scheduleId) ||
+                        currentSchedules.find(s => s.schedule_id === scheduleId);
         
         const teamId = schedule?.team_id || ScheduleState.currentTeamId || currentScheduleTeamId;
         
         if (teamId && leagueSelect.options.length <= 1) {
             console.log('Loading leagues for team_id:', teamId);
-            loadEditScheduleLeagues(teamId, null);
+            loadEditScheduleLeagues(teamId, schedule?.league_id || null);
         }
     } else {
         leagueGroup.style.display = 'none';
@@ -1120,21 +1147,32 @@ async function loadEditScheduleLeagues(teamId, currentLeagueId) {
     
     try {
         const response = await fetch(`/api/teams/${teamId}/leagues`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
         
+        // Clear and rebuild dropdown
         leagueSelect.innerHTML = '';
         
         if (data.success && data.leagues) {
             leagueSelect.innerHTML = '<option value="">Select a league</option>';
             
             if (data.leagues.length === 0) {
-                leagueSelect.innerHTML = '<option value="">No leagues assigned to team</option>';
+                const noLeaguesOption = document.createElement('option');
+                noLeaguesOption.value = '';
+                noLeaguesOption.textContent = 'No leagues assigned to team';
+                noLeaguesOption.disabled = true;
+                leagueSelect.appendChild(noLeaguesOption);
             } else {
                 data.leagues.forEach(league => {
                     const option = document.createElement('option');
                     option.value = league.id;
                     option.textContent = league.name;
                     
+                    // Select current league if provided
                     if (currentLeagueId && league.id === currentLeagueId) {
                         option.selected = true;
                     }
@@ -1144,6 +1182,7 @@ async function loadEditScheduleLeagues(teamId, currentLeagueId) {
             }
         } else {
             leagueSelect.innerHTML = '<option value="">Error loading leagues</option>';
+            console.error('Failed to load leagues:', data);
         }
     } catch (error) {
         console.error('Error loading edit schedule leagues:', error);
@@ -1152,7 +1191,6 @@ async function loadEditScheduleLeagues(teamId, currentLeagueId) {
         leagueSelect.disabled = false;
     }
 }
-
 /**
  * Setup location dropdown handler for edit form
  * Shows/hides custom location input based on selection
