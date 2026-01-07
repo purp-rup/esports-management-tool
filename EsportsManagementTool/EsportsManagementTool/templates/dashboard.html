@@ -2381,6 +2381,39 @@
         </div>
     </div>
 </div>
+
+<!-- User Profile Cards -->
+<div id="userProfileCard" class="user-profile-card" style="display: none;">
+    <div class="profile-card-header">
+        <div class="profile-card-banner" id="profileBanner"></div>
+        <img id="profileAvatar" class="profile-card-avatar" src="" alt="">
+    </div>
+
+    <div class="profile-card-body">
+        <div class="profile-card-name">
+            <h3 id="profileName"></h3>
+            <p id="profileUsername"></p>
+        </div>
+
+        <div class="profile-card-badges" id="profileBadges">
+            <!-- Badges dynamically inserted -->
+        </div>
+
+        <div class="profile-card-section">
+            <h4><span id="profileFirstName">User</span>'s Communities</h4>
+            <div class="profile-communities" id="profileCommunities">
+                <!-- Game icons dynamically inserted -->
+            </div>
+        </div>
+
+        <div class="profile-card-section">
+            <h4><span id="profileFirstNameTeams">User</span> Plays for:</h4>
+            <div class="profile-teams" id="profileTeams">
+                <!-- Team badges dynamically inserted -->
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
