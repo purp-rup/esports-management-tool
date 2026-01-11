@@ -332,29 +332,10 @@ class EsportsStatistics:
     # =====================================
     
     def get_tournament_placements(self):
-        """
-        Count tournament placements by type
-        Returns: dict with keys: winners, finals, semifinals, quarterfinals, 
-                 playoffs, regular_season, in_progress
-        """
-        # This depends on how you track tournament results
-        # You might need to add a 'placement' or 'finish_position' field to teams
-        # For now, returning structure based on match results
+        from EsportsManagementTool import tournament_results
         
-        placements = {
-            'winners': 0,
-            'finals': 0,
-            'semifinals': 0,
-            'quarterfinals': 0,
-            'playoffs': 0,
-            'regular_season': 0,
-            'in_progress': 0
-        }
-        
-        # TODO: Implement based on your tournament tracking system
-        # This might require additional database fields or logic
-        
-        return placements
+        # Actually queries the tournament_results table
+        return tournament_results.get_tournament_results_for_season(self.mysql, self.season_id)
     
     # =====================================
     # LEAGUE-SPECIFIC STATISTICS

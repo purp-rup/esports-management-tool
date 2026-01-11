@@ -880,7 +880,6 @@ from EsportsManagementTool import vods
 from EsportsManagementTool import seasons
 from EsportsManagementTool import leagues
 from EsportsManagementTool import statistics
-
 # ================================
 # REGISTER MODULE ROUTES
 # ==================================
@@ -904,6 +903,13 @@ statistics.register_statistics_routes(app, mysql, login_required, roles_required
 from EsportsManagementTool import scheduled_events
 scheduled_events.register_scheduled_events_routes(app, mysql, login_required, roles_required, get_user_permissions)
 
+# Register tournament results routes
+from EsportsManagementTool import tournament_results
+tournament_results.register_tournament_results_routes(app, mysql, login_required, roles_required, get_user_permissions)
+
+# Initialize tournament notification scheduler
+from EsportsManagementTool import tournament_notification_scheduler
+tournament_notification_scheduler.initialize_tournament_scheduler(app, mysql, mail)
 
 # =======================================
 # CALENDAR API ENDPOINTS
