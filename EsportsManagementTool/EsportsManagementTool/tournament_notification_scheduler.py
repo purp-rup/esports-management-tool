@@ -19,7 +19,7 @@ def initialize_tournament_scheduler(app, mysql, mail):
     # Run daily at 9:00 AM
     scheduler.add_job(
         func=lambda: check_and_send_reminders(app, mysql, mail),
-        trigger=CronTrigger(hour=11, minute=11),
+        trigger=CronTrigger(hour=9, minute=0),
         id='tournament_reminders',
         name='Send tournament result reminders to GMs',
         replace_existing=True
