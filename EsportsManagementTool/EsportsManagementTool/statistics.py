@@ -459,6 +459,144 @@ class EsportsStatistics:
     # COMPREHENSIVE STATISTICS
     # =====================================
     
+    def get_tournament_placements_by_league(self):
+        """
+        Get tournament results grouped by league
+        Returns: list of dicts with league stats and placements
+        """
+        cursor = self.cursor
+        
+        # Get all leagues that have teams with tournament results
+        query = """
+            SELECT DISTINCT l.id, l.name
+            FROM league l
+            JOIN team_leagues tl ON l.id = tl.league_id
+            JOIN teams t ON tl.team_id = t.TeamID
+        """
+        
+        if self.season_id:
+            query += " WHERE t.season_id = %s"
+            cursor.execute(query + " ORDER BY l.name", (self.season_id,))
+        else:
+            cursor.execute(query + " ORDER BY l.name")
+        
+        leagues = cursor.fetchall()
+        result = []
+        
+        for league in leagues:
+            league_id = league['id']
+            league_name = league['name']
+            
+            # Get placements for this league
+            placement_query = """
+                SELECT 
+                    tr.placement,
+                    COUNT(*) as count
+                FROM tournament_results tr
+                WHERE tr.league_id = %s
+            """
+            
+            if self.season_id:
+                placement_query += " AND tr.season_id = %s"
+                cursor.execute(placement_query + " GROUP BY tr.placement", 
+                            (league_id, self.season_id))
+            else:
+                cursor.execute(placement_query + " GROUP BY tr.placement", 
+                            (league_id,))
+            
+            placements_data = cursor.fetchall()
+            
+            # Initialize placement counts
+            placements = {
+                'winners': 0,
+                'finals': 0,
+                'semifinals': 0,
+                'quarterfinals': 0,
+                'playoffs': 0,
+                'regular_season': 0,
+                'in_progress': 0
+            }
+            
+            # Map database values to keys
+            placement_map = {
+                'Winner': 'winners',
+                'Finals': 'finals',
+                'Semifinals': 'semifinals',
+                'Quarterfinals': 'quarterfinals',
+                'Playoffs': 'playoffs',
+                'Regular Season': 'regular_season'
+            }
+            
+            for row in placements_data:
+                key = placement_map.get(row['placement'])
+                if key:
+                    placements[key] = row['count']
+            
+            # Count teams in this league with no results (in progress)
+            in_progress_query = """
+                SELECT COUNT(DISTINCT t.TeamID) as count
+                FROM teams t
+                JOIN team_leagues tl ON t.TeamID = tl.team_id
+                LEFT JOIN tournament_results tr ON (
+                    tr.team_id = t.TeamID 
+                    AND tr.league_id = %s
+            """
+            
+            if self.season_id:
+                in_progress_query += " AND tr.season_id = %s"
+                cursor.execute(in_progress_query + """
+                    )
+                    WHERE tl.league_id = %s
+                    AND t.season_id = %s
+                    AND tr.result_id IS NULL
+                """, (league_id, self.season_id, league_id, self.season_id))
+            else:
+                cursor.execute(in_progress_query + """
+                    )
+                    WHERE tl.league_id = %s
+                    AND tr.result_id IS NULL
+                """, (league_id, league_id))
+            
+            in_progress = cursor.fetchone()
+            placements['in_progress'] = in_progress['count'] if in_progress else 0
+            
+            # Get total teams count for this league
+            total_teams_query = """
+                SELECT COUNT(DISTINCT t.TeamID) as count
+                FROM teams t
+                JOIN team_leagues tl ON t.TeamID = tl.team_id
+                WHERE tl.league_id = %s
+            """
+            
+            if self.season_id:
+                cursor.execute(total_teams_query + " AND t.season_id = %s", 
+                            (league_id, self.season_id))
+            else:
+                cursor.execute(total_teams_query, (league_id,))
+            
+            total_teams = cursor.fetchone()
+            total_count = total_teams['count'] if total_teams else 0
+            
+            # Calculate completed teams
+            completed_count = sum([
+                placements['winners'],
+                placements['finals'],
+                placements['semifinals'],
+                placements['quarterfinals'],
+                placements['playoffs'],
+                placements['regular_season']
+            ])
+            
+            result.append({
+                'league_id': league_id,
+                'league_name': league_name,
+                'total_teams': total_count,
+                'completed_teams': completed_count,
+                **placements
+            })
+        
+        return result
+
     def get_all_statistics(self):
         """
         Get all statistics in one comprehensive dictionary
@@ -481,6 +619,7 @@ class EsportsStatistics:
                 'multi_team_players': self.get_multi_team_players(),
             },
             'tournament_placements': self.get_tournament_placements(),
+            'tournament_placements_by_league': self.get_tournament_placements_by_league(),  
             'league_breakdown': self.get_league_breakdown(),
         }
         

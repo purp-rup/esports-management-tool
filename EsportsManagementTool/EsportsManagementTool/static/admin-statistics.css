@@ -294,7 +294,7 @@
    ============================================ */
 .league-stats-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 2rem;
 }
 
@@ -478,5 +478,68 @@
     
     .league-stats-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ============================================
+   LEAGUE ICON STYLING (for tournament section)
+   ============================================ */
+.league-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--stockton-blue), #3b7dd6);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================
+   LEAGUE CARD UPDATES (for tournament grid)
+   ============================================ */
+.league-card .placements-grid {
+    margin-top: 0;
+}
+
+.league-card .placement-card {
+    background: var(--background-secondary);
+    border: 2px solid var(--border-color);
+}
+
+.league-card .placement-card:hover {
+    background: var(--dark-bg);
+}
+
+/* ============================================
+   RESPONSIVE UPDATES
+   ============================================ */
+@media (max-width: 1200px) {
+    .league-stats-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .league-card .placements-grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .league-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 1rem;
+    }
+    
+    .league-card .placements-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .league-card .placements-grid {
+        grid-template-columns: 1fr;
     }
 }
