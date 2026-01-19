@@ -41,6 +41,12 @@
             padding: 0 2rem;
         }
 
+        @media (max-width: 400px) {
+            .container {
+                padding: 0 1rem;
+            }
+        }
+
         /* Navigation */
         .navbar {
             background: var(--card-bg);
@@ -213,10 +219,18 @@
             color: var(--stockton-blue);
         }
 
-        /* Mobile responsiveness */
+         /*Mobile responsiveness */
         @media (max-width: 768px) {
             .user-info {
                 display: none;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .footer-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
             }
         }
     </style>

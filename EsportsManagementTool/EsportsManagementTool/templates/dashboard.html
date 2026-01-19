@@ -36,14 +36,14 @@
     </div>
 
     <!-- Mobile Tab Dropdown -->
-    <select class="tab-dropdown" id="tabDropdown">
-        <option value="calendar">📅 Calendar</option>
-        <option value="profile">👤 Profile</option>
-        <option value="rosters">👥 Communities</option>
-        <option value="events">📆 Events</option>
-        <option value="teams">🎮 Teams</option>
+    <select class="tab-dropdown fa-icons" id="tabDropdown">
+        <option class="fa-icons" value="calendar">&#xf133; Calendar</option>
+        <option value="profile">&#xf007; Profile</option>
+        <option value="rosters">&#xf086; Communities</option>
+        <option value="events">&#xf274; Events</option>
+        <option value="teams">&#xe533; Teams</option>
         {% if user.is_admin or user.is_developer %}
-        <option value="admin">🛡️ Admin</option>
+        <option value="admin">&#xf085; Admin</option>
         {% endif %}
     </select>
 
@@ -85,12 +85,14 @@
                 <div class="calendar-wrapper">
                     <!-- Calendar Navigation -->
                     <div class="calendar-navigation">
-                        <a href="{{ url_for('dashboard', year=prev_year, month=prev_month) }}" class="nav-button">
-                            <i class="fas fa-chevron-left"></i> Previous
+                        <a href="?month={{ prev_month }}&year={{ prev_year }}" class="nav-button">
+                            <i class="fas fa-chevron-left"></i>
+                            <span>Previous</span>
                         </a>
                         <h1 class="calendar-month-year">{{ month_name }} {{ year }}</h1>
-                        <a href="{{ url_for('dashboard', year=next_year, month=next_month) }}" class="nav-button">
-                            Next <i class="fas fa-chevron-right"></i>
+                        <a href="?month={{ next_month }}&year={{ next_year }}" class="nav-button">
+                            <span>Next</span>
+                            <i class="fas fa-chevron-right"></i>
                         </a>
                     </div>
 
@@ -153,11 +155,11 @@
                     </div>
 
                     <!-- Calendar Footer -->
-                    <div class="calendar-footer">
-                        <a href="{{ url_for('dashboard') }}" class="today-button">
-                            <i class="fas fa-calendar-day"></i> Jump to Today
-                        </a>
-                    </div>
+<!--                    <div class="calendar-footer">-->
+<!--                        <a href="{{ url_for('dashboard') }}" class="today-button">-->
+<!--                            <i class="fas fa-calendar-day"></i> Jump to Today-->
+<!--                        </a>-->
+<!--                    </div>-->
                 </div>
             </div>
 

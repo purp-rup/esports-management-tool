@@ -15,8 +15,8 @@
 }
 
 .calendar-main {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
+    /*background: var(--card-bg);*/
+    /*border: 1px solid var(--border-color);*/
     border-radius: 12px;
     /*padding: 1.5rem;*/
     width: 100%;
@@ -37,7 +37,7 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
-    padding: 1rem 1.5rem;
+    padding: 1rem 1rem;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
@@ -522,6 +522,10 @@
     .calendar-container {
         grid-template-columns: 1fr;
     }
+
+    .calendar-sidebar {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Mobile devices */
@@ -557,5 +561,40 @@
 
     .calendar-cell .event-time {
         font-size: 0.55rem;
+    }
+}
+
+@media (max-width: 500px) {
+    .nav-button span {
+        display: none;
+    }
+
+    .nav-button {
+        padding: 0.5rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .calendar-grid {
+        gap: 0;
+    }
+
+    .calendar-cell {
+        min-height: 60px;
+        padding: 0.15rem;
+    }
+
+    .calendar-day-name {
+        font-size: 0.55rem;
+        padding: 0.35rem;
+    }
+
+    .day-number {
+        font-size: 0.65rem;
+    }
+
+    .calendar-cell .event {
+        font-size: 0.55rem;
+        padding: 0.1rem 0.25rem;
     }
 }

@@ -98,6 +98,16 @@ body {
     flex-direction: column;
 }
 
+@media (max-width: 400px) {
+    .hero {
+        padding: 1rem;
+    }
+
+    .hero-content {
+        gap: 0.5rem;
+    }
+}
+
 .hero-top {
     display: flex;
     gap: 3rem;
@@ -160,7 +170,7 @@ body {
     align-items: center;
     gap: 0.5rem;
     color: var(--text-secondary);
-    font-size: 0.875rem;
+    font-size: clamp(0.75rem, 1vw, .875rem);
     animation: bounce 2s infinite;
 }
 

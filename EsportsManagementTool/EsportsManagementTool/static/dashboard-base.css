@@ -10,6 +10,21 @@
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 
 /* --------------------------------------------
+   FORM ELEMENTS
+   Shared input, select, and button styles
+   - Andrew note:
+        There is some overlap with tab-dropdown from tabs.css,
+        but this is the only way I could get the FontAwesome icons
+        to render properly in both select and option elements without
+        additional dependencies.
+   -------------------------------------------- */
+select.fa-icons, option.fa-icons {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif, 'FontAwesome';
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+/* --------------------------------------------
    MAIN LAYOUT
    Dashboard viewport and spacing
    -------------------------------------------- */
@@ -45,6 +60,12 @@ main {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 2rem;
+}
+
+@media (max-width: 640px) {
+    .content-card {
+        padding: 1rem;
+    }
 }
 
 /* Card header section */
