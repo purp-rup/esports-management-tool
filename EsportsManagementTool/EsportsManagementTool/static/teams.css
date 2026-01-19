@@ -35,10 +35,9 @@
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 2rem;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: auto;
     flex: 1;
-    min-width: 0; /* CRITICAL: allows flex item to shrink */
+    min-width: 0;
     height: 100%;
     max-height: 100%;
 }
@@ -109,7 +108,6 @@
 .team-header-left {
     display: flex;
     gap: 1.5rem;
-    margin-left: 2rem;
 }
 
 .team-icon-large {
@@ -164,7 +162,6 @@
 #deleteTeamBtn {
     flex-shrink: 0;
     align-self: center;
-    margin-right: 1rem;
     background: transparent;
     color: #ef4444;
     border: 1px solid #ef4444;
@@ -343,6 +340,7 @@
 .team-tabs {
     display: flex;
     gap: 0.5rem;
+    justify-content: space-evenly;
     border-bottom: 2px solid var(--border-color);
     margin-bottom: 1.5rem;
 }
@@ -399,7 +397,6 @@
    -------------------------------------------- */
 #rosterTabContent {
     overflow-y: auto;
-    padding: 1.5rem;
 }
 
 .roster-search {
@@ -979,11 +976,12 @@
     }
 
     .teams-main-content {
-        width: 100%;
+        /*width: 100%;*/
     }
 
     .team-stats-summary {
-        grid-template-columns: repeat(2, 1fr);
+        flex-direction: column;
+        /*grid-template-columns: repeat(2, 1fr);*/
     }
 }
 
@@ -1000,6 +998,7 @@
 
     .team-header-actions button {
         flex: 1;
+        font-size: 0.75rem;
     }
 
     .team-tabs {
@@ -1053,5 +1052,11 @@
     .team-league-link,
     .team-league-item {
         width: 100%;
+    }
+}
+
+@media (max-width: 640px) {
+    .teams-main-content {
+        padding: 1rem;
     }
 }

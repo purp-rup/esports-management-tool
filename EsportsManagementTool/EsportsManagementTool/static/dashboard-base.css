@@ -30,7 +30,7 @@ select.fa-icons, option.fa-icons {
    -------------------------------------------- */
 main {
     min-height: calc(100vh - 73px) !important;
-    padding: 2rem 0 !important;
+    padding: 2rem 0;
 }
 
 /* --------------------------------------------
