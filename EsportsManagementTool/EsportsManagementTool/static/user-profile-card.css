@@ -1,0 +1,175 @@
+/* User Profile Card */
+.user-profile-card {
+    position: fixed;
+    width: 340px;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    z-index: 9999;
+    overflow: hidden;
+    animation: profileCardSlideIn 0.2s ease-out;
+}
+
+@keyframes profileCardSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Header with banner */
+.profile-card-header {
+    position: relative;
+    height: 100px;
+}
+
+.profile-card-banner {
+    width: 100%;
+    height: 60px;
+    background: linear-gradient(135deg, var(--stockton-blue), var(--stockton-yellow));
+}
+
+.profile-card-avatar {
+    position: absolute;
+    bottom: -30px;
+    left: 16px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 6px solid var(--card-bg);
+    background: var(--dark-bg);
+}
+
+/* Body content */
+.profile-card-body {
+    padding: 40px 16px 16px 16px;
+}
+
+.profile-card-name h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.profile-card-name p {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.profile-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.profile-card-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.profile-card-section h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Communities (game icons) */
+.profile-communities {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.profile-community-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--dark-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 2px solid var(--border-color);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.profile-community-icon:hover {
+    border-color: var(--stockton-blue);
+    transform: scale(1.1);
+}
+
+.profile-community-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Teams */
+.profile-teams {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.profile-team-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    background: var(--dark-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+}
+
+.profile-team-badge:hover {
+    border-color: var(--stockton-blue);
+    background: var(--hover-bg);
+}
+
+.profile-team-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: var(--dark-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.profile-team-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profile-team-info {
+    flex: 1;
+}
+
+.profile-team-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.profile-team-game {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
