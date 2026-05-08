@@ -85,12 +85,12 @@
                 <div class="calendar-wrapper">
                     <!-- Calendar Navigation -->
                     <div class="calendar-navigation">
-                        <a href="?month={{ prev_month }}&year={{ prev_year }}" class="nav-button">
+                        <a href="{{ url_for('dashboard', year=prev_year, month=prev_month) }}" class="nav-button">
                             <i class="fas fa-chevron-left"></i>
                             <span>Previous</span>
                         </a>
                         <h1 class="calendar-month-year">{{ month_name }} {{ year }}</h1>
-                        <a href="?month={{ next_month }}&year={{ next_year }}" class="nav-button">
+                        <a href="{{ url_for('dashboard', year=next_year, month=next_month) }}" class="nav-button">
                             <span>Next</span>
                             <i class="fas fa-chevron-right"></i>
                         </a>
