@@ -1,0 +1,24 @@
+services:
+  web:
+    # Path to the directory containing the Dockerfile (same directory)
+    build: .
+    # Map the container's internal port to the local machine
+    ports:
+      - "5000:5000"
+    # Environment variables
+    environment:
+      - MYSQL_HOST=${{ secrets.MYSQL_HOST }}
+      - MYSQL_USER=${{ secrets.MYSQL_USER }}
+      - MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+      - MYSQL_DB=${{ secrets.MYSQL_DB }}
+      - MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+      - MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+      - DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }}
+      - DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}
+      - DISCORD_REDIRECT_URI=${{ secrets.DISCORD_REDIRECT_URI }}
+      - ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
+      - MAIL_DEFAULT_SENDER=${{ secrets.MAIL_DEFAULT_SENDER }}
+      - YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}
+    # Sync local files to the container for live-reloading
+    volumes:
+      - .:/EsportsManagementTool
