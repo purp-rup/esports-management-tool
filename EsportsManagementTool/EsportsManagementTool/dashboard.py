@@ -1,4 +1,4 @@
-from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, has_role
+from EsportsManagementTool import app, login_required, roles_required, get_user_permissions
 from flask import render_template, request, redirect, url_for, session, flash, jsonify
 from flask_mail import Mail, Message
 import MySQLdb.cursors

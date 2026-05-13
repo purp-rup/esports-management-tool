@@ -5,7 +5,7 @@ Consolidated module for all event-related functionality
 from flask import request, jsonify, session, render_template
 from datetime import datetime, timedelta
 import MySQLdb.cursors
-from EsportsManagementTool import get_current_time, localize_datetime, EST
+from EsportsManagementTool import localize_datetime, EST
 
 """
 Helper function to determine which season an event will be tied to.
@@ -130,7 +130,7 @@ def can_delete_event(cursor, event_id, user_id, is_developer, is_admin):
         return (False, "Event creation time not recorded")
 
     created_at = event['created_at']
-    current_time = get_current_time()
+    current_time = datetime.now(EST)
 
     # Ensure both datetimes are timezone-aware for comparison
     if created_at.tzinfo is None:
@@ -216,7 +216,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                     season_id = get_season_for_event_date(cursor, eventDate)
 
                     # Get current timestamp for created_at
-                    created_at = get_current_time()
+                    created_at = datetime.now(EST)
 
                     # Insert event with created_at timestamp
                     cursor.execute(
@@ -292,7 +292,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
             season_id = request.args.get('season_id', '')
 
             # Get current date and time
-            now = get_current_time()
+            now = datetime.now(EST)
             current_date = now.date()
             current_time = now.time()
 
@@ -958,7 +958,7 @@ def register_event_routes(app, mysql, login_required, roles_required, get_user_p
                 cursor.execute("""
                     INSERT INTO event_subscriptions (user_id, event_id, subscribed_at)
                     VALUES (%s, %s, %s)
-                """, (user_id, event_id, get_current_time()))
+                """, (user_id, event_id, datetime.now(EST)))
                 status = 'subscribed'
 
             mysql.connection.commit()

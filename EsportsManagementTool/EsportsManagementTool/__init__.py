@@ -3,36 +3,6 @@ Esports Management Tool - Main Application Module
 ================================================
 This module serves as the entry point for the Flask application, configured in
 the packages format for modular organization.
-
-Features:
----------
-- User authentication (login, registration, logout) with bcrypt password hashing
-- Email verification system for new user accounts
-- Role-based access control (Admin, GM, Player, Developer)
-- Timezone management (EST/EDT with automatic DST handling)
-- Session security with HTTPS enforcement
-- Calendar event system with AJAX endpoints
-- User activity tracking
-- "Remember Me" functionality with secure tokens
-
-Security:
----------
-- SSL/TLS encryption for database connections
-- bcrypt password hashing with salt
-- Secure session cookies (HTTPOnly, Secure, SameSite)
-- CSRF protection via Flask's session management
-- Role-based authorization decorators
-
-Dependencies:
-------------
-- Flask: Web framework
-- Flask-MySQLdb: MySQL database integration
-- Flask-Mail: Email functionality
-- bcrypt: Password hashing
-- pytz: Timezone management
-- python-dotenv: Environment variable management
-
-Authors: 5 Brain Cells Team (developed in part with Claude.ai)
 """
 
 # =========================================
@@ -109,26 +79,8 @@ mail = Mail(app)
 EST = pytz.timezone('America/New_York')
 
 
-def get_current_time():
-    """
-    Get current time in EST/EDT timezone.
-
-    Returns:
-        datetime: Current time with EST timezone information
-    """
-    return datetime.now(EST)
-
-
-def localize_datetime(dt):
-    """
-    Convert naive datetime to EST or convert aware datetime to EST.
-
-    Args:
-        dt (datetime): Datetime object to localize
-
-    Returns:
-        datetime: Timezone-aware datetime in EST
-    """
+def localize_datetime(dt: datetime) -> datetime:
+    # Convert naive datetime to EST or convert aware datetime to EST.
     if dt.tzinfo is None:
         return EST.localize(dt)
     return dt.astimezone(EST)
@@ -158,74 +110,14 @@ def set_mysql_timezone():
             cursor.close()
 
 
-# =========================================
-# TEMPLATE FILTERS
-# =========================================
-@app.template_filter('format_datetime')
-def format_datetime_filter(dt, format='%B %d, %Y at %I:%M %p'):
-    """
-    Format datetime for display in templates with EST timezone.
-
-    Args:
-        dt: Datetime object or ISO format string
-        format (str): strftime format string
-
-    Returns:
-        str: Formatted datetime string with 'EST' suffix, or 'N/A' if None
-
-    Example:
-        {{ event.date|format_datetime }} -> "December 24, 2025 at 03:30 PM EST"
-    """
-    if dt is None:
-        return 'N/A'
-
-    # Handle string input (ISO format)
-    if isinstance(dt, str):
-        try:
-            dt = datetime.fromisoformat(dt)
-        except:
-            return dt
-
-    # Ensure timezone awareness
-    if dt.tzinfo is None:
-        dt = EST.localize(dt)
-
-    return dt.strftime(format) + ' EST'
-
-
-@app.template_filter('to_est')
-def to_est_filter(dt):
-    """
-    Convert datetime to EST timezone for template use.
-
-    Args:
-        dt (datetime): Datetime to convert
-
-    Returns:
-        datetime: EST timezone-aware datetime, or None if input is None
-    """
-    if dt is None:
-        return None
-    if dt.tzinfo is None:
-        return EST.localize(dt)
-    return dt.astimezone(EST)
-
-
 # ============================================
 # ROLE-BASED SECURITY SYSTEM
 # ============================================
-def login_required(f):
+def login_required(view_function):
     """
     Decorator to ensure user is authenticated before accessing a route.
-
     Also updates the user's last_seen timestamp on each request to track
     active users in the system.
-
-    Args:
-        f: View function to wrap
-
-    Returns:
-        Decorated function that checks authentication
 
     Example:
         @app.route('/dashboard')
@@ -234,7 +126,7 @@ def login_required(f):
             return render_template('dashboard.html')
     """
 
-    @wraps(f)
+    @wraps(view_function)
     def decorated_function(*args, **kwargs):
         if 'loggedin' not in session:
             flash('Please log in to access this page.', 'error')
@@ -244,7 +136,7 @@ def login_required(f):
         if 'id' in session:
             update_user_last_seen(session['id'])
 
-        return f(*args, **kwargs)
+        return view_function(*args, **kwargs)
 
     return decorated_function
 
@@ -252,7 +144,6 @@ def login_required(f):
 def roles_required(*required_roles):
     """
     Flexible decorator to check if user has ANY of the specified roles.
-
     Checks against the permissions table in the database. User must have
     at least one of the specified roles to access the route.
 
@@ -353,49 +244,16 @@ def get_user_permissions(user_id):
         cursor.close()
 
 
-def has_role(role_name):
-    """
-    Check if currently logged-in user has a specific role.
-
-    Utility function for checking roles in templates or view functions.
-
-    Args:
-        role_name (str): Role to check ('admin', 'gm', 'player', 'developer')
-
-    Returns:
-        bool: True if user has the role, False otherwise
-
-    Example:
-        if has_role('admin'):
-            # Show admin controls
-    """
-    if 'loggedin' not in session:
-        return False
-
-    permissions = get_user_permissions(session['id'])
-    role_map = {
-        'admin': permissions['is_admin'],
-        'gm': permissions['is_gm'],
-        'player': permissions['is_player'],
-        'developer': permissions['is_developer']
-    }
-
-    return role_map.get(role_name, 0) == 1
-
-
 # ============================================
 # USER ACTIVITY TRACKING
 # ============================================
-def update_user_last_seen(user_id):
+def update_user_last_seen(user_id: int) -> None:
     """
     Update user's last_seen timestamp and mark them as active.
-
     Called automatically on each authenticated request to maintain
     accurate active user tracking for the admin panel.
-
-    Args:
-        user_id (int): User ID to update
     """
+
     try:
         cursor = mysql.connection.cursor()
         cursor.execute("""
@@ -412,7 +270,6 @@ def update_user_last_seen(user_id):
 def cleanup_inactive_users():
     """
     Mark users as inactive if they haven't been seen in 15 minutes.
-
     This function should be called periodically (e.g., before displaying
     the admin panel) to maintain accurate active user counts. Also cleans
     up old suspension invalidations.
@@ -437,19 +294,11 @@ def cleanup_inactive_users():
 # ============================================
 # EMAIL VERIFICATION
 # ============================================
-def send_verify_email(email, token):
+def send_verify_email(email: str, token: str) -> None:
     """
     Send verification email to newly registered users.
-
     Constructs and sends an email containing a verification link that
     expires after 24 hours.
-
-    Args:
-        email (str): Recipient email address
-        token (str): Unique verification token
-
-    Raises:
-        Exception: If email sending fails
     """
     verify_url = url_for('verify_email', token=token, _external=True)
     msg = Message('Verify Your Stockton University Email Account', recipients=[email])
@@ -462,21 +311,17 @@ This link will expire after 24 hours.
 
 If you did not create this account, please ignore this email.
 
-- 5 Brain Cells: SU Esports MGMT Tool Team.
+- EsMT Team.
 '''
     mail.send(msg)
 
 
 @app.route('/verify/<token>')
-def verify_email(token):
+def verify_email(token: str):
     """
     Process email verification when user clicks verification link.
-
     Verifies the token is valid and not expired, then marks the user's
     account as verified in the database.
-
-    Args:
-        token (str): Verification token from URL
 
     Returns:
         Redirect to login page on success, or registration page on failure
@@ -515,7 +360,6 @@ def verify_email(token):
 def index():
     """
     Landing page with calendar view.
-
     Checks for "remember me" cookie and auto-logs user in if valid.
     Verifies user is not suspended before allowing auto-login.
 
@@ -541,7 +385,7 @@ def index():
                     session['loggedin'] = True
                     session['id'] = account['id']
                     session['username'] = account['username']
-                    session['login_time'] = get_current_time().isoformat()
+                    session['login_time'] = datetime.now(EST).isoformat()
 
                     # Update activity tracking
                     cursor.execute("""
@@ -562,13 +406,6 @@ def index():
 def login():
     """
     Handle user login with optional "remember me" functionality.
-
-    Features:
-    - bcrypt password verification
-    - Email verification requirement
-    - Suspension checking
-    - Activity tracking
-    - Secure "remember me" tokens
 
     POST Parameters:
         username (str): User's username
@@ -606,7 +443,7 @@ def login():
                             'If mail does not appear, please check your spam!'
                         )
                         verification_token = secrets.token_urlsafe(32)
-                        token_expiry = get_current_time() + timedelta(hours=24)
+                        token_expiry = datetime.now(EST) + timedelta(hours=24)
 
                         cursor.execute(
                             'UPDATE verified_users SET verification_token = %s, token_expiry = %s WHERE userid = %s',
@@ -644,7 +481,7 @@ def login():
                             session['loggedin'] = True
                             session['id'] = account['id']
                             session['username'] = account['username']
-                            session['login_time'] = get_current_time().isoformat()
+                            session['login_time'] = datetime.now(EST).isoformat()
 
                             # Update activity tracking
                             try:
@@ -706,7 +543,6 @@ def login():
 def logout():
     """
     Handle user logout and cleanup.
-
     Marks user as inactive, clears remember token, and destroys session.
     Uses POST method to prevent CSRF attacks.
 
@@ -750,21 +586,6 @@ def logout():
 def register():
     """
     Handle new user registration with email verification.
-
-    Validation includes:
-    - Unique username
-    - Valid email format
-    - Stockton email domain requirement
-    - Password confirmation match
-    - All required fields filled
-
-    POST Parameters:
-        firstname (str): User's first name
-        lastname (str): User's last name
-        username (str): Desired username (alphanumeric only)
-        password (str): Desired password
-        passwordconfirm (str): Password confirmation
-        email (str): Stockton email address
 
     Returns:
         Rendered register.html with validation messages
@@ -844,7 +665,7 @@ def register():
 
                 # Generate verification token
                 verification_token = secrets.token_urlsafe(32)
-                token_expiry = get_current_time() + timedelta(hours=24)
+                token_expiry = datetime.now(EST) + timedelta(hours=24)
 
                 cursor.execute(
                     'UPDATE verified_users SET verification_token = %s, token_expiry = %s WHERE userid = %s',
@@ -880,6 +701,7 @@ from EsportsManagementTool import vods
 from EsportsManagementTool import seasons
 from EsportsManagementTool import leagues
 from EsportsManagementTool import statistics
+
 # ================================
 # REGISTER MODULE ROUTES
 # ==================================
@@ -918,15 +740,6 @@ tournament_notification_scheduler.initialize_tournament_scheduler(app, mysql, ma
 def get_calendar_events():
     """
     Fetch events for calendar view via AJAX with visibility filtering.
-
-    Returns events based on:
-    - User login status (public events only if not logged in)
-    - User permissions (events they created or have access to)
-    - Event visibility settings (all_members, team, game_players, game_community)
-
-    Query Parameters:
-        year (int): Year to fetch events for
-        month (int): Month to fetch events for (1-12)
 
     Returns:
         JSON: Dictionary of events grouped by date string (YYYY-MM-DD)
@@ -1062,31 +875,6 @@ def get_calendar_events():
         cursor.close()
 
 
-@app.route('/api/season/<int:season_id>/gm-game-mappings')
-@login_required
-def get_season_gm_mappings(season_id):
-    """
-    Get historical GM-game mappings for a specific season
-    Used to display correct GM badges for past season teams
-    """
-    try:
-        from EsportsManagementTool import season_roles
-
-        mappings = season_roles.get_gm_game_mappings_for_season(mysql, season_id)
-
-        return jsonify({
-            'success': True,
-            'mappings': mappings,
-            'season_id': season_id
-        })
-    except Exception as e:
-        print(f"Error getting season GM mappings: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': 'Failed to load season GM mappings'
-        }), 500
-
-
 @app.route('/api/events/<int:event_id>')
 def get_event_details(event_id):
     """
@@ -1162,15 +950,15 @@ def get_event_details(event_id):
 # EXPORT TIMEZONE FUNCTIONS
 # =====================================
 # Make timezone functions available to other modules
-app.get_current_time = get_current_time
+app.get_current_time = datetime.now(EST)
 app.localize_datetime = localize_datetime
 app.EST = EST
 
 # =====================================
 # DEBUG ROUTE LISTING
 # =====================================
-if __name__ != '__main__':
-    print("\n=== REGISTERED ROUTES ===")
-    for rule in app.url_map.iter_rules():
-        print(f"{rule.endpoint}: {rule.rule}")
-    print("=========================\n")
+# if __name__ != '__main__':
+#     print("\n=== REGISTERED ROUTES ===")
+#     for rule in app.url_map.iter_rules():
+#         print(f"{rule.endpoint}: {rule.rule}")
+#     print("=========================\n")

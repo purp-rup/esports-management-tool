@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import MySQLdb.cursors
 from dateutil.relativedelta import relativedelta
 import calendar
-from EsportsManagementTool import get_current_time, localize_datetime, EST
+from EsportsManagementTool import EST
 from EsportsManagementTool.events import get_season_for_event_date
 
 """
@@ -35,7 +35,7 @@ def can_delete_schedule(cursor, schedule_id, user_id, is_developer):
         tuple: (can_delete: bool, reason: str)
     """
     from datetime import timedelta
-    from EsportsManagementTool import get_current_time, localize_datetime
+    from EsportsManagementTool import localize_datetime
 
     # Developers can always delete
     if is_developer:
@@ -64,7 +64,7 @@ def can_delete_schedule(cursor, schedule_id, user_id, is_developer):
         return (False, "Schedule creation time not recorded")
 
     created_at = schedule['created_at']
-    current_time = get_current_time()
+    current_time = datetime.now(EST)
 
     # Ensure both datetimes are timezone-aware for comparison
     if created_at.tzinfo is None:
@@ -92,7 +92,7 @@ def get_schedule_deletion_time_remaining(created_at):
         str: Human-readable time remaining or None if expired
     """
     from datetime import timedelta
-    from EsportsManagementTool import get_current_time, localize_datetime
+    from EsportsManagementTool import localize_datetime
 
     if not created_at:
         return None
@@ -104,7 +104,7 @@ def get_schedule_deletion_time_remaining(created_at):
     if created_at.tzinfo is None:
         created_at = localize_datetime(created_at)
 
-    now = get_current_time()
+    now = datetime.now(EST)
     deletion_deadline = created_at + timedelta(hours=24)
 
     if now >= deletion_deadline:
@@ -253,7 +253,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
 
                 # Only store team_id for team-specific schedules
                 schedule_team_id = data['team_id'] if data['visibility'] == 'team' else None
-                created_at = get_current_time()
+                created_at = datetime.now(EST)
 
                 # Check if scheduled_events table has league_id column
                 # If not, you need to add it with: ALTER TABLE scheduled_events ADD COLUMN league_id INT NULL;
@@ -886,7 +886,7 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
             return 0
 
         # Original recurring logic for Weekly, Biweekly, Monthly
-        today = get_current_time().date()
+        today = datetime.now(EST).date()
         last_generated = schedule['last_generated'] or today
         start_date = max(today, last_generated)
 
