@@ -13,7 +13,6 @@ from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
 from datetime import datetime, timedelta
 from functools import wraps
-import calendar as cal
 import MySQLdb.cursors
 import re
 import bcrypt
@@ -77,7 +76,6 @@ mail = Mail(app)
 # =========================================
 # Eastern Time Zone (handles DST automatically)
 EST = pytz.timezone('America/New_York')
-
 
 def localize_datetime(dt: datetime) -> datetime:
     # Convert naive datetime to EST or convert aware datetime to EST.
@@ -153,14 +151,7 @@ def roles_required(*required_roles):
 
     Returns:
         Decorator function
-
-    Example:
-        @app.route('/admin')
-        @roles_required('admin', 'developer')
-        def admin_panel():
-            return render_template('admin.html')
     """
-
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -215,10 +206,6 @@ def get_user_permissions(user_id):
 
     Args:
         user_id (int): User ID to look up
-
-    Returns:
-        dict: Permission flags (is_admin, is_gm, is_player, is_developer)
-              Returns all flags as 0 if user has no permission record
     """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -266,13 +253,10 @@ def update_user_last_seen(user_id: int) -> None:
     except Exception as e:
         print(f"Error updating last_seen: {str(e)}")
 
-
 def cleanup_inactive_users():
     """
     Mark users as inactive if they haven't been seen in 15 minutes.
-    This function should be called periodically (e.g., before displaying
-    the admin panel) to maintain accurate active user counts. Also cleans
-    up old suspension invalidations.
+    Also cleans up old suspension invalidations.
     """
     # Clean up expired suspensions first
     EsportsManagementTool.suspensions.cleanup_old_invalidations(mysql)
@@ -887,11 +871,6 @@ def get_event_details(event_id):
 
     Returns:
         JSON: Event details including title, description, times, location
-
-    Status Codes:
-        200: Success
-        404: Event not found
-        500: Server error
     """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
