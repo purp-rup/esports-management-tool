@@ -1,3 +1,6 @@
+"""
+This file provides an example for testing the EsMT application.
+"""
 from conftest import *
 from EsportsManagementTool import app as application
 
