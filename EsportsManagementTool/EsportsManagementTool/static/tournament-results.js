@@ -419,18 +419,6 @@ function showMessage(type, message) {
     }
 }
 
-/**
- * Format date for display
- */
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    });
-}
-
 // Add fadeOut animation
 const fadeStyle = document.createElement('style');
 fadeStyle.textContent = `
@@ -450,7 +438,6 @@ document.head.appendChild(fadeStyle);
 // ============================================
 // EXPORT FUNCTIONS TO GLOBAL SCOPE
 // ============================================
-
 window.checkPendingResults = checkPendingResults;
 window.openRecordResultsModal = openRecordResultsModal;
 window.closeRecordResultsModal = closeRecordResultsModal;

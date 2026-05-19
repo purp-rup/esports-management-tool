@@ -83,7 +83,6 @@ def localize_datetime(dt: datetime) -> datetime:
         return EST.localize(dt)
     return dt.astimezone(EST)
 
-
 @app.before_request
 def set_mysql_timezone():
     """
@@ -724,23 +723,6 @@ tournament_notification_scheduler.initialize_tournament_scheduler(app, mysql, ma
 def get_calendar_events():
     """
     Fetch events for calendar view via AJAX with visibility filtering.
-
-    Returns:
-        JSON: Dictionary of events grouped by date string (YYYY-MM-DD)
-
-    Example Response:
-        {
-            "2025-12-25": [
-                {
-                    "id": 1,
-                    "title": "Team Practice",
-                    "time": "3:00 PM",
-                    "description": "Practice session",
-                    "event_type": "practice",
-                    "date": "2025-12-25"
-                }
-            ]
-        }
     """
     year = request.args.get('year', type=int)
     month = request.args.get('month', type=int)
@@ -863,14 +845,7 @@ def get_calendar_events():
 def get_event_details(event_id):
     """
     Fetch detailed information for a specific event.
-
     Used by the event details modal on the calendar.
-
-    Args:
-        event_id (int): Event ID to fetch
-
-    Returns:
-        JSON: Event details including title, description, times, location
     """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 

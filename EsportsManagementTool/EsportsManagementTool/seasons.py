@@ -1,8 +1,7 @@
 """
 Seasons Management Module
-Handles CRUD operations for seasons in the Esports Management Tool
+Handles CRUD operations for seasons
 """
-
 from flask import jsonify, request, session
 import MySQLdb.cursors
 from datetime import datetime, date
@@ -10,148 +9,18 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 import os
 
-
-# =====================================
-# Automatic End Season System
-# ======================================
-def check_and_end_expired_seasons(mysql, app):
-    """
-    Background task to automatically end seasons that have passed their end date.
-    Performs all end-season procedures:
-    1. Takes final snapshot of GM game assignments
-    2. Removes player roles from all users
-    3. Deactivates the season
-    """
-    print(f"[{datetime.now()}] Starting season expiration check...")
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    try:
-        # Find active seasons that have passed their end date
-        cursor.execute("""
-            SELECT season_id, season_name, end_date
-            FROM seasons
-            WHERE is_active = 1 AND end_date < %s
-        """, (date.today(),))
-
-        expired_seasons = cursor.fetchall()
-
-        if not expired_seasons:
-            print(f"[{datetime.now()}] No expired seasons found")
-            return
-
-        for season in expired_seasons:
-            print(
-                f"[{datetime.now()}] Processing expired season: {season['season_name']} (ID: {season['season_id']})")
-
-            # Take final snapshot of GM game assignments
-            cursor.execute("""
-                SELECT userid, is_gm
-                FROM season_roles
-                WHERE season_id = %s AND is_gm = 1
-            """, (season['season_id'],))
-
-            gms = cursor.fetchall()
-            gm_count = 0
-
-            for gm in gms:
-                user_id = gm['userid']
-                cursor.execute("""
-                    SELECT GameID 
-                    FROM games 
-                    WHERE gm_id = %s 
-                    LIMIT 1
-                """, (user_id,))
-
-                game_result = cursor.fetchone()
-
-                if game_result:
-                    gm_game_id = game_result['GameID']
-                    cursor.execute("""
-                        UPDATE season_roles
-                        SET gm_game_id = %s
-                        WHERE userid = %s AND season_id = %s
-                    """, (gm_game_id, user_id, season['season_id']))
-                    gm_count += 1
-
-            print(f"[{datetime.now()}] Snapshotted {gm_count} GM game assignments")
-
-            # Remove Player role from ALL users
-            cursor.execute("""
-                UPDATE permissions
-                SET is_player = 0
-            """)
-
-            players_removed = cursor.rowcount
-            print(f"[{datetime.now()}] Removed player role from {players_removed} users")
-
-            # Deactivate the season
-            cursor.execute("""
-                UPDATE seasons
-                SET is_active = 0
-                WHERE season_id = %s
-            """, (season['season_id'],))
-
-            print(
-                f"[{datetime.now()}] ✅ Auto-ended expired season: {season['season_name']} (ended {season['end_date']})")
-
-        mysql.connection.commit()
-        print(f"[{datetime.now()}] Season expiration check completed - {len(expired_seasons)} season(s) ended")
-
-    except Exception as e:
-        mysql.connection.rollback()
-        print(f"[{datetime.now()}] ❌ Error checking/ending expired seasons: {str(e)}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        cursor.close()
-
-# ============================
-# SCHEDULER - Module level
-# ============================
-def initialize_season_scheduler(app, mysql):
-    """Initialize the season expiration scheduler"""
-
-    def scheduled_season_check_wrapper():
-        """Wrapper ensures the scheduler runs safely within the Flask app context"""
-        print(f"[{datetime.now()}] ===== SEASON EXPIRATION SCHEDULER TRIGGERED =====")
-        with app.app_context():
-            try:
-                check_and_end_expired_seasons(mysql, app)
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                print(f"[{datetime.now()}] Error in season expiration scheduler: {str(e)}")
-
-    # Only start scheduler in the main process
-    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
-        season_scheduler = BackgroundScheduler()
-
-        season_scheduler.add_job(
-            func=scheduled_season_check_wrapper,
-            trigger="cron",
-            hour=0,
-            minute=5,
-            id="season_expiration_job",
-            replace_existing=True
-        )
-
-        season_scheduler.start()
-        print(f"[{datetime.now()}] Season expiration scheduler started - checking daily at 12:05 AM")
-
-        atexit.register(lambda: season_scheduler.shutdown(wait=False))
-
 ## =================================
 ## REGISTER SEASONS FUNCTIONS
 ## =================================
 def register_seasons_routes(app, mysql, login_required, roles_required, get_user_permissions):
-    """Register all season-related routes"""
-
+    """
+    Register all season-related routes
+    Grouped together due to accepting the same parameters
+    """
     @app.route('/api/seasons/current', methods=['GET'])
     @login_required
     def get_current_season():
         """Get the currently active season"""
-
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         try:
@@ -236,7 +105,7 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
     def create_season():
         """
         Create a new season
-        NOW INCLUDES: Automatic reassignment of events that fall within the new season's date range
+        Automatically reassigns events that fall within the new season's date range
         """
         data = request.get_json()
         season_name = data.get('season_name')
@@ -292,8 +161,6 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
             from EsportsManagementTool import season_roles
             users_snapshotted = season_roles.snapshot_all_permissions_to_season(mysql, new_season_id)
 
-            print(f"Snapshotted {users_snapshotted} users' permissions to season {new_season_id}")
-
             # Reassign events that fall within this new season's date range
             cursor.execute("""
                 UPDATE generalevents
@@ -303,9 +170,6 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
 
             reassigned_events = cursor.rowcount
             mysql.connection.commit()
-
-            if reassigned_events > 0:
-                print(f"✅ Reassigned {reassigned_events} events to new season '{season_name}'")
 
             return jsonify({
                 'success': True,
@@ -330,7 +194,7 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
     def update_season(season_id):
         """
         Update an existing season
-        NOW INCLUDES: Reassign events if end date changes to include new dates
+        Reassigns events if end date changes to include new dates
         """
         data = request.get_json()
         season_name = data.get('season_name')
@@ -394,9 +258,6 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
             reassigned_events = cursor.rowcount
             mysql.connection.commit()
 
-            if reassigned_events > 0:
-                print(f"✅ Reassigned {reassigned_events} events to season '{season_name}' after date update")
-
             return jsonify({
                 'success': True,
                 'message': f'Season "{season_name}" updated successfully. {reassigned_events} events reassigned.',
@@ -418,10 +279,8 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
     @roles_required('admin', 'developer')
     def end_season(season_id):
         """
-        End the current season
-        NOW INCLUDES:
-        - Final snapshot of GM game assignments before ending
-        - Removal of Player role from all users (they're no longer on teams)
+        Manually end the current season once a user selects the button to do so
+        Performs a check and uses season_end_procedure
         """
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -441,55 +300,7 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
                     'message': 'Active season not found'
                 }), 404
 
-            # IMPORTANT: Take a final snapshot of all GM game assignments
-            # This preserves which games each GM managed at the end of the season
-            cursor.execute("""
-                SELECT userid, is_gm
-                FROM season_roles
-                WHERE season_id = %s AND is_gm = 1
-            """, (season_id,))
-
-            gms = cursor.fetchall()
-
-            for gm in gms:
-                user_id = gm['userid']
-
-                # Get current game assignment from games table
-                cursor.execute("""
-                    SELECT GameID 
-                    FROM games 
-                    WHERE gm_id = %s 
-                    LIMIT 1
-                """, (user_id,))
-
-                game_result = cursor.fetchone()
-
-                if game_result:
-                    gm_game_id = game_result['GameID']
-
-                    # Update season_roles with the game assignment
-                    cursor.execute("""
-                        UPDATE season_roles
-                        SET gm_game_id = %s
-                        WHERE userid = %s AND season_id = %s
-                    """, (gm_game_id, user_id, season_id))
-
-            # Remove Player role from ALL users since season is ending
-            # Teams are dissolved, so no one is a "player" anymore
-            cursor.execute("""
-                UPDATE permissions
-                SET is_player = 0
-            """)
-
-            print(f"Removed Player role from all users as season {season['season_name']} ended")
-
-            # Deactivate season
-            cursor.execute("""
-                UPDATE seasons
-                SET is_active = 0
-                WHERE season_id = %s
-            """, (season_id,))
-
+            season_end_procedure(cursor, season_id)
             mysql.connection.commit()
 
             return jsonify({
@@ -506,3 +317,124 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
             }), 500
         finally:
             cursor.close()
+
+# =====================================
+# Automatic End Season System
+# ======================================
+def automatic_end_season(mysql, app):
+    """
+    Background task to automatically end seasons that have passed their end date.
+    Performs all end-season procedures:
+    """
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        # Find active seasons that have passed their end date
+        cursor.execute("""
+            SELECT season_id, season_name, end_date
+            FROM seasons
+            WHERE is_active = 1 AND end_date < %s
+        """, (date.today(),))
+
+        expired_seasons = cursor.fetchall()
+
+        if not expired_seasons:
+            print(f"[{datetime.now()}] No expired seasons found")
+            return
+
+        for season in expired_seasons:
+            season_end_procedure(cursor, season['season_id'])
+
+        mysql.connection.commit()
+        print(f"[{datetime.now()}] Season expiration check completed - {len(expired_seasons)} season(s) ended")
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"[{datetime.now()}] Error checking/ending expired seasons: {str(e)}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        cursor.close()
+
+# ============================
+# SCHEDULER - Module level
+# ============================
+def initialize_season_scheduler(app, mysql):
+    """Initialize the season expiration scheduler"""
+
+    def scheduled_season_check_wrapper():
+        """Wrapper ensures the scheduler runs safely within the Flask app context"""
+        print(f"[{datetime.now()}] ===== SEASON EXPIRATION SCHEDULER TRIGGERED =====")
+        with app.app_context():
+            try:
+                automatic_end_season(mysql, app)
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                print(f"[{datetime.now()}] Error in season expiration scheduler: {str(e)}")
+
+    # Only start scheduler in the main process
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+        season_scheduler = BackgroundScheduler()
+
+        season_scheduler.add_job(
+            func=scheduled_season_check_wrapper,
+            trigger="cron",
+            hour=0,
+            minute=5,
+            id="season_expiration_job",
+            replace_existing=True
+        )
+
+        season_scheduler.start()
+        print(f"[{datetime.now()}] Season expiration scheduler started - checks daily at 12:05 AM")
+
+        atexit.register(lambda: season_scheduler.shutdown(wait=False))
+        
+# ==============================
+# PRIMARY END_SEASON SYSTEM
+# ==============================
+def season_end_procedure(cursor, season_id):
+    """
+    Core season-ending logic. Reusable by both the manual endpoint
+    and the automatic expiration scheduler.
+    """
+    
+    # 1. Snapshot GM game assignments
+    cursor.execute("""
+        SELECT userid
+        FROM season_roles
+        WHERE season_id = %s AND is_gm = 1
+    """, (season_id,))
+
+    gms = cursor.fetchall()
+
+    for gm in gms:
+        user_id = gm['userid']
+        cursor.execute("""
+            SELECT GameID
+            FROM games
+            WHERE gm_id = %s
+            LIMIT 1
+        """, (user_id,))
+
+        game_result = cursor.fetchone()
+        if game_result:
+            cursor.execute("""
+                UPDATE season_roles
+                SET gm_game_id = %s
+                WHERE userid = %s AND season_id = %s
+            """, (game_result['GameID'], user_id, season_id))
+
+    # 2. Remove Player role from all users
+    cursor.execute("""
+        UPDATE permissions "
+        SET is_player = 0
+    """)
+
+    # 3. Deactivate the season
+    cursor.execute("""
+        UPDATE seasons
+        SET is_active = 0
+        WHERE season_id = %s
+    """, (season_id,))
