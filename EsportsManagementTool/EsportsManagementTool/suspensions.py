@@ -10,7 +10,7 @@ Handles all suspension-related functionality including:
 from flask import jsonify, session, redirect, url_for, flash, request
 from datetime import datetime, timedelta
 import MySQLdb.cursors
-from EsportsManagementTool import get_current_time, localize_datetime, EST
+from EsportsManagementTool import localize_datetime, EST
 
 
 """
@@ -44,7 +44,7 @@ def check_user_suspension(mysql, user_id):
         if suspension:
             # Make suspended_until timezone-aware before comparison
             suspended_until = localize_datetime(suspension['suspended_until'])  # ✅ ADD THIS
-            remaining = suspended_until - get_current_time()  # ✅ CHANGE THIS
+            remaining = suspended_until - datetime.now(EST)  # ✅ CHANGE THIS
             days = remaining.days
             hours = remaining.seconds // 3600
 
@@ -82,7 +82,7 @@ def check_session_validity(mysql):
                 AND invalidated_at > %s
                 ORDER BY invalidated_at DESC 
                 LIMIT 1
-            """, (session['id'], session.get('login_time', get_current_time())))
+            """, (session['id'], session.get('login_time', datetime.now(EST))))
 
             invalidation = cursor.fetchone()
 
@@ -161,7 +161,7 @@ def suspend_user_route(mysql):
 
         # Calculate suspension end time
         total_hours = (duration_days * 24) + duration_hours
-        suspended_until = get_current_time() + timedelta(hours=total_hours)
+        suspended_until = datetime.now(EST) + timedelta(hours=total_hours)
 
         # Deactivate any existing active suspensions for this user
         cursor.execute("""
@@ -277,7 +277,7 @@ def get_suspension_status_route(mysql, user_id):
             suspended_at = localize_datetime(suspension['suspended_at'])  # ✅ ADD THIS
 
             # Calculate remaining time
-            remaining = suspended_until - get_current_time()  # ✅ CHANGE THIS
+            remaining = suspended_until - datetime.now(EST)  # ✅ CHANGE THIS
             days = remaining.days
             hours = remaining.seconds // 3600
 

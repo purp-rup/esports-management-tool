@@ -1,0 +1,194 @@
+/* ============================================
+   TOURNAMENT RESULTS NOTIFICATION BANNER
+   Prominent alert for GMs to record results
+   ============================================ */
+
+.tournament-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    color: white;
+    padding: 1rem 2rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    animation: bannerSlideDown 0.5s ease-out;
+}
+
+@keyframes bannerSlideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.tournament-banner-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+}
+
+.tournament-banner-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+}
+
+.tournament-banner-icon {
+    font-size: 2.5rem;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+}
+
+.tournament-banner-text h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.tournament-banner-text p {
+    margin: 0.25rem 0 0;
+    font-size: 0.9375rem;
+    opacity: 0.95;
+}
+
+.tournament-banner-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.tournament-banner-btn {
+    padding: 0.75rem 2rem;
+    background: white;
+    color: #ff6b6b;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: flashButton 2s ease-in-out infinite;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+@keyframes flashButton {
+    0%, 100% {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4);
+    }
+}
+
+.tournament-banner-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    background: #fff;
+}
+
+.tournament-banner-close {
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tournament-banner-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: white;
+}
+
+/* Urgent state - last 3 days */
+.tournament-banner.urgent {
+    background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+    animation: bannerUrgentPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes bannerUrgentPulse {
+    0%, 100% {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        box-shadow: 0 4px 30px rgba(231, 76, 60, 0.6);
+    }
+}
+
+/* Push down main content when banner is visible */
+body.has-tournament-banner {
+    padding-top: 100px;
+}
+
+/* Responsive design */
+@media (max-width: 968px) {
+    .tournament-banner {
+        padding: 1rem;
+    }
+    
+    .tournament-banner-content {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .tournament-banner-left {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .tournament-banner-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .tournament-banner-btn,
+    .tournament-banner-close {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    body.has-tournament-banner {
+        padding-top: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .tournament-banner-text h3 {
+        font-size: 1rem;
+    }
+    
+    .tournament-banner-text p {
+        font-size: 0.875rem;
+    }
+    
+    .tournament-banner-icon {
+        font-size: 2rem;
+    }
+}

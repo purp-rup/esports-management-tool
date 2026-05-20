@@ -1,7 +1,7 @@
-from EsportsManagementTool import app, mysql, login_required, roles_required, get_user_permissions, has_role
+from EsportsManagementTool import app, mysql, login_required, roles_required, get_user_permissions
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import MySQLdb.cursors
-from EsportsManagementTool import get_current_time, localize_datetime, EST
+from EsportsManagementTool import EST
 from EsportsManagementTool import season_roles
 
 def idgen(abbreviation, existing_ids):
@@ -456,7 +456,7 @@ def add_members_to_team(team_id):
                 # Add to team_members
                 cursor.execute(
                     'INSERT INTO team_members (team_id, user_id, joined_at) VALUES (%s, %s, %s)',
-                    (team_id, member_id, get_current_time())
+                    (team_id, member_id, datetime.now(EST))
                 )
                 added_count += 1
 
@@ -1142,7 +1142,7 @@ def get_next_scheduled_event(team_id):
 
         # Get current date and time for proper filtering
         from datetime import datetime
-        now = get_current_time()
+        now = datetime.now(EST)
         current_date = now.date()
         current_time = now.time()
 
@@ -1236,7 +1236,7 @@ def get_game_next_scheduled_event(game_id):
 
         # Get current date and time for proper filtering
         from datetime import datetime
-        now = get_current_time()
+        now = datetime.now(EST)
         current_date = now.date()
         current_time = now.time()
 

@@ -22,6 +22,8 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='seasons.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='leagues.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='manage-communities.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='tournament-banner.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='tournament-modal.css') }}">
 
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
@@ -919,6 +921,18 @@
                                     <option value="Misc">Misc</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div class="form-group" id="eventLeagueFieldGroup" style="display: none;">
+                            <label for="eventLeagueDropdown">League (Optional)</label>
+                            <select id="eventLeagueDropdown" 
+                                    name="league_id" 
+                                    class="game-dropdown-single">
+                                <option value="">Select league</option>
+                            </select>
+                            <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                                Select the league this match is part of
+                            </small>
                         </div>
 
                         <!-- Full-width game selection with tags -->
@@ -2397,6 +2411,7 @@
 <script src="{{ url_for('static', filename='seasons.js') }}"></script>
 <script src="{{ url_for('static', filename='leagues.js') }}"></script>
 <script src="{{ url_for('static', filename='manage-communities.js') }}"></script>
+<script src="{{ url_for('static', filename='tournament-results.js') }}"></script>
 <!-- Must load second-to-last -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <!-- Must load last -->

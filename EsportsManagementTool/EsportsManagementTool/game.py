@@ -1,10 +1,10 @@
-from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, has_role, mysql
+from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, mysql
 from flask import request, redirect, url_for, session, flash, jsonify
 import MySQLdb.cursors
 from datetime import datetime, timedelta
 from flask import send_file
 from io import BytesIO
-from EsportsManagementTool import get_current_time, localize_datetime, EST
+from EsportsManagementTool import EST
 
 ## ==============================================
 ## THE FOLLOWING WAS PRODUCED ALONGSIDE CLAUDEAI
@@ -564,7 +564,7 @@ def get_next_game_community_event(game_id):
 
         try:
             # Get current date/time
-            now = get_current_time()
+            now = datetime.now(EST)
             current_date = now.date()
 
             print(f"\n=== Loading next event for game {game_id} ===")
@@ -731,7 +731,7 @@ def join_community(game_id):
             except:
                 pass
 
-            cursor.execute('INSERT INTO in_communities (user_id, game_id, joined_at) VALUES (%s, %s, %s)', (session['id'], game_id, get_current_time()))
+            cursor.execute('INSERT INTO in_communities (user_id, game_id, joined_at) VALUES (%s, %s, %s)', (session['id'], game_id, datetime.now(EST)))
             mysql.connection.commit()
 
             return jsonify({'success': True, 'message': f'Successfully joined {game_title} community!'}), 200
@@ -940,7 +940,7 @@ def assign_game_manager(game_id):
                 # User is NOT in the community, so add them first
                 cursor.execute(
                     "INSERT INTO in_communities (user_id, game_id, joined_at) VALUES (%s, %s, %s)",
-                    (gm_user_id, game_id, get_current_time())
+                    (gm_user_id, game_id, datetime.now(EST))
                 )
 
             # Now assign them as GM

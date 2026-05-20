@@ -4,7 +4,7 @@ Needs doing:
             Check dropdowns between events.js and game.js
 
             Test season stuff with no active season.
-
+record tournament results modal
 
 
 

@@ -1,9 +1,9 @@
 import os
 
-from EsportsManagementTool import app, mysql, login_required, roles_required, get_user_permissions, has_role
+from EsportsManagementTool import app, mysql, login_required, roles_required, get_user_permissions
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import MySQLdb.cursors
-from EsportsManagementTool import get_current_time, localize_datetime, EST
+from EsportsManagementTool import localize_datetime, EST
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
 load_dotenv()
@@ -313,7 +313,7 @@ def add_vod_comment(vod_id):
         INSERT INTO vod_comments
         (vod_id, user_id, comment_text, timestamp_seconds, created_at)
         VALUES (%s, %s, %s, %s, %s)
-        ''', (vod_id, user_id, comment_text, timestamp_seconds, get_current_time()))
+        ''', (vod_id, user_id, comment_text, timestamp_seconds, datetime.now(EST)))
 
     mysql.connection.commit()
     comment_id = cursor.lastrowid

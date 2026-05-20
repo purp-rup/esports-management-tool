@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
-from EsportsManagementTool import app, get_current_time, localize_datetime, EST
+from EsportsManagementTool import app, EST
 import os
 
 mysql = MySQL()
