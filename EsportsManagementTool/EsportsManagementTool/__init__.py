@@ -92,6 +92,9 @@ def set_mysql_timezone():
     are consistent with application timezone. Handles DST transitions
     automatically.
     """
+    if app.config.get("TESTING"):
+        # During testing, avoid connection to DB
+        return
     if mysql.connection:
         cursor = mysql.connection.cursor()
         try:
@@ -145,7 +148,7 @@ def roles_required(*required_roles):
     at least one of the specified roles to access the route.
 
     Args:
-        *required_roles: Variable number of role names ('admin', 'gm', 
+        *required_roles: Variable number of role names ('admin', 'gm',
                         'player', 'developer')
 
     Returns:
