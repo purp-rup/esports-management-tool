@@ -1944,7 +1944,7 @@
                         Only past matches are shown. Future matches cannot have results recorded yet.
                     </small>
                 </div>
-
+                
                 <!-- Result Selection -->
                 <div class="form-group">
                     <label>Match Result *</label>
@@ -1965,6 +1965,23 @@
                             <span class="result-option-label">LOSS</span>
                         </label>
                     </div>
+                </div>
+                
+                <!-- Playoffs Checkbox -->
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                        <input type="checkbox"
+                            id="matchPlayoffs"
+                            name="is_playoffs"
+                            value="true"
+                            style="width: 1.1rem; height: 1.1rem; accent-color: var(--stockton-blue); cursor: pointer;">
+                        <span>
+                            <strong>Playoffs Match</strong>
+                            <small style="display: block; color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.15rem;">
+                                Check if this match was part of a playoff series
+                            </small>
+                        </span>
+                    </label>
                 </div>
 
                 <!-- Optional Notes -->

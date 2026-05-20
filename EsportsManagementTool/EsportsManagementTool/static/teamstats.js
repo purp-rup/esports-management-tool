@@ -298,6 +298,11 @@ function renderMatchHistory() {
                           match.result === 'loss' ? 'fa-times-circle' :
                           'fa-clock';
         const resultText = match.result ? match.result.toUpperCase() : 'PENDING';
+        const playoffsBadge = match.is_playoffs ? `
+            <span class="match-playoffs-badge" title="Playoffs match">
+                <i class="fas fa-star"></i> Playoffs
+            </span>
+        ` : '';
 
         const leagueBadge = match.league_name ? `
             <span class="match-league-badge" title="League: ${match.league_name}">
@@ -527,7 +532,8 @@ async function submitMatchResult(event) {
         team_id: currentStatsTeamId,
         event_id: document.getElementById('matchEventSelect').value,
         result: document.querySelector('input[name="matchResult"]:checked')?.value,
-        notes: document.getElementById('matchNotes').value
+        notes: document.getElementById('matchNotes').value,
+        is_playoffs: document.getElementById('matchPlayoffs').checked
     };
 
     // ========================================
@@ -659,6 +665,12 @@ async function editMatchResult(eventId) {
     const notesField = document.getElementById('matchNotes');
     if (match.notes && notesField) {
         notesField.value = match.notes;
+    }
+
+    // Set playoffs checkbox if applicable
+    const playoffsCheckbox = document.getElementById('matchPlayoffs');
+    if (playoffsCheckbox) {
+        playoffsCheckbox.checked = match.is_playoffs || false;
     }
 }
 
@@ -819,6 +831,21 @@ async function openMatchDetailsModal(eventId) {
         // Title
         document.getElementById('matchDetailsTitle').textContent = match.name;
 
+
+        const playoffsHTML = match.is_playoffs ? `
+            <div class="match-detail-section">
+                <div class="match-detail-label">
+                    <i class="fas fa-star"></i>
+                    Match Type
+                </div>
+                <div class="match-detail-value">
+                    <span style="color: var(--stockton-blue); font-weight: 600;">
+                        <i class="fas fa-star"></i> Playoffs
+                    </span>
+                </div>
+            </div>
+        ` : '';
+
         // Render ONCE
         contentDiv.innerHTML = `
             <div class="match-details-grid">
@@ -857,6 +884,7 @@ async function openMatchDetailsModal(eventId) {
                 </div>
 
                 ${leagueHTML}
+                ${playoffsHTML}
                 ${notesHTML}
                 ${metadataHTML}
             </div>
