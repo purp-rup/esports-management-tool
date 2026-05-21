@@ -109,34 +109,47 @@ function setupAvatarUploadForm() {
         const formData = new FormData(uploadForm);
 
         try {
-            // Upload avatar to server
-            const response = await fetch('/upload-avatar', {
-                method: 'POST',
-                body: formData
-            });
+        // Use cropped blob if available, otherwise use raw file
+        const fileInput = document.getElementById('avatarFile');
+        const blob = window.avatarCroppedImageBlob;
 
-            const data = await response.json();
+        if (!blob && (!fileInput.files || fileInput.files.length === 0)) {
+            throw new Error('No image selected');
+        }
 
-            if (response.ok && data.success) {
-                // Show success message
-                messageDiv.textContent = data.message;
-                messageDiv.className = 'form-message success';
-                messageDiv.style.display = 'block';
+        const formData = new FormData();
+        if (blob) {
+            formData.append('profile_picture', blob, 'avatar.png');
+        } else {
+            formData.append('profile_picture', fileInput.files[0]);
+        }
 
-                // Reload page after brief delay to show new avatar
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-            } else {
-                throw new Error(data.message || 'Failed to upload avatar');
-            }
+        const response = await fetch('/api/profile/upload-picture', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            messageDiv.textContent = 'Avatar updated successfully!';
+            messageDiv.className = 'form-message success';
+            messageDiv.style.display = 'block';
+
+            // Clear the stored blob
+            window.avatarCroppedImageBlob = null;
+
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            throw new Error(data.error || 'Failed to upload avatar');
+        }
         } catch (error) {
-            // Show error message
             messageDiv.textContent = error.message;
             messageDiv.className = 'form-message error';
             messageDiv.style.display = 'block';
 
-            // Reset button state
             submitBtn.disabled = false;
             submitBtnText.style.display = 'inline';
             submitBtnSpinner.style.display = 'none';
