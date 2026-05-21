@@ -1,5 +1,6 @@
 from EsportsManagementTool import app, mysql, login_required, roles_required, get_user_permissions
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from datetime import datetime
 import MySQLdb.cursors
 from EsportsManagementTool import EST
 from EsportsManagementTool import season_roles
@@ -896,7 +897,7 @@ def get_available_team_views():
                     'priority': 2
                 })
 
-                # Add "Past Teams I Managed" option for GMs
+                # "Past Teams I Managed" option for GMs
                 views.append({
                     'value': 'past_managed',
                     'label': 'Old Managed Teams',
@@ -920,7 +921,7 @@ def get_available_team_views():
                     'priority': 4
                 })
 
-                # Add "My Past Teams" option for players
+                # "My Past Teams" option for players
                 views.append({
                     'value': 'my_past_teams',
                     'label': 'My Old Teams',
@@ -947,8 +948,6 @@ def get_available_team_views():
 Method to retrieve details for a specific team to be displayed to the user.
 @param - team_id is the team whose details are being retrieved.
 """
-
-
 @app.route('/api/teams/<team_id>/details')
 @login_required
 def team_details(team_id):
