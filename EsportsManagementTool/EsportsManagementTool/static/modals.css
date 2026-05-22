@@ -735,12 +735,12 @@
         grid-template-columns: 1fr;
     }
 
-    .card-header {
-        flex-direction: column;
-        gap: 1rem;
-    }
+    /*.card-header {*/
+    /*    flex-direction: column;*/
+    /*    gap: 1rem;*/
+    /*}*/
 
-    .card-header .btn {
-        width: 100%;
-    }
+    /*.card-header .btn {*/
+    /*    width: 100%;*/
+    /*}*/
 }

@@ -11,7 +11,7 @@
 .calendar-container {
     display: grid;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .calendar-main {
@@ -36,7 +36,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     padding: 1rem 1rem;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -45,7 +45,7 @@
 }
 
 .calendar-month-year {
-    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
     text-align: center;
     font-weight: 600;
     color: var(--text-primary);

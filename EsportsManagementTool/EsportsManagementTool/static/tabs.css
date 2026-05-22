@@ -13,7 +13,7 @@
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 0;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     display: flex;
     gap: 0;
     overflow-x: auto;
@@ -105,12 +105,16 @@
    RESPONSIVE DESIGN
    Mobile adaptations
    -------------------------------------------- */
-@media (max-width: 800px) {
-    .tab-navigation {
-        display: none;
+@media (max-width: 1000px) {
+    /*.tab-navigation {*/
+    /*    display: none;*/
+    /*}*/
+
+    .tab-navigation span {
+      display: none;
     }
 
-    .tab-dropdown {
-        display: block;
+    .tab-button {
+      padding: 1rem 1rem;
     }
 }
