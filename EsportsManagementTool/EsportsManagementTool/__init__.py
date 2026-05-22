@@ -198,7 +198,9 @@ def roles_required(*required_roles):
 
     return decorator
 
-
+# =======================================
+# ADDITIONAL HELPERS
+# ========================================
 def get_user_permissions(user_id):
     """
     Fetch all permissions/roles for a specific user.
@@ -228,6 +230,12 @@ def get_user_permissions(user_id):
             }
     finally:
         cursor.close()
+
+def get_team_game_id(cursor, team_id):
+    """Returns gameID for a team, or None if not found."""
+    cursor.execute("SELECT gameID FROM teams WHERE TeamID = %s", (team_id,))
+    result = cursor.fetchone()
+    return result['gameID'] if result else None
 
 
 # ============================================

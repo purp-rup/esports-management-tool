@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from flask import send_file
 from io import BytesIO
 from EsportsManagementTool import EST
+#This function should be moved to Init.py realistically, but it's here for now.
+from EsportsManagementTool.scheduled_events import format_time_to_12hr, is_all_day_event
 
 ## ==============================================
 ## THE FOLLOWING WAS PRODUCED ALONGSIDE CLAUDEAI
@@ -453,18 +455,19 @@ def get_game_community_details(game_id):
                 import traceback
                 traceback.print_exc()
 
-            return jsonify({'success': True,
-                            'game': {'id': game['GameID'],
-                                     'title': game_title,
-                                     'description': game['Description'],
-                                     'image_url': image_url,
-                                     'team_sizes': team_sizes,
-                                     'member_count': member_count,
-                                     'members': formatted_members,
-                                     'is_member': is_member,
-                                     'team_count': team_count,
-                                     'assigned_gm_id': assigned_gm_id,
-                                     'is_game_manager': is_game_manager}}), 200
+            return jsonify({
+                'success': True,
+                'game': {'id': game['GameID'],
+                     'title': game_title,
+                     'description': game['Description'],
+                     'image_url': image_url,
+                     'team_sizes': team_sizes,
+                     'member_count': member_count,
+                     'members': formatted_members,
+                     'is_member': is_member,
+                     'team_count': team_count,
+                     'assigned_gm_id': assigned_gm_id,
+                     'is_game_manager': is_game_manager}}), 200
         finally:
             cursor.close()
 
@@ -535,30 +538,6 @@ def get_next_game_community_event(game_id):
     Includes both scheduled events AND regular events assigned to this game
     Returns whichever event is sooner
     """
-
-    def format_time_to_12hr(time_value):
-        """Convert time object or timedelta to 12-hour format string"""
-        if not time_value:
-            return None
-
-        # Handle timedelta (from MySQL TIME type)
-        if isinstance(time_value, timedelta):
-            total_seconds = int(time_value.total_seconds())
-            hours = total_seconds // 3600
-            minutes = (total_seconds % 3600) // 60
-        else:
-            # Handle time object
-            hours = time_value.hour
-            minutes = time_value.minute
-
-        # Convert to 12-hour format
-        period = "AM" if hours < 12 else "PM"
-        display_hour = hours % 12
-        if display_hour == 0:
-            display_hour = 12
-
-        return f"{display_hour}:{minutes:02d} {period}"
-
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -566,9 +545,6 @@ def get_next_game_community_event(game_id):
             # Get current date/time
             now = datetime.now(EST)
             current_date = now.date()
-
-            print(f"\n=== Loading next event for game {game_id} ===")
-            print(f"Current date: {current_date}")
 
             # Query 1: Get next scheduled event with game_community visibility
             cursor.execute("""
@@ -592,7 +568,6 @@ def get_next_game_community_event(game_id):
             """, (game_id, current_date))
 
             scheduled_event = cursor.fetchone()
-            print(f"Scheduled event found: {scheduled_event['name'] if scheduled_event else 'None'}")
 
             # Query 2: Get next regular event assigned to this game
             cursor.execute("""
@@ -615,7 +590,6 @@ def get_next_game_community_event(game_id):
             """, (game_id, current_date))
 
             regular_event = cursor.fetchone()
-            print(f"Regular event found: {regular_event['name'] if regular_event else 'None'}")
 
             # Determine which event is sooner
             next_event = None
@@ -681,9 +655,6 @@ def get_next_game_community_event(game_id):
                 'is_all_day': is_all_day,
                 'source': next_event['source']
             }
-
-            print(f"Returning formatted event: {formatted_event}")
-            print("=" * 50 + "\n")
 
             return jsonify({
                 'success': True,

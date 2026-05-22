@@ -2,20 +2,18 @@
 Scheduled Events Management
 Handles creation, generation, and management of recurring team events
 """
-
+from EsportsManagementTool import EST, get_team_game_id
 from flask import request, jsonify, session
 from datetime import datetime, timedelta
 import MySQLdb.cursors
 from dateutil.relativedelta import relativedelta
 import calendar
-from EsportsManagementTool import EST
 from EsportsManagementTool.events import get_season_for_event_date
+
 
 """
 Method to determine if a user is eligible to delete a schedule.
 """
-
-
 def can_delete_schedule(cursor, schedule_id, user_id, is_developer):
     """
     Determine if a user can delete a scheduled event based on time-based rules.
@@ -119,9 +117,7 @@ def get_schedule_deletion_time_remaining(created_at):
     else:
         return f"{minutes_remaining}m remaining"
 
-"""
-Formats schedule-related time to 12Hr format.
-"""
+# THIS FUNCTION SHOULD REALISTICALLY BE MOVED TO INIT.PY
 def format_time_to_12hr(time_value):
     """
     Convert time object or timedelta to 12-hour format string
@@ -146,6 +142,12 @@ def format_time_to_12hr(time_value):
         display_hour = 12
 
     return f"{display_hour}:{minutes:02d} {period}"
+
+# THIS FUNCTION SHOULD REALISTICALLY BE MOVED TO INIT.PY
+def is_all_day_event(start_time_str, end_time_str):
+    """Determines if an event is an all-day event or not"""
+    return bool(start_time_str and end_time_str and
+                start_time_str == "12:00 AM" and end_time_str == "11:59 PM")
 
 """
 Method to create a database element for a newly created schedule.
@@ -225,19 +227,9 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             try:
-                # Get game_id from team
-                cursor.execute("""
-                    SELECT gameID FROM teams WHERE TeamID = %s
-                """, (data['team_id'],))
-                team = cursor.fetchone()
-
-                if not team:
-                    return jsonify({
-                        'success': False,
-                        'message': 'Team not found'
-                    }), 404
-
-                game_id = team['gameID']
+                game_id = get_team_game_id(cursor, data['team_id'])
+                if game_id is None:
+                    return jsonify({'success': False, 'message': 'Team not found'}), 404
 
                 # Verify GM manages this game
                 cursor.execute("""
@@ -326,19 +318,9 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             try:
-                # First get the team's game_id
-                cursor.execute("""
-                    SELECT gameID FROM teams WHERE TeamID = %s
-                """, (team_id,))
-
-                team = cursor.fetchone()
-                if not team:
-                    return jsonify({
-                        'success': False,
-                        'message': 'Team not found'
-                    }), 404
-
-                game_id = team['gameID']
+                game_id = get_team_game_id(cursor, team_id)
+                if game_id is None:
+                    return jsonify({'success': False, 'message': 'Team not found'}), 404
 
                 # Get schedules that are:
                 # 1. Team-specific (team_id matches)
