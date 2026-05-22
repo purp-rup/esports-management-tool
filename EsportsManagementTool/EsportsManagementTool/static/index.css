@@ -1,4 +1,29 @@
 /* ============================================
+   GLOBAL COLOR THEME VARIABLES
+   ============================================ */
+:root {
+    /* Tournament (Purple) */
+    --event-tournament: #8b5cf6;
+    --event-tournament-light: rgba(167, 139, 250, 0.2);
+
+    /* Match (Red) */
+    --event-match: #ef4444;
+    --event-match-light: rgba(252, 165, 165, 0.2);
+
+    /* Practice (Green) */
+    --event-practice: #22c55e;
+    --event-practice-light: rgba(134, 239, 172, 0.2);
+
+    /* Event (Blue) */
+    --event-event: #79bdd9;
+    --event-event-light: rgba(147, 197, 253, 0.2);
+
+    /* Misc (Yellow) */
+    --event-misc: #eab308;
+    --event-misc-light: rgba(250, 204, 21, 0.2);
+}
+
+/* ============================================
    LANDING PAGE STYLES
    ORGANIZED BY CLAUDEAI
    ============================================ */
@@ -29,6 +54,7 @@
 /* Adjust calendar container for landing page */
 .calendar-section .calendar-container {
     max-width: 100%;
+    position: relative;
 }
 
 /* Make calendar responsive on landing page */
@@ -60,6 +86,32 @@
 }
 
 .event-card-details[data-event-type="misc"] .event-detail-icon {
+    background: var(--event-misc-light);
+    color: var(--event-misc);
+}
+
+/* Event Details Popup - Icon Coloring (matches dashboard structure) */
+.event-popup-details[data-event-type="tournament"] .popup-icon {
+    background: var(--event-tournament-light);
+    color: var(--event-tournament);
+}
+
+.event-popup-details[data-event-type="match"] .popup-icon {
+    background: var(--event-match-light);
+    color: var(--event-match);
+}
+
+.event-popup-details[data-event-type="practice"] .popup-icon {
+    background: var(--event-practice-light);
+    color: var(--event-practice);
+}
+
+.event-popup-details[data-event-type="event"] .popup-icon {
+    background: var(--event-event-light);
+    color: var(--event-event);
+}
+
+.event-popup-details[data-event-type="misc"] .popup-icon {
     background: var(--event-misc-light);
     color: var(--event-misc);
 }

@@ -673,6 +673,167 @@
 }
 
 /* --------------------------------------------
+   EVENT POPUPS
+   Display list of events
+   -------------------------------------------- */
+.popup-event-item {
+    position: absolute !important;
+    z-index: 2000 !important;
+    width: max-content !important;
+    max-width: 475px;
+    padding-bottom: 1rem !important;
+    background: #161616 !important;
+    border: 1px solid var(--border-color, #222) !important;
+    border-radius: 6px;
+    box-shadow: 0px 12px 32px rgba(0, 0, 0, 0.6), 0px 2px 8px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.popup-loading, .popup-error {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.popup-inner-wrapper {
+    padding: 0.85rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.popup-title {
+    margin: 0 0 0.65rem 0 !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+    line-height: 1.3;
+}
+
+.popup-grid-content {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 0.5rem 1.5rem;
+    align-items: flex-start;
+    width: 100%
+}
+
+.popup-grid-content .popup-row.full-width {
+    grid-column: span 2;
+    display: flex;
+    align-items: center;
+}
+
+.popup-row {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.popup-icon {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    border: 1px solid transparent;
+    background-color: transparent;
+}
+
+.popup-text {
+    color: var(--text-secondary, #b3b3b3);
+    line-height: 1.3;
+    font-size: 0.8rem;
+}
+
+.popup-subtext {
+    font-size: 0.75rem;
+    opacity: 0.75;
+}
+
+.popup-games-box {
+    grid-column: span 1;
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.popup-games-box .popup-text {
+    white-space: normal !important;
+    word-break: break-word;
+    display: block;
+    padding-top: 0.2rem;
+    width: 100%;
+}
+
+.popup-description-box {
+    grid-column: span 2;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 0.25rem;
+    margin-top: 0.25rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.popup-description-box .popup-text {
+    white-space: normal !important;
+    word-break: break-word;
+    display: block;
+    padding-top: 0.2rem;
+    width: 100%;
+}
+
+/* Footer override for popups (still references modal footers) */
+.popup-footer-scale {
+    margin: 0 auto;
+    justify-content: center;
+    align-items: center;
+}
+
+.popup-footer-scale .notification-opt-in {
+    width: 100%;
+    max-width: 100%;
+    padding: 0.5rem 0.5rem;
+    gap: 0.5rem;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+.popup-footer-scale .notification-info {
+    gap: 0.5rem;
+}
+
+.popup-footer-scale .notification-icon i {
+    font-size: 1.15rem;
+}
+
+.popup-footer-scale .notification-text .title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.popup-footer-scale .notification-text .subtitle {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    line-height: 1.2;
+}
+
+.popup-footer-scale .notification-btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    border-radius: 5px;
+    white-space: nowrap;
+}
+
+/* --------------------------------------------
    ANIMATIONS
    Modal entrance animations
    -------------------------------------------- */
@@ -742,5 +903,16 @@
 
     .card-header .btn {
         width: 100%;
+    }
+}
+
+/* Ensure the grid stacks nicely if the popup itself gets shrunk heavily */
+@media (max-width: 400px) {
+    .popup-grid-content {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+    .popup-description-box {
+        grid-column: span 1 !important;
     }
 }
