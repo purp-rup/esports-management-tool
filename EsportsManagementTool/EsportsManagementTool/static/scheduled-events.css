@@ -9,13 +9,16 @@
    Statistics header with next event
    -------------------------------------------- */
 .team-stats-summary {
-    display: grid;
-    grid-template-columns: 140px 140px auto;
+    display: flex;
+    flex-direction: row;
     gap: 1rem;
     margin-bottom: 1.5rem;
     width: 100%;
     max-width: none;
-    padding: 0 1rem;
+}
+
+#nextScheduledEventContainer {
+    flex: 2;
 }
 
 .stat-box {
@@ -29,7 +32,8 @@
     justify-content: center;
     gap: 0.35rem;
     min-height: 90px;
-    max-width: 140px;
+    width: 100%;
+    flex: 1;
 }
 
 .stat-box i {
@@ -934,9 +938,9 @@
 }
 
 /* Medium screens (tablets) */
-@media (min-width: 768px) and (max-width: 1024px) {
+@media (max-width: 600px) {
     .team-stats-summary {
-        padding: 0 1rem;
         max-width: 100%;
+        flex-direction: column;
     }
 }

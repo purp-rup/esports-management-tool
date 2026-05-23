@@ -13,6 +13,7 @@
     grid-template-columns: 250px 1fr;
     gap: 2rem;
     margin-bottom: 2rem;
+    overflow: auto;
 }
 
 /* --------------------------------------------
@@ -59,6 +60,16 @@
     font-size: 0.875rem;
 }
 
+@media (max-width: 700px) {
+    .info-row {
+        grid-template-columns: 1fr;
+    }
+
+    .info-label {
+        margin-bottom: 0.5rem;
+    }
+}
+
 .info-value {
     color: var(--text-primary);
 }
@@ -68,7 +79,6 @@
    Action buttons section
    -------------------------------------------- */
 .profile-actions {
-    margin-top: 2rem;
     display: flex;
     gap: 1rem;
 }

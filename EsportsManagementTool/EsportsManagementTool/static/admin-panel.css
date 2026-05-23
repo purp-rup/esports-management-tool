@@ -10,13 +10,19 @@
 .admin-dashboard {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1rem;
 }
 
 .admin-content {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 2rem;
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+}
+
+@media (max-width: 910px) {
+  .admin-content {
+    flex-direction: column;
+  }
 }
 
 /* --------------------------------------------
@@ -24,19 +30,30 @@
    Top dashboard statistics cards
    -------------------------------------------- */
 .admin-summary {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr); /* Force 5 equal columns */
+  /*display: grid;*/
+  /*grid-template-columns: repeat(5, 1fr); !* Force 5 equal columns *!*/
+  display: flex;
+  flex-direction: row;
   gap: 1rem;
+  overflow: auto;
+}
+
+@media (max-width: 988px) {
+  .admin-summary {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* Force 5 equal columns */
+  }
 }
 
 .summary-card {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 1rem;
+  padding: 0.5rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  width: 100%;
 }
 
 .summary-card h3 {
@@ -49,7 +66,6 @@
   font-size: 1.15rem;
   font-weight: 600;
   margin: 0;
-  text-align: center;
 }
 
 /* Summary card icons */
@@ -75,6 +91,7 @@
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 1.5rem;
+  width: 100%;
 }
 
 .user-list h3 {
@@ -212,6 +229,7 @@
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 1.5rem;
+  width: 100%;
 }
 
 /* Role action controls */
@@ -259,6 +277,34 @@
    BUTTONS
    All button styles and variants
    -------------------------------------------- */
+
+.admin-btn-list {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  /*overflow: auto;*/
+  width: 100%;
+  justify-content: right;
+}
+
+.admin-btn-list button {
+    max-height: 3rem;
+}
+
+@media (max-width: 1038px) {
+  .admin-btn-list {
+    margin-top: 1rem;
+  }
+}
+
+@media (max-width: 843px) {
+  .admin-btn-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 0.5rem;
+  }
+}
 
 /* Primary action button */
 .btn-go {

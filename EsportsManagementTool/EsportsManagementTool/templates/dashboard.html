@@ -38,14 +38,14 @@
     </div>
 
     <!-- Mobile Tab Dropdown -->
-    <select class="tab-dropdown" id="tabDropdown">
-        <option value="calendar">📅 Calendar</option>
-        <option value="profile">👤 Profile</option>
-        <option value="rosters">👥 Communities</option>
-        <option value="events">📆 Events</option>
-        <option value="teams">🎮 Teams</option>
+    <select class="tab-dropdown fa-icons" id="tabDropdown">
+        <option class="fa-icons" value="calendar">&#xf133; Calendar</option>
+        <option value="profile">&#xf007; Profile</option>
+        <option value="rosters">&#xf086; Communities</option>
+        <option value="events">&#xf274; Events</option>
+        <option value="teams">&#xe533; Teams</option>
         {% if user.is_admin or user.is_developer %}
-        <option value="admin">🛡️ Admin</option>
+        <option value="admin">&#xf085; Admin</option>
         {% endif %}
     </select>
 
@@ -53,28 +53,28 @@
     <div class="tab-navigation">
         <button class="tab-button active" data-tab="calendar">
             <i class="fa-regular fa-calendar tab-icon"></i>
-            Calendar
+            <span>Calendar</span>
         </button>
         <button class="tab-button" data-tab="profile">
             <i class="fa-regular fa-user tab-icon"></i>
-            Profile
+            <span>Profile</span>
         </button>
         <button class="tab-button" data-tab="rosters">
             <i class="fa-solid fa-users tab-icon"></i>
-            Communities
+            <span>Communities</span>
         </button>
         <button class="tab-button" data-tab="events">
             <i class="fa-regular fa-calendar-days tab-icon"></i>
-            Events
+            <span>Events</span>
         </button>
         <button class="tab-button" data-tab="teams">
             <i class="fa-solid fa-gamepad tab-icon"></i>
-            Teams
+            <span>Teams</span>
         </button>
         {% if user.is_admin or user.is_developer %}
         <button class="tab-button" data-tab="admin">
             <i class="fa-solid fa-shield-halved tab-icon"></i>
-            Admin
+            <span>Admin</span>
         </button>
         {% endif %}
     </div>
@@ -88,11 +88,13 @@
                     <!-- Calendar Navigation -->
                     <div class="calendar-navigation">
                         <a href="{{ url_for('dashboard', year=prev_year, month=prev_month) }}" class="nav-button">
-                            <i class="fas fa-chevron-left"></i> Previous
+                            <i class="fas fa-chevron-left"></i>
+                            <span>Previous</span>
                         </a>
                         <h1 class="calendar-month-year">{{ month_name }} {{ year }}</h1>
                         <a href="{{ url_for('dashboard', year=next_year, month=next_month) }}" class="nav-button">
-                            Next <i class="fas fa-chevron-right"></i>
+                            <span>Next</span>
+                            <i class="fas fa-chevron-right"></i>
                         </a>
                     </div>
 
@@ -155,11 +157,11 @@
                     </div>
 
                     <!-- Calendar Footer -->
-                    <div class="calendar-footer">
-                        <a href="{{ url_for('dashboard') }}" class="today-button">
-                            <i class="fas fa-calendar-day"></i> Jump to Today
-                        </a>
-                    </div>
+<!--                    <div class="calendar-footer">-->
+<!--                        <a href="{{ url_for('dashboard') }}" class="today-button">-->
+<!--                            <i class="fas fa-calendar-day"></i> Jump to Today-->
+<!--                        </a>-->
+<!--                    </div>-->
                 </div>
             </div>
 
@@ -229,7 +231,7 @@
     <div id="profile" class="tab-content">
         <div class="content-card">
             <div class="card-header">
-                <h2>Your Profile</h2>
+                <h2>Profile</h2>
                 <p>View and manage your account information</p>
             </div>
 
@@ -284,7 +286,7 @@
         </div>
 
             <!-- NEW: Notification Settings Card -->
-            <div class="content-card" style="margin-top: 2rem;">
+            <div class="content-card" style="margin-top: 1rem;">
                 <div class="card-header">
                     <h2>Notification Settings</h2>
                     <p>Configure how you receive event reminders</p>
@@ -426,7 +428,7 @@
             </div>
 
         <!-- My Communities Section -->
-        <div class="content-card" style="margin-top: 2rem;">
+        <div class="content-card" style="margin-top: 1rem;">
             <div class="card-header">
                 <h2>My Communities</h2>
                 <p>Game communities you've joined</p>
@@ -453,7 +455,7 @@
      DISCORD INTEGRATION CARD
      ======================================== -->
 
-<div class="content-card" style="margin-top: 2rem;">
+<div class="content-card" style="margin-top: 1rem;">
     <div class="card-header">
         <h2>Discord Integration</h2>
         <p>Connect your Discord account to enhance your profile</p>
@@ -1502,7 +1504,7 @@
                     <h2>Admin Panel</h2>
                     <p>Manage users, roles, and permissions</p>
                 </div>
-                <div style="display: flex; gap: 1rem;">
+                <div class="admin-btn-list">
                     <button class="btn btn-primary" onclick="openManageLeaguesModal()">
                         <i class="fas fa-trophy"></i> Leagues
                     </button>
