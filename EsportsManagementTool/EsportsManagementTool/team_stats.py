@@ -100,6 +100,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                             mr.result,
                             mr.notes,
                             mr.recorded_at,
+                            mr.is_playoffs,
                             u.firstname,
                             u.lastname
                         FROM generalevents ge
@@ -129,6 +130,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                             mr.result,
                             mr.notes,
                             mr.recorded_at,
+                            mr.is_playoffs,
                             u.firstname,
                             u.lastname
                         FROM generalevents ge
@@ -158,7 +160,8 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                         'result': match['result'],
                         'notes': match['notes'],
                         'recorded_at': match['recorded_at'].strftime('%Y-%m-%d %H:%M:%S') if match['recorded_at'] else None,
-                        'recorded_by': f"{match['firstname']} {match['lastname']}" if match['firstname'] else None
+                        'recorded_by': f"{match['firstname']} {match['lastname']}" if match['firstname'] else None,
+                        'is_playoffs': bool(match['is_playoffs']) if match['is_playoffs'] is not None else False
                     })
 
                 return jsonify({
@@ -386,19 +389,21 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                 # Insert or update match result
                 cursor.execute("""
                     INSERT INTO match_results 
-                    (event_id, team_id, result, recorded_by, notes)
-                    VALUES (%s, %s, %s, %s, %s)
+                    (event_id, team_id, result, recorded_by, notes, is_playoffs)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE
                         result = VALUES(result),
                         recorded_by = VALUES(recorded_by),
                         notes = VALUES(notes),
+                        is_playoffs = VALUES(is_playoffs),
                         recorded_at = CURRENT_TIMESTAMP
                 """, (
                     data['event_id'],
                     data['team_id'],
                     data['result'],
                     user_id,
-                    data.get('notes', '')
+                    data.get('notes', ''),
+                    data.get('is_playoffs', False)
                 ))
 
                 mysql.connection.commit()

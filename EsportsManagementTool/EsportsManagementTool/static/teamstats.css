@@ -629,6 +629,27 @@
 }
 
 /* ============================================
+   MATCH TYPE BADGES (Playoffs / Regular Season)
+   ============================================ */
+
+.match-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.match-type-badge-playoffs {
+    background: rgba(121, 189, 233, 0.1);
+    border: 1px solid rgba(121, 189, 233, 0.4);
+    color: var(--stockton-blue);
+}
+
+
+/* ============================================
    RESPONSIVE DESIGN
    ============================================ */
 
