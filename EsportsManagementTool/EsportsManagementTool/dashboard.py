@@ -306,13 +306,6 @@ Route to allow users to upload profile pictures via a button on the profile tab.
 
 @app.route('/upload-avatar', methods=['POST'])
 def upload_avatar():
-    cloudinary.config(
-        cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
-        api_key=os.getenv('CLOUDINARY_API_KEY'),
-        api_secret=os.getenv('CLOUDINARY_API_SECRET'),
-        secure=True
-    )
-
     if 'loggedin' not in session:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
 
