@@ -100,6 +100,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                             mr.result,
                             mr.notes,
                             mr.recorded_at,
+                            mr.is_playoffs,
                             u.firstname,
                             u.lastname
                         FROM generalevents ge
@@ -129,6 +130,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                             mr.result,
                             mr.notes,
                             mr.recorded_at,
+                            mr.is_playoffs,
                             u.firstname,
                             u.lastname
                         FROM generalevents ge
@@ -158,7 +160,8 @@ def register_team_stats_routes(app, mysql, login_required, roles_required, get_u
                         'result': match['result'],
                         'notes': match['notes'],
                         'recorded_at': match['recorded_at'].strftime('%Y-%m-%d %H:%M:%S') if match['recorded_at'] else None,
-                        'recorded_by': f"{match['firstname']} {match['lastname']}" if match['firstname'] else None
+                        'recorded_by': f"{match['firstname']} {match['lastname']}" if match['firstname'] else None,
+                        'is_playoffs': bool(match['is_playoffs']) if match['is_playoffs'] is not None else False
                     })
 
                 return jsonify({

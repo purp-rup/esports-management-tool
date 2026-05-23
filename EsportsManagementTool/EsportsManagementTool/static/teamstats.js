@@ -62,6 +62,14 @@ let currentLeagueFilter = null;
  * @type {Array}
  */
 let availableLeagues = [];
+
+/**
+ * Event ID to re-open in matchDetailsModal after editing from that modal.
+ * Set when the edit button inside matchDetailsModal is clicked; cleared after use.
+ * @type {number|null}
+ */
+let pendingDetailsReopenEventId = null;
+
 // ============================================
 // STATS TAB LOADING
 // ============================================
@@ -424,6 +432,8 @@ function closeRecordResultModal() {
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
     }
+    // Clear any pending details re-open (e.g. user cancelled the edit)
+    pendingDetailsReopenEventId = null;
 }
 
 /**
@@ -573,7 +583,15 @@ async function submitMatchResult(event) {
             setTimeout(() => {
                 closeRecordResultModal();
                 // Reload stats tab to show updated data
-                loadStatsTab(currentStatsTeamId, currentStatsGameId);
+                loadStatsTab(currentStatsTeamId, currentStatsGameId).then(() => {
+                    // If edit was triggered from the details modal, re-open it
+                    // so the user sees the refreshed data straight away
+                    if (pendingDetailsReopenEventId !== null) {
+                        const reopenId = pendingDetailsReopenEventId;
+                        pendingDetailsReopenEventId = null;
+                        openMatchDetailsModal(reopenId);
+                    }
+                });
             }, 1500);
         } else {
             throw new Error(data.message);
@@ -899,6 +917,7 @@ async function openMatchDetailsModal(eventId) {
         if (editBtn && isGameManager && isActiveSeason && match.result) {
             editBtn.style.display = 'flex';
             editBtn.onclick = () => {
+                pendingDetailsReopenEventId = eventId;
                 closeMatchDetailsModal();
                 editMatchResult(eventId);
             };
