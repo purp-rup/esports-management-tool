@@ -32,11 +32,35 @@ window.closeDayModal = function() {
     }
 };
 
+// Scroll locking helper functions for event popups
+let scrollLockOffset = 0;
+
+function lockScroll() {
+    scrollLockOffset = window.scrollY;
+
+    Object.assign(document.body.style, {
+        top: `-${scrollLockOffset}px`,
+        position: 'fixed',
+        width: '100%',
+        overflowY: 'scroll'
+    });
+}
+
+function unlockScroll() {
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.body.style.overflowY = '';
+
+    window.scrollTo(0, scrollLockOffset);
+}
+
 // Popup close function
 window.closeEventPopup = function() {
     const existingPopup = document.getElementById('landingEventPopup');
     if (existingPopup) {
         existingPopup.remove();
+        unlockScroll();
     }
 
     if (clickOutsideHandler) {
@@ -540,19 +564,20 @@ function openEventPopup(event_id, clickedElement) {
     const popup = document.createElement('div');
     popup.id = 'landingEventPopup';
     popup.className = 'popup-event-item';
+    popup.style.visibility = 'hidden'; // Hides popup until everything loads
 
     popup.innerHTML = `
-        <div class="popup-loading">
-            <i class="fas fa-spinner fa-spin"></i>
-        </div>
+        <div class="popup-arrow"></div>
     `;
 
     const container = document.querySelector('.calendar-container') || document.body;
     container.appendChild(popup);
 
+    lockScroll();
+
     // Positions relative to the clicked event item
     if (clickedElement) {
-        positionPopup(popup, clickedElement);
+        positionPopup(popup, clickedElement, false);
     }
 
     // Handles clicking outside or leaving the element to close it
@@ -605,6 +630,7 @@ function displayEventPopupDetails(data, popup, clickedElement){
     }
 
     popup.innerHTML = `
+        <div class="popup-arrow"></div>
         <div class="event-popup-details popup-inner-wrapper" data-event-type="${data.event_type || 'misc'}">
 
             <h3 class="popup-title">${data.title}</h3>
@@ -693,11 +719,11 @@ function displayEventPopupDetails(data, popup, clickedElement){
 
     // Adjust position after content loads in case width/height changed
     if (clickedElement) {
-        positionPopup(popup, clickedElement);
+        positionPopup(popup, clickedElement, true);
     }
 }
 
-function positionPopup(popup, anchorElement) {
+function positionPopup(popup, anchorElement, reveal) {
     const calendarContainer = document.querySelector('.calendar-container');
     if (!calendarContainer) return;
 
@@ -715,10 +741,12 @@ function positionPopup(popup, anchorElement) {
     const anchorTopRelativeToContainer = anchorRect.top - containerRect.top;
 
     let left = anchorRightRelativeToContainer + gap;
+    arrowDir = 'right';
 
     // If popup hits the right edge of the calendar grid container, flip to left side
     if (left + popupWidth > containerRect.width || (left + (popupWidth / 2) > containerRect.width)) {
         left = anchorLeftRelativeToContainer - popupWidth - gap;
+        arrowDir = 'left';
     }
 
     if (left < gap) left = gap;
@@ -732,6 +760,26 @@ function positionPopup(popup, anchorElement) {
     popup.style.position = 'absolute';
     popup.style.left = `${left}px`;
     popup.style.top = `${top}px`;
+
+    // Update arrow direction and vertical alignment
+    const arrow = popup.querySelector('.popup-arrow');
+    if (arrow) {
+        arrow.classList.remove('popup-arrow--right', 'popup-arrow--left');
+        if (arrowDir === 'right') {
+            arrow.classList.add('popup-arrow--left');
+        } else {
+            arrow.classList.add('popup-arrow--right');
+        }
+
+        // Vertically align arrow with anchor center
+        const anchorMidY = anchorTopRelativeToContainer + (anchorRect.height / 2);
+        const arrowOffsetInPopup = anchorMidY - top;
+        const clampedOffset = Math.max(12, Math.min(arrowOffsetInPopup, popupHeight - 12));
+        arrow.style.top = `${clampedOffset}px`;
+    }
+
+    if (reveal) popup.style.visibility = 'visible';
+    return arrowDir;
 }
 
 function formatEventDate(dateStr) {
