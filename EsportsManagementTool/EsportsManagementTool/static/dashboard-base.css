@@ -10,12 +10,27 @@
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 
 /* --------------------------------------------
+   FORM ELEMENTS
+   Shared input, select, and button styles
+   - Andrew note:
+        There is some overlap with tab-dropdown from tabs.css,
+        but this is the only way I could get the FontAwesome icons
+        to render properly in both select and option elements without
+        additional dependencies.
+   -------------------------------------------- */
+select.fa-icons, option.fa-icons {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif, 'FontAwesome';
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+/* --------------------------------------------
    MAIN LAYOUT
    Dashboard viewport and spacing
    -------------------------------------------- */
 main {
     min-height: calc(100vh - 73px) !important;
-    padding: 2rem 0 !important;
+    padding: 1rem 0;
 }
 
 /* --------------------------------------------
@@ -23,7 +38,7 @@ main {
    Page title and description area
    -------------------------------------------- */
 .dashboard-header {
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
 }
 
 .dashboard-header h1 {
@@ -47,14 +62,22 @@ main {
     padding: 2rem;
 }
 
+@media (max-width: 640px) {
+    .content-card {
+        padding: 1rem;
+    }
+}
+
 /* Card header section */
 .card-header {
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--border-color);
     display: flex;
+    flex-direction: column;
     justify-content: space-between;
-    align-items: flex-start;
+    /*align-items: flex-start;*/
+    /*flex-wrap: wrap;*/
 }
 
 .card-header h2 {
@@ -150,13 +173,21 @@ main {
    RESPONSIVE DESIGN
    Mobile adaptations
    -------------------------------------------- */
-@media (max-width: 640px) {
-    .card-header {
-        flex-direction: column;
-        gap: 1rem;
-    }
+@media (max-width: 1038px) {
+  .card-header {
+    flex-direction: column;
+    /*gap: 1rem;*/
+  }
 
-    .card-header .btn {
-        width: 100%;
-    }
+  .card-header .btn {
+    width: 100%;
+  }
+
+  /*.card-header p {*/
+  /*    display: none;*/
+  /*}*/
+
+  .dashboard-header {
+    display: none;
+  }
 }

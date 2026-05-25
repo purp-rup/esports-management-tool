@@ -358,7 +358,7 @@
 
 .league-chart {
     margin-top: 1.5rem;
-    padding: 1rem;
+    /*padding: 1rem;*/
     background: var(--background-secondary);
     border-radius: 8px;
     max-height: 300px;

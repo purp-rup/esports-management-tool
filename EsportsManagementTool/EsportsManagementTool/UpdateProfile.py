@@ -6,6 +6,11 @@ from dotenv import load_dotenv
 import requests
 from EsportsManagementTool import app
 import MySQLdb.cursors
+import cloudinary
+import cloudinary.uploader
+from dotenv import load_dotenv
+load_dotenv()
+import os
 
 mysql = MySQL()
 
@@ -122,6 +127,62 @@ def change_password():
         return jsonify({
             'success': True,
             'message': 'Password changed successfully'
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        cursor.close()
+
+# Uploads PFP to Cloudinary
+
+@app.route('/api/profile/upload-picture', methods=['POST'])
+def upload_profile_picture():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        user_id = session.get('id')
+
+        if not user_id:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        if 'profile_picture' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+
+        file = request.files['profile_picture']
+
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+
+        # Get old public_id to delete from Cloudinary
+        cursor.execute("SELECT cloudinary_public_id FROM users WHERE id = %s", (user_id,))
+        old_user = cursor.fetchone()
+        old_public_id = old_user.get('cloudinary_public_id') if old_user else None
+
+        # Upload new image to Cloudinary
+        result = cloudinary.uploader.upload(
+            file,
+            folder='profile_pictures/',
+            transformation=[{'width': 400, 'height': 400, 'crop': 'fill'}]
+        )
+
+        picture_url = result['secure_url']
+        public_id = result['public_id']
+
+        # Delete old image from Cloudinary if it exists
+        if old_public_id:
+            cloudinary.uploader.destroy(old_public_id)
+
+        # Save new URL and public_id to MySQL
+        cursor.execute(
+            "UPDATE users SET profile_picture = %s, cloudinary_public_id = %s WHERE id = %s",
+            (picture_url, public_id, user_id)
+        )
+        mysql.connection.commit()
+
+        return jsonify({
+            'success': True,
+            'profile_picture_url': picture_url
         }), 200
 
     except Exception as e:

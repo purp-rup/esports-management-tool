@@ -20,6 +20,9 @@ import secrets
 import os
 import requests
 import pytz
+import cloudinary
+import cloudinary.uploader
+from cloudinary.utils import cloudinary_url
 
 # =========================================
 # APPLICATION INITIALIZATION
@@ -70,6 +73,14 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # Initialize extensions
 mysql = MySQL(app)
 mail = Mail(app)
+
+# Cloudinary Configuration for Profile Pictures
+cloudinary.config(
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET'),
+    secure=True
+)
 
 # =========================================
 # TIMEZONE CONFIGURATION

@@ -8,7 +8,6 @@
    VODS SECTION LAYOUT
    -------------------------------------------- */
 .vods-section {
-    padding: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
@@ -21,7 +20,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
 }
 
 .vods-header h3 {
@@ -73,7 +71,6 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1rem;
-    padding: 0 0.5rem 0.5rem 0.5rem;
 }
 
 /* VOD Item Card */
@@ -610,10 +607,6 @@
 }
 
 @media (max-width: 768px) {
-    .vods-section {
-        padding: 1rem;
-    }
-
     .vods-header {
         flex-direction: column;
         align-items: flex-start;

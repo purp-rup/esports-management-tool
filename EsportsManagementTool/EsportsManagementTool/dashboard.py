@@ -10,6 +10,10 @@ from EsportsManagementTool import discord_integration
 from EsportsManagementTool import season_roles
 
 from EsportsManagementTool import mysql
+import cloudinary
+import cloudinary.uploader
+from dotenv import load_dotenv
+load_dotenv()
 
 # Allowed file extensions for avatars
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -298,9 +302,10 @@ def dashboard(year=None, month=None):
 """
 Route to allow users to upload profile pictures via a button on the profile tab.
 """
+
+
 @app.route('/upload-avatar', methods=['POST'])
 def upload_avatar():
-    """Handle custom avatar upload"""
     if 'loggedin' not in session:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
 
@@ -309,59 +314,48 @@ def upload_avatar():
 
     file = request.files['avatar']
 
-    if file.filename == '':
-        return jsonify({'success': False, 'message': 'No file selected'}), 400
-
-    if not allowed_file(file.filename):
-        return jsonify({'success': False, 'message': 'Invalid file type. Use PNG, JPG, JPEG, GIF, or WEBP'}), 400
-
-    file.seek(0, os.SEEK_END)
-    file_size = file.tell()
-    file.seek(0)
-
-    if file_size > MAX_FILE_SIZE:
-        return jsonify({'success': False, 'message': 'File too large. Maximum size is 5MB'}), 400
+    if file.filename == '' or not allowed_file(file.filename):
+        return jsonify({'success': False, 'message': 'Invalid file'}), 400
 
     try:
-        file_extension = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"user_{session['id']}.{file_extension}"
-
-        upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'avatars')
-        os.makedirs(upload_dir, exist_ok=True)
-
-        filepath = os.path.join(upload_dir, filename)
-
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute("SELECT profile_picture FROM users WHERE id = %s", (session['id'],))
-        old_avatar = cursor.fetchone()
 
-        if old_avatar and old_avatar['profile_picture']:
-            old_filepath = os.path.join(upload_dir, old_avatar['profile_picture'])
-            if os.path.exists(old_filepath):
-                os.remove(old_filepath)
+        # Get old public_id so we can delete it from Cloudinary
+        cursor.execute("SELECT cloudinary_public_id FROM users WHERE id = %s", (session['id'],))
+        old_user = cursor.fetchone()
+        old_public_id = old_user.get('cloudinary_public_id') if old_user else None
 
-        file.save(filepath)
+        # Upload new image to Cloudinary
+        result = cloudinary.uploader.upload(
+            file,
+            folder='profile_pictures/',
+            transformation=[{'width': 400, 'height': 400, 'crop': 'fill'}]
+        )
 
-        cursor.execute("""
-            UPDATE users 
-            SET profile_picture = %s 
-            WHERE id = %s
-        """, (filename, session['id']))
+        picture_url = result['secure_url']
+        public_id = result['public_id']
 
+        # Delete old image from Cloudinary if it exists
+        if old_public_id:
+            cloudinary.uploader.destroy(old_public_id)
+
+        # Save new URL and public_id to MySQL
+        cursor.execute(
+            "UPDATE users SET profile_picture = %s, cloudinary_public_id = %s WHERE id = %s",
+            (picture_url, public_id, session['id'])
+        )
         mysql.connection.commit()
         cursor.close()
 
         return jsonify({
             'success': True,
             'message': 'Avatar uploaded successfully!',
-            'avatar_url': f"/static/uploads/avatars/{filename}"
+            'avatar_url': picture_url
         })
 
     except Exception as e:
         print(f"Error uploading avatar: {str(e)}")
-        mysql.connection.rollback()
         return jsonify({'success': False, 'message': 'Failed to upload avatar'}), 500
-
 
 """
 Route meant to assign and remove roles.
