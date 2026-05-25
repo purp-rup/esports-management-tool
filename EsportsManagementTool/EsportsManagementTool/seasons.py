@@ -2,6 +2,7 @@
 Seasons Management Module
 Handles CRUD operations for seasons
 """
+from EsportsManagementTool import season_roles
 from flask import jsonify, request, session
 import MySQLdb.cursors
 from datetime import datetime, date
@@ -158,7 +159,6 @@ def register_seasons_routes(app, mysql, login_required, roles_required, get_user
             new_season_id = cursor.lastrowid
 
             # Snapshot all current permissions to this season
-            from EsportsManagementTool import season_roles
             users_snapshotted = season_roles.snapshot_all_permissions_to_season(mysql, new_season_id)
 
             # Reassign events that fall within this new season's date range
@@ -351,8 +351,6 @@ def automatic_end_season(mysql, app):
     except Exception as e:
         mysql.connection.rollback()
         print(f"[{datetime.now()}] Error checking/ending expired seasons: {str(e)}")
-        import traceback
-        traceback.print_exc()
     finally:
         cursor.close()
 
@@ -369,8 +367,6 @@ def initialize_season_scheduler(app, mysql):
             try:
                 automatic_end_season(mysql, app)
             except Exception as e:
-                import traceback
-                traceback.print_exc()
                 print(f"[{datetime.now()}] Error in season expiration scheduler: {str(e)}")
 
     # Only start scheduler in the main process

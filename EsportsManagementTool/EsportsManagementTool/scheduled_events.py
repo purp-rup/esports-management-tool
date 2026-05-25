@@ -2,7 +2,7 @@
 Scheduled Events Management
 Handles creation, generation, and management of recurring team events
 """
-from EsportsManagementTool import EST, get_team_game_id
+from EsportsManagementTool import EST,localize_datetime, get_team_game_id
 from flask import request, jsonify, session
 from datetime import datetime, timedelta
 import MySQLdb.cursors
@@ -32,9 +32,6 @@ def can_delete_schedule(cursor, schedule_id, user_id, is_developer):
     Returns:
         tuple: (can_delete: bool, reason: str)
     """
-    from datetime import timedelta
-    from EsportsManagementTool import localize_datetime
-
     # Developers can always delete
     if is_developer:
         return (True, "Developer privileges")
@@ -61,12 +58,8 @@ def can_delete_schedule(cursor, schedule_id, user_id, is_developer):
         # If no creation timestamp, deny deletion (safety measure)
         return (False, "Schedule creation time not recorded")
 
-    created_at = schedule['created_at']
+    created_at = localize_datetime(schedule['created_at'])
     current_time = datetime.now(EST)
-
-    # Ensure both datetimes are timezone-aware for comparison
-    if created_at.tzinfo is None:
-        created_at = localize_datetime(created_at)
 
     time_since_creation = current_time - created_at
     within_24_hours = time_since_creation <= timedelta(hours=24)
@@ -89,14 +82,10 @@ def get_schedule_deletion_time_remaining(created_at):
     Returns:
         str: Human-readable time remaining or None if expired
     """
-    from datetime import timedelta
-    from EsportsManagementTool import localize_datetime
-
     if not created_at:
         return None
 
     if isinstance(created_at, str):
-        from datetime import datetime
         created_at = datetime.fromisoformat(created_at)
 
     if created_at.tzinfo is None:
@@ -117,37 +106,6 @@ def get_schedule_deletion_time_remaining(created_at):
     else:
         return f"{minutes_remaining}m remaining"
 
-# THIS FUNCTION SHOULD REALISTICALLY BE MOVED TO INIT.PY
-def format_time_to_12hr(time_value):
-    """
-    Convert time object or timedelta to 12-hour format string
-    """
-    if not time_value:
-        return None
-
-    # Handle timedelta (from MySQL TIME type)
-    if isinstance(time_value, timedelta):
-        total_seconds = int(time_value.total_seconds())
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-    else:
-        # Handle time object
-        hours = time_value.hour
-        minutes = time_value.minute
-
-    # Convert to 12-hour format
-    period = "AM" if hours < 12 else "PM"
-    display_hour = hours % 12
-    if display_hour == 0:
-        display_hour = 12
-
-    return f"{display_hour}:{minutes:02d} {period}"
-
-# THIS FUNCTION SHOULD REALISTICALLY BE MOVED TO INIT.PY
-def is_all_day_event(start_time_str, end_time_str):
-    """Determines if an event is an all-day event or not"""
-    return bool(start_time_str and end_time_str and
-                start_time_str == "12:00 AM" and end_time_str == "11:59 PM")
 
 """
 Method to create a database element for a newly created schedule.
@@ -294,10 +252,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                 cursor.close()
 
         except Exception as e:
-            print(f"❌ Error creating scheduled event: {str(e)}")
-            print(f"   Error type: {type(e).__name__}")
-            import traceback
-            traceback.print_exc()
+            print(f" Error creating scheduled event: {str(e)}")
             mysql.connection.rollback()
             return jsonify({
                 'success': False,

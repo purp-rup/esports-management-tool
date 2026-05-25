@@ -78,7 +78,7 @@ mail = Mail(app)
 EST = pytz.timezone('America/New_York')
 
 def localize_datetime(dt: datetime) -> datetime:
-    # Convert naive datetime to EST or convert aware datetime to EST.
+    # Convert naive datetime (from MYSQL or with no timezone) to EST or convert aware datetime (possibly wrong or DST) to EST.
     if dt.tzinfo is None:
         return EST.localize(dt)
     return dt.astimezone(EST)
@@ -236,6 +236,38 @@ def get_team_game_id(cursor, team_id):
     cursor.execute("SELECT gameID FROM teams WHERE TeamID = %s", (team_id,))
     result = cursor.fetchone()
     return result['gameID'] if result else None
+
+
+def format_time_to_12hr(time_value):
+    """
+    Convert time object or timedelta to 12-hour format string
+    """
+    if not time_value:
+        return None
+
+    # Handle timedelta (from MySQL TIME type)
+    if isinstance(time_value, timedelta):
+        total_seconds = int(time_value.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+    else:
+        # Handle time object
+        hours = time_value.hour
+        minutes = time_value.minute
+
+    # Convert to 12-hour format
+    period = "AM" if hours < 12 else "PM"
+    display_hour = hours % 12
+    if display_hour == 0:
+        display_hour = 12
+
+    return f"{display_hour}:{minutes:02d} {period}"
+
+
+def is_all_day_event(start_time_str, end_time_str):
+    """Determines if an event is an all-day event or not"""
+    return bool(start_time_str and end_time_str and
+                start_time_str == "12:00 AM" and end_time_str == "11:59 PM")
 
 
 # ============================================
@@ -842,8 +874,6 @@ def get_calendar_events():
 
     except Exception as e:
         print(f"Error fetching calendar events: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'error': 'Failed to fetch events'}), 500
     finally:
         cursor.close()
@@ -901,8 +931,6 @@ def get_event_details(event_id):
 
     except Exception as e:
         print(f"Error fetching event details: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'error': 'Failed to fetch event details'}), 500
     finally:
         cursor.close()

@@ -1,10 +1,9 @@
-from EsportsManagementTool import app, mysql, EST, login_required, roles_required, get_user_permissions, get_team_game_id, season_roles
+from EsportsManagementTool import (app, mysql, EST, login_required, roles_required, get_user_permissions,
+                                   get_team_game_id, localize_datetime, format_time_to_12hr, is_all_day_event, season_roles)
 from flask import Flask, render_template, request, session, jsonify
-# Have to research why it is importing timezone (get_team_deletion_info function)
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 import MySQLdb.cursors
-# This function should be moved to Init.py realistically, but it's here for now.
-from EsportsManagementTool.scheduled_events import format_time_to_12hr, is_all_day_event
+
 
 def idgen(abbreviation, existing_ids):
     """
@@ -112,8 +111,91 @@ def create_team(game_id):
     except Exception as e:
         mysql.connection.rollback()
         print(f"Error creating team: {e}")
-        import traceback
-        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    finally:
+        cursor.close()
+
+
+@app.route('/api/teams/<team_id>/update', methods=['POST'])
+@login_required
+def update_team(team_id):
+    """Update team name and max size - Only GM of the game can edit"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        data = request.get_json()
+        team_title = data.get('team_title', '').strip()
+        team_max_size = data.get('team_max_size')
+
+        if not team_title:
+            return jsonify({'success': False, 'message': 'Team title is required'}), 400
+
+        if not team_max_size:
+            return jsonify({'success': False, 'message': 'Team size is required'}), 400
+
+        # Check if team exists and get the GM
+        cursor.execute('''
+            SELECT t.teamName, t.gameID, g.gm_id, g.GameTitle
+            FROM teams t
+            LEFT JOIN games g ON t.gameID = g.GameID
+            WHERE t.TeamID = %s
+        ''', (team_id,))
+
+        # Check if season is active
+        season_is_active = is_team_season_active(mysql, team_id)
+        if not season_is_active:
+            return jsonify({
+                'success': False,
+                'message': 'Cannot edit teams from past seasons'
+            }), 403
+
+        team = cursor.fetchone()
+
+        if not team:
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        # STRICT PERMISSION CHECK: Only the GM of this game can edit
+        if team['gm_id'] != session['id']:
+            return jsonify({
+                'success': False,
+                'message': 'Only the Game Manager of this game can edit this team'
+            }), 403
+
+        # Check if new name conflicts with existing team (excluding current team)
+        cursor.execute('''
+            SELECT COUNT(*) AS count 
+            FROM teams 
+            WHERE gameID = %s 
+            AND LOWER(teamName) = LOWER(%s) 
+            AND TeamID != %s
+            AND season_id = (SELECT season_id FROM teams WHERE TeamID = %s)
+        ''', (team['gameID'], team_title, team_id, team_id))
+
+        name_check = cursor.fetchone()
+        if name_check['count'] > 0:
+            return jsonify({
+                'success': False,
+                'message': 'A team with this name already exists in this season for this game'
+            }), 400
+
+        # Update the team
+        cursor.execute('''
+            UPDATE teams 
+            SET teamName = %s, teamMaxSize = %s 
+            WHERE TeamID = %s
+        ''', (team_title, team_max_size, team_id))
+
+        mysql.connection.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Team "{team_title}" updated successfully!'
+        })
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error updating team: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
     finally:
@@ -121,7 +203,7 @@ def create_team(game_id):
 
 
 @app.route('/api/leagues/all', methods=['GET'])
-def get_all_leagues_for_teams():
+def get_leagues_for_team_creation():
     """Get all leagues for team assignment dropdown"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -151,7 +233,7 @@ def get_all_leagues_for_teams():
 
 
 @app.route('/api/teams/<team_id>/leagues', methods=['GET'])
-def get_team_leagues(team_id):
+def get_team_assigned_leagues(team_id):
     """Get all leagues assigned to a team"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -225,57 +307,10 @@ def assign_team_leagues(team_id):
         cursor.close()
 
 
-@app.route('/teams')
-@login_required
-def view_teams():
-    """View all teams for all games"""
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    try:
-        cursor.execute("""
-                       SELECT t.TeamID, t.teamName, t.teamMaxSize, t.gameID, g.GameTitle
-                       FROM teams t
-                       LEFT JOIN games g ON t.gameID = g.GameID
-                       ORDER BY t.TeamID ASC
-                       """)
-        teams = cursor.fetchall()
-
-        teams_with_details = []
-        for team in teams:
-            team_dict = dict(team)
-
-            try:
-                cursor.execute(f"SELECT 1 FROM team_members WHERE user_id = %s AND team_id = %s LIMIT 1",
-                               (session['id'], team['TeamID']))
-                team_dict['is_member'] = cursor.fetchone() is not None
-            except:
-                team_dict['is_member'] = False
-
-            try:
-                cursor.execute("SELECT COUNT(*) as member_count FROM team_members WHERE team_id = %s",
-                               (team['TeamID'],))
-                count_result = cursor.fetchone()
-                team_dict['member_count'] = count_result['member_count'] if count_result else 0
-            except:
-                team_dict['member_count'] = 0
-
-
-            teams_with_details.append(team_dict)
-
-        return jsonify({'success': True, 'teams': teams_with_details})
-
-    except Exception as e:
-        print(f"Error fetching teams: {str(e)}")
-        return jsonify({'success': True, 'teams': []})
-
-    finally:
-        cursor.close()
-
-
 @app.route('/api/teams/<team_id>/available-members')
 @login_required
 @roles_required('admin', 'gm', 'developer')
-def get_available_team_members(team_id):
+def get_new_available_teammates(team_id):
     """Get list of users who are in the game's community but NOT already in this team"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -529,91 +564,6 @@ def remove_member_from_team(team_id):
         cursor.close()
 
 
-@app.route('/api/teams/<team_id>/update', methods=['POST'])
-@login_required
-def update_team(team_id):
-    """Update team name and max size - Only GM of the game can edit"""
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    try:
-        data = request.get_json()
-        team_title = data.get('team_title', '').strip()
-        team_max_size = data.get('team_max_size')
-
-        if not team_title:
-            return jsonify({'success': False, 'message': 'Team title is required'}), 400
-
-        if not team_max_size:
-            return jsonify({'success': False, 'message': 'Team size is required'}), 400
-
-        # Check if team exists and get the GM
-        cursor.execute('''
-            SELECT t.teamName, t.gameID, g.gm_id, g.GameTitle
-            FROM teams t
-            LEFT JOIN games g ON t.gameID = g.GameID
-            WHERE t.TeamID = %s
-        ''', (team_id,))
-
-        # Check if season is active
-        season_is_active = is_team_season_active(mysql, team_id)
-        if not season_is_active:
-            return jsonify({
-                'success': False,
-                'message': 'Cannot edit teams from past seasons'
-            }), 403
-
-        team = cursor.fetchone()
-
-        if not team:
-            return jsonify({'success': False, 'message': 'Team not found'}), 404
-
-        # STRICT PERMISSION CHECK: Only the GM of this game can edit
-        if team['gm_id'] != session['id']:
-            return jsonify({
-                'success': False,
-                'message': 'Only the Game Manager of this game can edit this team'
-            }), 403
-
-        # Check if new name conflicts with existing team (excluding current team)
-        cursor.execute('''
-            SELECT COUNT(*) AS count 
-            FROM teams 
-            WHERE gameID = %s 
-            AND LOWER(teamName) = LOWER(%s) 
-            AND TeamID != %s
-            AND season_id = (SELECT season_id FROM teams WHERE TeamID = %s)
-        ''', (team['gameID'], team_title, team_id, team_id))
-
-        name_check = cursor.fetchone()
-        if name_check['count'] > 0:
-            return jsonify({
-                'success': False,
-                'message': 'A team with this name already exists in this season for this game'
-            }), 400
-
-        # Update the team
-        cursor.execute('''
-            UPDATE teams 
-            SET teamName = %s, teamMaxSize = %s 
-            WHERE TeamID = %s
-        ''', (team_title, team_max_size, team_id))
-
-        mysql.connection.commit()
-
-        return jsonify({
-            'success': True,
-            'message': f'Team "{team_title}" updated successfully!'
-        })
-
-    except Exception as e:
-        mysql.connection.rollback()
-        print(f"Error updating team: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-    finally:
-        cursor.close()
-
-
 @app.route('/api/teams/sidebar')
 @login_required
 def get_teams_for_sidebar():
@@ -751,8 +701,6 @@ def get_teams_for_sidebar():
 
     except Exception as e:
         print(f"Error fetching teams sidebar: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         cursor.close()
@@ -924,8 +872,6 @@ def team_details(team_id):
 
             except Exception as e:
                 print(f"Error fetching members: {e}")
-                import traceback
-                traceback.print_exc()
 
             # Get game info
             cursor.execute('SELECT GameTitle, GameImage, Division FROM games WHERE GameID = %s', (game_id,))
@@ -1021,7 +967,7 @@ def next_team_scheduled_event(team_id):
         end_time_str = format_time_to_12hr(event['EndTime'])
 
         # Check if all-day event
-        is_all_day = is_all_day_event()
+        is_all_day = is_all_day_event(start_time_str, end_time_str)
 
         event_data = {
             'id': event['EventID'],
@@ -1037,8 +983,6 @@ def next_team_scheduled_event(team_id):
 
     except Exception as e:
         print(f"Error fetching next scheduled event: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'success': False, 'message': 'Failed to fetch event'}), 500
 
 
@@ -1094,8 +1038,6 @@ def get_team_deletion_info(team_id):
 
     except Exception as e:
         print(f"Error getting deletion info: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
     finally:
@@ -1158,8 +1100,6 @@ def delete_team():
     except Exception as e:
         mysql.connection.rollback()
         print(f"Error deleting team: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
     finally:
@@ -1218,11 +1158,9 @@ def check_team_deletion_permission(cursor, team_id, user_id):
     is_game_gm = (team['gm_id'] == user_id)
     season_is_active = team['season_is_active'] == 1 if team['season_is_active'] is not None else True
 
-    created_at = team['created_at']
-    if created_at.tzinfo is None:
-        created_at = created_at.replace(tzinfo=timezone.utc)
+    created_at = localize_datetime(team['created_at'])
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(EST)
     days_since_creation = (now - created_at).days
     within_30_days = days_since_creation <= 30
     deletion_deadline = created_at + timedelta(days=30)

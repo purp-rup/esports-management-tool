@@ -1,12 +1,10 @@
-from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, mysql
+from EsportsManagementTool import app, login_required, roles_required, get_user_permissions, format_time_to_12hr, is_all_day_event, mysql, EST
 from flask import request, redirect, url_for, session, flash, jsonify
-import MySQLdb.cursors
 from datetime import datetime, timedelta
 from flask import send_file
 from io import BytesIO
-from EsportsManagementTool import EST
-#This function should be moved to Init.py realistically, but it's here for now.
-from EsportsManagementTool.scheduled_events import format_time_to_12hr, is_all_day_event
+import MySQLdb.cursors
+import json
 
 ## ==============================================
 ## THE FOLLOWING WAS PRODUCED ALONGSIDE CLAUDEAI
@@ -105,8 +103,6 @@ def view_games():
 
     except Exception as e:
         print(f"Error fetching games: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'success': True, 'games': []})
 
     finally:
@@ -129,7 +125,6 @@ def create_game():
         team_sizes_json = request.form.get('team_sizes', '[]')
         division = request.form.get('division', 'Other').strip()
 
-        import json
         team_sizes = json.loads(team_sizes_json)
 
         game_image = None
@@ -202,8 +197,6 @@ def create_game():
 
     except Exception as e:
         print(f"Error creating game: {str(e)}")
-        import traceback
-        traceback.print_exc()
         mysql.connection.rollback()
         cursor.close()
         return jsonify({'success': False, 'message': f'Database error: {str(e)}'}), 500
@@ -452,8 +445,6 @@ def get_game_community_details(game_id):
 
             except Exception as e:
                 print(f"Error fetching members: {e}")
-                import traceback
-                traceback.print_exc()
 
             return jsonify({
                 'success': True,
@@ -520,8 +511,6 @@ def get_game_current_leagues(game_id):
 
     except Exception as e:
         print(f"Error fetching game current leagues: {e}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'success': False, 'message': 'Failed to fetch leagues'}), 500
 
     finally:
@@ -633,16 +622,7 @@ def get_next_game_community_event(game_id):
             end_time_display = format_time_to_12hr(next_event['end_time'])
 
             # Check if all-day event
-            is_all_day = False
-            if isinstance(next_event['start_time'], timedelta):
-                start_seconds = int(next_event['start_time'].total_seconds())
-                end_seconds = int(next_event['end_time'].total_seconds())
-                is_all_day = (start_seconds == 0 and end_seconds == 86340)
-            else:
-                is_all_day = (next_event['start_time'].hour == 0 and
-                              next_event['start_time'].minute == 0 and
-                              next_event['end_time'].hour == 23 and
-                              next_event['end_time'].minute == 59)
+            is_all_day = is_all_day_event(start_time_display, end_time_display)
 
             formatted_event = {
                 'id': next_event['id'],
@@ -665,9 +645,7 @@ def get_next_game_community_event(game_id):
             cursor.close()
 
     except Exception as e:
-        print(f"❌ Error getting next community event: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        print(f" Error getting next community event: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Failed to load next event: {str(e)}'
@@ -928,8 +906,6 @@ def assign_game_manager(game_id):
         except Exception as e:
             mysql.connection.rollback()
             print(f"Database error: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return jsonify({'success': False, 'message': 'Failed to assign game manager'}), 500
 
         finally:
@@ -937,8 +913,6 @@ def assign_game_manager(game_id):
 
     except Exception as e:
         print(f"Error assigning GM: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
 """
@@ -1150,8 +1124,6 @@ def get_all_games_for_management():
 
     except Exception as e:
         print(f"Error fetching games for management: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'success': False, 'message': 'Failed to fetch games'}), 500
 
     finally:
@@ -1179,7 +1151,6 @@ def update_game_details(game_id):
         division = request.form.get('division', '').strip()
         team_sizes_json = request.form.get('team_sizes', '[]')
 
-        import json
         team_sizes = json.loads(team_sizes_json)
 
         # Validation
@@ -1261,8 +1232,6 @@ def update_game_details(game_id):
 
     except Exception as e:
         print(f"Error updating game: {str(e)}")
-        import traceback
-        traceback.print_exc()
         mysql.connection.rollback()
         return jsonify({'success': False, 'message': f'Failed to update game: {str(e)}'}), 500
 
@@ -1330,8 +1299,6 @@ def delete_game_from_management(game_id):
 
     except Exception as e:
         print(f"Error deleting game: {str(e)}")
-        import traceback
-        traceback.print_exc()
         mysql.connection.rollback()
         return jsonify({'success': False, 'message': 'Failed to delete game'}), 500
 
@@ -1375,8 +1342,6 @@ def toggle_game_hidden(game_id):
 
     except Exception as e:
         print(f"Error toggling hidden status: {str(e)}")
-        import traceback
-        traceback.print_exc()
         mysql.connection.rollback()
         return jsonify({'success': False, 'message': 'Failed to toggle hidden status'}), 500
 
