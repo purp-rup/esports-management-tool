@@ -7,6 +7,8 @@
 let currentDate = new Date();
 let landingEventsData = {};  // Renamed from landingEventsData to avoid conflict with events.js
 let isUserLoggedIn = false;
+let clickOutsideHandler = null; // Listens for clicks outside of popups
+let activeAnchorElement = null;
 
 window.currentEventId = null;
 window.currentEventData = null;
@@ -30,6 +32,62 @@ window.closeDayModal = function() {
     }
 };
 
+// Scroll locking helper functions for event popups
+let scrollLockOffset = 0;
+
+function lockScroll() {
+    scrollLockOffset = window.scrollY;
+
+    Object.assign(document.body.style, {
+        top: `-${scrollLockOffset}px`,
+        position: 'fixed',
+        width: '100%',
+        overflowY: 'scroll'
+    });
+}
+
+function unlockScroll() {
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.body.style.overflowY = '';
+
+    window.scrollTo(0, scrollLockOffset);
+}
+
+// Popup close function
+window.closeEventPopup = function() {
+    const existingPopup = document.getElementById('landingEventPopup');
+    if (existingPopup) {
+        existingPopup.remove();
+        unlockScroll();
+    }
+
+    if (clickOutsideHandler) {
+        document.removeEventListener('click', clickOutsideHandler);
+        clickOutsideHandler = null;
+    }
+
+    window.removeEventListener('resize', handleDynamicReposition);
+    window.removeEventListener('scroll', handleDynamicReposition, true);
+
+    window.currentEventId = null;
+    window.currentEventData = null;
+    activeAnchorElement = null;
+};
+
+// Helper function to properly resize popups with window changes
+let resizeTimeout = null;
+function handleDynamicReposition() {
+    const popup = document.getElementById('landingEventPopup');
+    if (popup && activeAnchorElement) {
+        if (resizeTimeout) cancelAnimationFrame(resizeTimeout);
+        resizeTimeout = requestAnimationFrame(() => {
+            positionPopup(popup, activeAnchorElement);
+        });
+    }
+}
+
 // Stub functions for dashboard-only modals
 window.closeCreateEventModal = function() {};
 window.closeCreateGameModal = function() {};
@@ -46,6 +104,7 @@ window.closeAddVodModal = function() {};
 
 function closeEventModal() { window.closeEventModal(); }
 function closeDayModal() { window.closeDayModal(); }
+function closeEventPopup() {window.closeEventPopup(); }
 
 // Initialization
 document.addEventListener('DOMContentLoaded', function() {
@@ -248,7 +307,7 @@ function createEventElement(event) {
 
     eventEl.addEventListener('click', function(e) {
         e.stopPropagation();
-        openEventModal(event.id);
+        openEventPopup(event.id, this);
     });
 
     return eventEl;
@@ -374,6 +433,14 @@ function displayEventDetails(event) {
                 <span class="event-detail-value">${formatTime(event.start_time)} - ${formatTime(event.end_time)}</span>
             </div>
         `;
+    } else {
+        html += `
+            <div class="event-detail-row">
+                <div class="event-detail-icon"><i class="fas fa-clock"></i></div>
+                <span class="event-detail-label">Time:</span>
+                <span class="event-detail-value">All day</span>
+            </div>
+        `;
     }
 
     // EVENT TYPE
@@ -489,6 +556,232 @@ function openDayModal(dateKey, dateDisplay) {
     document.body.style.overflow = 'hidden';
 }
 
+function openEventPopup(event_id, clickedElement) {
+    window.closeEventPopup();
+    window.currentEventId = event_id;
+    activeAnchorElement = clickedElement;
+
+    const popup = document.createElement('div');
+    popup.id = 'landingEventPopup';
+    popup.className = 'popup-event-item';
+    popup.style.visibility = 'hidden'; // Hides popup until everything loads
+
+    popup.innerHTML = `
+        <div class="popup-arrow"></div>
+    `;
+
+    const container = document.querySelector('.calendar-container') || document.body;
+    container.appendChild(popup);
+
+    lockScroll();
+
+    // Positions relative to the clicked event item
+    if (clickedElement) {
+        positionPopup(popup, clickedElement, false);
+    }
+
+    // Handles clicking outside or leaving the element to close it
+    clickOutsideHandler = function(e) {
+        if (!popup.contains(e.target) && (!clickedElement || !clickedElement.contains(e.target))) {
+            window.closeEventPopup();
+        }
+    };
+
+    setTimeout(() => {
+        if (window.currentEventId === event_id) {
+            document.addEventListener('click', clickOutsideHandler);
+            window.addEventListener('resize', handleDynamicReposition);
+            window.addEventListener('scroll', handleDynamicReposition, true);
+        }
+    }, 50);
+
+    fetch(`/api/events/${event_id}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                popup.innerHTML = `<div class="popup-error">Failed to load details</div>`;
+            } else {
+                window.currentEventData = data;
+                displayEventPopupDetails(data, popup, clickedElement);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching event:', error);
+            popup.innerHTML = `<div class="popup-error">Failed to load details</div>`;
+        });
+}
+
+function displayEventPopupDetails(data, popup, clickedElement){
+    if (!popup) return;
+
+    const eventType = (data.event_type || 'misc').toLowerCase();
+    popup.setAttribute('data-event-type', eventType);
+
+    // Formats start and end time for events
+    const startTimeFormatted = data.start_time ? formatTime(data.start_time) : null;
+    const endTimeFormatted = data.end_time ? formatTime(data.end_time) : null;
+
+    let timeRange = 'No time specified';
+
+    if (data.start_time && data.end_time) {
+        timeRange = `${formatTime(data.start_time)} - ${formatTime(data.end_time)}`;
+    } else if (!data.start_time && data.end_time === "23:59") {
+        timeRange = "All day";
+    }
+
+    popup.innerHTML = `
+        <div class="popup-arrow"></div>
+        <div class="event-popup-details popup-inner-wrapper" data-event-type="${data.event_type || 'misc'}">
+
+            <h3 class="popup-title">${data.title}</h3>
+
+            <div class="popup-grid-content">
+                <div class="popup-row">
+                    <span class="popup-icon"><i class="fas fa-calendar-alt"></i></span>
+                    <span class="popup-text">
+                        ${formatEventDate(data.start_date || data.date)}
+                    </span>
+                </div>
+
+                <div class="popup-row">
+                    <span class="popup-icon"><i class="fas fa-clock"></i></span>
+                    <span class="popup-text">
+                        ${timeRange || 'No time specified'}
+                    </span>
+                </div>
+
+                <div class="popup-row">
+                    <span class="popup-icon"><i class="fas fa-tag"></i></span>
+                    <span class="popup-text" style="text-transform: capitalize;">Event Type: ${data.event_type}</span>
+                </div>
+
+                <div class="popup-games-box">
+                    <span class="popup-icon"><i class="fas fa-gamepad"></i></span>
+                    <span class="popup-text">Game: ${data.game_name || 'N/A'}</span>
+                </div>
+
+                <div class="popup-row full-width">
+                    <span class="popup-icon"><i class="fas fa-map-marker-alt"></i></span>
+                    <span class="popup-text">Location: ${data.location || 'Online'}</span>
+                </div>
+            </div>
+
+            ${data.description ? `
+                <div class="popup-description-box">
+                    <span class="popup-icon"><i class="fas fa-align-left"></i></span>
+                    <span class="popup-text">${data.description}</span>
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    popup.innerHTML += `<div class="event-notification-section popup-footer-scale">`;
+
+    if (!isUserLoggedIn) {
+        popup.innerHTML += `
+            <div class="notification-opt-in popup-footer-scale">
+                <div class="notification-icon popup-footer-scale"><i class="fas fa-bell"></i></div>
+                <div class="notification-text popup-footer-scale">
+                    <div class="title">Event Reminders</div>
+                    <div class="subtitle">Get notified about this event</div>
+                </div>
+                <a href="${window.location.origin}/login" class="notification-btn popup-footer-scale"><span>Login to Subscribe</span></a>
+            </div>
+        `;
+    } else {
+        popup.innerHTML += `
+            <div class="notification-opt-in popup-footer-scale">
+                <div class="notification-icon popup-footer-scale"><i class="fas fa-bell"></i></div>
+                <div class="notification-text popup-footer-scale">
+                    <div class="title">Event Reminders</div>
+                    <div class="subtitle">Get notified about this event</div>
+                </div>
+                <button class="notification-btn popup-footer-scale" id="notificationBtn" onclick="toggleEventSubscription()">
+                    <span id="notificationBtnText">Subscribe</span>
+                </button>
+            </div>
+        `;
+    }
+
+    popup.innerHTML += '</div>';
+
+    if (isUserLoggedIn && data.id) {
+        loadNotificationSection(data.id);
+    }
+
+    if (isUserLoggedIn) {
+        const footer = document.getElementById('popupActionFooter');
+        if (footer) {
+            footer.style.display = 'block';
+            loadNotificationSection(data.id);
+        }
+    }
+
+    // Adjust position after content loads in case width/height changed
+    if (clickedElement) {
+        positionPopup(popup, clickedElement, true);
+    }
+}
+
+function positionPopup(popup, anchorElement, reveal) {
+    const calendarContainer = document.querySelector('.calendar-container');
+    if (!calendarContainer) return;
+
+    // Get bounding boxes
+    const containerRect = calendarContainer.getBoundingClientRect();
+    const anchorRect = anchorElement.getBoundingClientRect();
+    const popupHeight = popup.offsetHeight || 150;
+    const popupWidth = popup.offsetWidth || 440;
+
+    const gap = 8;
+
+    // Calculate anchor positioning coordinates relative to the calendar container
+    const anchorLeftRelativeToContainer = anchorRect.left - containerRect.left;
+    const anchorRightRelativeToContainer = anchorRect.right - containerRect.left;
+    const anchorTopRelativeToContainer = anchorRect.top - containerRect.top;
+
+    let left = anchorRightRelativeToContainer + gap;
+    arrowDir = 'right';
+
+    // If popup hits the right edge of the calendar grid container, flip to left side
+    if (left + popupWidth > containerRect.width || (left + (popupWidth / 2) > containerRect.width)) {
+        left = anchorLeftRelativeToContainer - popupWidth - gap;
+        arrowDir = 'left';
+    }
+
+    if (left < gap) left = gap;
+
+    // Center the popup vertically with the center of the clicked event
+    const anchorCenterY = anchorTopRelativeToContainer + (anchorRect.height / 2);
+    let top = anchorCenterY - (popupHeight / 2);
+
+    if (top < gap) top = gap;
+
+    popup.style.position = 'absolute';
+    popup.style.left = `${left}px`;
+    popup.style.top = `${top}px`;
+
+    // Update arrow direction and vertical alignment
+    const arrow = popup.querySelector('.popup-arrow');
+    if (arrow) {
+        arrow.classList.remove('popup-arrow--right', 'popup-arrow--left');
+        if (arrowDir === 'right') {
+            arrow.classList.add('popup-arrow--left');
+        } else {
+            arrow.classList.add('popup-arrow--right');
+        }
+
+        // Vertically align arrow with anchor center
+        const anchorMidY = anchorTopRelativeToContainer + (anchorRect.height / 2);
+        const arrowOffsetInPopup = anchorMidY - top;
+        const clampedOffset = Math.max(12, Math.min(arrowOffsetInPopup, popupHeight - 12));
+        arrow.style.top = `${clampedOffset}px`;
+    }
+
+    if (reveal) popup.style.visibility = 'visible';
+    return arrowDir;
+}
+
 function formatEventDate(dateStr) {
     const date = new Date(dateStr + 'T00:00:00');
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -497,6 +790,7 @@ function formatEventDate(dateStr) {
 
 function formatTime(timeStr) {
     if (!timeStr) return '';
+
     const [hours, minutes] = timeStr.split(':');
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? 'PM' : 'AM';
