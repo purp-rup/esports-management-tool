@@ -54,14 +54,35 @@ app.config['MYSQL_CUSTOM_OPTIONS'] = {
 }
 
 # Email Configuration (Brevo SMTP)
-app.config['MAIL_SERVER'] = 'smtp-relay.brevo.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
+class ProductionEmailConfig:
+    MAIL_SERVER = 'smtp-relay.brevo.com'
+    MAIL_PORT = 587
+    MAIL_USE_TLS = True
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER')
 
-# API Keys
+# Test Email Configuration (Mailpit)
+class TestingEmailConfig:
+    MAIL_SERVER = 'localhost'
+    MAIL_PORT = 1025
+    MAIL_USE_TLS = False
+    MAIL_USERNAME = None
+    MAIL_PASSWORD = None
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER')
+
+# CHANGE THIS TO SWITCH MAILING MODES ('production' or 'testing')
+# Note: Testing mode will ONLY send emails to mailpit, make sure to revert to prod. mode when done testing!!!
+MAILING_MODE = 'testing'
+
+if MAILING_MODE == 'production':
+    app.config.from_object(ProductionEmailConfig)
+elif MAILING_MODE == 'testing':
+    app.config.from_object(TestingEmailConfig)
+else:
+    print("WARNING: No Email Mode Configured")
+
+# YouTube API Key
 app.config['YOUTUBE_API_KEY'] = os.environ.get('YOUTUBE_API_KEY')
 
 # Session Security (HTTPS enforcement)
@@ -769,6 +790,10 @@ tournament_results.register_tournament_results_routes(app, mysql, login_required
 # Initialize tournament notification scheduler
 from EsportsManagementTool import tournament_notification_scheduler
 tournament_notification_scheduler.initialize_tournament_scheduler(app, mysql, mail)
+
+# Initialize test mail server
+from EsportsManagementTool import email_manager
+email_manager.register_test_routes(app)
 
 # =======================================
 # CALENDAR API ENDPOINTS
