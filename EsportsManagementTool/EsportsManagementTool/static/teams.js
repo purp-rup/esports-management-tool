@@ -593,7 +593,6 @@ function toggleTeamDetailCollapse() {
 // ============================================
 // NEXT SCHEDULED EVENT
 // ============================================
-
 /**
  * Load the next scheduled event for a team
  */

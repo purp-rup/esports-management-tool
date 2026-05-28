@@ -117,7 +117,7 @@ const DIVISION_ORDER = ['Strategy', 'Shooter', 'Sports', 'Other'];
  */
 async function initializeViewSwitcher() {
     try {
-        const response = await fetch('/api/teams/available-views');
+        const response = await fetch('/api/teams/sidebar-filters');
         const data = await response.json();
 
         if (data.success && data.views && data.views.length > 0) {
