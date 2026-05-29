@@ -8,7 +8,7 @@ the packages format for modular organization.
 # =========================================
 # CORE IMPORTS
 # =========================================
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, make_response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, make_response, Response
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
 from datetime import datetime, timedelta
@@ -95,7 +95,7 @@ def localize_datetime(dt: datetime) -> datetime:
     return dt.astimezone(EST)
 
 @app.before_request
-def set_mysql_timezone():
+def set_mysql_timezone() -> None:
     """
     Set MySQL session timezone to match EST/EDT dynamically.
 
@@ -212,15 +212,13 @@ def roles_required(*required_roles):
 
     return decorator
 
+
 # =======================================
 # ADDITIONAL HELPERS
 # ========================================
-def get_user_permissions(user_id):
+def get_user_permissions(user_id: int) -> dict[str, int]:
     """
     Fetch all permissions/roles for a specific user.
-
-    Args:
-        user_id (int): User ID to look up
     """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -245,13 +243,16 @@ def get_user_permissions(user_id):
     finally:
         cursor.close()
 
-def get_team_game_id(cursor, team_id):
+
+# UNUSED?
+def get_team_game_id(cursor, team_id: int):
     """Returns gameID for a team, or None if not found."""
     cursor.execute("SELECT gameID FROM teams WHERE TeamID = %s", (team_id,))
     result = cursor.fetchone()
     return result['gameID'] if result else None
 
 
+# UNUSED? Duplicate exists in events.py
 def format_time_to_12hr(time_value):
     """
     Convert time object or timedelta to 12-hour format string
@@ -278,10 +279,11 @@ def format_time_to_12hr(time_value):
     return f"{display_hour}:{minutes:02d} {period}"
 
 
-def is_all_day_event(start_time_str, end_time_str):
+# UNUSED?
+def is_all_day_event(start_time: str, end_time: str) -> bool:
     """Determines if an event is an all-day event or not"""
-    return bool(start_time_str and end_time_str and
-                start_time_str == "12:00 AM" and end_time_str == "11:59 PM")
+    return bool(start_time and end_time and
+                start_time == "12:00 AM" and end_time == "11:59 PM")
 
 
 # ============================================
@@ -306,7 +308,9 @@ def update_user_last_seen(user_id: int) -> None:
     except Exception as e:
         print(f"Error updating last_seen: {str(e)}")
 
-def cleanup_inactive_users():
+
+# UNUSED?
+def cleanup_inactive_users() -> None:
     """
     Mark users as inactive if they haven't been seen in 15 minutes.
     Also cleans up old suspension invalidations.
@@ -354,7 +358,7 @@ If you did not create this account, please ignore this email.
 
 
 @app.route('/verify/<token>')
-def verify_email(token: str):
+def verify_email(token: str) -> Response:
     """
     Process email verification when user clicks verification link.
     Verifies the token is valid and not expired, then marks the user's
@@ -770,11 +774,12 @@ tournament_results.register_tournament_results_routes(app, mysql, login_required
 from EsportsManagementTool import tournament_notification_scheduler
 tournament_notification_scheduler.initialize_tournament_scheduler(app, mysql, mail)
 
+
 # =======================================
 # CALENDAR API ENDPOINTS
 # =======================================
 @app.route('/api/calendar/events')
-def get_calendar_events():
+def get_calendar_events() -> tuple[Response, int] | Response:
     """
     Fetch events for calendar view via AJAX with visibility filtering.
     """
@@ -894,7 +899,7 @@ def get_calendar_events():
 
 
 @app.route('/api/events/<int:event_id>')
-def get_event_details(event_id):
+def get_event_details(event_id: int) -> tuple[Response, int] | Response:
     """
     Fetch detailed information for a specific event.
     Used by the event details modal on the calendar.
