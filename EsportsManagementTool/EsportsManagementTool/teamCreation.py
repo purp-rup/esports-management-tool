@@ -143,18 +143,12 @@ def get_all_leagues_for_teams():
 
     try:
         cursor.execute('''
-            SELECT id, name, website_url,
-                   CASE WHEN logo IS NOT NULL THEN 1 ELSE 0 END as has_logo
+            SELECT id, name, website_url, logo
             FROM league
             ORDER BY name ASC
         ''')
 
         leagues = cursor.fetchall()
-
-        # Add logo URL for frontend
-        for league in leagues:
-            league['logo'] = f'/league-image/{league["id"]}' if league['has_logo'] else None
-            del league['has_logo']
 
         return jsonify({'success': True, 'leagues': leagues}), 200
 
