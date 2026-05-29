@@ -4,10 +4,6 @@ Esports Management Tool - Main Application Module
 This module serves as the entry point for the Flask application, configured in
 the packages format for modular organization.
 """
-
-# =========================================
-# CORE IMPORTS
-# =========================================
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, make_response
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
@@ -28,12 +24,6 @@ from cloudinary.utils import cloudinary_url
 # APPLICATION INITIALIZATION
 # =========================================
 app = Flask(__name__)
-
-# =========================================
-# EARLY MODULE IMPORTS (No initialization dependencies)
-# =========================================
-import EsportsManagementTool.exampleModule
-import EsportsManagementTool.UpdateProfile
 
 # =========================================
 # CONFIGURATION
@@ -122,7 +112,7 @@ def set_mysql_timezone():
 
 
 # ============================================
-# ROLE-BASED SECURITY SYSTEM
+# ROLE-BASED ACCESS CONTROL
 # ============================================
 def login_required(view_function):
     """
@@ -212,77 +202,6 @@ def roles_required(*required_roles):
 
     return decorator
 
-# =======================================
-# ADDITIONAL HELPERS
-# ========================================
-def get_user_permissions(user_id):
-    """
-    Fetch all permissions/roles for a specific user.
-
-    Args:
-        user_id (int): User ID to look up
-    """
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    try:
-        cursor.execute("""
-            SELECT is_admin, is_gm, is_player, is_developer 
-            FROM permissions 
-            WHERE userid = %s
-        """, (user_id,))
-        permissions = cursor.fetchone()
-
-        if permissions:
-            return permissions
-        else:
-            # Default permissions if none exist
-            return {
-                'is_admin': 0,
-                'is_gm': 0,
-                'is_player': 0,
-                'is_developer': 0
-            }
-    finally:
-        cursor.close()
-
-def get_team_game_id(cursor, team_id):
-    """Returns gameID for a team, or None if not found."""
-    cursor.execute("SELECT gameID FROM teams WHERE TeamID = %s", (team_id,))
-    result = cursor.fetchone()
-    return result['gameID'] if result else None
-
-
-def format_time_to_12hr(time_value):
-    """
-    Convert time object or timedelta to 12-hour format string
-    """
-    if not time_value:
-        return None
-
-    # Handle timedelta (from MySQL TIME type)
-    if isinstance(time_value, timedelta):
-        total_seconds = int(time_value.total_seconds())
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-    else:
-        # Handle time object
-        hours = time_value.hour
-        minutes = time_value.minute
-
-    # Convert to 12-hour format
-    period = "AM" if hours < 12 else "PM"
-    display_hour = hours % 12
-    if display_hour == 0:
-        display_hour = 12
-
-    return f"{display_hour}:{minutes:02d} {period}"
-
-
-def is_all_day_event(start_time_str, end_time_str):
-    """Determines if an event is an all-day event or not"""
-    return bool(start_time_str and end_time_str and
-                start_time_str == "12:00 AM" and end_time_str == "11:59 PM")
-
 
 # ============================================
 # USER ACTIVITY TRACKING
@@ -305,6 +224,7 @@ def update_user_last_seen(user_id: int) -> None:
         cursor.close()
     except Exception as e:
         print(f"Error updating last_seen: {str(e)}")
+
 
 def cleanup_inactive_users():
     """
@@ -726,6 +646,7 @@ def register():
 # =======================================
 # MODULE IMPORTS (After Initialization)
 # =======================================
+import EsportsManagementTool.universal_helpers
 import EsportsManagementTool.exampleModule
 import EsportsManagementTool.UpdateProfile
 import EsportsManagementTool.EventNotificationManager
@@ -733,7 +654,7 @@ import EsportsManagementTool.suspensions
 import EsportsManagementTool.events
 import EsportsManagementTool.dashboard
 from EsportsManagementTool import game
-from EsportsManagementTool import teamCreation
+from EsportsManagementTool import team_creation
 from EsportsManagementTool import vods
 from EsportsManagementTool import seasons
 from EsportsManagementTool import leagues
@@ -746,25 +667,25 @@ from EsportsManagementTool import statistics
 EsportsManagementTool.suspensions.register_suspension_routes(app, mysql, roles_required)
 
 # Register event and season routes
-EsportsManagementTool.events.register_event_routes(app, mysql, login_required, roles_required, get_user_permissions)
-EsportsManagementTool.seasons.register_seasons_routes(app, mysql, login_required, roles_required, get_user_permissions)
+EsportsManagementTool.events.register_event_routes(app, mysql, login_required, roles_required)
+EsportsManagementTool.seasons.register_seasons_routes(app, mysql, login_required, roles_required)
 seasons.initialize_season_scheduler(app, mysql)
 
 # Register League Routes
-leagues.register_league_routes(app, mysql, login_required, roles_required, get_user_permissions)
+leagues.register_league_routes(app, mysql, login_required, roles_required)
 
 # Register team statistics routes
 from EsportsManagementTool import team_stats
-team_stats.register_team_stats_routes(app, mysql, login_required, roles_required, get_user_permissions)
+team_stats.register_team_stats_routes(app, mysql, login_required, roles_required)
 statistics.register_statistics_routes(app, mysql, login_required, roles_required)
 
 # Register scheduled events routes
 from EsportsManagementTool import scheduled_events
-scheduled_events.register_scheduled_events_routes(app, mysql, login_required, roles_required, get_user_permissions)
+scheduled_events.register_scheduled_events_routes(app, mysql, login_required, roles_required)
 
 # Register tournament results routes
 from EsportsManagementTool import tournament_results
-tournament_results.register_tournament_results_routes(app, mysql, login_required, roles_required, get_user_permissions)
+tournament_results.register_tournament_results_routes(app, mysql, login_required, roles_required)
 
 # Initialize tournament notification scheduler
 from EsportsManagementTool import tournament_notification_scheduler

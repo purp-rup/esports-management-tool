@@ -3,6 +3,7 @@ Seasons Management Module
 Handles CRUD operations for seasons
 """
 from EsportsManagementTool import season_roles
+from EsportsManagementTool.universal_helpers import get_user_permissions
 from flask import jsonify, request, session
 import MySQLdb.cursors
 from datetime import datetime, date
@@ -13,7 +14,7 @@ import os
 ## =================================
 ## REGISTER SEASONS FUNCTIONS
 ## =================================
-def register_seasons_routes(app, mysql, login_required, roles_required, get_user_permissions):
+def register_seasons_routes(app, mysql, login_required, roles_required):
     """
     Register all season-related routes
     Grouped together due to accepting the same parameters
