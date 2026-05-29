@@ -654,7 +654,7 @@ import EsportsManagementTool.suspensions
 import EsportsManagementTool.events
 import EsportsManagementTool.dashboard
 from EsportsManagementTool import game
-from EsportsManagementTool import team_creation
+from EsportsManagementTool import teams
 from EsportsManagementTool import vods
 from EsportsManagementTool import seasons
 from EsportsManagementTool import leagues
@@ -680,8 +680,8 @@ team_stats.register_team_stats_routes(app, mysql, login_required, roles_required
 statistics.register_statistics_routes(app, mysql, login_required, roles_required)
 
 # Register scheduled events routes
-from EsportsManagementTool import scheduled_events
-scheduled_events.register_scheduled_events_routes(app, mysql, login_required, roles_required)
+from EsportsManagementTool import schedules
+schedules.register_schedule_routes(app, mysql, login_required, roles_required)
 
 # Register tournament results routes
 from EsportsManagementTool import tournament_results

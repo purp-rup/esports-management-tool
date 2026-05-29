@@ -12,7 +12,7 @@ from dateutil.relativedelta import relativedelta
 import calendar
 
 
-def register_scheduled_events_routes(app, mysql, login_required, roles_required):
+def register_schedule_routes(app, mysql, login_required, roles_required):
     """Register all scheduled event routes."""
 
     @app.route('/api/schedule/create', methods=['POST'])
@@ -162,7 +162,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required)
             try:
                 # Deactivate any expired schedules before fetching
                 deactivate_expired_schedules(mysql.connection)
-                
+
                 game_id = get_team_game_id(cursor, team_id)
                 if game_id is None:
                     return jsonify({'success': False, 'message': 'Team not found'}), 404

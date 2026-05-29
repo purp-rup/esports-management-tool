@@ -9,8 +9,8 @@ import MySQLdb.cursors
 def get_user_permissions(user_id):
     """
     Fetch all permissions/roles for a specific user.
-    Used in dashboard.py, events.py, game.py, leagues.py, scheduled_events.py, seasons.py,
-    team_creation.py, team_stats.py, tournament_results.py, & vods.py
+    Used in dashboard.py, events.py, game.py, leagues.py, schedules.py, seasons.py,
+    teams.py, team_stats.py, tournament_results.py, & vods.py
     """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -38,7 +38,7 @@ def get_user_permissions(user_id):
 def get_team_game_id(cursor, team_id):
     """
     Returns gameID for a team, or None if not found.
-    Used in team_creation.py & scheduled_events.py
+    Used in teams.py & schedules.py
     """
     cursor.execute("SELECT gameID FROM teams WHERE TeamID = %s", (team_id,))
     result = cursor.fetchone()
@@ -47,7 +47,7 @@ def get_team_game_id(cursor, team_id):
 def format_time_to_12hr(time_value):
     """
     Convert time object or timedelta to 12-hour format string
-    Used in game.py, scheduled_events.py, & team_creation.py
+    Used in game.py, schedules.py, & teams.py
     """
     if not time_value:
         return None
@@ -73,7 +73,7 @@ def format_time_to_12hr(time_value):
 def is_all_day_event(start_time_str, end_time_str):
     """
     Determines if an event is an all-day event or not
-    Used in game.py & team_creation.py
+    Used in game.py & teams.py
     """
     return bool(start_time_str and end_time_str and
                 start_time_str == "12:00 AM" and end_time_str == "11:59 PM")
