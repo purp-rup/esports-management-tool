@@ -10,7 +10,7 @@ the packages format for modular organization.
 # =========================================
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, make_response
 from flask_mysqldb import MySQL
-from flask_mail import Mail, Message
+from flask_mail import Mail
 from datetime import datetime, timedelta
 from functools import wraps
 import MySQLdb.cursors
@@ -350,65 +350,9 @@ def cleanup_inactive_users():
 
 
 # ============================================
-# EMAIL VERIFICATION
+# VERIFICATION EMAIL
 # ============================================
-def send_verify_email(email: str, token: str) -> None:
-    """
-    Send verification email to newly registered users.
-    Constructs and sends an email containing a verification link that
-    expires after 24 hours.
-    """
-    verify_url = url_for('verify_email', token=token, _external=True)
-    msg = Message('Verify Your Stockton University Email Account', recipients=[email])
-    msg.body = f'''Hello,
-Please click the link below to verify your Stockton Esports Management Tool account:
-
-{verify_url}
-
-This link will expire after 24 hours.
-
-If you did not create this account, please ignore this email.
-
-- EsMT Team.
-'''
-    mail.send(msg)
-
-
-@app.route('/verify/<token>')
-def verify_email(token: str):
-    """
-    Process email verification when user clicks verification link.
-    Verifies the token is valid and not expired, then marks the user's
-    account as verified in the database.
-
-    Returns:
-        Redirect to login page on success, or registration page on failure
-    """
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    try:
-        # Look up token and check expiry
-        cursor.execute(
-            'SELECT * FROM verified_users WHERE verification_token = %s AND token_expiry > NOW()',
-            (token,)
-        )
-        user = cursor.fetchone()
-
-        if user:
-            # Mark user as verified and clear token
-            cursor.execute(
-                '''UPDATE verified_users 
-                   SET is_verified = TRUE, verification_token = NULL, token_expiry = NULL 
-                   WHERE userid = %s''',
-                (user['userid'],)
-            )
-            mysql.connection.commit()
-            flash('Email is successfully verified, welcome to Stockton Esports! You can now log in.', 'success')
-            return redirect(url_for('login'))
-        else:
-            flash('ERROR: Verification link is invalid/expired.', 'error')
-            return redirect(url_for('register'))
-    finally:
-        cursor.close()
+from EsportsManagementTool.email_manager import send_verify_email
 
 
 # ============================================
@@ -510,7 +454,7 @@ def login():
                         mysql.connection.commit()
 
                         try:
-                            send_verify_email(account['email'], verification_token)
+                            send_verify_email(account['email'], verification_token, username)
                             msg = 'Email sent.'
                         except Exception as e:
                             msg = f'Email failed to send. Error: {str(e)}'
@@ -732,7 +676,7 @@ def register():
                 mysql.connection.commit()
 
                 # Send verification email
-                send_verify_email(email, verification_token)
+                send_verify_email(email, verification_token, username)
                 msg = ('You have successfully created an account! Please check your email for verification! '
                        'If the email does not appear in your inbox, please check your spam!')
         finally:
@@ -791,9 +735,11 @@ tournament_results.register_tournament_results_routes(app, mysql, login_required
 from EsportsManagementTool import tournament_notification_scheduler
 tournament_notification_scheduler.initialize_tournament_scheduler(app, mysql, mail)
 
-# Initialize test mail server
+# Register verification email routes
 from EsportsManagementTool import email_manager
+email_manager.register_verification_routes(app, mysql)
 email_manager.register_test_routes(app)
+
 
 # =======================================
 # CALENDAR API ENDPOINTS
