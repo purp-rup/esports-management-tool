@@ -217,11 +217,6 @@ def get_leagues_for_team_creation():
 
         leagues = cursor.fetchall()
 
-        # Add logo URL for frontend
-        for league in leagues:
-            league['logo'] = f'/league-image/{league["id"]}' if league['has_logo'] else None
-            del league['has_logo']
-
         return jsonify({'success': True, 'leagues': leagues}), 200
 
     except Exception as e:
@@ -248,12 +243,7 @@ def get_team_assigned_leagues(team_id):
         ''', (team_id,))
 
         leagues = cursor.fetchall()
-
-        # Add logo URL
-        for league in leagues:
-            league['logo'] = f'/league-image/{league["id"]}' if league['has_logo'] else None
-            del league['has_logo']
-
+        
         return jsonify({'success': True, 'leagues': leagues}), 200
 
     except Exception as e:

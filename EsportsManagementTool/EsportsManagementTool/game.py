@@ -489,23 +489,23 @@ def get_game_current_leagues(game_id):
         # Get unique leagues from teams in current season for this game
         cursor.execute("""
             SELECT DISTINCT l.id, l.name, l.website_url,
-                   CASE WHEN l.logo IS NOT NULL THEN 1 ELSE 0 END as has_logo,
+                   l.logo,
                    COUNT(DISTINCT tl.team_id) as team_count
             FROM league l
             INNER JOIN team_leagues tl ON l.id = tl.league_id
             INNER JOIN teams t ON tl.team_id = t.TeamID
             WHERE t.gameID = %s
             AND t.season_id = %s
-            GROUP BY l.id, l.name, l.website_url
+            GROUP BY l.id, l.name, l.website_url, l.logo
             ORDER BY l.name ASC
         """, (game_id, active_season_id))
 
         leagues = cursor.fetchall()
 
-        # Add logo URLs
+        # Calls from cloudinary
         for league in leagues:
-            league['logo'] = f'/league-image/{league["id"]}' if league['has_logo'] else None
-            del league['has_logo']
+            if 'has_logo' in league:
+                del league['has_logo']
 
         return jsonify({'success': True, 'leagues': leagues}), 200
 

@@ -296,64 +296,6 @@ def dashboard(year=None, month=None):
         cursor.close()
 
 """
-Route to allow users to upload profile pictures via a button on the profile tab.
-"""
-
-
-@app.route('/upload-avatar', methods=['POST'])
-def upload_avatar():
-    if 'loggedin' not in session:
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
-
-    if 'avatar' not in request.files:
-        return jsonify({'success': False, 'message': 'No file uploaded'}), 400
-
-    file = request.files['avatar']
-
-    if file.filename == '' or not allowed_file(file.filename):
-        return jsonify({'success': False, 'message': 'Invalid file'}), 400
-
-    try:
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        # Get old public_id so we can delete it from Cloudinary
-        cursor.execute("SELECT cloudinary_public_id FROM users WHERE id = %s", (session['id'],))
-        old_user = cursor.fetchone()
-        old_public_id = old_user.get('cloudinary_public_id') if old_user else None
-
-        # Upload new image to Cloudinary
-        result = cloudinary.uploader.upload(
-            file,
-            folder='profile_pictures/',
-            transformation=[{'width': 400, 'height': 400, 'crop': 'fill'}]
-        )
-
-        picture_url = result['secure_url']
-        public_id = result['public_id']
-
-        # Delete old image from Cloudinary if it exists
-        if old_public_id:
-            cloudinary.uploader.destroy(old_public_id)
-
-        # Save new URL and public_id to MySQL
-        cursor.execute(
-            "UPDATE users SET profile_picture = %s, cloudinary_public_id = %s WHERE id = %s",
-            (picture_url, public_id, session['id'])
-        )
-        mysql.connection.commit()
-        cursor.close()
-
-        return jsonify({
-            'success': True,
-            'message': 'Avatar uploaded successfully!',
-            'avatar_url': picture_url
-        })
-
-    except Exception as e:
-        print(f"Error uploading avatar: {str(e)}")
-        return jsonify({'success': False, 'message': 'Failed to upload avatar'}), 500
-
-"""
 Route meant to assign and remove roles.
 """
 @app.route('/admin/manage-role', methods=['POST'])
