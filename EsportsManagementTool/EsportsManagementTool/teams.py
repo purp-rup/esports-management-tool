@@ -210,8 +210,7 @@ def get_leagues_for_team_creation():
 
     try:
         cursor.execute('''
-            SELECT id, name,
-                   CASE WHEN logo IS NOT NULL THEN 1 ELSE 0 END as has_logo
+            SELECT id, name, logo
             FROM league
             ORDER BY name ASC
         ''')
@@ -240,8 +239,7 @@ def get_team_assigned_leagues(team_id):
 
     try:
         cursor.execute('''
-            SELECT l.id, l.name, l.website_url,
-                   CASE WHEN l.logo IS NOT NULL THEN 1 ELSE 0 END as has_logo,
+            SELECT l.id, l.name, l.website_url, l.logo,
                    tl.assigned_at
             FROM team_leagues tl
             JOIN league l ON tl.league_id = l.id
