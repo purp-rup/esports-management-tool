@@ -173,7 +173,6 @@ function buildBadgesFromUserItem(item) {
 /**
  * Refresh badges in the user list after GM mappings are loaded
  * This ensures all user items display the most current role information
- * Async to wait for GM mappings if they haven't loaded yet
  */
 async function refreshUserListBadges() {
     // Wait for GM mappings to load if the function exists and mappings aren't loaded
@@ -294,14 +293,10 @@ async function handleUserItemClick(item) {
 }
 
 // ============================================
-// ROLE MANAGEMENT
+// USER MANAGEMENT
 // ============================================
 
-/**
- * Handle role assignment or removal for a user
- * Makes API call to update user roles and displays status message
- * @param {string} username - Username of the user to update
- */
+// Add or remove a role from a user (Admin or GM)
 async function handleRoleChange(username) {
     // Get form elements
     const actionSelect = document.getElementById('roleActionSelect');
@@ -381,17 +376,7 @@ async function handleRoleChange(username) {
     }
 }
 
-// ============================================
-// USER DELETION
-// ============================================
-
-/**
- * Display confirmation modal for user deletion
- * Shows strong warning about permanent deletion with checkbox confirmation
- * @param {number} userId - User ID to delete
- * @param {string} username - Username for display
- * @param {string} fullName - Full name for display
- */
+// Display confirmation modal for user deletion
 function confirmRemoveUser(userId, username, fullName) {
     // Create custom confirmation modal with strong warning styling
     const modal = document.createElement('div');
@@ -476,9 +461,7 @@ function confirmRemoveUser(userId, username, fullName) {
     });
 }
 
-/**
- * Close the remove user modal and restore scrolling
- */
+// Close the remove user modal and restore scrolling
 function closeRemoveUserModal() {
     const modal = document.getElementById('removeUserModal');
     if (modal) {
@@ -487,13 +470,7 @@ function closeRemoveUserModal() {
     }
 }
 
-/**
- * Execute user deletion after confirmation
- * Makes API call to delete user and refreshes page on success
- * @param {number} userId - User ID to delete
- * @param {string} username - Username for display (unused but kept for consistency)
- * @param {string} fullName - Full name for display (unused but kept for consistency)
- */
+// Execute user deletion
 async function removeUser(userId, username, fullName) {
     const deleteBtn = document.getElementById('confirmDeleteBtn');
     const originalText = deleteBtn.innerHTML;

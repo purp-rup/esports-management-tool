@@ -1,34 +1,18 @@
 /**
- * communities.js
  * ============================================================================
  * Handles community-specific functionality including:
  * - Community membership (join/leave)
  * - GM assignment and management
  * - User's communities display (profile tab)
- * - Community member filtering
- *
- * ORGANIZED BY CLAUDE AI
  * ============================================================================
  */
 
-// ============================================
-// GLOBAL STATE
-// ============================================
-
-/**
- * Currently selected game ID for GM assignment operations
- * @type {number|null}
- */
+// Currently selected game ID for GM assignment operations
 let currentGameIdForGM = null;
-
-// ============================================
-// MODULE INITIALIZATION
-// ============================================
 
 /**
  * Initialize communities module
  * Sets up event listeners for profile tab
- * Called on DOMContentLoaded
  */
 function initializeCommunitiesModule() {
     console.log('Communities module initialized');
@@ -50,16 +34,16 @@ function initializeCommunitiesModule() {
     }
 }
 
+// Initialize on DOM load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCommunitiesModule();
+});
+
 // ============================================
 // COMMUNITY MEMBERSHIP - JOIN/LEAVE
 // ============================================
 
-/**
- * Confirm joining a game community
- * Shows confirmation modal with community benefits
- * @param {number} gameId - Game ID to join
- * @param {string} gameTitle - Game title for display
- */
+// Confirm joining a game community with confirmation modal
 function confirmJoinGame(gameId, gameTitle) {
     const modal = createConfirmModal(
         'Join Community',
@@ -77,12 +61,7 @@ function confirmJoinGame(gameId, gameTitle) {
     document.body.appendChild(modal);
 }
 
-/**
- * Confirm leaving a game community
- * Shows warning modal about losing access
- * @param {number} gameId - Game ID to leave
- * @param {string} gameTitle - Game title for display
- */
+// Confirm leaving a game community
 function confirmLeaveGame(gameId, gameTitle) {
     const modal = createConfirmModal(
         'Leave Community',
@@ -100,16 +79,7 @@ function confirmLeaveGame(gameId, gameTitle) {
     document.body.appendChild(modal);
 }
 
-/**
- * Create a confirmation modal
- * @param {string} title - Modal title
- * @param {string} gameTitle - Game title
- * @param {Array} benefits - List of points to display
- * @param {string} note - Bottom note text
- * @param {string} type - 'success' or 'warning'
- * @param {Function} onConfirm - Callback function on confirm
- * @returns {HTMLElement} Modal element
- */
+// Create a membership confirmation modal (joining or leaving)
 function createConfirmModal(title, gameTitle, benefits, note, type, onConfirm) {
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -141,7 +111,7 @@ function createConfirmModal(title, gameTitle, benefits, note, type, onConfirm) {
             </div>
             <div class="form-actions">
                 <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
-                <button class="btn ${btnClass}" onclick="confirmModalAction()">
+                <button class="btn ${btnClass}" onclick="confirmMembershipModalAction()">
                     <i class="fas ${btnIcon}"></i> ${btnText}
                 </button>
             </div>
@@ -159,19 +129,15 @@ function createConfirmModal(title, gameTitle, benefits, note, type, onConfirm) {
     return modal;
 }
 
-/**
- * Execute the confirm action stored in the modal
- */
-function confirmModalAction() {
+// Execute the confirm action stored in the modal
+function confirmMembershipModalAction() {
     const modal = document.getElementById('confirmJoinModal');
     if (modal && modal._confirmCallback) {
         modal._confirmCallback();
     }
 }
 
-/**
- * Close confirmation modal
- */
+// Close membership confirmation modal
 function closeConfirmModal() {
     const modal = document.getElementById('confirmJoinModal');
     if (modal) {
@@ -179,12 +145,7 @@ function closeConfirmModal() {
     }
 }
 
-/**
- * Join a game community
- * Makes API request and updates UI on success
- * @param {number} gameId - Game ID to join
- * @param {string} gameTitle - Game title for display
- */
+// Execute joining a game community
 async function joinGame(gameId, gameTitle) {
     closeConfirmModal();
 
@@ -200,8 +161,8 @@ async function joinGame(gameId, gameTitle) {
             alert(data.message);
 
             // Close game details modal if open
-            if (typeof closeGameDetailsModal === 'function') {
-                closeGameDetailsModal();
+            if (typeof closeCommunityModal === 'function') {
+                closeCommunityModal();
             }
 
             // Reload games to update UI
@@ -217,12 +178,7 @@ async function joinGame(gameId, gameTitle) {
     }
 }
 
-/**
- * Leave a game community
- * Makes API request and updates UI on success
- * @param {number} gameId - Game ID to leave
- * @param {string} gameTitle - Game title for display
- */
+// Execute leaving a game community
 async function leaveGame(gameId, gameTitle) {
     closeConfirmModal();
 
@@ -238,8 +194,8 @@ async function leaveGame(gameId, gameTitle) {
             alert(data.message);
 
             // Close game details modal if open
-            if (typeof closeGameDetailsModal === 'function') {
-                closeGameDetailsModal();
+            if (typeof closeCommunityModal === 'function') {
+                closeCommunityModal();
             }
 
             // Reload games to update UI
@@ -256,32 +212,17 @@ async function leaveGame(gameId, gameTitle) {
 }
 
 // ============================================
-// DIVISION FOLDER SYSTEM FOR COMMUNITIES
+// COMMUNITY DIVISION FOLDER SYSTEM
 // ============================================
-
 const COLLAPSED_DIVISIONS_KEY = 'communities_collapsed_divisions';
 
-/**
- * Get set of collapsed division names from sessionStorage
- * @returns {Set<string>}
- */
+// Get set of collapsed division names from sessionStorage
 function getCollapsedDivisions() {
     const stored = sessionStorage.getItem(COLLAPSED_DIVISIONS_KEY);
     return stored ? new Set(JSON.parse(stored)) : new Set();
 }
 
-/**
- * Save collapsed divisions to sessionStorage
- * @param {Set<string>} collapsedDivisions
- */
-function saveCollapsedDivisions(collapsedDivisions) {
-    sessionStorage.setItem(COLLAPSED_DIVISIONS_KEY, JSON.stringify([...collapsedDivisions]));
-}
-
-/**
- * Toggle collapse state for a division
- * @param {string} division - Name of division to toggle
- */
+// Toggle collapse state for a division
 function toggleDivisionCollapse(division) {
     const collapsedDivisions = getCollapsedDivisions();
 
@@ -300,18 +241,17 @@ function toggleDivisionCollapse(division) {
     }
 }
 
-// ============================================
-// DISPLAY GAMES WITH DIVISION GROUPING
-// ============================================
+// Save collapsed divisions to sessionStorage
+function saveCollapsedDivisions(collapsedDivisions) {
+    sessionStorage.setItem(COLLAPSED_DIVISIONS_KEY, JSON.stringify([...collapsedDivisions]));
+}
 
 /**
  * Display games grouped by division with collapsible folders
- * Replaces the original displayGames function
- * @param {Array} games - Array of game objects from API
  */
 function displayGamesWithDivisions(games) {
     const gridDiv = document.getElementById('rostersGrid');
-    gridDiv.className = 'rosters-grid-divisions'; // New class for division layout
+    gridDiv.className = 'rosters-grid-divisions';
     gridDiv.innerHTML = '';
 
     // Store games data globally for re-rendering
@@ -368,12 +308,7 @@ function displayGamesWithDivisions(games) {
     });
 }
 
-/**
- * Render a collapsed division folder
- * @param {string} division - Division name
- * @param {number} gameCount - Number of games in division
- * @param {HTMLElement} container - Container to append to
- */
+// Render a collapsed division folder
 function renderCollapsedDivision(division, gameCount, container) {
     const folderDiv = document.createElement('div');
     folderDiv.className = 'division-folder-collapsed';
@@ -404,13 +339,7 @@ function renderCollapsedDivision(division, gameCount, container) {
     container.appendChild(folderDiv);
 }
 
-/**
- * Render an expanded division with all games
- * @param {string} division - Division name
- * @param {Array} games - Games in this division
- * @param {boolean} isAdmin - Whether current user is admin
- * @param {HTMLElement} container - Container to append to
- */
+// Render an expanded division with all game cards separate
 function renderExpandedDivision(division, games, isAdmin, container) {
     const divisionBox = document.createElement('div');
     divisionBox.className = 'division-box-expanded';
@@ -448,11 +377,7 @@ function renderExpandedDivision(division, games, isAdmin, container) {
     container.appendChild(divisionBox);
 }
 
-/**
- * Get icon for division
- * @param {string} division - Division name
- * @returns {string} HTML for icon
- */
+// Get division icon
 function getDivisionIcon(division) {
     const icons = {
         'Strategy': '<i class="fas fa-chess"></i>',
@@ -465,17 +390,11 @@ function getDivisionIcon(division) {
 }
 
 // ============================================
-// GAME DETAILS MODAL
+// COMMUNITY MODAL
 // ============================================
-
-/**
- * Open game details modal
- * Fetches and displays comprehensive game information
- * @param {number} gameId - Game ID to display details for
- */
-async function openGameDetailsModal(gameId) {
+async function openCommunityModal(gameId) {
     currentGameId = gameId;
-    const modal = document.getElementById('gameDetailsModal');
+    const modal = document.getElementById('communityModal');
     const loading = document.getElementById('gameDetailsLoading');
     const content = document.getElementById('gameDetailsContent');
 
@@ -494,7 +413,7 @@ async function openGameDetailsModal(gameId) {
             const game = data.game;
 
             // Update modal header with game title
-            document.getElementById('gameDetailsModalTitle').textContent = game.title;
+            document.getElementById('communityModalTitle').textContent = game.title;
             document.getElementById('gameDetailsTitle').textContent = game.title;
             document.getElementById('gameDetailsDescription').textContent = game.description;
 
@@ -502,7 +421,7 @@ async function openGameDetailsModal(gameId) {
             updateGameIcon(game);
 
             // Load and display leagues + stats
-            await displayGameStatsWithLeagues(gameId, game);
+            await displayCommunityStats(gameId, game);
 
             // Populate members list
             populateMembersList(game.members, gameId);
@@ -515,7 +434,7 @@ async function openGameDetailsModal(gameId) {
             content.style.display = 'block';
 
             // Load next scheduled event
-            await loadGameNextScheduledEvent(gameId);
+            await loadNextCommunityEvent(gameId);
         } else {
             throw new Error(data.message || 'Failed to load game details');
         }
@@ -529,10 +448,7 @@ async function openGameDetailsModal(gameId) {
     }
 }
 
-/**
- * Update game icon in details modal
- * @param {Object} game - Game object
- */
+// Update game icon in community page
 function updateGameIcon(game) {
     const iconDiv = document.getElementById('gameDetailsIcon');
     if (game.image_url) {
@@ -542,12 +458,8 @@ function updateGameIcon(game) {
     }
 }
 
-/**
- * Display game stats with leagues
- * @param {number} gameId - Game ID
- * @param {Object} game - Game object
- */
-async function displayGameStatsWithLeagues(gameId, game) {
+// Display community stats, including leagues, total members, and total teams for the current season
+async function displayCommunityStats(gameId, game) {
     // Load leagues for this game's current season
     let leaguesHtml = '';
     try {
@@ -621,11 +533,7 @@ async function displayGameStatsWithLeagues(gameId, game) {
     }
 }
 
-/**
- * Populate members list in game details modal
- * @param {Array} members - Array of member objects
- * @param {number} gameId - Current game ID for context
- */
+// Gather membership to populate members list in community modal
 function populateMembersList(members, gameId) {
     const membersList = document.getElementById('gameMembersList');
     const noMembers = document.getElementById('gameNoMembers');
@@ -657,12 +565,7 @@ function populateMembersList(members, gameId) {
     }
 }
 
-/**
- * Create a member item element
- * @param {Object} member - Member object
- * @param {number} gameId - Current game ID for context highlighting
- * @returns {HTMLElement} The created member item element
- */
+// Create a member card to display in the community modal
 function createMemberItem(member, gameId) {
     const memberItem = document.createElement('div');
     const isAssignedGM = member.is_game_manager;
@@ -684,7 +587,7 @@ function createMemberItem(member, gameId) {
     const badgesHTML = buildUniversalRoleBadges({
         userId: member.id,
         roles: member.roles || [],
-        contextGameId: gameId  // Pass the game ID for context highlighting
+        contextGameId: gameId
     });
 
     memberItem.innerHTML = `
@@ -702,9 +605,15 @@ function createMemberItem(member, gameId) {
 }
 
 /**
+ * Filter members in the community modal
+ * Uses universal filterListItems function
+ */
+const filterMembers = () =>
+    filterListItems('memberSearch', '#gameMembersList .member-item', ['username', 'name']);
+
+/**
  * Update join/leave action buttons based on membership status
- * @param {Object} game - Game object
- * @param {number} gameId - Game ID
+ * If a user is currently in community, show leave action. If not a member, show join action.
  */
 function updateActionButtons(game, gameId) {
     const joinBtn = document.getElementById('gameDetailsJoinBtn');
@@ -727,38 +636,20 @@ function updateActionButtons(game, gameId) {
     }
 }
 
-/**
- * Close game details modal
- */
-function closeGameDetailsModal() {
-    const modal = document.getElementById('gameDetailsModal');
-    modal.style.display = 'none';
-
-    // Check if there are other modals still open
-    const openModals = document.querySelectorAll('.modal');
-    const hasOpenModals = Array.from(openModals).some(m => {
-        if (m.id === 'gameDetailsModal') return false; // Exclude the modal we're closing
-        const style = window.getComputedStyle(m);
-        return style.display === 'block' || style.display === 'flex' || m.classList.contains('active');
-    });
-
-    if (hasOpenModals) {
-        // Other modals are open, keep overflow hidden
-        document.body.style.overflow = 'hidden';
-    } else {
-        // No modals open, restore scrolling
+// Close community modal (needs to be consolidated)
+function closeCommunityModal() {
+    const modal = document.getElementById('communityModal');
+    if (modal) {
+        modal.style.display = 'none';
         document.body.style.overflow = 'auto';
     }
-
-    currentGameId = null;
 }
 
 /**
  * Load next scheduled event for game community
- * Displays the upcoming event in the game details modal
- * @param {number} gameId - Game ID to load event for
+ * Grabs the closest future event that is visible to communities and has the game's label
  */
-async function loadGameNextScheduledEvent(gameId) {
+async function loadNextCommunityEvent(gameId) {
     const container = document.getElementById('gameNextScheduledEventContainer');
 
     if (!container) {
@@ -838,21 +729,11 @@ async function loadGameNextScheduledEvent(gameId) {
     }
 }
 
-/**
- * Filter members in the community modal
- * Uses universal filterListItems function
- */
-const filterMembers = () =>
-    filterListItems('memberSearch', '#gameMembersList .member-item', ['username', 'name']);
-
 // ============================================
 // USER'S COMMUNITIES (PROFILE TAB)
 // ============================================
 
-/**
- * Load user's communities for profile tab
- * Displays all communities the user has joined
- */
+// Load and displays all communities a user has joined in profile tab
 async function loadMyCommunities() {
     const loading = document.getElementById('myCommunitiesLoading');
     const grid = document.getElementById('myCommunitiesGrid');
@@ -892,11 +773,7 @@ async function loadMyCommunities() {
     }
 }
 
-/**
- * Create a community card element for profile tab
- * @param {Object} community - Community object
- * @returns {HTMLElement} Community card element
- */
+// Build a community card for the user's profile tab
 function createCommunityCard(community) {
     const card = document.createElement('div');
     card.className = 'community-card-small';
@@ -918,7 +795,7 @@ function createCommunityCard(community) {
             </p>
             <p class="community-joined">Joined ${community.joined_at}</p>
         </div>
-        <button class="btn btn-sm btn-primary" onclick="openGameDetailsModal(${community.id})">
+        <button class="btn btn-sm btn-primary" onclick="openCommunityModal(${community.id})">
             <i class="fas fa-eye"></i> View
         </button>
     `;
@@ -927,38 +804,16 @@ function createCommunityCard(community) {
 }
 
 // ============================================
-// INITIALIZE ON DOM LOAD
+// EXPORT FUNCTIONS
 // ============================================
-
-document.addEventListener('DOMContentLoaded', function() {
-    initializeCommunitiesModule();
-});
-
-// ============================================
-// EXPORT FUNCTIONS TO GLOBAL SCOPE
-// ============================================
-
-// Module initialization
-window.initializeCommunitiesModule = initializeCommunitiesModule;
 
 // Community membership
-window.confirmJoinGame = confirmJoinGame;
-window.confirmLeaveGame = confirmLeaveGame;
-window.joinGame = joinGame;
-window.leaveGame = leaveGame;
 window.closeConfirmModal = closeConfirmModal;
-window.confirmModalAction = confirmModalAction;
 
-//Game Details Modal
-window.openGameDetailsModal = openGameDetailsModal;
-window.closeGameDetailsModal = closeGameDetailsModal;
-window.displayGameStatsWithLeagues = displayGameStatsWithLeagues;
-window.loadGameNextScheduledEvent = loadGameNextScheduledEvent;
+// Community Modal
+window.openCommunityModal = openCommunityModal;
+window.closeCommunityModal = closeCommunityModal;
 window.filterMembers = filterMembers;
 
 //Folder system
-window.toggleDivisionCollapse = toggleDivisionCollapse;
 window.displayGamesWithDivisions = displayGamesWithDivisions;
-
-// User's communities (profile tab)
-window.loadMyCommunities = loadMyCommunities;
