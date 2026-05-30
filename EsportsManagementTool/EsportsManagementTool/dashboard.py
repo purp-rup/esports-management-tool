@@ -1,15 +1,11 @@
-from EsportsManagementTool import app, login_required, roles_required, get_user_permissions
 from flask import render_template, request, redirect, url_for, session, flash, jsonify
+from EsportsManagementTool import app, login_required, roles_required, mysql, season_roles, discord_integration
+from EsportsManagementTool.universal_helpers import get_user_permissions
 from flask_mail import Mail, Message
 import MySQLdb.cursors
 from dotenv import load_dotenv
-import os
 from datetime import datetime
 import calendar as cal
-from EsportsManagementTool import discord_integration
-from EsportsManagementTool import season_roles
-
-from EsportsManagementTool import mysql
 import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv

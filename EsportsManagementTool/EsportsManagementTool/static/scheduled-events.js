@@ -185,7 +185,7 @@ async function loadScheduleTab(teamId) {
     `;
 
     try {
-        const response = await fetch(`/api/scheduled-events/team/${teamId}`);
+        const response = await fetch(`/api/schedules/team/${teamId}`);
         const data = await response.json();
 
         if (data.success && data.schedules && data.schedules.length > 0) {
@@ -606,7 +606,7 @@ async function handleScheduledEventSubmit(event) {
     }
 
     try {
-        const response = await fetch('/api/scheduled-events/create', {
+        const response = await fetch('/api/schedule/create', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -754,7 +754,7 @@ async function renderGameIcon(schedule) {
  */
 async function fetchScheduleEventCount(scheduleId) {
     try {
-        const response = await fetch(`/api/scheduled-events/${scheduleId}/event-count`);
+        const response = await fetch(`/api/schedule/${scheduleId}/event-count`);
         const data = await response.json();
 
         if (data.success) {
@@ -1274,7 +1274,7 @@ async function handleEditScheduleSubmit(event) {
     }
 
     try {
-        const response = await fetch('/api/scheduled-events/update', {
+        const response = await fetch('/api/schedule/update', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1435,7 +1435,7 @@ function confirmDeleteSchedule(scheduleId) {
  */
 async function checkAndCleanupSchedule(scheduleId) {
     try {
-        const response = await fetch(`/api/scheduled-events/${scheduleId}/check-and-cleanup`, {
+        const response = await fetch(`/api/schedule/${scheduleId}/check-and-cleanup`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1579,7 +1579,7 @@ async function loadTeamLeaguesForSchedule(teamId) {
  */
 async function confirmDeleteScheduleAction(scheduleId) {
     try {
-        const response = await fetch(`/api/scheduled-events/${scheduleId}`, {
+        const response = await fetch(`/api/schedule/${scheduleId}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' }
         });

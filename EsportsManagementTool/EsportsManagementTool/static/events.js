@@ -2074,8 +2074,6 @@ function createEditFormFields(event) {
                 <label for="editEventType">Event Type *</label>
                 <select id="editEventType" name="eventType" required onchange="handleEditEventTypeChange()">
                     <option value="Event" ${event.event_type === 'Event' ? 'selected' : ''}>Event</option>
-                    <option value="Match" ${event.event_type === 'Match' ? 'selected' : ''}>Match</option>
-                    <option value="Practice" ${event.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
                     <option value="Tournament" ${event.event_type === 'Tournament' ? 'selected' : ''}>Tournament</option>
                     <option value="Misc" ${event.event_type === 'Misc' ? 'selected' : ''}>Misc</option>
                 </select>

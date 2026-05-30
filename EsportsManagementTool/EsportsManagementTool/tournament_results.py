@@ -2,6 +2,7 @@
 Tournament Results Management Module
 Handles recording and tracking of tournament placements for teams
 """
+from EsportsManagementTool.universal_helpers import get_user_permissions
 from flask import jsonify, request, session
 from datetime import datetime, timedelta
 import MySQLdb.cursors
@@ -18,7 +19,7 @@ PLACEMENT_OPTIONS = [
 ]
 
 
-def register_tournament_results_routes(app, mysql, login_required, roles_required, get_user_permissions):
+def register_tournament_results_routes(app, mysql, login_required, roles_required):
     """
     Register tournament results routes with the Flask app
     """

@@ -3,11 +3,11 @@ League management module
 Handles CRUD operations for leagues
 Stores images as BLOB data (matching games pattern)
 """
+from EsportsManagementTool.universal_helpers import get_user_permissions
 from flask import request, jsonify, send_file
 from werkzeug.utils import secure_filename
 import MySQLdb.cursors
 from io import BytesIO
-from datetime import datetime
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
@@ -17,7 +17,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def register_league_routes(app, mysql, login_required, roles_required, get_user_permissions):
+def register_league_routes(app, mysql, login_required, roles_required):
     """Register all league-related routes"""
 
     @app.route('/league/all', methods=['GET'])

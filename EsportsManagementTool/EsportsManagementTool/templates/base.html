@@ -233,6 +233,55 @@
                 text-align: center;
             }
         }
+        
+        /*Message Bubble for feedback*/
+        .feedback-bubble {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            background: var(--stockton-white);
+            color: var(--stockton-black);
+            padding: 0.5rem 0.875rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: fadeInDown 0.3s ease;
+            z-index: 200;
+        }
+
+        .feedback-bubble::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            right: 16px;
+            border: 6px solid transparent;
+            border-bottom-color: var(--stockton-white);
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* For mobile scaling */
+        @media (max-width: 768px) {
+            .feedback-bubble {
+                font-size: 0.7rem;
+                padding: 0.4rem 0.65rem;
+                left: 50%;
+                right: auto;
+                transform: translateX(-50%);
+                }
+
+            .feedback-bubble::before {
+                right: auto;
+                left: 50%;
+                transform: translateX(-50%);
+                }
+        }
+
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -249,7 +298,13 @@
             <div class="navbar-menu">
                 {% if session.loggedin %}
                     <span class="user-info">Welcome back, {{ session.username }}</span>
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Dashboard</a>
+                    {% if request.endpoint == 'dashboard' %}
+                        <div class="feedback-btn-wrapper" style="position: relative;">
+                            <a href="https://docs.google.com/forms/d/e/1FAIpQLSf-GtDjnzcuoqRVqqvVNFDWEtVygJkmBX_6qtURiJZiPBfgiA/viewform?usp=header" class="btn btn-secondary" style="line-height: 1.24;" target="_blank">Feedback</a> 
+                        </div>
+                        {% else %}
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Dashboard</a>
+                    {% endif %}
                     <form method="POST" action="{{ url_for('logout') }}" style="display: inline;">
                         <button type="submit" class="btn btn-primary">Logout</button>
                     </form>
@@ -288,6 +343,32 @@
             </div>
         </div>
     </footer>
+
+    <!--Generates the feedback bubble and makes it only appears once-->
+    {% if request.endpoint == 'dashboard' %}
+    <script>
+        const storageKey = 'feedback_tooltip_seen_{{ session.username }}';
+
+        if (!localStorage.getItem(storageKey)) {
+            const feedbackBtn = document.querySelector('.feedback-btn-wrapper');
+            if (feedbackBtn) {
+                const tooltip = document.createElement('div');
+                tooltip.className = 'feedback-bubble';
+                tooltip.textContent = 'We would like to hear from you!';
+                feedbackBtn.appendChild(tooltip);
+
+                localStorage.setItem(storageKey, 'true');
+
+                setTimeout(() => {
+                    tooltip.style.transition = 'opacity 0.4s ease';
+                    tooltip.style.opacity = '0';
+                    setTimeout(() => tooltip.remove(), 400);
+                }, 4000);
+            }
+        }
+    </script>
+    {% endif %}
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
