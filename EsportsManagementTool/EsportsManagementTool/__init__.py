@@ -85,7 +85,7 @@ def localize_datetime(dt: datetime) -> datetime:
     return dt.astimezone(EST)
 
 @app.before_request
-def set_mysql_timezone():
+def set_mysql_timezone() -> None:
     """
     Set MySQL session timezone to match EST/EDT dynamically.
 
@@ -274,7 +274,7 @@ If you did not create this account, please ignore this email.
 
 
 @app.route('/verify/<token>')
-def verify_email(token: str):
+def verify_email(token: str) -> Response:
     """
     Process email verification when user clicks verification link.
     Verifies the token is valid and not expired, then marks the user's
@@ -691,11 +691,12 @@ tournament_results.register_tournament_results_routes(app, mysql, login_required
 from EsportsManagementTool import tournament_notification_scheduler
 tournament_notification_scheduler.initialize_tournament_scheduler(app, mysql, mail)
 
+
 # =======================================
 # CALENDAR API ENDPOINTS
 # =======================================
 @app.route('/api/calendar/events')
-def get_calendar_events():
+def get_calendar_events() -> tuple[Response, int] | Response:
     """
     Fetch events for calendar view via AJAX with visibility filtering.
     """
@@ -815,7 +816,7 @@ def get_calendar_events():
 
 
 @app.route('/api/events/<int:event_id>')
-def get_event_details(event_id):
+def get_event_details(event_id: int) -> tuple[Response, int] | Response:
     """
     Fetch detailed information for a specific event.
     Used by the event details modal on the calendar.
