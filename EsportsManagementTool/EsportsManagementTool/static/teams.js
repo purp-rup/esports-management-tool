@@ -1,10 +1,7 @@
 /**
- * teams.js
  * ============================================================================
- * TEAMS DETAIL MANAGEMENT
- * ORGANIZED BY CLAUDEAI
+ * TEAMS MANAGEMENT
  * ============================================================================
- * Handles team detail view functionality:
  * - Team selection and detail display
  * - Team header with stats
  * - Roster tab with member management
@@ -13,288 +10,15 @@
  * - Team deletion
  * - Next scheduled event display
  * - Tab switching (Roster, Schedule, Stats, VODs)
- * ============================================================================
  */
 
-// ============================================
-// UTILITY: DEBOUNCE FUNCTION
-// ============================================
-
-/**
- * Debounce function to limit how often a function is called
- */
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-    };
-}
-
-/**
- * Cache for team details
- */
+// Cache for team details and role badges
 let currentTeamCache = null;
-
-/**
- * Cache for role badges
- */
 const badgeCache = new Map();
 
 // ============================================
 // TEAM SELECTION & DETAILS
 // ============================================
-
-// ============================================
-// TEAM LEAGUE TAG SYSTEM
-// ============================================
-
-/**
- * State for league selection
- */
-let selectedLeaguesForTeam = [];
-let leaguesCache = null;
-
-/**
- * Load all available leagues
- */
-async function loadAllLeagues() {
-    if (leaguesCache) {
-        return leaguesCache;
-    }
-
-    try {
-        const response = await fetch('/api/leagues/all');
-        const data = await response.json();
-
-        if (data.success && data.leagues) {
-            leaguesCache = data.leagues;
-            return leaguesCache;
-        } else {
-            console.error('Failed to load leagues');
-            return [];
-        }
-    } catch (error) {
-        console.error('Error fetching leagues:', error);
-        return [];
-    }
-}
-
-/**
- * Initialize league tag selector for team modal
- * @param {string} context - 'create' or 'edit'
- * @param {Array} preSelectedLeagueIds - Array of league IDs to pre-select
- */
-async function initializeTeamLeagueSelector(context = 'create', preSelectedLeagueIds = []) {
-    const dropdownId = context === 'create' ? 'teamLeaguesDropdown' : 'editTeamLeaguesDropdown';
-    const dropdown = document.getElementById(dropdownId);
-
-    if (!dropdown) {
-        console.warn(`${dropdownId} not found`);
-        return;
-    }
-
-    // Show loading
-    dropdown.disabled = true;
-    dropdown.innerHTML = '<option value="">Loading leagues...</option>';
-
-    try {
-        // Load leagues
-        const leagues = await loadAllLeagues();
-
-        // Populate dropdown
-        dropdown.innerHTML = '<option value="">+ Add a league</option>';
-
-        if (leagues.length === 0) {
-            dropdown.innerHTML += '<option value="" disabled>No leagues available</option>';
-        } else {
-            leagues.forEach(league => {
-                const option = document.createElement('option');
-                option.value = league.id;
-                option.textContent = league.name;
-                dropdown.appendChild(option);
-            });
-        }
-
-        // Pre-select leagues if provided
-        if (preSelectedLeagueIds && preSelectedLeagueIds.length > 0) {
-            selectedLeaguesForTeam = preSelectedLeagueIds.map(id => {
-                const league = leagues.find(l => l.id === id);
-                return league ? { id: league.id, name: league.name, logo: league.logo } : null;
-            }).filter(l => l !== null);
-        } else {
-            selectedLeaguesForTeam = [];
-        }
-
-        // Update display
-        updateTeamLeagueTags(context);
-        updateHiddenLeaguesInput(context);
-        updateLeagueDropdownOptions(context);
-
-        // Attach change listener
-        attachTeamLeagueDropdownListener(dropdown, context);
-
-    } catch (error) {
-        console.error('Error initializing league selector:', error);
-        dropdown.innerHTML = '<option value="">Error loading leagues</option>';
-    } finally {
-        // USE THE PROPER ENABLE FUNCTION
-        enableDropdown(dropdown);
-    }
-}
-
-/**
- * Enable a dropdown element (removes all disabled states)
- * @param {HTMLElement} dropdown - Dropdown to enable
- */
-function enableDropdown(dropdown) {
-    if (!dropdown) return;
-
-    dropdown.removeAttribute('disabled');
-    dropdown.disabled = false;
-    dropdown.style.pointerEvents = 'auto';
-    dropdown.style.opacity = '1';
-    dropdown.style.cursor = 'pointer';
-}
-
-/**
- * Attach change listener to league dropdown
- */
-function attachTeamLeagueDropdownListener(dropdown, context) {
-    // Remove existing listener
-    const clone = dropdown.cloneNode(true);
-    dropdown.replaceWith(clone);
-
-    // Get fresh reference
-    const dropdownId = context === 'create' ? 'teamLeaguesDropdown' : 'editTeamLeaguesDropdown';
-    const newDropdown = document.getElementById(dropdownId);
-
-    if (!newDropdown) return;
-
-    newDropdown.addEventListener('change', function() {
-        const selectedId = parseInt(this.value);
-        if (selectedId && !selectedLeaguesForTeam.find(l => l.id === selectedId)) {
-            const league = leaguesCache.find(l => l.id === selectedId);
-            if (league) {
-                addTeamLeagueTag(league, context);
-            }
-        }
-        this.value = ''; // Reset to placeholder
-    });
-}
-
-/**
- * Add a league tag
- */
-function addTeamLeagueTag(league, context = 'create') {
-    if (selectedLeaguesForTeam.find(l => l.id === league.id)) return;
-
-    selectedLeaguesForTeam.push({
-        id: league.id,
-        name: league.name,
-        logo: league.logo
-    });
-
-    updateTeamLeagueTags(context);
-    updateHiddenLeaguesInput(context);
-    updateLeagueDropdownOptions(context);
-}
-
-/**
- * Remove a league tag
- */
-function removeTeamLeagueTag(leagueId, context = 'create') {
-    selectedLeaguesForTeam = selectedLeaguesForTeam.filter(l => l.id !== leagueId);
-    updateTeamLeagueTags(context);
-    updateHiddenLeaguesInput(context);
-    updateLeagueDropdownOptions(context);
-}
-
-/**
- * Update visual display of league tags
- */
-function updateTeamLeagueTags(context = 'create') {
-    const containerId = context === 'create' ? 'selectedLeaguesContainer' : 'editSelectedLeaguesContainer';
-    const container = document.getElementById(containerId);
-
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    if (selectedLeaguesForTeam.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-secondary); font-size: 0.875rem; padding: 0.5rem;">No leagues selected</div>';
-        return;
-    }
-
-    selectedLeaguesForTeam.forEach(league => {
-        const tag = document.createElement('div');
-        tag.className = 'game-tag'; // Reuse game tag styling
-
-        const logoHTML = league.logo
-            ? `<img src="${league.logo}" alt="${league.name}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover;">`
-            : '<i class="fas fa-trophy game-tag-icon"></i>';
-
-        tag.innerHTML = `
-            ${logoHTML}
-            <span>${league.name}</span>
-            <button type="button"
-                    class="game-tag-remove"
-                    onclick="removeTeamLeagueTag(${league.id}, '${context}')"
-                    title="Remove ${league.name}">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        container.appendChild(tag);
-    });
-}
-
-/**
- * Update dropdown to hide selected leagues
- */
-function updateLeagueDropdownOptions(context = 'create') {
-    const dropdownId = context === 'create' ? 'teamLeaguesDropdown' : 'editTeamLeaguesDropdown';
-    const dropdown = document.getElementById(dropdownId);
-
-    if (!dropdown) return;
-
-    const options = Array.from(dropdown.options);
-
-    options.forEach(option => {
-        if (option.value === '') return; // Skip placeholder
-
-        const optionId = parseInt(option.value);
-        if (selectedLeaguesForTeam.find(l => l.id === optionId)) {
-            option.style.display = 'none';
-            option.disabled = true;
-        } else {
-            option.style.display = '';
-            option.disabled = false;
-        }
-    });
-}
-
-/**
- * Update hidden input with selected league IDs
- */
-function updateHiddenLeaguesInput(context = 'create') {
-    const inputId = context === 'create' ? 'selectedLeaguesInput' : 'editSelectedLeaguesInput';
-    const hiddenInput = document.getElementById(inputId);
-
-    if (hiddenInput) {
-        const leagueIds = selectedLeaguesForTeam.map(l => l.id);
-        hiddenInput.value = JSON.stringify(leagueIds);
-    }
-}
-
-/**
- * Clear all selected leagues
- */
-function clearSelectedLeagues(context = 'create') {
-    selectedLeaguesForTeam = [];
-    updateTeamLeagueTags(context);
-    updateHiddenLeaguesInput(context);
-    updateLeagueDropdownOptions(context);
-}
 
 /**
  * Select a team from sidebar
@@ -332,9 +56,7 @@ async function selectTeam(teamId) {
     await loadTeamDetails(teamId);
 }
 
-/**
- * Load detailed team information
- */
+// Load team details section below team title
 async function loadTeamDetails(teamId) {
     try {
         const response = await fetch(`/api/teams/${teamId}/details`);
@@ -375,7 +97,7 @@ async function loadTeamDetails(teamId) {
                 }
             }
 
-            // Display team leagues**
+            // Display team leagues
             await displayTeamLeaguesInSubheader(teamId);
 
             // Display season information
@@ -488,9 +210,7 @@ async function loadTeamDetails(teamId) {
     }
 }
 
-/**
- * Display leagues in team details
- */
+// Display leagues in team details
 async function displayTeamLeaguesInSubheader(teamId) {
     try {
         const response = await fetch(`/api/teams/${teamId}/leagues`);
@@ -543,29 +263,21 @@ async function displayTeamLeaguesInSubheader(teamId) {
     }
 }
 
-/**
- * Storage key for collapsed team details
- */
+// Storage key for collapsed team details
 const COLLAPSED_TEAM_DETAILS_KEY = 'teams_collapsed_details';
 
-/**
- * Get collapsed team details state
- */
+// Get collapsed team details state
 function getCollapsedTeamDetailsState() {
     const stored = sessionStorage.getItem(COLLAPSED_TEAM_DETAILS_KEY);
     return stored === 'true';
 }
 
-/**
- * Save collapsed team details state
- */
+// Save collapsed team details state
 function saveCollapsedTeamDetailsState(isCollapsed) {
     sessionStorage.setItem(COLLAPSED_TEAM_DETAILS_KEY, isCollapsed.toString());
 }
 
-/**
- * Toggle team detail collapse
- */
+// Toggle team detail collapse
 function toggleTeamDetailCollapse() {
     const detailsContainer = document.getElementById('teamDetailSubheaders');
     const toggleBtn = document.getElementById('teamDetailCollapseBtn');
@@ -593,9 +305,8 @@ function toggleTeamDetailCollapse() {
 // ============================================
 // NEXT SCHEDULED EVENT
 // ============================================
-/**
- * Load the next scheduled event for a team
- */
+
+// Load the next scheduled event for a team
 async function loadNextScheduledEvent(teamId, gameId) {
     const container = document.getElementById('nextScheduledEventContainer');
 
@@ -682,7 +393,7 @@ async function loadNextScheduledEvent(teamId, gameId) {
 
 /**
  * Load roster tab with team members
- * Season-aware badge rendering for historical accuracy
+ * Uses season-aware badge rendering for historical accuracy
  */
 async function loadRosterTab(members) {
     const rosterList = document.getElementById('rosterMembersList');
@@ -706,7 +417,7 @@ async function loadRosterTab(members) {
     // Only allow management if active season AND user has permissions
     const canManage = (isAdmin || isGM) && isActiveSeason;
 
-    // CRITICAL: Load season-specific GM mappings for past seasons
+    // Load season-specific GM mappings for past seasons
     if (seasonId && !isActiveSeason && typeof loadSeasonGMGameMappings === 'function') {
         await loadSeasonGMGameMappings(seasonId);
         console.log(`Loaded historical GM mappings for season ${seasonId}`);
@@ -744,18 +455,11 @@ async function loadRosterTab(members) {
                 excludeRoles: ['Player'],
                 seasonId: isActiveSeason ? null : seasonId  // Pass seasonId for past seasons
             });
-        } else if (typeof buildRoleBadges === 'function') {
-            // Fallback to old badge system if universal system not available
-            badgesHTML = buildRoleBadges({
-                roles: member.roles || [],
-                isAssignedGM: false,
-                gameIconUrl: null
-            });
         }
 
         const removeBtn = canManage ? `
             <button class="btn-icon-danger"
-                    onclick="event.stopPropagation(); confirmRemoveMemberNew('${member.id}', '${member.name.replace(/'/g, "\\'")}')"
+                    onclick="event.stopPropagation(); confirmRemoveMember('${member.id}', '${member.name.replace(/'/g, "\\'")}')"
                     title="Remove member">
                 <i class="fas fa-user-minus"></i>
             </button>
@@ -783,31 +487,16 @@ async function loadRosterTab(members) {
 
 /**
  * Filter roster members by search input
+ * Uses universal filterListItems function
  */
-const filterRosterMembers = debounce(function() {
-    const searchInput = document.getElementById('rosterSearchInput');
-    const filter = searchInput.value.toLowerCase();
-    const memberCards = document.querySelectorAll('.roster-member-card');
-
-    memberCards.forEach(card => {
-        const name = card.getAttribute('data-member-name');
-        const username = card.getAttribute('data-member-username');
-
-        if (name.includes(filter) || username.includes(filter)) {
-            card.style.display = 'flex';
-        } else {
-            card.style.display = 'none';
-        }
-    });
-}, 300);
+const filterRosterMembers = () =>
+    filterListItems('rosterSearchInput', '.roster-member-card', ['member-name', 'member-username']);
 
 // ============================================
 // TEAM MEMBER MANAGEMENT
 // ============================================
 
-/**
- * Open add team members modal
- */
+// Open 'Add Player' modal
 function openAddTeamMembersModal() {
     if (!window.currentSelectedTeamId) {
         alert('Please select a team first');
@@ -858,6 +547,7 @@ function openAddTeamMembersModal() {
 
 /**
  * Display available members in add modal
+ * Includes all members in the community and not yet on the team
  */
 function displayAvailableMembersNew(members) {
     const list = document.getElementById('availableMembersList');
@@ -923,9 +613,7 @@ function displayAvailableMembersNew(members) {
     });
 }
 
-/**
- * Add selected members to team
- */
+// Add selected members to team
 async function addSelectedMembersToTeam() {
     const checkboxes = document.querySelectorAll('#availableMembersList input[type="checkbox"]:checked');
     const memberIds = Array.from(checkboxes).map(cb => cb.value);
@@ -967,9 +655,7 @@ async function addSelectedMembersToTeam() {
     }
 }
 
-/**
- * Close add members modal
- */
+// Close add members modal
 function closeAddTeamMembersModal() {
     const modal = document.getElementById('addTeamMembersModal');
     if (modal) {
@@ -980,30 +666,13 @@ function closeAddTeamMembersModal() {
 
 /**
  * Filter available members by search input
+ * Uses universal filterListItems function
  */
-const filterAvailableMembers = debounce(function() {
-    const searchInput = document.getElementById('addMemberSearch');
-    if (!searchInput) return;
+const filterAvailableMembers = () =>
+    filterListItems('addMemberSearch', '#availableMembersList .member-item', ['name', 'username']);
 
-    const filter = searchInput.value.toLowerCase();
-    const memberItems = document.querySelectorAll('#availableMembersList .member-item');
-
-    memberItems.forEach(item => {
-        const username = item.getAttribute('data-username');
-        const name = item.getAttribute('data-name');
-
-        if (username.includes(filter) || name.includes(filter)) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
-        }
-    });
-}, 300);
-
-/**
- * Confirm and remove member from team using universal delete modal
- */
-function confirmRemoveMemberNew(memberId, memberName) {
+// Confirm and remove member from team using universal delete modal
+function confirmRemoveMember(memberId, memberName) {
     // Open universal delete modal
     openDeleteConfirmModal({
         title: 'Remove Team Member?',
@@ -1018,15 +687,13 @@ function confirmRemoveMemberNew(memberId, memberName) {
             </div>
         `,
         buttonText: 'Remove Member',
-        onConfirm: () => removeMemberNew(memberId, memberName),
+        onConfirm: () => removeMember(memberId, memberName),
         itemId: memberId
     });
 }
 
-/**
- * Remove member from current team
- */
-async function removeMemberNew(memberId, memberName) {
+// Remove member from current team
+async function removeMember(memberId, memberName) {
     try {
         const response = await fetch(`/api/teams/${window.currentSelectedTeamId}/remove-member`, {
             method: 'POST',
@@ -1062,50 +729,11 @@ async function removeMemberNew(memberId, memberName) {
     }
 }
 
-/**
- * Helper function to populate team sizes
- * Add to teams.js
- */
-function populateTeamSizes(sizes, currentMaxSize, sizeContainer) {
-    sizeContainer.innerHTML = '';
-    sizeContainer.className = 'team-size-options';
-
-    sizes.forEach((size) => {
-        const optionDiv = document.createElement('div');
-        optionDiv.className = 'team-size-option';
-
-        const radioId = `editTeamSize${size}`;
-        const isSelected = parseInt(size) === parseInt(currentMaxSize);
-        const playerText = size === 1 ? 'player' : 'players';
-
-        optionDiv.innerHTML = `
-            <input type="radio"
-                   name="team_sizes"
-                   value="${size}"
-                   id="${radioId}"
-                   ${isSelected ? 'checked' : ''}>
-            <label for="${radioId}">
-                <div class="size-content">
-                    <i class="fas fa-users size-icon"></i>
-                    <div class="size-text">
-                        <span class="size-number">${size} ${size == 1 ? 'Player' : 'Players'}</span>
-                        <span class="size-description">Maximum ${size} ${playerText} per team</span>
-                    </div>
-                </div>
-            </label>
-        `;
-
-        sizeContainer.appendChild(optionDiv);
-    });
-}
-
 // ============================================
 // TEAM EDITING
 // ============================================
 
-/**
- * Open edit team modal
- */
+// Open edit team modal
 async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSizes) {
     const modal = document.getElementById('editTeamModal');
     const modalTitle = document.getElementById('editTeamModalTitle');
@@ -1187,9 +815,7 @@ async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSize
     document.body.style.overflow = 'hidden';
 }
 
-/**
- * Close edit team modal
- */
+// Close edit team modal
 function closeEditTeamModal() {
     const modal = document.getElementById('editTeamModal');
     const form = document.getElementById('editTeamForm');
@@ -1218,9 +844,7 @@ function closeEditTeamModal() {
     }
 }
 
-/**
- * Setup edit team form submission handler
- */
+// Setup edit team form submission handler
 function setupEditTeamForm() {
     const editTeamForm = document.getElementById('editTeamForm');
     if (!editTeamForm) return;
@@ -1321,9 +945,7 @@ function setupEditTeamForm() {
 // TEAM DELETION
 // ============================================
 
-/**
- * Confirm and delete selected team with permission and time checks
- */
+// Confirm and delete selected team
 async function confirmDeleteSelectedTeam() {
     if (!window.currentSelectedTeamId) {
         alert('No team selected');
@@ -1415,10 +1037,7 @@ async function confirmDeleteSelectedTeam() {
     }
 }
 
-/**
- * Execute the actual team deletion
- * Called by the universal delete modal
- */
+// Execute team deletion
 async function executeTeamDeletion(teamId) {
     try {
         const response = await fetch('/delete-team', {
@@ -1459,27 +1078,11 @@ async function executeTeamDeletion(teamId) {
     }
 }
 
-/**
- * Format time remaining for display
- */
-function formatTimeRemaining(days, hours) {
-    if (days > 0) {
-        if (days === 1) {
-            return `${days} day, ${hours} hour${hours !== 1 ? 's' : ''}`;
-        }
-        return `${days} days, ${hours} hour${hours !== 1 ? 's' : ''}`;
-    } else {
-        return `${hours} hour${hours !== 1 ? 's' : ''}`;
-    }
-}
-
 // ============================================
 // TAB SWITCHING
 // ============================================
 
-/**
- * Initialize tab switching and other event listeners
- */
+// Initialize tab switching and other event listeners
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.team-tab').forEach(tab => {
         tab.addEventListener('click', function() {
@@ -1516,27 +1119,77 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEditTeamForm();
 });
 
+// =========================================
+// HELPER FUNCTIONS
+// =========================================
+
+//Enable a dropdown element (removes all disabled states)
+function enableDropdown(dropdown) {
+    if (!dropdown) return;
+
+    dropdown.removeAttribute('disabled');
+    dropdown.disabled = false;
+    dropdown.style.pointerEvents = 'auto';
+    dropdown.style.opacity = '1';
+    dropdown.style.cursor = 'pointer';
+}
+
+// Populate team sizes for team creation modal
+function populateTeamSizes(sizes, currentMaxSize, sizeContainer) {
+    sizeContainer.innerHTML = '';
+    sizeContainer.className = 'team-size-options';
+
+    sizes.forEach((size) => {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'team-size-option';
+
+        const radioId = `editTeamSize${size}`;
+        const isSelected = parseInt(size) === parseInt(currentMaxSize);
+        const playerText = size === 1 ? 'player' : 'players';
+
+        optionDiv.innerHTML = `
+            <input type="radio"
+                   name="team_sizes"
+                   value="${size}"
+                   id="${radioId}"
+                   ${isSelected ? 'checked' : ''}>
+            <label for="${radioId}">
+                <div class="size-content">
+                    <i class="fas fa-users size-icon"></i>
+                    <div class="size-text">
+                        <span class="size-number">${size} ${size == 1 ? 'Player' : 'Players'}</span>
+                        <span class="size-description">Maximum ${size} ${playerText} per team</span>
+                    </div>
+                </div>
+            </label>
+        `;
+
+        sizeContainer.appendChild(optionDiv);
+    });
+}
+
+// Format remaining time for team deletion
+function formatTimeRemaining(days, hours) {
+    if (days > 0) {
+        if (days === 1) {
+            return `${days} day, ${hours} hour${hours !== 1 ? 's' : ''}`;
+        }
+        return `${days} days, ${hours} hour${hours !== 1 ? 's' : ''}`;
+    } else {
+        return `${hours} hour${hours !== 1 ? 's' : ''}`;
+    }
+}
+
 // ============================================
 // EXPORT FUNCTIONS TO GLOBAL SCOPE
 // ============================================
-
 window.selectTeam = selectTeam;
 window.filterRosterMembers = filterRosterMembers;
 window.confirmDeleteSelectedTeam = confirmDeleteSelectedTeam;
-window.confirmRemoveMemberNew = confirmRemoveMemberNew;
 window.openAddTeamMembersModal = openAddTeamMembersModal;
 window.addSelectedMembersToTeam = addSelectedMembersToTeam;
 window.closeAddTeamMembersModal = closeAddTeamMembersModal;
 window.filterAvailableMembers = filterAvailableMembers;
-window.loadNextScheduledEvent = loadNextScheduledEvent;
 window.openEditTeamModal = openEditTeamModal;
 window.closeEditTeamModal = closeEditTeamModal;
-window.populateTeamSizes = populateTeamSizes;
 window.toggleTeamDetailCollapse = toggleTeamDetailCollapse;
-
-//Team League Exports
-window.initializeTeamLeagueSelector = initializeTeamLeagueSelector;
-window.addTeamLeagueTag = addTeamLeagueTag;
-window.removeTeamLeagueTag = removeTeamLeagueTag;
-window.clearSelectedLeagues = clearSelectedLeagues;
-window.enableDropdown = enableDropdown;

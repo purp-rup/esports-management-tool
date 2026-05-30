@@ -1,34 +1,23 @@
 /**
- * admin-panel.js
  * ============================================================================
- * Handles all admin panel functionality including:
+ * Handles admin panel functionality including:
  * - User management and search
  * - Role assignment and removal
  * - Game creation and deletion
- * - User details display
  * - Suspension management integration
- * - ORGANZIED BY CLAUDEAI
  * ============================================================================
  */
-
-// ============================================
-// GLOBAL STATE
-// ============================================
-
-/**
- * Currently selected user ID in the admin panel
- * @type {number|null}
- */
-let selectedUserId = null;
 
 // ============================================
 // INITIALIZATION
 // ============================================
 
+//Currently selected user ID in the admin panel
+let selectedUserId = null;
+
 /**
  * Initialize the admin panel module
  * Sets up event listeners and refreshes user list badges
- * Called on page load
  */
 function initializeAdminPanel() {
     console.log('Admin panel module initialized');
@@ -37,7 +26,6 @@ function initializeAdminPanel() {
     attachAdminEventListeners();
 
     // Refresh user list badges after GM mappings load
-    // This ensures badges reflect the most current role information
     refreshUserListBadges();
 }
 
@@ -62,51 +50,35 @@ function attachAdminEventListeners() {
 // ============================================
 // USER SEARCH & FILTERING
 // ============================================
-
-/**
- * Filter users via server-side search
- * Performs database query for matching users
- * Debounced to avoid excessive API calls
- */
-let searchTimeout = null;
-
 async function filterUsers() {
     const input = document.getElementById('userSearch');
-    const searchQuery = input.value.trim();
     const userItemsContainer = document.getElementById('userItems');
 
-    // Clear previous timeout to debounce search
-    if (searchTimeout) {
-        clearTimeout(searchTimeout);
-    }
-
-    // Show loading state
     userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Searching...</li>';
 
-    // Debounce: wait 300ms after user stops typing
-    searchTimeout = setTimeout(async () => {
-        try {
-            // Fetch filtered users from server
-            const response = await fetch(`/admin/search-users?query=${encodeURIComponent(searchQuery)}`);
-            const data = await response.json();
-
-            if (data.success) {
-                if (data.users.length === 0) {
-                    // Show empty state
-                    userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: var(--text-secondary);">No users found</li>';
-                } else {
-                    // Render filtered users
-                    renderUserItems(data.users);
-                }
-            } else {
-                throw new Error(data.message);
-            }
-        } catch (error) {
-            console.error('Error searching users:', error);
-            userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: #f44336;">Error loading users. Please try again.</li>';
-        }
-    }, 300); // 300ms debounce delay
+    debouncedUserSearch(input.value.trim(), userItemsContainer);
 }
+
+//Utilizes the universal debounce function
+const debouncedUserSearch = debounce(async (searchQuery, userItemsContainer) => {
+    try {
+        const response = await fetch(`/admin/search-users?query=${encodeURIComponent(searchQuery)}`);
+        const data = await response.json();
+
+        if (data.success) {
+            if (data.users.length === 0) {
+                userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: var(--text-secondary);">No users found</li>';
+            } else {
+                renderUserItems(data.users);
+            }
+        } else {
+            throw new Error(data.message);
+        }
+    } catch (error) {
+        console.error('Error searching users:', error);
+        userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: #f44336;">Error loading users. Please try again.</li>';
+    }
+}, 300);
 
 /**
  * Render user items in the list
@@ -571,19 +543,8 @@ async function removeUser(userId, username, fullName) {
 }
 
 // ============================================
-// EXPORT FUNCTIONS TO GLOBAL SCOPE
+// EXPORT FUNCTIONS
 // ============================================
-
-/**
- * Make all functions globally accessible for:
- * - onclick handlers in HTML
- * - Other modules that need to call these functions
- * - Event handlers attached dynamically
- */
 window.initializeAdminPanel = initializeAdminPanel;
 window.filterUsers = filterUsers;
-window.handleRoleChange = handleRoleChange;
-window.confirmRemoveUser = confirmRemoveUser;
 window.closeRemoveUserModal = closeRemoveUserModal;
-window.removeUser = removeUser;
-window.refreshUserListBadges = refreshUserListBadges;

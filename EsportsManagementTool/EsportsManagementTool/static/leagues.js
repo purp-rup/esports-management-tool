@@ -1,5 +1,5 @@
 /**
- * League Management JavaScript
+ * League Management
  * Handles league CRUD operations with image cropping
  */
 
@@ -460,3 +460,244 @@ function showLeagueMessage(message, type) {
         messageEl.style.display = 'none';
     }, 5000);
 }
+
+// ============================================
+// TEAM LEAGUE TAG SYSTEM
+// ============================================
+
+//State for league selection
+let selectedLeaguesForTeam = [];
+let leaguesCache = null;
+
+
+//Load all available leagues
+async function loadAllLeagues() {
+    if (leaguesCache) {
+        return leaguesCache;
+    }
+
+    try {
+        const response = await fetch('/api/leagues/all');
+        const data = await response.json();
+
+        if (data.success && data.leagues) {
+            leaguesCache = data.leagues;
+            return leaguesCache;
+        } else {
+            console.error('Failed to load leagues');
+            return [];
+        }
+    } catch (error) {
+        console.error('Error fetching leagues:', error);
+        return [];
+    }
+}
+
+/**
+ * Initialize league tag selector for team modal
+ * @param {string} context - 'create' or 'edit'
+ * @param {Array} preSelectedLeagueIds - Array of league IDs to pre-select
+ */
+async function initializeTeamLeagueSelector(context = 'create', preSelectedLeagueIds = []) {
+    const dropdownId = context === 'create' ? 'teamLeaguesDropdown' : 'editTeamLeaguesDropdown';
+    const dropdown = document.getElementById(dropdownId);
+
+    if (!dropdown) {
+        console.warn(`${dropdownId} not found`);
+        return;
+    }
+
+    // Show loading
+    dropdown.disabled = true;
+    dropdown.innerHTML = '<option value="">Loading leagues...</option>';
+
+    try {
+        // Load leagues
+        const leagues = await loadAllLeagues();
+
+        // Populate dropdown
+        dropdown.innerHTML = '<option value="">+ Add a league</option>';
+
+        if (leagues.length === 0) {
+            dropdown.innerHTML += '<option value="" disabled>No leagues available</option>';
+        } else {
+            leagues.forEach(league => {
+                const option = document.createElement('option');
+                option.value = league.id;
+                option.textContent = league.name;
+                dropdown.appendChild(option);
+            });
+        }
+
+        // Pre-select leagues if provided
+        if (preSelectedLeagueIds && preSelectedLeagueIds.length > 0) {
+            selectedLeaguesForTeam = preSelectedLeagueIds.map(id => {
+                const league = leagues.find(l => l.id === id);
+                return league ? { id: league.id, name: league.name, logo: league.logo } : null;
+            }).filter(l => l !== null);
+        } else {
+            selectedLeaguesForTeam = [];
+        }
+
+        // Update display
+        updateTeamLeagueTags(context);
+        updateHiddenLeaguesInput(context);
+        updateLeagueDropdownOptions(context);
+
+        // Attach change listener
+        attachTeamLeagueDropdownListener(dropdown, context);
+
+    } catch (error) {
+        console.error('Error initializing league selector:', error);
+        dropdown.innerHTML = '<option value="">Error loading leagues</option>';
+    } finally {
+        //Enable function
+        enableDropdown(dropdown);
+    }
+}
+
+/**
+ * Attach change listener to league dropdown
+ */
+function attachTeamLeagueDropdownListener(dropdown, context) {
+    // Remove existing listener
+    const clone = dropdown.cloneNode(true);
+    dropdown.replaceWith(clone);
+
+    // Get fresh reference
+    const dropdownId = context === 'create' ? 'teamLeaguesDropdown' : 'editTeamLeaguesDropdown';
+    const newDropdown = document.getElementById(dropdownId);
+
+    if (!newDropdown) return;
+
+    newDropdown.addEventListener('change', function() {
+        const selectedId = parseInt(this.value);
+        if (selectedId && !selectedLeaguesForTeam.find(l => l.id === selectedId)) {
+            const league = leaguesCache.find(l => l.id === selectedId);
+            if (league) {
+                addTeamLeagueTag(league, context);
+            }
+        }
+        this.value = ''; // Reset to placeholder
+    });
+}
+
+/**
+ * Add a league tag
+ */
+function addTeamLeagueTag(league, context = 'create') {
+    if (selectedLeaguesForTeam.find(l => l.id === league.id)) return;
+
+    selectedLeaguesForTeam.push({
+        id: league.id,
+        name: league.name,
+        logo: league.logo
+    });
+
+    updateTeamLeagueTags(context);
+    updateHiddenLeaguesInput(context);
+    updateLeagueDropdownOptions(context);
+}
+
+/**
+ * Remove a league tag
+ */
+function removeTeamLeagueTag(leagueId, context = 'create') {
+    selectedLeaguesForTeam = selectedLeaguesForTeam.filter(l => l.id !== leagueId);
+    updateTeamLeagueTags(context);
+    updateHiddenLeaguesInput(context);
+    updateLeagueDropdownOptions(context);
+}
+
+/**
+ * Update visual display of league tags
+ */
+function updateTeamLeagueTags(context = 'create') {
+    const containerId = context === 'create' ? 'selectedLeaguesContainer' : 'editSelectedLeaguesContainer';
+    const container = document.getElementById(containerId);
+
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (selectedLeaguesForTeam.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-secondary); font-size: 0.875rem; padding: 0.5rem;">No leagues selected</div>';
+        return;
+    }
+
+    selectedLeaguesForTeam.forEach(league => {
+        const tag = document.createElement('div');
+        tag.className = 'game-tag'; // Reuse game tag styling
+
+        const logoHTML = league.logo
+            ? `<img src="${league.logo}" alt="${league.name}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover;">`
+            : '<i class="fas fa-trophy game-tag-icon"></i>';
+
+        tag.innerHTML = `
+            ${logoHTML}
+            <span>${league.name}</span>
+            <button type="button"
+                    class="game-tag-remove"
+                    onclick="removeTeamLeagueTag(${league.id}, '${context}')"
+                    title="Remove ${league.name}">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(tag);
+    });
+}
+
+/**
+ * Update dropdown to hide selected leagues
+ */
+function updateLeagueDropdownOptions(context = 'create') {
+    const dropdownId = context === 'create' ? 'teamLeaguesDropdown' : 'editTeamLeaguesDropdown';
+    const dropdown = document.getElementById(dropdownId);
+
+    if (!dropdown) return;
+
+    const options = Array.from(dropdown.options);
+
+    options.forEach(option => {
+        if (option.value === '') return; // Skip placeholder
+
+        const optionId = parseInt(option.value);
+        if (selectedLeaguesForTeam.find(l => l.id === optionId)) {
+            option.style.display = 'none';
+            option.disabled = true;
+        } else {
+            option.style.display = '';
+            option.disabled = false;
+        }
+    });
+}
+
+/**
+ * Update hidden input with selected league IDs
+ */
+function updateHiddenLeaguesInput(context = 'create') {
+    const inputId = context === 'create' ? 'selectedLeaguesInput' : 'editSelectedLeaguesInput';
+    const hiddenInput = document.getElementById(inputId);
+
+    if (hiddenInput) {
+        const leagueIds = selectedLeaguesForTeam.map(l => l.id);
+        hiddenInput.value = JSON.stringify(leagueIds);
+    }
+}
+
+/**
+ * Clear all selected leagues
+ */
+function clearSelectedLeagues(context = 'create') {
+    selectedLeaguesForTeam = [];
+    updateTeamLeagueTags(context);
+    updateHiddenLeaguesInput(context);
+    updateLeagueDropdownOptions(context);
+}
+
+//Team League Exports
+window.initializeTeamLeagueSelector = initializeTeamLeagueSelector;
+window.addTeamLeagueTag = addTeamLeagueTag;
+window.removeTeamLeagueTag = removeTeamLeagueTag;
+window.clearSelectedLeagues = clearSelectedLeagues;
+window.enableDropdown = enableDropdown;

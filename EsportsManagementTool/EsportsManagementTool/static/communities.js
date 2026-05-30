@@ -839,26 +839,11 @@ async function loadGameNextScheduledEvent(gameId) {
 }
 
 /**
- * Filter members in the game details modal
- * Searches by username or full name
+ * Filter members in the community modal
+ * Uses universal filterListItems function
  */
-function filterMembers() {
-    const searchInput = document.getElementById('memberSearch');
-    const filter = searchInput.value.toLowerCase();
-    const memberItems = document.querySelectorAll('#gameMembersList .member-item');
-
-    memberItems.forEach(item => {
-        const username = item.getAttribute('data-username');
-        const name = item.getAttribute('data-name');
-
-        // Show item if username or name matches search
-        if (username.includes(filter) || name.includes(filter)) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
-        }
-    });
-}
+const filterMembers = () =>
+    filterListItems('memberSearch', '#gameMembersList .member-item', ['username', 'name']);
 
 // ============================================
 // USER'S COMMUNITIES (PROFILE TAB)
