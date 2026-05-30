@@ -117,8 +117,10 @@ Route that allows admins to create new games. Accessible via button that opens a
 @app.route('/create-game', methods=['POST'])
 @roles_required('admin', 'developer')
 def create_game():
+    """Create a new game and its member table"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
+        # Retrieve inputted fields
         game_title = request.form.get('gameTitle', '').strip()
         abbreviation = request.form.get('abbreviation', '').strip().upper()
         description = request.form.get('gameDescription', '').strip()
@@ -128,10 +130,12 @@ def create_game():
         import json
         team_sizes = json.loads(team_sizes_json)
 
+        # Validation
         if not game_title:
             return jsonify({'success': False, 'message': 'Game title is required'}), 400
         if not abbreviation:
             return jsonify({'success': False, 'message': 'Game abbreviation is required'}), 400
+        # Validate abbreviation length (1-5 characters, alphanumeric only)
         if len(abbreviation) > 5:
             return jsonify({'success': False, 'message': 'Abbreviation must be 5 characters or less'}), 400
         if not abbreviation.replace(' ', '').isalnum():
@@ -141,16 +145,19 @@ def create_game():
         if not team_sizes or len(team_sizes) == 0:
             return jsonify({'success': False, 'message': 'At least one team size must be selected'}), 400
 
+        # Validate division
         valid_divisions = ['Strategy', 'Shooter', 'Sports', 'Other']
         if division not in valid_divisions:
             return jsonify({'success': False, 'message': 'Invalid division selected'}), 400
 
         team_sizes_str = ','.join(map(str, team_sizes))
 
+        # Check for duplicate title
         cursor.execute("SELECT GameID FROM games WHERE GameTitle = %s", (game_title,))
         if cursor.fetchone():
             return jsonify({'success': False, 'message': 'A game with this title already exists'}), 400
 
+        # Check for duplicate abbreviation
         cursor.execute("SELECT GameID FROM games WHERE Abbreviation = %s", (abbreviation,))
         if cursor.fetchone():
             return jsonify({'success': False, 'message': 'This abbreviation is already in use'}), 400
