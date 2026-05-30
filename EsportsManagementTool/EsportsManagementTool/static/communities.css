@@ -431,7 +431,7 @@
    GAME DETAILS MODAL
    Modal displaying full game information
    -------------------------------------------- */
-#gameDetailsModal {
+#communityModal {
     z-index: 10001; /* Higher than manageCommunitiesModal */
 }
 
