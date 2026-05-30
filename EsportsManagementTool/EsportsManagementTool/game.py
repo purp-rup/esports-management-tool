@@ -412,7 +412,7 @@ def get_game_community_details(game_id):
 
                     profile_pic = None
                     if m['profile_picture']:
-                        profile_pic = f"/static/uploads/avatars/{m['profile_picture']}"
+                        profile_pic = m['profile_picture']
 
                     is_assigned_gm = bool(m['is_game_manager'])
 
@@ -814,7 +814,7 @@ def get_available_game_managers(game_id):
             for gm in gms:
                 profile_pic = None
                 if gm['profile_picture']:
-                    profile_pic = f"/static/uploads/avatars/{gm['profile_picture']}"
+                    profile_pic = gm['profile_picture']
 
                 formatted_gms.append({
                     'id': gm['id'],
@@ -1083,7 +1083,7 @@ def get_all_games_for_management():
                 gm_pic_result = cursor.fetchone()
                 gm_profile_pic = None
                 if gm_pic_result and gm_pic_result['profile_picture']:
-                    gm_profile_pic = f"/static/uploads/avatars/{gm_pic_result['profile_picture']}"
+                    gm_profile_pic = gm_pic_result['profile_picture']
 
                 gm_info = {
                     'user_id': game['gm_id'],

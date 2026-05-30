@@ -365,7 +365,7 @@ def get_new_available_teammates(team_id):
 
             profile_pic = None
             if user['profile_picture']:
-                profile_pic = f"/static/uploads/avatars/{user['profile_picture']}"
+                profile_pic = user['profile_picture']
 
             formatted_members.append({
                 'id': user['id'],
@@ -860,7 +860,7 @@ def team_details(team_id):
 
                     profile_pic = None
                     if m['profile_picture']:
-                        profile_pic = f"/static/uploads/avatars/{m['profile_picture']}"
+                        profile_pic = m['profile_picture']
 
                     formatted_members.append({
                         'id': m['id'],
