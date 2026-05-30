@@ -2,13 +2,13 @@
 Team Statistics Management
 Handles match results and team performance tracking
 """
-
+from EsportsManagementTool.universal_helpers import get_user_permissions
 from flask import request, jsonify, session
 from datetime import datetime, time
 import MySQLdb.cursors
 
 
-def register_team_stats_routes(app, mysql, login_required, roles_required, get_user_permissions):
+def register_team_stats_routes(app, mysql, login_required, roles_required):
     """
     Register all team statistics routes
     """

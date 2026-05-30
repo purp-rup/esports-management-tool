@@ -1,5 +1,6 @@
-from EsportsManagementTool import (app, mysql, EST, login_required, roles_required, get_user_permissions,
-                                   get_team_game_id, localize_datetime, format_time_to_12hr, is_all_day_event, season_roles)
+from EsportsManagementTool import (app, mysql, EST, login_required, roles_required,
+                                    localize_datetime, season_roles)
+from EsportsManagementTool.universal_helpers import get_user_permissions, get_team_game_id, format_time_to_12hr, is_all_day_event
 from flask import Flask, render_template, request, session, jsonify
 from datetime import datetime, timedelta
 import MySQLdb.cursors
@@ -1135,10 +1136,8 @@ def get_permissions_for_sidebar(user_id):
 
 def check_team_deletion_permission(cursor, team_id, user_id):
     """
-    Returns a dict with everything both routes need:
-    can_delete, restriction_level, denial_reason, team,
-    is_developer, is_admin, is_game_gm, days_since_creation,
-    within_30_days, days_remaining, hours_remaining, deletion_deadline
+    Determines whether a team can be deleted by the user.
+    Assigns a denial reason if the user cannot delete a team.
     """
     cursor.execute("""
         SELECT t.teamName, t.created_at, t.gameID, g.gm_id, s.is_active as season_is_active
