@@ -24,13 +24,13 @@ def send_verify_email(email: str, token: str, username: str) -> None:
     verify_url = url_for('verify_email', token=token, _external=True)
     msg = Message('Verify Your Stockton University Email Account', recipients=[email])
     msg.html = f'''
-        <div style="background-color: #f4f4f4; width: 100%; margin: 0; padding: 10px 0;">
+        <div style="background-color: #f4f4f4; width: 100%; margin: 0; padding: 10px 0; font-family: 'Inter', sans-serif;">
             <div style="background-color: #ffffff; max-width: 600px; margin: 0 auto;">
                 <div style="margin: 0; padding: 0;">
                     <img src="https://res.cloudinary.com/dltfdjwzs/image/upload/v1780009089/01235ad8-2454-4a46-98cd-163de62e7fa0.png" 
                          style="width: 100%; display: block; margin: 0; padding: 0;">
                 </div>
-                <div style="padding: 10px 10px 30px 30px;">
+                <div style="padding: 8px 10px 20px 30px;">
                     <br>
                     <p style="text-align: left; font-weight: bold;">Hello, {username}!</p>
                     <div style="padding-left: 15px;">
@@ -42,10 +42,9 @@ def send_verify_email(email: str, token: str, username: str) -> None:
                             Verify My Account
                         </a>
                         <br><br>
-                        <p>This link will expire after 24 hours.</p>
-                        <p>If you did not create this account, please ignore this email.</p>
+                        <p style="font-size: 15px;">This link will expire after 24 hours.</p>
+                        <p style="font-size: 15px;">If you did not create this account, please ignore this email.</p>
                     </div>
-                    <br>
                     <p style="text-align: left;">- EsMT Team</p>
                 </div>
                 {get_email_footer()}
@@ -98,14 +97,16 @@ def register_verification_routes(app, mysql):
 # =========================================
 def get_email_footer() -> str:
     return f'''
-        <div style="background-color: #1a1a2e; padding: 15px 20px 8px 20px; text-align: center; font-size: 12px; color: #aaaaaa;">
+        <div style="background-color: #1a1a2e; padding: 15px 20px 8px 20px; text-align: center; font-size: 12px;
+        color: #aaaaaa; font-family: 'Inter', sans-serif;">
             <a href="https://discord.gg/AGkHpVYfGh" 
                style="color: #5865F2; font-weight: bold; text-decoration: none; 
                       border: 2px solid #5865F2; padding: 4px 10px; border-radius: 4px;">
                 Join us on Discord!
             </a>
-            <hr style="border: 1px solid #2a2a4a; margin: 14px 0 8px 0;">
-            <p style="margin: 0;">© {datetime.now().year} Stockton Esports Management Tool. All rights reserved.</p>
+            <br><br>
+            <p style="margin: 0 0 8px 0;">Have a question? Contact <strong>seiberlh@go.stockton.edu</strong> for assistance!</p>
+            <p style="margin: 0;">©{datetime.now().year} Stockton Esports Management Tool. All rights reserved.</p>
         </div>
     '''
 
@@ -123,5 +124,5 @@ def register_test_routes(app):
 
         @app.route('/test-email/verify')
         def test_verification_email():
-            send_verify_email("test@go.stockton.edu", "test-token", "user")
+            send_verify_email("test@go.stockton.edu", "test-token", "test username")
             return "Verification email sent - check localhost:8025"
