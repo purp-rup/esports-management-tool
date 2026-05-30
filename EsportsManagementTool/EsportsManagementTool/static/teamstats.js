@@ -759,7 +759,14 @@ async function openMatchDetailsModal(eventId) {
         });
 
         // Time
-        const timeDisplay = match.start_time || 'Time not set';
+        const timeDisplay = match.start_time
+            ? (() => {
+                const parts = String(match.start_time).split(':');
+                const hours = parseInt(parts[0], 10);
+                const minutes = parseInt(parts[1], 10);
+                return `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+            })()
+            : 'Time not set';
 
         // Result
         let resultHTML = `

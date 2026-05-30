@@ -48,6 +48,8 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                         'message': 'Team not found'
                     }), 404
 
+                game_id = team['gameID']
+
                 # Get all leagues associated with this team for filter dropdown
                 cursor.execute("""
                     SELECT 
@@ -71,7 +73,8 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                         INNER JOIN generalevents ge ON mr.event_id = ge.EventID
                         WHERE mr.team_id = %s
                         AND ge.league_id = %s
-                    """, (team_id, league_id))
+                        AND (ge.team_id = %s OR (ge.team_id IS NULL AND ge.game_id = %s))
+                    """, (team_id, league_id, team_id, game_id))
                 else:
                     cursor.execute("""
                         SELECT 
@@ -80,7 +83,8 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                         FROM match_results mr
                         INNER JOIN generalevents ge ON mr.event_id = ge.EventID
                         WHERE mr.team_id = %s
-                    """, (team_id,))
+                        AND (ge.team_id = %s OR (ge.team_id IS NULL AND ge.game_id = %s))
+                    """, (team_id, team_id, game_id))
 
                 stats = cursor.fetchone()
                 wins = int(stats['wins']) if stats['wins'] is not None else 0
@@ -108,7 +112,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                         LEFT JOIN users u ON mr.recorded_by = u.id
                         LEFT JOIN league l ON ge.league_id = l.id
                         WHERE ge.EventType = 'Match'
-                        AND ge.team_id = %s
+                        AND (ge.team_id = %s OR (ge.team_id IS NULL AND ge.game_id = %s))
                         AND ge.league_id = %s
                         AND (
                             ge.Date < CURDATE()
@@ -116,7 +120,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                         )
                         ORDER BY ge.Date DESC, ge.StartTime DESC
                         LIMIT 50
-                    """, (team_id, team_id, league_id))
+                    """, (team_id, team_id, game_id, league_id))
                 else:
                     cursor.execute("""
                         SELECT 
@@ -138,14 +142,14 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                         LEFT JOIN users u ON mr.recorded_by = u.id
                         LEFT JOIN league l ON ge.league_id = l.id
                         WHERE ge.EventType = 'Match'
-                        AND ge.team_id = %s
+                        AND (ge.team_id = %s OR (ge.team_id IS NULL AND ge.game_id = %s))
                         AND (
                             ge.Date < CURDATE()
                             OR (ge.Date = CURDATE() AND ge.StartTime <= CURTIME())
                         )
                         ORDER BY ge.Date DESC, ge.StartTime DESC
                         LIMIT 50
-                    """, (team_id, team_id))
+                    """, (team_id, team_id, game_id))
 
                 match_events = []
                 for match in cursor.fetchall():
@@ -203,7 +207,23 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             try:
-                # Get match events where start time has passed
+                # Look up game_id for this team so we can match game-wide events
+                cursor.execute("""
+                    SELECT gameID FROM teams WHERE TeamID = %s
+                """, (team_id,))
+
+                team = cursor.fetchone()
+                if not team:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Team not found'
+                    }), 404
+
+                game_id = team['gameID']
+
+                # Get match events where start time has passed.
+                # Visibility: include events with team_id IS NULL (game-wide)
+                # that share the same game_id as this team.
                 cursor.execute("""
                     SELECT 
                         ge.EventID as event_id,
@@ -215,13 +235,13 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                     FROM generalevents ge
                     LEFT JOIN match_results mr ON ge.EventID = mr.event_id AND mr.team_id = %s
                     WHERE ge.EventType = 'Match'
-                    AND ge.team_id = %s
+                    AND (ge.team_id = %s OR (ge.team_id IS NULL AND ge.game_id = %s))
                     AND (
                         ge.Date < CURDATE()
                         OR (ge.Date = CURDATE() AND ge.StartTime <= CURTIME())
                     )
                     ORDER BY ge.Date DESC, ge.StartTime DESC
-                """, (team_id, team_id))
+                """, (team_id, team_id, game_id))
 
                 events = []
                 for event in cursor.fetchall():
@@ -334,8 +354,9 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                 cursor.execute("""
                     SELECT EventType, Date, StartTime 
                     FROM generalevents 
-                    WHERE EventID = %s AND team_id = %s
-                """, (data['event_id'], data['team_id']))
+                    WHERE EventID = %s
+                    AND (team_id = %s OR (team_id IS NULL AND game_id = %s))
+                """, (data['event_id'], data['team_id'], game_id))
 
                 event = cursor.fetchone()
                 if not event:
