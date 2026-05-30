@@ -5,6 +5,9 @@ from datetime import datetime, timedelta
 from io import BytesIO
 import MySQLdb.cursors
 import json
+import cloudinary
+import cloudinary.uploader
+import os
 
 ## ==============================================
 ## THE FOLLOWING WAS PRODUCED ALONGSIDE CLAUDEAI
@@ -116,7 +119,6 @@ Route that allows admins to create new games. Accessible via button that opens a
 def create_game():
     """Create a new game and its member table"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
     try:
         # Retrieve inputted fields
         game_title = request.form.get('gameTitle', '').strip()
@@ -125,34 +127,21 @@ def create_game():
         team_sizes_json = request.form.get('team_sizes', '[]')
         division = request.form.get('division', 'Other').strip()
 
+        import json
         team_sizes = json.loads(team_sizes_json)
-
-        game_image = None
-        image_mime_type = None
-
-        if 'gameImage' in request.files:
-            file = request.files['gameImage']
-            if file and file.filename:
-                game_image = file.read()
-                image_mime_type = file.content_type
 
         # Validation
         if not game_title:
             return jsonify({'success': False, 'message': 'Game title is required'}), 400
-
         if not abbreviation:
             return jsonify({'success': False, 'message': 'Game abbreviation is required'}), 400
-
         # Validate abbreviation length (1-5 characters, alphanumeric only)
         if len(abbreviation) > 5:
             return jsonify({'success': False, 'message': 'Abbreviation must be 5 characters or less'}), 400
-
         if not abbreviation.replace(' ', '').isalnum():
             return jsonify({'success': False, 'message': 'Abbreviation must contain only letters and numbers'}), 400
-
         if not description:
             return jsonify({'success': False, 'message': 'Description is required'}), 400
-
         if not team_sizes or len(team_sizes) == 0:
             return jsonify({'success': False, 'message': 'At least one team size must be selected'}), 400
 
@@ -165,42 +154,43 @@ def create_game():
 
         # Check for duplicate title
         cursor.execute("SELECT GameID FROM games WHERE GameTitle = %s", (game_title,))
-        existing_game = cursor.fetchone()
-
-        if existing_game:
-            cursor.close()
+        if cursor.fetchone():
             return jsonify({'success': False, 'message': 'A game with this title already exists'}), 400
 
         # Check for duplicate abbreviation
         cursor.execute("SELECT GameID FROM games WHERE Abbreviation = %s", (abbreviation,))
-        existing_abbrev = cursor.fetchone()
-
-        if existing_abbrev:
-            cursor.close()
+        if cursor.fetchone():
             return jsonify({'success': False, 'message': 'This abbreviation is already in use'}), 400
 
-        # Insert with abbreviation
+        # Upload to Cloudinary
+        image_url = None
+        public_id = None
+        if 'gameImage' in request.files:
+            file = request.files['gameImage']
+            if file and file.filename:
+                upload_result = cloudinary.uploader.upload(file, folder="games")
+                image_url = upload_result.get('secure_url')
+                public_id = upload_result.get('public_id')
+
         cursor.execute(
-            "INSERT INTO games (GameTitle, Abbreviation, Description, TeamSizes, Division, GameImage, ImageMimeType) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (game_title, abbreviation, description, team_sizes_str, division, game_image, image_mime_type))
+            "INSERT INTO games (GameTitle, Abbreviation, Description, TeamSizes, Division, GameImage, cloudinary_public_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (game_title, abbreviation, description, team_sizes_str, division, image_url, public_id)
+        )
 
         game_id = cursor.lastrowid
-        print(f"Game inserted with ID: {game_id}")
-
         mysql.connection.commit()
-        print(f"Game {game_title} creation committed successfully")
 
-        cursor.close()
-
-        return jsonify(
-            {'success': True, 'message': f'Game "{game_title}" created successfully', 'game_id': game_id}), 200
+        return jsonify({'success': True, 'message': f'Game "{game_title}" created successfully', 'game_id': game_id}), 200
 
     except Exception as e:
         print(f"Error creating game: {str(e)}")
+        import traceback
+        traceback.print_exc()
         mysql.connection.rollback()
-        cursor.close()
         return jsonify({'success': False, 'message': f'Database error: {str(e)}'}), 500
 
+    finally:
+        cursor.close()
 """
 Route to allow admins to delete games from the communities tab. Accessible via communities tab on game cards.
 """
@@ -232,6 +222,10 @@ def delete_game():
             if event_check['event_count'] > 0:
                 return jsonify({'success': False,
                                 'message': f'Cannot delete game. {event_check["event_count"]} event(s) are associated with this game.'}), 400
+
+            # Delete image from Cloudinary if it exists
+            if game.get('cloudinary_public_id'):
+                cloudinary.uploader.destroy(game['cloudinary_public_id'])
 
             cursor.execute("DELETE FROM in_communities WHERE game_id = %s", (game_id,))
             cursor.execute("DELETE FROM games WHERE GameID = %s", (game_id,))
@@ -297,14 +291,13 @@ Route to retrieve the game image for all games from database.
 def game_image(game_id):
     """Serve the game image from the database"""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
     try:
-        cursor.execute("SELECT GameImage, ImageMimeType FROM games WHERE GameID = %s", (game_id,))
+        cursor.execute("SELECT GameImage FROM games WHERE GameID = %s", (game_id,))
         game = cursor.fetchone()
 
         if game and game['GameImage']:
-            return send_file(BytesIO(game['GameImage']), mimetype=game['ImageMimeType'] or 'image/png',
-                             as_attachment=False, download_name=f'game_{game_id}.png')
+            from flask import redirect
+            return redirect(game['GameImage'])
         else:
             return jsonify({'error': 'Image not found'}), 404
 
@@ -426,7 +419,7 @@ def get_game_community_details(game_id):
 
                     profile_pic = None
                     if m['profile_picture']:
-                        profile_pic = f"/static/uploads/avatars/{m['profile_picture']}"
+                        profile_pic = m['profile_picture']
 
                     is_assigned_gm = bool(m['is_game_manager'])
 
@@ -828,7 +821,7 @@ def get_available_game_managers(game_id):
             for gm in gms:
                 profile_pic = None
                 if gm['profile_picture']:
-                    profile_pic = f"/static/uploads/avatars/{gm['profile_picture']}"
+                    profile_pic = gm['profile_picture']
 
                 formatted_gms.append({
                     'id': gm['id'],
@@ -1097,7 +1090,7 @@ def get_all_games_for_management():
                 gm_pic_result = cursor.fetchone()
                 gm_profile_pic = None
                 if gm_pic_result and gm_pic_result['profile_picture']:
-                    gm_profile_pic = f"/static/uploads/avatars/{gm_pic_result['profile_picture']}"
+                    gm_profile_pic = gm_pic_result['profile_picture']
 
                 gm_info = {
                     'user_id': game['gm_id'],
@@ -1196,26 +1189,35 @@ def update_game_details(game_id):
             return jsonify({'success': False, 'message': 'This abbreviation is already in use'}), 400
 
         # Handle image upload if present
-        game_image = existing['GameImage']  # Keep existing by default
-        image_mime_type = None
+        image_url = existing['GameImage']  # Keep existing by default
+        public_id = None
+
+        # Get old public_id
+        cursor.execute("SELECT cloudinary_public_id FROM games WHERE GameID = %s", (game_id,))
+        old_game = cursor.fetchone()
+        old_public_id = old_game.get('cloudinary_public_id') if old_game else None
 
         if 'image' in request.files:
             file = request.files['image']
             if file and file.filename:
-                game_image = file.read()
-                image_mime_type = file.content_type
+                # Delete old image from Cloudinary
+                if old_public_id:
+                    cloudinary.uploader.destroy(old_public_id)
+
+                # Upload new image
+                upload_result = cloudinary.uploader.upload(file, folder="games")
+                image_url = upload_result.get('secure_url')
+                public_id = upload_result.get('public_id')
 
         # Update database
-        if image_mime_type:
-            # Update with new image
+        if public_id:
             cursor.execute("""
                 UPDATE games 
                 SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, 
-                    TeamSizes = %s, GameImage = %s, ImageMimeType = %s
+                    TeamSizes = %s, GameImage = %s, cloudinary_public_id = %s
                 WHERE GameID = %s
-            """, (title, abbreviation, description, division, team_sizes_str, game_image, image_mime_type, game_id))
+            """, (title, abbreviation, description, division, team_sizes_str, image_url, public_id, game_id))
         else:
-            # Update without changing image
             cursor.execute("""
                 UPDATE games 
                 SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, TeamSizes = %s
@@ -1250,7 +1252,7 @@ def delete_game_from_management(game_id):
 
     try:
         # Check if game exists
-        cursor.execute("SELECT GameID, GameTitle FROM games WHERE GameID = %s", (game_id,))
+        cursor.execute("SELECT GameID, GameTitle, cloudinary_public_id FROM games WHERE GameID = %s", (game_id,))
         game = cursor.fetchone()
 
         if not game:
@@ -1270,6 +1272,10 @@ def delete_game_from_management(game_id):
                 'success': False,
                 'message': f'Cannot delete game. {event_check["event_count"]} event(s) are associated with this game.'
             }), 400
+
+        # Delete from cloudinary
+        if game.get('cloudinary_public_id'):
+            cloudinary.uploader.destroy(game['cloudinary_public_id'])
 
         # Check for associated teams (all seasons)
         cursor.execute(
