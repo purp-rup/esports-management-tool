@@ -216,7 +216,7 @@ function createGameCard(game, isAdmin) {
         </div>
 
         <div class="roster-card-actions">
-            <button class="btn btn-primary" onclick="openGameDetailsModal(${game.GameID})">
+            <button class="btn btn-primary" onclick="openCommunityModal(${game.GameID})">
                 <i class="fas fa-eye"></i> View Details
             </button>
             ${joinButtonHTML}

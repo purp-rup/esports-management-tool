@@ -658,15 +658,15 @@
     </div>
 
     <!-- Game Details Modal -->
-    <div id="gameDetailsModal" class="modal">
+    <div id="communityModal" class="modal">
         <div class="modal-content modal-content-large">
             <div class="modal-header">
-                <h2 id="gameDetailsModalTitle">Game Details</h2>
+                <h2 id="communityModalTitle">Game Details</h2>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                     <!-- GM Button will be inserted here by JavaScript -->
                     <div id="gmButtonContainer"></div>
 
-                    <button class="modal-close" onclick="closeGameDetailsModal()">
+                    <button class="modal-close" onclick="closeCommunityModal()">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -2406,6 +2406,7 @@
 <!-- Image Cropper -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <!-- Delete Modal js (must be called first -->
+<script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
 <script src="{{ url_for('static', filename='modalDelete.js') }}"></script>
 <script src="{{ url_for('static', filename='image-cropper.js') }}"></script>
 <!-- Rest of js imports -->

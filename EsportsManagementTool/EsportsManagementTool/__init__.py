@@ -4,7 +4,7 @@ Esports Management Tool - Main Application Module
 This module serves as the entry point for the Flask application, configured in
 the packages format for modular organization.
 """
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, make_response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, make_response, Response
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
 from datetime import datetime, timedelta

@@ -92,7 +92,7 @@ function handleDynamicReposition() {
 window.closeCreateEventModal = function() {};
 window.closeCreateGameModal = function() {};
 window.closeCreateTeamModal = function() {};
-window.closeGameDetailsModal = function() {};
+window.closeCommunityModal = function() {};
 window.closeAssignGMModal = function() {};
 window.closeAvatarModal = function() {};
 window.closeEditProfileModal = function() {};
