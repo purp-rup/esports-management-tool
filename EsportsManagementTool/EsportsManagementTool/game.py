@@ -127,7 +127,6 @@ def create_game():
         team_sizes_json = request.form.get('team_sizes', '[]')
         division = request.form.get('division', 'Other').strip()
 
-        import json
         team_sizes = json.loads(team_sizes_json)
 
         # Validation
@@ -184,8 +183,6 @@ def create_game():
 
     except Exception as e:
         print(f"Error creating game: {str(e)}")
-        import traceback
-        traceback.print_exc()
         mysql.connection.rollback()
         return jsonify({'success': False, 'message': f'Database error: {str(e)}'}), 500
 
