@@ -2,129 +2,25 @@
 Scheduled Events Management
 Handles creation, generation, and management of recurring team events
 """
-from EsportsManagementTool import EST,localize_datetime, get_team_game_id
+from EsportsManagementTool import EST,localize_datetime
+from EsportsManagementTool.events import get_season_for_event_date
+from EsportsManagementTool.universal_helpers import get_user_permissions, get_team_game_id, format_time_to_12hr
 from flask import request, jsonify, session
 from datetime import datetime, timedelta
 import MySQLdb.cursors
 from dateutil.relativedelta import relativedelta
 import calendar
-from EsportsManagementTool.events import get_season_for_event_date
 
 
-"""
-Method to determine if a user is eligible to delete a schedule.
-"""
-def can_delete_schedule(cursor, schedule_id, user_id, is_developer):
-    """
-    Determine if a user can delete a scheduled event based on time-based rules.
+def register_schedule_routes(app, mysql, login_required, roles_required):
+    """Register all scheduled event routes."""
 
-    Rules:
-    1. Developers can ALWAYS delete any schedule
-    2. Game Managers for the schedule's game can delete within 24 hours of creation
-    3. After 24 hours, only developers can delete
-
-    Args:
-        cursor: MySQL cursor
-        schedule_id: ID of the schedule
-        user_id: ID of the user attempting deletion
-        is_developer: Whether user is a developer
-
-    Returns:
-        tuple: (can_delete: bool, reason: str)
-    """
-    # Developers can always delete
-    if is_developer:
-        return (True, "Developer privileges")
-
-    # Fetch schedule creation info AND the game's GM
-    cursor.execute("""
-        SELECT se.created_at, g.gm_id, g.GameTitle
-        FROM scheduled_events se
-        JOIN games g ON se.game_id = g.gameID
-        WHERE se.schedule_id = %s
-    """, (schedule_id,))
-
-    schedule = cursor.fetchone()
-
-    if not schedule:
-        return (False, "Schedule not found")
-
-    # Check if user is the GM for this game
-    if schedule['gm_id'] != user_id:
-        return (False, f"Only the Game Manager for {schedule['GameTitle']} or a developer can delete this schedule")
-
-    # Check if within 24-hour window
-    if not schedule['created_at']:
-        # If no creation timestamp, deny deletion (safety measure)
-        return (False, "Schedule creation time not recorded")
-
-    created_at = localize_datetime(schedule['created_at'])
-    current_time = datetime.now(EST)
-
-    time_since_creation = current_time - created_at
-    within_24_hours = time_since_creation <= timedelta(hours=24)
-
-    # GM can delete within 24 hours
-    if within_24_hours:
-        return (True, "Within 24-hour deletion window")
-    else:
-        hours_ago = int(time_since_creation.total_seconds() / 3600)
-        return (False, f"Deletion window expired (created {hours_ago} hours ago)")
-
-
-def get_schedule_deletion_time_remaining(created_at):
-    """
-    Get time remaining for deletion window
-
-    Args:
-        created_at: ISO timestamp of creation
-
-    Returns:
-        str: Human-readable time remaining or None if expired
-    """
-    if not created_at:
-        return None
-
-    if isinstance(created_at, str):
-        created_at = datetime.fromisoformat(created_at)
-
-    if created_at.tzinfo is None:
-        created_at = localize_datetime(created_at)
-
-    now = datetime.now(EST)
-    deletion_deadline = created_at + timedelta(hours=24)
-
-    if now >= deletion_deadline:
-        return None  # Window expired
-
-    ms_remaining = (deletion_deadline - now).total_seconds() * 1000
-    hours_remaining = int(ms_remaining / (1000 * 60 * 60))
-    minutes_remaining = int((ms_remaining % (1000 * 60 * 60)) / (1000 * 60))
-
-    if hours_remaining > 0:
-        return f"{hours_remaining}h {minutes_remaining}m remaining"
-    else:
-        return f"{minutes_remaining}m remaining"
-
-
-"""
-Method to create a database element for a newly created schedule.
-"""
-def register_scheduled_events_routes(app, mysql, login_required, roles_required, get_user_permissions):
-    """
-    Register all scheduled event routes
-    """
-
-    # ============================================
-    # CREATE SCHEDULED EVENT
-    # ============================================
-    @app.route('/api/scheduled-events/create', methods=['POST'])
+    @app.route('/api/schedule/create', methods=['POST'])
     @login_required
     @roles_required('gm')
-    def create_scheduled_event():
+    def create_schedule():
         """
-        Create a new scheduled event that generates recurring events
-        NOW SUPPORTS: League association for Match events
+        Create a new schedule that generates recurring events
         """
         try:
             data = request.get_json()
@@ -204,15 +100,11 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                 # Only store team_id for team-specific schedules
                 schedule_team_id = data['team_id'] if data['visibility'] == 'team' else None
                 created_at = datetime.now(EST)
-
-                # Check if scheduled_events table has league_id column
-                # If not, you need to add it with: ALTER TABLE scheduled_events ADD COLUMN league_id INT NULL;
                 
-                # Insert scheduled event WITH league_id support
+                # Insert scheduled event
                 cursor.execute("""
                     INSERT INTO scheduled_events 
                     (team_id, game_id, event_name, event_type, day_of_week, specific_date,
-
                     start_time, end_time, frequency, visibility, description, 
                     location, schedule_end_date, created_by, league_id, created_at)
 
@@ -232,14 +124,14 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                     data.get('location', 'TBD'),
                     data['end_date'],
                     user_id,
-                    league_id,  # NEW FIELD
+                    league_id,
                     created_at
                 ))
 
                 schedule_id = cursor.lastrowid
                 mysql.connection.commit()
 
-                # Generate initial events
+                # Generate events
                 generate_events_for_schedule(cursor, schedule_id, mysql.connection)
 
                 return jsonify({
@@ -259,20 +151,18 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                 'message': f'Failed to create scheduled event: {str(e)}'
             }), 500
 
-    # ============================================
-    # GET SCHEDULED EVENTS FOR TEAM
-    # ============================================
-    @app.route('/api/scheduled-events/team/<team_id>', methods=['GET'])
+
+    @app.route('/api/schedules/team/<team_id>', methods=['GET'])
     @login_required
-    def get_team_scheduled_events(team_id):
-        """
-        Get all active scheduled events for a team
-        Includes team-specific, game_players, and game_community schedules
-        """
+    def get_team_schedules(team_id):
+        """Get all active schedules for a team."""
         try:
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             try:
+                # Deactivate any expired schedules before fetching
+                deactivate_expired_schedules(mysql.connection)
+
                 game_id = get_team_game_id(cursor, team_id)
                 if game_id is None:
                     return jsonify({'success': False, 'message': 'Team not found'}), 404
@@ -361,17 +251,12 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                 'message': 'Failed to load scheduled events'
             }), 500
 
-    # ============================================
-    # DELETE SCHEDULED EVENT
-    # ============================================
-    @app.route('/api/scheduled-events/<int:schedule_id>', methods=['DELETE'])
+
+    @app.route('/api/schedule/<int:schedule_id>', methods=['DELETE'])
     @login_required
     @roles_required('gm')
-    def delete_scheduled_event(schedule_id):
-        """
-        Delete a scheduled event and all associated generated events
-        NOW WITH: Time-based deletion permissions (24-hour window)
-        """
+    def delete_schedule(schedule_id):
+        """Delete a schedule and all associated events."""
         try:
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
             user_id = session['id']
@@ -381,7 +266,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                 permissions = get_user_permissions(user_id)
                 is_developer = permissions['is_developer']
 
-                # Check deletion permissions using the new helper function
+                # Check deletion permissions using helper function
                 can_delete, reason = can_delete_schedule(cursor, schedule_id, user_id, is_developer)
 
                 if not can_delete:
@@ -439,33 +324,19 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                 'message': 'Failed to delete scheduled event'
             }), 500
 
-    # ============================================
-    # UPDATE SCHEDULED EVENT
-    # ============================================
-    # In scheduled_events.py - Update the update_scheduled_event route
 
-    @app.route('/api/scheduled-events/update', methods=['POST'])
+    @app.route('/api/schedule/update', methods=['POST'])
     @login_required
     @roles_required('gm')
-    def update_scheduled_event():
+    def update_schedule():
         """
-        Update a scheduled event and all its generated events
+        Update a schedule and all its associated events
         Cannot change frequency/timing - only metadata
-        NOW SUPPORTS: Updating league_id for Match events
         """
         try:
             data = request.get_json()
             user_id = session['id']
             schedule_id = data.get('schedule_id')
-
-            # NEW: Validate league for Match events
-            if data.get('event_type') == 'Match':
-                league_id = data.get('league_id')
-                if not league_id:
-                    return jsonify({
-                        'success': False,
-                        'message': 'League selection is required for Match events'
-                    }), 400
 
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -492,11 +363,13 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                         'message': 'You do not have permission to edit this schedule'
                     }), 403
 
-                # NEW: Validate league if provided
                 league_id = data.get('league_id')
-                if league_id and data.get('event_type') == 'Match':
+                if data.get('event_type') == 'Match':
+                    if not league_id:
+                        return jsonify({'success': False, 'message': 'League selection is required for Match events'}), 400
                     cursor.execute("""
-                        SELECT 1 FROM team_leagues 
+                        SELECT 1 
+                        FROM team_leagues 
                         WHERE team_id = %s AND league_id = %s
                     """, (schedule['team_id'], league_id))
                     
@@ -506,7 +379,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                             'message': 'Selected league is not assigned to this team'
                         }), 400
 
-                # Update the schedule WITH league_id
+                # Update the schedule
                 cursor.execute("""
                     UPDATE scheduled_events 
                     SET event_name = %s,
@@ -522,11 +395,11 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                     data['visibility'],
                     data['location'],
                     data.get('description', ''),
-                    league_id,  # NEW: Update league_id
+                    league_id,
                     schedule_id
                 ))
 
-                # Update all associated events in generalevents table WITH league_id
+                # Update all associated events in generalevents table
                 cursor.execute("""
                     UPDATE generalevents
                     SET EventName = %s,
@@ -540,7 +413,7 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                     data['event_type'],
                     data['location'],
                     data.get('description', ''),
-                    league_id,  # NEW: Update league_id for all events
+                    league_id,
                     schedule_id
                 ))
 
@@ -563,110 +436,11 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                 'message': 'Failed to update scheduled event'
             }), 500
 
-    # ============================================
-    # GENERATE UPCOMING EVENTS
-    # ============================================
-    @app.route('/api/scheduled-events/generate-all', methods=['POST'])
-    def generate_all_scheduled_events():
-        """
-        Cron job endpoint to generate events for all active schedules
-        Should be called daily
-        """
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        try:
-            # Get all active schedules
-            cursor.execute("""
-                SELECT schedule_id 
-                FROM scheduled_events 
-                WHERE is_active = TRUE 
-                AND schedule_end_date >= CURDATE()
-            """)
-
-            schedules = cursor.fetchall()
-            generated_count = 0
-
-            for schedule in schedules:
-                count = generate_events_for_schedule(
-                    cursor,
-                    schedule['schedule_id'],
-                    mysql.connection
-                )
-                generated_count += count
-
-            return jsonify({
-                'success': True,
-                'message': f'Generated {generated_count} events',
-                'schedules_processed': len(schedules)
-            }), 200
-
-        except Exception as e:
-            print(f"Error in scheduled generation: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': 'Failed to generate events'
-            }), 500
-        finally:
-            cursor.close()
-
-    # ============================================
-    # Get team leagues for modal
-    # ============================================
-    @app.route('/api/teams/<team_id>/leagues', methods=['GET'])
-    @login_required
-    def get_team_leagues_for_schedule(team_id):
-        """
-        Get all leagues associated with a specific team
-        """
-        try:
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-            
-            try:
-                # Get leagues for this team
-                cursor.execute("""
-                    SELECT 
-                        l.id,
-                        l.name,
-                        l.logo,
-                        l.logo_mime_type
-                    FROM league l
-                    INNER JOIN team_leagues tl ON l.id = tl.league_id
-                    WHERE tl.team_id = %s
-                    ORDER BY l.name
-                """, (team_id,))
-                
-                leagues = cursor.fetchall()
-                
-                # Format the response
-                formatted_leagues = []
-                for league in leagues:
-                    formatted_leagues.append({
-                        'id': league['id'],
-                        'name': league['name'],
-                        'has_logo': league['logo'] is not None
-                    })
-                
-                return jsonify({
-                    'success': True,
-                    'leagues': formatted_leagues
-                }), 200
-                
-            finally:
-                cursor.close()
-                
-        except Exception as e:
-            print(f"Error getting team leagues: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': 'Failed to load team leagues'
-            }), 500
-
-    @app.route('/api/scheduled-events/<int:schedule_id>/event-count', methods=['GET'])
+    @app.route('/api/schedule/<int:schedule_id>/event-count', methods=['GET'])
     @login_required
     def get_schedule_event_count(schedule_id):
-        """
-        Get the count of events generated by a schedule
-        """
+        """Get the count of events generated by a schedule."""
         try:
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -697,13 +471,10 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
                 'count': 0
             }), 500
 
-    @app.route('/api/scheduled-events/<int:schedule_id>/check-and-cleanup', methods=['POST'])
+    @app.route('/api/schedule/<int:schedule_id>/check-and-cleanup', methods=['POST'])
     @login_required
     def check_and_cleanup_schedule(schedule_id):
-        """
-        Check if a schedule has any remaining events and delete it if empty
-        Returns info about whether cleanup occurred
-        """
+        """Check if a schedule has any remaining events and delete it if empty (0 associated events)."""
         try:
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -766,12 +537,6 @@ def register_scheduled_events_routes(app, mysql, login_required, roles_required,
 # ============================================
 # HELPER FUNCTIONS
 # ============================================
-"""
-Method to build the frontend for scheduled events
-@param - cursor is access to the database
-@param - schedule_id is the id of the schedule whose events are generated
-@param - connection is the conenction between events within a schedule
-"""
 def generate_events_for_schedule(cursor, schedule_id, connection):
     """
     Generate events for a schedule up to 2 months in advance
@@ -786,14 +551,11 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
         schedule = cursor.fetchone()
 
         if not schedule or not schedule['is_active']:
-            print(f"   ❌ Schedule not found or not active")
             return 0
 
         # Handle "Once" frequency differently
         if schedule['frequency'] == 'Once':
-            print(f"   ✅ Processing 'Once' event")
             event_date = schedule['specific_date']
-            print(f"   event_date: {event_date}")
 
             # Check if event already exists
             cursor.execute("""
@@ -802,10 +564,8 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
             """, (schedule_id, event_date))
 
             existing = cursor.fetchone()
-            print(f"   existing event: {existing}")
 
             if not existing:
-                print(f"   📝 Creating event instance...")
                 create_scheduled_event_instance(cursor, schedule, event_date, connection)
 
                 # Update last_generated
@@ -816,11 +576,9 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
                 """, (event_date, schedule_id))
 
                 connection.commit()
-                print(f"   ✅ Event created successfully")
                 return 1
             else:
-                print(f"   ⚠️  Event already exists")
-            return 0
+                return 0
 
         # Original recurring logic for Weekly, Biweekly, Monthly
         today = datetime.now(EST).date()
@@ -884,9 +642,7 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
 
 
 def check_frequency_match(current_date, start_date, frequency):
-    """
-    Check if current date matches the frequency pattern
-    """
+    """Check if current date matches the frequency pattern"""
     if frequency == 'Weekly':
         return True
     elif frequency == 'Biweekly':
@@ -898,18 +654,9 @@ def check_frequency_match(current_date, start_date, frequency):
 
     return False
 
-"""
-Method to create one scheduled event within a set list of scheduled events based on date and duration selected.
-@param - cursor is the mysql selection
-@param - schedule is the schedule for which an event is being made
-@param - event_date is the date of the event if it has one
-@param - connection is the connection between different scheduled events.
-"""
+
 def create_scheduled_event_instance(cursor, schedule, event_date, connection):
-    """
-    Create a single event instance from a schedule
-    NOW INCLUDES: League assignment for match events
-    """
+    """Create a single event instance from a schedule."""
     try:
         # Get the game title for this schedule
         cursor.execute("""
@@ -933,13 +680,7 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
                     event_name = f"{event_name} ({team_name})"
 
         # Calculate season based on the event_date
-        from EsportsManagementTool.events import get_season_for_event_date
         season_id = get_season_for_event_date(cursor, event_date)
-
-        if season_id:
-            print(f"   📅 Scheduled event on {event_date} assigned to season_id: {season_id}")
-        else:
-            print(f"   📅 Scheduled event on {event_date} has no season assignment")
 
         # Build game display string with team name if team-specific
         game_display = game_title
@@ -958,7 +699,7 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
         # Get league_id from schedule (will be None for non-Match events)
         league_id = schedule.get('league_id')
 
-        # Insert into generalevents WITH league_id
+        # Insert into generalevents
         cursor.execute("""
             INSERT INTO generalevents
             (EventName, Date, StartTime, EndTime, Description, EventType, 
@@ -980,7 +721,7 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
             event_team_id,
             schedule['visibility'],
             season_id,
-            league_id  # NEW: Pass league_id to event
+            league_id
         ))
 
         event_id = cursor.lastrowid
@@ -991,8 +732,6 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
                 INSERT INTO event_games (event_id, game_id)
                 VALUES (%s, %s)
             """, (event_id, schedule['game_id']))
-
-            print(f"   ✅ Linked event {event_id} to game_id {schedule['game_id']}")
 
         # Add team member associations ONLY for team-specific events
         if schedule['team_id'] and schedule['visibility'] == 'team':
@@ -1017,9 +756,83 @@ def create_scheduled_event_instance(cursor, schedule, event_date, connection):
                     """, (member['user_id'], schedule['game_id']))
 
         connection.commit()
-        print(f"✅ Created scheduled event for {event_date}: {event_name}")
 
     except Exception as e:
         print(f"Error creating event instance: {str(e)}")
         connection.rollback()
         raise
+
+
+def deactivate_expired_schedules(connection):
+    """
+    Set is_active = FALSE for schedules whose end_date has passed.
+    Called when the schedule tab loads to keep displayed schedules current.
+    """
+    cursor = connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            UPDATE scheduled_events
+            SET is_active = FALSE
+            WHERE is_active = TRUE
+            AND schedule_end_date < CURDATE()
+        """)
+        deactivated_count = cursor.rowcount
+        connection.commit()
+
+        return deactivated_count
+    except Exception as e:
+        print(f"Error deactivating expired schedules: {str(e)}")
+        connection.rollback()
+        return 0
+    finally:
+        cursor.close()
+
+
+def can_delete_schedule(cursor, schedule_id, user_id, is_developer):
+    """
+    Determine if a user can delete a scheduled event based on time-based rules.
+
+    Rules:
+    1. Developers can ALWAYS delete any schedule
+    2. Game Managers for the schedule's game can delete within 24 hours of creation
+    3. After 24 hours, only developers can delete
+    """
+
+    # Developers can always delete
+    if is_developer:
+        return (True, "Developer privileges")
+
+    # Fetch schedule creation info AND the game's GM
+    cursor.execute("""
+        SELECT se.created_at, g.gm_id, g.GameTitle
+        FROM scheduled_events se
+        JOIN games g ON se.game_id = g.gameID
+        WHERE se.schedule_id = %s
+    """, (schedule_id,))
+
+    schedule = cursor.fetchone()
+
+    if not schedule:
+        return (False, "Schedule not found")
+
+    # Check if user is the GM for this game
+    if schedule['gm_id'] != user_id:
+        return (False, f"Only the Game Manager for {schedule['GameTitle']} or a developer can delete this schedule")
+
+    # Check if within 24-hour window
+    if not schedule['created_at']:
+        # If no creation timestamp, deny deletion (safety measure)
+        return (False, "Schedule creation time not recorded")
+
+    created_at = localize_datetime(schedule['created_at'])
+    current_time = datetime.now(EST)
+
+    time_since_creation = current_time - created_at
+    within_24_hours = time_since_creation <= timedelta(hours=24)
+
+    # GM can delete within 24 hours
+    if within_24_hours:
+        return (True, "Within 24-hour deletion window")
+    else:
+        hours_ago = int(time_since_creation.total_seconds() / 3600)
+        return (False, f"Deletion window expired (created {hours_ago} hours ago)")

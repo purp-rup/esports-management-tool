@@ -1,9 +1,7 @@
-import os
-
-from EsportsManagementTool import app, mysql, login_required, roles_required, get_user_permissions
+from EsportsManagementTool import app, mysql, login_required, roles_required, localize_datetime, EST
+from EsportsManagementTool.universal_helpers import get_user_permissions
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import MySQLdb.cursors
-from EsportsManagementTool import localize_datetime, EST
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
 load_dotenv()

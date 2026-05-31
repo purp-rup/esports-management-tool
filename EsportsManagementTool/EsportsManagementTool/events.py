@@ -2,6 +2,7 @@
 Event Management Routes
 Consolidated module for all event-related functionality
 """
+from EsportsManagementTool.universal_helpers import get_user_permissions
 from flask import request, jsonify, session, render_template
 from datetime import datetime, timedelta
 import MySQLdb.cursors
@@ -158,7 +159,7 @@ def can_delete_event(cursor, event_id, user_id, is_developer, is_admin):
         hours_ago = int(time_since_creation.total_seconds() / 3600)
         return (False, f"Deletion window expired (created {hours_ago} hours ago)")
 
-def register_event_routes(app, mysql, login_required, roles_required, get_user_permissions):
+def register_event_routes(app, mysql, login_required, roles_required):
     """
     Register all event-related routes with the Flask app
 

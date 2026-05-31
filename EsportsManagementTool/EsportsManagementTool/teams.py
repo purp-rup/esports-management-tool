@@ -1,5 +1,6 @@
-from EsportsManagementTool import (app, mysql, EST, login_required, roles_required, get_user_permissions,
-                                   get_team_game_id, localize_datetime, format_time_to_12hr, is_all_day_event, season_roles)
+from EsportsManagementTool import (app, mysql, EST, login_required, roles_required,
+                                    localize_datetime, season_roles)
+from EsportsManagementTool.universal_helpers import get_user_permissions, get_team_game_id, format_time_to_12hr, is_all_day_event
 from flask import Flask, render_template, request, session, jsonify
 from datetime import datetime, timedelta
 import MySQLdb.cursors
@@ -209,18 +210,12 @@ def get_leagues_for_team_creation():
 
     try:
         cursor.execute('''
-            SELECT id, name,
-                   CASE WHEN logo IS NOT NULL THEN 1 ELSE 0 END as has_logo
+            SELECT id, name, logo
             FROM league
             ORDER BY name ASC
         ''')
 
         leagues = cursor.fetchall()
-
-        # Add logo URL for frontend
-        for league in leagues:
-            league['logo'] = f'/league-image/{league["id"]}' if league['has_logo'] else None
-            del league['has_logo']
 
         return jsonify({'success': True, 'leagues': leagues}), 200
 
@@ -239,8 +234,7 @@ def get_team_assigned_leagues(team_id):
 
     try:
         cursor.execute('''
-            SELECT l.id, l.name, l.website_url,
-                   CASE WHEN l.logo IS NOT NULL THEN 1 ELSE 0 END as has_logo,
+            SELECT l.id, l.name, l.website_url, l.logo,
                    tl.assigned_at
             FROM team_leagues tl
             JOIN league l ON tl.league_id = l.id
@@ -249,12 +243,7 @@ def get_team_assigned_leagues(team_id):
         ''', (team_id,))
 
         leagues = cursor.fetchall()
-
-        # Add logo URL
-        for league in leagues:
-            league['logo'] = f'/league-image/{league["id"]}' if league['has_logo'] else None
-            del league['has_logo']
-
+        
         return jsonify({'success': True, 'leagues': leagues}), 200
 
     except Exception as e:
@@ -364,7 +353,7 @@ def get_new_available_teammates(team_id):
 
             profile_pic = None
             if user['profile_picture']:
-                profile_pic = f"/static/uploads/avatars/{user['profile_picture']}"
+                profile_pic = user['profile_picture']
 
             formatted_members.append({
                 'id': user['id'],
@@ -859,7 +848,7 @@ def team_details(team_id):
 
                     profile_pic = None
                     if m['profile_picture']:
-                        profile_pic = f"/static/uploads/avatars/{m['profile_picture']}"
+                        profile_pic = m['profile_picture']
 
                     formatted_members.append({
                         'id': m['id'],
@@ -1135,10 +1124,8 @@ def get_permissions_for_sidebar(user_id):
 
 def check_team_deletion_permission(cursor, team_id, user_id):
     """
-    Returns a dict with everything both routes need:
-    can_delete, restriction_level, denial_reason, team,
-    is_developer, is_admin, is_game_gm, days_since_creation,
-    within_30_days, days_remaining, hours_remaining, deletion_deadline
+    Determines whether a team can be deleted by the user.
+    Assigns a denial reason if the user cannot delete a team.
     """
     cursor.execute("""
         SELECT t.teamName, t.created_at, t.gameID, g.gm_id, s.is_active as season_is_active
