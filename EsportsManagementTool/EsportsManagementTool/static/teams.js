@@ -6,7 +6,7 @@
  * - Team header with stats
  * - Roster tab with member management
  * - Team member add/remove operations
- * - Team editing (name, max size)
+ * - Team editing
  * - Team deletion
  * - Next scheduled event display
  * - Tab switching (Roster, Schedule, Stats, VODs)
@@ -1123,17 +1123,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // HELPER FUNCTIONS
 // =========================================
 
-//Enable a dropdown element (removes all disabled states)
-function enableDropdown(dropdown) {
-    if (!dropdown) return;
-
-    dropdown.removeAttribute('disabled');
-    dropdown.disabled = false;
-    dropdown.style.pointerEvents = 'auto';
-    dropdown.style.opacity = '1';
-    dropdown.style.cursor = 'pointer';
-}
-
 // Populate team sizes for team creation modal
 function populateTeamSizes(sizes, currentMaxSize, sizeContainer) {
     sizeContainer.innerHTML = '';
@@ -1181,15 +1170,19 @@ function formatTimeRemaining(days, hours) {
 }
 
 // ============================================
-// EXPORT FUNCTIONS TO GLOBAL SCOPE
+// EXPORT FUNCTIONS
 // ============================================
 window.selectTeam = selectTeam;
-window.filterRosterMembers = filterRosterMembers;
 window.confirmDeleteSelectedTeam = confirmDeleteSelectedTeam;
+window.toggleTeamDetailCollapse = toggleTeamDetailCollapse;
+
+//Modals
 window.openAddTeamMembersModal = openAddTeamMembersModal;
 window.addSelectedMembersToTeam = addSelectedMembersToTeam;
 window.closeAddTeamMembersModal = closeAddTeamMembersModal;
-window.filterAvailableMembers = filterAvailableMembers;
 window.openEditTeamModal = openEditTeamModal;
 window.closeEditTeamModal = closeEditTeamModal;
-window.toggleTeamDetailCollapse = toggleTeamDetailCollapse;
+
+//Filters
+window.filterRosterMembers = filterRosterMembers;
+window.filterAvailableMembers = filterAvailableMembers;

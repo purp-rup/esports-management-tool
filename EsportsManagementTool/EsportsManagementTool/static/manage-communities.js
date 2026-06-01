@@ -1,15 +1,22 @@
 /**
- * Manage Communities JavaScript
- * Handles the unified community management modal
- * Similar structure to leagues.js
+ * ============================================================================
+ * COMMUNITY MANAGEMENT
+ * ============================================================================
+ * - Community Management Modal
+ * - CRUD Operations for Communities
+ * - GM Assignments
+ * - Hiding Communities
  */
 
+//Cache for communities and editing communities
 let currentEditingCommunity = null;
 let allCommunities = [];
 
-/**
- * Open the Manage Communities modal
- */
+// ======================================
+// COMMUNITY MODAL CONSTRUCTION
+// ======================================
+
+// Open the Manage Communities modal
 async function openManageCommunitiesModal() {
     const modal = document.getElementById('manageCommunitiesModal');
     if (!modal) {
@@ -24,9 +31,7 @@ async function openManageCommunitiesModal() {
     await loadCommunitiesForManagement();
 }
 
-/**
- * Close the Manage Communities modal
- */
+// Close the Manage Communities modal
 function closeManageCommunitiesModal() {
     const modal = document.getElementById('manageCommunitiesModal');
     if (!modal) return;
@@ -40,9 +45,7 @@ function closeManageCommunitiesModal() {
     communityCroppedImageBlob = null;
 }
 
-/**
- * Load all communities from server
- */
+// Load all communities from server
 async function loadCommunitiesForManagement() {
     const loadingEl = document.getElementById('communitiesManageLoading');
     const contentEl = document.getElementById('communitiesManageContent');
@@ -69,9 +72,7 @@ async function loadCommunitiesForManagement() {
     }
 }
 
-/**
- * Render communities content based on current state
- */
+// Render communities content based on current state
 function renderCommunitiesContent() {
     const contentEl = document.getElementById('communitiesManageContent');
     if (!contentEl) return;
@@ -104,9 +105,7 @@ function renderCommunitiesContent() {
     }
 }
 
-/**
- * Render the communities grid
- */
+// Render the communities grid
 function renderCommunitiesGrid() {
     const gridEl = document.getElementById('communitiesGrid');
     if (!gridEl) return;
@@ -240,9 +239,11 @@ function renderCommunitiesGrid() {
     });
 }
 
-/**
- * Show the community form (for create or edit)
- */
+// =========================================
+// COMMUNITY CREATION & EDITING
+// =========================================
+
+// Show the community creation/editing form
 function showCommunityForm(community = null) {
     const contentEl = document.getElementById('communitiesManageContent');
     if (!contentEl) return;
@@ -385,35 +386,7 @@ function showCommunityForm(community = null) {
     }
 }
 
-/**
- * Preview community image when file is selected
- */
-function previewCommunityImage(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Validate file type
-    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-        alert('Please select a valid image file (PNG, JPG, GIF, or WEBP)');
-        event.target.value = '';
-        return;
-    }
-
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-        alert('Image file size must be less than 5MB');
-        event.target.value = '';
-        return;
-    }
-
-    // Open universal image cropper with 'community' context
-    openImageCropper(file, 'community');
-}
-
-/**
- * Submit community form (create or update)
- */
+// Submit community creation/editing form
 async function submitCommunityForm(event) {
     event.preventDefault();
 
@@ -477,7 +450,7 @@ async function submitCommunityForm(event) {
     try {
         const url = isEditing
             ? `/api/games/manage/${currentEditingCommunity.id}`
-            : '/create-game';
+            : '/create-community';
 
         const response = await fetch(url, {
             method: 'POST',
@@ -517,9 +490,7 @@ async function submitCommunityForm(event) {
     }
 }
 
-/**
- * Edit an existing community
- */
+// Edit an existing community
 function editCommunity(communityId) {
     const community = allCommunities.find(c => c.id === communityId);
     if (community) {
@@ -527,9 +498,39 @@ function editCommunity(communityId) {
     }
 }
 
-/**
- * Confirm community deletion using universal delete modal
- */
+// ====================================
+// IMAGE PREVIEW
+// ====================================
+
+// Preview community image when file is selected
+function previewCommunityImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+        alert('Please select a valid image file (PNG, JPG, GIF, or WEBP)');
+        event.target.value = '';
+        return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        alert('Image file size must be less than 5MB');
+        event.target.value = '';
+        return;
+    }
+
+    // Open universal image cropper with 'community' context
+    openImageCropper(file, 'community');
+}
+
+// ==================================
+// COMMUNITY DELETION
+// ==================================
+
+// Confirm community deletion using universal delete modal
 function confirmDeleteCommunity(communityId, communityTitle) {
     const community = allCommunities.find(c => c.id === communityId);
     if (!community) return;
@@ -562,9 +563,7 @@ function confirmDeleteCommunity(communityId, communityTitle) {
     });
 }
 
-/**
- * Execute the actual community deletion
- */
+// Execute the actual community deletion
 async function executeCommunityDeletion(communityId) {
     try {
         const response = await fetch(`/api/games/manage/${communityId}`, {
@@ -591,9 +590,11 @@ async function executeCommunityDeletion(communityId) {
     }
 }
 
-/**
- * Show message in community modal (for form validation errors)
- */
+// ==================================
+// FORM MESSAGING
+// ==================================
+
+// Show message in community modal (for form validation errors)
 function showCommunityMessage(message, type) {
     const messageEl = document.getElementById('communitiesMessage');
     if (!messageEl) {
@@ -613,9 +614,7 @@ function showCommunityMessage(message, type) {
     }, 5000);
 }
 
-/**
- * Show message in community form
- */
+// Show message in community form
 function showCommunityFormMessage(message, type) {
     const messageEl = document.getElementById('communityFormMessage');
     if (!messageEl) return;
@@ -630,12 +629,10 @@ function showCommunityFormMessage(message, type) {
 }
 
 // ===============================
-// HIDE COMMUNITY FUNCTIONALITY
+// HIDE COMMUNITY
 // ===============================
 
-/**
- * Toggle hidden status of a community
- */
+// Toggle hidden status of a community
 async function toggleCommunityHidden(communityId) {
     const community = allCommunities.find(c => c.id === communityId);
     if (!community) return;
@@ -669,14 +666,10 @@ async function toggleCommunityHidden(communityId) {
 }
 
 // ============================================
-// GM ASSIGNMENT FUNCTIONALITY
+// GM ASSIGNMENT
 // ============================================
 
-/**
- * Open assign GM modal
- * Shows list of available GMs for assignment
- * @param {number} gameId - Game ID to assign GM to
- */
+// Open assign GM modal
 async function openAssignGMModal(gameId) {
     currentGameIdForGM = gameId;
     const modal = document.getElementById('assignGMModal');
@@ -720,12 +713,7 @@ async function openAssignGMModal(gameId) {
     }
 }
 
-/**
- * Create a GM selection item element
- * @param {Object} gm - GM user object
- * @param {number} gameId - Game ID for assignment
- * @returns {HTMLElement} GM selection item element
- */
+// Create a GM selection item in modal
 function createGMSelectionItem(gm, gameId) {
     const gmItem = document.createElement('div');
     gmItem.className = 'gm-selection-item';
@@ -752,9 +740,7 @@ function createGMSelectionItem(gm, gameId) {
     return gmItem;
 }
 
-/**
- * Close assign GM modal
- */
+// Close assign GM modal
 function closeAssignGMModal() {
     const modal = document.getElementById('assignGMModal');
     modal.style.display = 'none';
@@ -778,9 +764,7 @@ function closeAssignGMModal() {
     currentGameIdForGM = null;
 }
 
-/**
- * Confirm GM assignment using delete confirmation modal
- */
+// Confirm GM assignment with an additional modal (using delete confirmation modal template)
 async function confirmAssignGM(gameId, gmUserId, gmName) {
     const community = allCommunities.find(c => c.id === gameId);
 
@@ -826,9 +810,7 @@ async function confirmAssignGM(gameId, gmUserId, gmName) {
     });
 }
 
-/**
- * Remove GM assignment from a game using delete confirmation modal
- */
+// Remove GM assignment from a game using delete confirmation modal
 async function removeGameManager(gameId) {
     const community = allCommunities.find(c => c.id === gameId);
     if (!community?.current_gm) return;
@@ -875,19 +857,10 @@ async function removeGameManager(gameId) {
     });
 }
 
-// Export functions to global scope
+// ===========================================
+// EXPORT FUNCTIONS
+// ===========================================
 window.openManageCommunitiesModal = openManageCommunitiesModal;
 window.closeManageCommunitiesModal = closeManageCommunitiesModal;
-window.loadCommunitiesForManagement = loadCommunitiesForManagement;
-window.showCommunityForm = showCommunityForm;
-window.editCommunity = editCommunity;
-window.confirmDeleteCommunity = confirmDeleteCommunity;
-window.previewCommunityImage = previewCommunityImage;
-window.submitCommunityForm = submitCommunityForm;
-window.toggleCommunityHidden = toggleCommunityHidden;
-
-// GM assignment
 window.openAssignGMModal = openAssignGMModal;
 window.closeAssignGMModal = closeAssignGMModal;
-window.confirmAssignGM = confirmAssignGM;
-window.removeGameManager = removeGameManager;

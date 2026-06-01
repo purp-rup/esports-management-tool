@@ -618,7 +618,7 @@ import EsportsManagementTool.EventNotificationManager
 import EsportsManagementTool.suspensions
 import EsportsManagementTool.events
 import EsportsManagementTool.dashboard
-from EsportsManagementTool import game
+from EsportsManagementTool import communities
 from EsportsManagementTool import teams
 from EsportsManagementTool import vods
 from EsportsManagementTool import seasons

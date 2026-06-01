@@ -194,7 +194,7 @@ async function loadGamesList() {
     }
 
     try {
-        const response = await fetch('/api/games-list');
+        const response = await fetch('/api/game-list');
         const data = await response.json();
 
         if (data.success && data.games) {
@@ -580,20 +580,6 @@ function attachGameDropdownListener(dropdown, context) {
         }
         this.value = ''; // Reset to placeholder
     });
-}
-
-/**
- * Enable a dropdown element (removes all disabled states)
- * @param {HTMLElement} dropdown - Dropdown to enable
- */
-function enableDropdown(dropdown) {
-    if (!dropdown) return;
-
-    dropdown.removeAttribute('disabled');
-    dropdown.disabled = false;
-    dropdown.style.pointerEvents = 'auto';
-    dropdown.style.opacity = '1';
-    dropdown.style.cursor = 'pointer';
 }
 
 /**
@@ -2684,10 +2670,6 @@ async function deleteEvent() {
 // ============================================
 // GLOBAL EXPORTS
 // ============================================
-// Export all public functions to the global window object
-// This maintains compatibility with existing HTML onclick handlers
-// and other external references
-
 window.initializeEventsModule = initializeEventsModule;
 window.loadEvents = loadEvents;
 window.filterEvents = filterEvents;
