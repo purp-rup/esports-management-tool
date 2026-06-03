@@ -1,23 +1,16 @@
-from EsportsManagementTool import app
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import request, redirect, url_for, session, flash, jsonify
 from flask_mysqldb import MySQL
-from flask_mail import Mail, Message
-import MySQLdb.cursors
-import bcrypt
-from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
+from EsportsManagementTool import app, EST, email_manager
 import atexit
-from EsportsManagementTool import app, EST
+import MySQLdb.cursors
 import os
 
 mysql = MySQL()
-mail = Mail()
-
-"""DISCLAIMER: THIS CODE WAS GENERATED USING CLAUDE AI AND CHATGPT"""
 
 
-# UC-13: ChooseEventNotice - User Notification Preferences (Enhanced with Event Type Filtering)
+# User Notification Preferences (Enhanced with Event Type Filtering)
 @app.route('/eventnotificationsettings', methods=['GET', 'POST'])
 def notification_settings():
     """Allow users to configure their event notification preferences including event types"""
@@ -108,40 +101,6 @@ def notification_settings():
     # GET request - redirect to dashboard (no standalone page anymore)
     return redirect(url_for('dashboard'))
 
-# UC-14: SendEventNotice - Automated Email Notifications
-def send_event_notification(user_email, user_name, event_type, event_details):
-    """Send email notification to user about upcoming event"""
-    try:
-        subject = f"Reminder: Upcoming {event_type}"
-
-        body = f"""
-        Hello {user_name},
-
-        This is a reminder about your upcoming {event_type.lower()}:
-
-        Event: {event_details['EventName']}
-        Date: {event_details['date'].strftime('%B %d, %Y')}
-        Time: {event_details['StartTime'].strftime('%I:%M %p')}
-        Location: {event_details['location']}
-
-        Event Details:
-        {event_details.get('description', 'No additional details')}
-
-        We look forward to seeing you there!
-
-        Best regards,
-        Esports Management Tool
-        """
-
-        msg = Message(subject=subject, recipients=[user_email], body=body)
-        mail.send(msg)
-
-        return True
-    except Exception as e:
-        print(f"Error sending email to {user_email}: {e}")
-        return False
-
-
 def check_and_send_notifications():
     """
     Background task to check for upcoming events and send notifications
@@ -229,19 +188,19 @@ def check_and_send_notifications():
 
             visibility_check = build_visibility_check(user_teams, user_games, user['user_id'])
 
-            # 1. General Events - check notification preference and visibility
+            # General Events - check notification preference and visibility
             if user['notify_events']:
                 event_conditions.append(f"(ge.EventType = 'Event' AND ({visibility_check}))")
 
-            # 2. Matches - check notification preference and visibility
+            # Matches - check notification preference and visibility
             if user['notify_matches']:
                 event_conditions.append(f"(ge.EventType = 'Match' AND ({visibility_check}))")
 
-            # 3. Practices - check notification preference and visibility
+            # Practices - check notification preference and visibility
             if user['notify_practices']:
                 event_conditions.append(f"(ge.EventType = 'Practice' AND ({visibility_check}))")
 
-            # 4. Tournaments - for all games user is associated with
+            # Tournaments - for all games user is associated with
             if user['notify_tournaments'] and user_games:
                 game_ids = ','.join([str(gid) for gid in user_games])
                 # Tournaments should reach game community and players
@@ -251,11 +210,11 @@ def check_and_send_notifications():
                     ))
                 """)
 
-            # 5. Misc - check notification preference and visibility
+            # Misc - check notification preference and visibility
             if user['notify_misc']:
                 event_conditions.append(f"(ge.EventType = 'Misc' AND ({visibility_check}))")
 
-            # 6. Manual Subscriptions - ALWAYS include events user manually subscribed to
+            # Subscriptions - ALWAYS include events user manually subscribed to
             # Manual subscriptions override category preferences but still respect visibility
             event_conditions.append(f"""
                 (ge.EventID IN (
@@ -318,10 +277,11 @@ def check_and_send_notifications():
                 # Capitalize event type for display
                 event_label = event['event_type'].capitalize() if event['event_type'] else 'Event'
 
-                if send_event_notification(
+                if email_manager.send_event_notification(
                         user['email'],
                         user['firstname'],
                         event_label,
+                        event['StartTime'],
                         event
                 ):
                     # Log sent notification
@@ -340,7 +300,7 @@ def check_and_send_notifications():
         cursor.close()
 
 # ========================================================================
-# Initialize scheduler for background notifications (UC-14)
+# Initialize scheduler for background notifications
 # ========================================================================
 def scheduled_check_wrapper():
     """Wrapper ensures the scheduler runs safely within the Flask app context"""
@@ -354,7 +314,6 @@ def scheduled_check_wrapper():
             import traceback
             traceback.print_exc()
             print(f"[{datetime.now()}] Error in notification scheduler: {str(e)}")
-
 
 # Only start scheduler in the main process (not the reloader)
 if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
@@ -375,4 +334,3 @@ if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
 
     # Ensure clean shutdown on app exit
     atexit.register(lambda: scheduler.shutdown(wait=False))
-"""DISCLAIMER: THIS CODE WAS GENERATED USING CLAUDE AI AND CHATGPT"""

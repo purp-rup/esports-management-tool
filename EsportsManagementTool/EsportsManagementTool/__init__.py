@@ -374,7 +374,7 @@ def login():
                         mysql.connection.commit()
 
                         try:
-                            send_verify_email(account['email'], verification_token, username)
+                            send_verify_email(account['email'], verification_token, account['firstname'])
                             msg = 'Email sent.'
                         except Exception as e:
                             msg = f'Email failed to send. Error: {str(e)}'
@@ -596,7 +596,7 @@ def register():
                 mysql.connection.commit()
 
                 # Send verification email
-                send_verify_email(email, verification_token, username)
+                send_verify_email(email, verification_token, firstname)
                 msg = ('You have successfully created an account! Please check your email for verification! '
                        'If the email does not appear in your inbox, please check your spam!')
         finally:
@@ -614,7 +614,7 @@ def register():
 import EsportsManagementTool.universal_helpers
 import EsportsManagementTool.exampleModule
 import EsportsManagementTool.UpdateProfile
-import EsportsManagementTool.EventNotificationManager
+import EsportsManagementTool.event_notifications
 import EsportsManagementTool.suspensions
 import EsportsManagementTool.events
 import EsportsManagementTool.dashboard
@@ -654,7 +654,7 @@ tournament_results.register_tournament_results_routes(app, mysql, login_required
 
 # Initialize tournament notification scheduler
 from EsportsManagementTool import tournament_notification_scheduler
-tournament_notification_scheduler.initialize_tournament_scheduler(app, mysql, mail)
+tournament_notification_scheduler.initialize_tournament_scheduler(app, mysql)
 
 # Register verification email routes
 from EsportsManagementTool import email_manager
