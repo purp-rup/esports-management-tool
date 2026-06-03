@@ -2,14 +2,14 @@
 Tournament Results Notification Scheduler
 Sends email reminders to Game Managers to record tournament results
 """
-from datetime import datetime, timedelta
+from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from flask_mail import Message
+from EsportsManagementTool import email_manager
 import MySQLdb.cursors
 
 
-def initialize_tournament_scheduler(app, mysql, mail):
+def initialize_tournament_scheduler(app, mysql):
     """
     Initialize the tournament notification scheduler
     Runs daily to check and send reminders
@@ -18,7 +18,7 @@ def initialize_tournament_scheduler(app, mysql, mail):
     
     # Run daily at 9:00 AM
     scheduler.add_job(
-        func=lambda: check_and_send_reminders(app, mysql, mail),
+        func=lambda: check_and_send_reminders(app, mysql),
         trigger=CronTrigger(hour=9, minute=0),
         id='tournament_reminders',
         name='Send tournament result reminders to GMs',
@@ -32,8 +32,7 @@ def initialize_tournament_scheduler(app, mysql, mail):
     import atexit
     atexit.register(lambda: scheduler.shutdown())
 
-
-def check_and_send_reminders(app, mysql, mail):
+def check_and_send_reminders(app, mysql):
     """
     Check for seasons nearing end and send reminders to GMs
     
@@ -75,15 +74,14 @@ def check_and_send_reminders(app, mysql, mail):
                     should_send = True
                 
                 if should_send:
-                    send_season_reminders(mysql, mail, season_id, season_name, end_date, days_until_end)
+                    send_season_reminders(mysql, season_id, season_name, end_date, days_until_end)
                     
         except Exception as e:
             print(f"Error in tournament reminder scheduler: {str(e)}")
         finally:
             cursor.close()
 
-
-def send_season_reminders(mysql, mail, season_id, season_name, end_date, days_until_end):
+def send_season_reminders(mysql, season_id, season_name, end_date, days_until_end):
     """
     Send reminders to all GMs who haven't completed their tournament results
     """
@@ -96,7 +94,6 @@ def send_season_reminders(mysql, mail, season_id, season_name, end_date, days_un
                 u.id as gm_id,
                 u.email,
                 u.firstname,
-                u.lastname,
                 g.GameID,
                 g.GameTitle
             FROM users u
@@ -113,7 +110,7 @@ def send_season_reminders(mysql, mail, season_id, season_name, end_date, days_un
                 AND trn.game_id = g.GameID
                 AND trn.is_completed = TRUE
             )
-            GROUP BY u.id, u.email, u.firstname, u.lastname, g.GameID, g.GameTitle
+            GROUP BY u.id, u.email, u.firstname, g.GameID, g.GameTitle
         """, (season_id, season_id))
         
         gms = cursor.fetchall()
@@ -149,10 +146,14 @@ def send_season_reminders(mysql, mail, season_id, season_name, end_date, days_un
                 """, (gm_id, season_id, game_id))
                 
                 notification_record = cursor.fetchone()
-                
+
+                if notification_record:
+                    last_sent = notification_record['last_reminder_sent']
+                    if last_sent and (datetime.now() - last_sent).days < 1:
+                        continue  # Already sent today, skip
+
                 # Send email
-                send_reminder_email(
-                    mail, 
+                email_manager.send_reminder_email(
                     gm['email'], 
                     gm['firstname'],
                     season_name,
@@ -183,61 +184,3 @@ def send_season_reminders(mysql, mail, season_id, season_name, end_date, days_un
         print(f"Error sending season reminders: {str(e)}")
     finally:
         cursor.close()
-
-
-def send_reminder_email(mail, email, firstname, season_name, game_title, pending_count, days_until_end):
-    """
-    Send reminder email to GM
-    """
-    try:
-        urgency = "URGENT: " if days_until_end <= 3 else ""
-        
-        subject = f"{urgency}Action Required: Record Tournament Results for {game_title}"
-        
-        # Create email body
-        body = f"""Hello {firstname},
-
-This is a reminder to record tournament results for {game_title} in the {season_name} season.
-
-Season End Date: {days_until_end} day(s) remaining
-Pending Results: {pending_count} team(s) need tournament placement recorded
-
-Please log into the Stockton Esports Management Tool to record your results:
-(Our domain link)
-
-Click the "Record Tournament Results" button in your dashboard to get started.
-
-Tournament placement options:
-- Winner (1st place)
-- Finals (2nd place)  
-- Semifinals (3rd-4th place)
-- Quarterfinals (5th-8th place)
-- Playoffs (made playoffs)
-- Regular Season (did not make playoffs)
-
-Thank you for your prompt attention to this matter.
-
-Best regards,
-Stockton Esports Management Team
-"""
-        
-        msg = Message(
-            subject,
-            recipients=[email],
-            body=body
-        )
-        
-        mail.send(msg)
-        return True
-        
-    except Exception as e:
-        print(f"Error sending reminder email to {email}: {str(e)}")
-        return False
-
-
-def manual_trigger_reminders(app, mysql, mail):
-    """
-    Manually trigger reminder check (useful for testing)
-    """
-    check_and_send_reminders(app, mysql, mail)
-
