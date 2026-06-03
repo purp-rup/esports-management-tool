@@ -1,6 +1,5 @@
-from EsportsManagementTool import (app, mysql, EST, login_required, roles_required,
-                                    localize_datetime, season_roles)
-from EsportsManagementTool.universal_helpers import get_user_permissions, get_team_game_id, format_time_to_12hr, is_all_day_event
+from EsportsManagementTool import app, mysql, EST, login_required, roles_required, localize_datetime, season_roles
+from EsportsManagementTool.universal_helpers import get_user_permissions, get_team_game_id, format_time_to_12hr, is_all_day_event, build_member_profile
 from flask import Flask, render_template, request, session, jsonify
 from datetime import datetime, timedelta
 import MySQLdb.cursors
@@ -335,33 +334,8 @@ def get_new_available_teammates(team_id):
 
         users = cursor.fetchall()
 
-        # Format the response
-        formatted_members = []
-        for user in users:
-            roles = []
-            if user['is_admin'] == 1:
-                roles.append('Admin')
-            if user['is_developer'] == 1:
-                roles.append('Developer')
-            if user['is_gm'] == 1:
-                roles.append('Game Manager')
-            if user['is_player'] == 1:
-                roles.append('Player')
-
-            if not roles:
-                roles.append('Member')
-
-            profile_pic = None
-            if user['profile_picture']:
-                profile_pic = user['profile_picture']
-
-            formatted_members.append({
-                'id': user['id'],
-                'name': f"{user['firstname']} {user['lastname']}",
-                'username': user['username'],
-                'profile_picture': profile_pic,
-                'roles': roles
-            })
+        # Format response for member profiles
+        formatted_members = [build_member_profile(m) for m in users]
 
         return jsonify({
             'success': True,
@@ -793,8 +767,6 @@ def team_details(team_id):
             except:
                 member_count = 0
 
-            # Fetch members with season-appropriate roles
-            formatted_members = []
             try:
                 # Determine if season_roles (past) or permissions (current) should be used
                 use_season_roles = (season_id is not None and season_is_active == 0)
@@ -832,32 +804,8 @@ def team_details(team_id):
 
                 members = cursor.fetchall()
 
-                for m in members:
-                    roles = []
-                    if m['is_admin'] == 1:
-                        roles.append('Admin')
-                    if m['is_developer'] == 1:
-                        roles.append('Developer')
-                    if m['is_gm'] == 1:
-                        roles.append('Game Manager')
-                    if m['is_player'] == 1:
-                        roles.append('Player')
-
-                    if not roles:
-                        roles.append('Member')
-
-                    profile_pic = None
-                    if m['profile_picture']:
-                        profile_pic = m['profile_picture']
-
-                    formatted_members.append({
-                        'id': m['id'],
-                        'name': f"{m['firstname']} {m['lastname']}",
-                        'username': m['username'],
-                        'profile_picture': profile_pic,
-                        'roles': roles,
-                        'joined_at': m['joined_at'].strftime('%B %d, %Y') if m['joined_at'] else None
-                    })
+                # Format response to build accurate user profiles
+                formatted_members = [build_member_profile(m) for m in members]
 
             except Exception as e:
                 print(f"Error fetching members: {e}")

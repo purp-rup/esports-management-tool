@@ -9,7 +9,7 @@ import MySQLdb.cursors
 def get_user_permissions(user_id):
     """
     Fetch all permissions/roles for a specific user.
-    Used in dashboard.py, events.py, game.py, leagues.py, schedules.py, seasons.py,
+    Used in dashboard.py, events.py, communities.py, leagues.py, schedules.py, seasons.py,
     teams.py, team_stats.py, tournament_results.py, & vods.py
     """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -47,7 +47,7 @@ def get_team_game_id(cursor, team_id):
 def format_time_to_12hr(time_value):
     """
     Convert time object or timedelta to 12-hour format string
-    Used in game.py, schedules.py, & teams.py
+    Used in communities.py, schedules.py, & teams.py
     """
     if not time_value:
         return None
@@ -73,7 +73,37 @@ def format_time_to_12hr(time_value):
 def is_all_day_event(start_time_str, end_time_str):
     """
     Determines if an event is an all-day event or not
-    Used in game.py & teams.py
+    Used in communities.py & teams.py
     """
     return bool(start_time_str and end_time_str and
                 start_time_str == "12:00 AM" and end_time_str == "11:59 PM")
+
+
+def build_member_profile(user_row, include_gm_flag=False):
+    """
+    Construct a user role list for each user to display on the front-end.
+    Used in teams.py and communities.py
+    """
+    profile = {
+        'id': user_row['id'],
+        'name': f"{user_row['firstname']} {user_row['lastname']}",
+        'username': user_row['username'],
+        'profile_picture': user_row['profile_picture'] or None,
+        'roles': (
+                [r for flag, r in [
+                    (user_row.get('is_admin') == 1, 'Admin'),
+                    (user_row.get('is_developer') == 1, 'Developer'),
+                    (user_row.get('is_gm') == 1, 'Game Manager'),
+                    (user_row.get('is_player') == 1, 'Player'),
+                ] if flag] or ['Member']
+        ),
+        'joined_at': (
+            user_row['joined_at'].strftime('%B %d, %Y')
+            if user_row.get('joined_at') else None
+        ),
+    }
+
+    if include_gm_flag:
+        profile['is_game_manager'] = bool(user_row.get('is_game_manager'))
+
+    return profile

@@ -700,4 +700,3 @@ window.initializeTeamLeagueSelector = initializeTeamLeagueSelector;
 window.addTeamLeagueTag = addTeamLeagueTag;
 window.removeTeamLeagueTag = removeTeamLeagueTag;
 window.clearSelectedLeagues = clearSelectedLeagues;
-window.enableDropdown = enableDropdown;

@@ -30,11 +30,28 @@ const filterListItems = debounce(function(searchInputId, itemSelector, dataAttri
     });
 }, 300);
 
+/**
+ * Universal dropdown enabler (removes all disabled states)
+ * Used by teams.js, game.js, leagues.js, & events.js
+ */
+function enableDropdown(dropdown) {
+    if (!dropdown) return;
+
+    dropdown.removeAttribute('disabled');
+    dropdown.disabled = false;
+    dropdown.style.pointerEvents = 'auto';
+    dropdown.style.opacity = '1';
+    dropdown.style.cursor = 'pointer';
+}
+
 // ========================================
 // UTILITIES
 // =======================================
 
-//Debounce function to limit how often a function is called
+/**
+ * Debounce function to limit how often a function is called
+ * Used by teams.js and universal-helpers.js
+ */
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -45,4 +62,5 @@ function debounce(func, wait) {
 
 //Global Exports
 window.filterListItems = filterListItems;
+window.enableDropdown = enableDropdown;
 window.debounce = debounce;

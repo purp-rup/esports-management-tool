@@ -101,7 +101,7 @@ async function loadGames() {
     emptyDiv.style.display = 'none';
 
     try {
-        const response = await fetch('/games');
+        const response = await fetch('/communities');
         const data = await response.json();
 
         if (data.success && data.games && data.games.length > 0) {
@@ -267,7 +267,7 @@ async function loadGamesForDropdown() {
 
     try {
         // Fetch games list from API
-        const response = await fetch('/api/games-list');
+        const response = await fetch('/api/game-list');
         const data = await response.json();
 
         if (data.success && data.games) {
