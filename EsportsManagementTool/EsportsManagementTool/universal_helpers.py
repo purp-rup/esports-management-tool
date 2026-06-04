@@ -6,7 +6,7 @@ from EsportsManagementTool import mysql
 from datetime import timedelta
 import MySQLdb.cursors
 
-def get_user_permissions(user_id):
+def get_user_permissions(user_id: int) -> dict[str, int]:
     """
     Fetch all permissions/roles for a specific user.
     Used in dashboard.py, events.py, communities.py, leagues.py, schedules.py, seasons.py,
@@ -35,7 +35,7 @@ def get_user_permissions(user_id):
     finally:
         cursor.close()
 
-def get_team_game_id(cursor, team_id):
+def get_team_game_id(cursor, team_id: int) -> int | None:
     """
     Returns gameID for a team, or None if not found.
     Used in teams.py & schedules.py
@@ -44,7 +44,7 @@ def get_team_game_id(cursor, team_id):
     result = cursor.fetchone()
     return result['gameID'] if result else None
 
-def format_time_to_12hr(time_value):
+def format_time_to_12hr(time_value) -> str | None:
     """
     Convert time object or timedelta to 12-hour format string
     Used in communities.py, schedules.py, & teams.py
@@ -70,13 +70,13 @@ def format_time_to_12hr(time_value):
 
     return f"{display_hour}:{minutes:02d} {period}"
 
-def is_all_day_event(start_time_str, end_time_str):
+def is_all_day_event(start_time: str, end_time: str) -> bool:
     """
     Determines if an event is an all-day event or not
     Used in communities.py & teams.py
     """
-    return bool(start_time_str and end_time_str and
-                start_time_str == "12:00 AM" and end_time_str == "11:59 PM")
+    return bool(start_time and end_time and
+                start_time == "12:00 AM" and end_time == "11:59 PM")
 
 
 def build_member_profile(user_row, include_gm_flag=False):
