@@ -276,6 +276,40 @@ from EsportsManagementTool.email_manager import send_verify_email
 
 
 # ============================================
+# LANDING PAGE STATISTICS
+# ============================================
+def index_statistics():
+    # Stores total user count, active team count, and number of all-member events hosted
+    stats = []
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM users;
+        """)
+        stats.append(cursor.fetchone()['COUNT(*)'])
+
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM teams t JOIN seasons s ON t.season_id = s.season_id
+            WHERE is_active = 1;
+        """)
+        stats.append(cursor.fetchone()['COUNT(*)'])
+
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM generalevents
+            WHERE visibility = 'all_members';
+        """)
+        stats.append(cursor.fetchone()['COUNT(*)'])
+    finally:
+        cursor.close()
+
+    return stats
+
+
+# ============================================
 # AUTHENTICATION ROUTES
 # ============================================
 @app.route('/')
@@ -321,7 +355,9 @@ def index():
         finally:
             cursor.close()
 
-    return render_template('index.html')
+    stats = index_statistics()
+
+    return render_template('index.html', stats=stats)
 
 
 @app.route('/login', methods=['GET', 'POST'])
