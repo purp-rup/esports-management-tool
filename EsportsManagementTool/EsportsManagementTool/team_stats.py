@@ -4,7 +4,6 @@ Handles match results and team performance tracking
 """
 from EsportsManagementTool.universal_helpers import get_user_permissions
 from flask import request, jsonify, session
-from datetime import datetime, time
 import MySQLdb.cursors
 
 

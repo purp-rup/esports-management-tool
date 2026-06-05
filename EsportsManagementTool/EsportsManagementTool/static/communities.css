@@ -1,7 +1,6 @@
 /* ============================================
    COMMUNITIES STYLES - STOCKTON ESPORTS
    Stylesheet for game rosters and communities
-   ORGANIZED BY CLAUDEAI
    ============================================ */
 
 /* --------------------------------------------
@@ -24,13 +23,12 @@
     background: var(--dark-bg);
     border: 2px solid var(--border-color);
     border-radius: 12px;
-    /* Extra space for delete button */
     padding: 1.25rem 1.25rem;
     transition: all 0.2s;
     cursor: pointer;
     display: flex;
     flex-direction: column;
-    position: relative; /* For absolute positioning of delete button */
+    position: relative;
     overflow: auto;
 }
 
@@ -88,41 +86,6 @@
     height: 100%;
     object-fit: cover;
     border-radius: 10px;
-}
-
-/* Delete button */
-.game-delete-btn {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    width: 24px;
-    height: 24px;
-    border: none;
-    border-radius: 4px;
-    background-color: #ff5252;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    z-index: 10;
-    font-size: 0.875rem;
-    opacity: 0.9;
-}
-
-.game-delete-btn:hover {
-    background-color: #ff1744;
-    opacity: 1;
-    transform: scale(1.1);
-}
-
-.game-delete-btn:active {
-    transform: scale(0.95);
-}
-
-.game-delete-btn i {
-    pointer-events: none;
 }
 
 /* --------------------------------------------
@@ -377,7 +340,7 @@
    Adjustments for cards inside division boxes
    -------------------------------------------- */
 .division-games-grid .roster-card {
-    margin: 0; /* Remove any default margin */
+    margin: 0;
 }
 
 /* --------------------------------------------
@@ -429,6 +392,7 @@
 
 /* --------------------------------------------
    GAME DETAILS MODAL
+   SHOULD BE REMOVED EVENTUALLY YIPPEE
    Modal displaying full game information
    -------------------------------------------- */
 #communityModal {
@@ -1112,70 +1076,6 @@
     box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
 }
 
-/* GM Assignment buttons */
-.btn-assign-gm {
-    background: linear-gradient(135deg, #2196F3, #1976D2);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.25rem;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.btn-assign-gm:hover {
-    background: linear-gradient(135deg, #1976D2, #1565C0);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
-}
-
-.btn-remove-gm {
-    background: linear-gradient(135deg, #ff9800, #f57c00);
-    color: white;
-}
-
-.btn-remove-gm:hover {
-    background: linear-gradient(135deg, #f57c00, #e65100);
-}
-
-/* Header action buttons */
-.btn-header-action {
-    background: none;
-    border: 2px solid var(--border-color);
-    color: var(--text-primary);
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 1rem;
-}
-
-.btn-header-action:hover {
-    background: var(--hover-bg);
-    border-color: var(--stockton-blue);
-    color: var(--stockton-blue);
-}
-
-.btn-assign-gm-header:hover {
-    border-color: #2196F3;
-    color: #2196F3;
-    background: rgba(33, 150, 243, 0.1);
-}
-
-.btn-remove-gm-header:hover {
-    border-color: #ff9800;
-    color: #ff9800;
-    background: rgba(255, 152, 0, 0.1);
-}
-
 /* --------------------------------------------
    EMPTY STATES
    No content placeholders
@@ -1234,3 +1134,274 @@
         width: 100%;
     }
 }
+
+/**
+ * ===========================================
+ * NEW SECTION FOR REBUILT COMMUNITIES
+ * ===========================================
+ */
+    /* ── Layout ── */
+    .community-page-container {
+        max-width: 1100px;
+        margin: 2rem auto;
+        padding: 0 2rem;
+    }
+
+    /* ── Breadcrumb ── */
+    .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+    }
+
+    .breadcrumb a {
+        color: var(--stockton-blue);
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .breadcrumb a:hover { color: #5aabdd; }
+
+    .breadcrumb-sep { color: var(--border-color); }
+
+    /* ── Banner ── */
+    .community-banner-wrapper {
+        position: relative;
+        width: 100%;
+        height: 220px;
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        margin-bottom: 1.25rem;
+    }
+
+    .community-banner-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .community-banner-empty {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .community-banner-empty i {
+        font-size: 2rem;
+        color: var(--border-color);
+    }
+
+    /* Upload button — sits in the bottom-right corner of the banner */
+    .banner-upload-btn {
+        position: absolute;
+        bottom: 0.75rem;
+        right: 0.75rem;
+        background: rgba(0, 0, 0, 0.65);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 6px;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: background 0.2s;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .banner-upload-btn:hover { background: rgba(0,0,0,0.85); }
+
+    /* ── Page header card ── */
+    .community-page-header {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 1.5rem;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+    }
+
+    .community-page-icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 10px;
+        background: var(--hover-bg);
+        border: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .community-page-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 10px;
+    }
+
+    .community-page-title {
+        font-size: clamp(1.25rem, 4vw, 1.75rem);
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0 0 0.25rem;
+    }
+
+    .community-page-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    .division-badge {
+        background: rgba(121, 189, 233, 0.12);
+        color: var(--stockton-blue);
+        border: 1px solid rgba(121, 189, 233, 0.3);
+        border-radius: 4px;
+        padding: 0.15rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    /* ── Placeholder body ── */
+    .community-page-body {
+        margin-top: 1.5rem;
+        padding: 3rem 1.5rem;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        text-align: center;
+        color: var(--text-secondary);
+    }
+
+    .community-page-body i {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        display: block;
+        color: var(--border-color);
+    }
+
+    /* ── Cropper modal ── */
+    .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        width: min(560px, 95vw);
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-header h2 { font-size: 1.1rem; margin: 0; }
+
+    .modal-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        cursor: pointer;
+        padding: 0.25rem;
+    }
+
+    .modal-close:hover { color: var(--text-primary); }
+
+    .modal-body { padding: 1.5rem; }
+
+    .modal-subtitle {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
+    .cropper-container-wrapper {
+        height: 300px;
+        overflow: hidden;
+        border-radius: 8px;
+        background: #000;
+    }
+
+    .crop-controls {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin: 1rem 0;
+        flex-wrap: wrap;
+    }
+
+    .crop-controls button {
+        background: var(--hover-bg);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        border-radius: 6px;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        transition: background 0.2s;
+    }
+
+    .crop-controls button:hover { background: var(--border-color); }
+
+    .crop-preview-text {
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 520px) {
+        .community-page-container { padding: 0 1rem; }
+
+        .community-page-icon {
+            width: 52px;
+            height: 52px;
+            font-size: 1.5rem;
+        }
+
+        .community-banner-wrapper { height: 150px; }
+    }

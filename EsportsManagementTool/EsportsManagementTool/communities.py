@@ -1,6 +1,6 @@
 from EsportsManagementTool import app, login_required, roles_required, mysql, EST
 from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr, is_all_day_event, build_member_profile
-from flask import request, redirect, url_for, session, flash, jsonify
+from flask import request, render_template, redirect, url_for, session, flash, jsonify
 from datetime import datetime, timedelta
 import MySQLdb.cursors
 import json
@@ -575,6 +575,101 @@ def delete_community(game_id):
 # ==========================================
 # COMMUNITY PAGES (IN PROGRESS)
 # ==========================================
+@app.route('/community/<int:game_id>')
+@login_required
+def community_page(game_id):
+    """Dedicated page for a single game community"""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT GameID, GameTitle, Description, Division, gm_id,
+                   CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image,
+                   GameBanner
+            FROM games
+            WHERE GameID = %s AND hidden = 0
+        """, (game_id,))
+        game = cursor.fetchone()
+
+        if not game:
+            flash('Community not found.', 'error')
+            return redirect(url_for('dashboard'))
+
+        game['image_url'] = f'/game-image/{game_id}' if game['has_image'] else None
+
+        permissions = get_user_permissions(session['id'])
+        can_edit_banner = (
+                permissions['is_admin'] or
+                permissions['is_developer'] or
+                game['gm_id'] == session['id']
+        )
+
+        return render_template(
+            'communities.html',
+            game=game,
+            can_edit_banner=can_edit_banner
+        )
+
+    except Exception as e:
+        print(f"Error loading community page: {str(e)}")
+        flash('Failed to load community page.', 'error')
+        return redirect(url_for('dashboard'))
+
+    finally:
+        cursor.close()
+
+
+@app.route('/api/game/<int:game_id>/banner', methods=['POST'])
+@login_required
+def upload_game_banner(game_id):
+    """Upload or replace a game banner. Accessible by the game's GM, admins, and developers."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("SELECT gm_id, banner_cloudinary_id FROM games WHERE GameID = %s", (game_id,))
+        game = cursor.fetchone()
+
+        if not game:
+            return jsonify({'success': False, 'message': 'Game not found'}), 404
+
+        permissions = get_user_permissions(session['id'])
+        can_edit = (
+                permissions['is_admin'] or
+                permissions['is_developer'] or
+                game['gm_id'] == session['id']
+        )
+
+        if not can_edit:
+            return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+        if 'banner' not in request.files or not request.files['banner'].filename:
+            return jsonify({'success': False, 'message': 'No banner file provided'}), 400
+
+        file = request.files['banner']
+
+        # Delete old banner from Cloudinary if one exists
+        if game.get('banner_cloudinary_id'):
+            cloudinary.uploader.destroy(game['banner_cloudinary_id'])
+
+        upload_result = cloudinary.uploader.upload(file, folder="game_banners")
+        banner_url = upload_result.get('secure_url')
+        banner_public_id = upload_result.get('public_id')
+
+        cursor.execute(
+            "UPDATE games SET GameBanner = %s, banner_cloudinary_id = %s WHERE GameID = %s",
+            (banner_url, banner_public_id, game_id)
+        )
+        mysql.connection.commit()
+
+        return jsonify({'success': True, 'banner_url': banner_url}), 200
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error uploading banner: {str(e)}")
+        return jsonify({'success': False, 'message': f'Upload failed: {str(e)}'}), 500
+
+    finally:
+        cursor.close()
+
+
 @app.route('/api/game/<int:game_id>/details', methods=['GET'])
 @login_required
 def get_community_details(game_id):

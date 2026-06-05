@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+ 
+{% block title %}{{ game.GameTitle }} — Stockton Esports{% endblock %}
+ 
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
+{% endblock %}
+ 
+{% block content %}
+<input type="hidden" id="communityGameId" value="{{ game.GameID }}">
+<div class="community-page-container">
+ 
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb">
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right" style="font-size:0.65rem;"></i></span>
+        <span>{{ game.GameTitle }}</span>
+    </nav>
+ 
+    <!-- Banner -->
+    <div class="community-banner-wrapper">
+        {% if game.GameBanner %}
+            <img id="bannerImg"
+                 class="community-banner-img"
+                 src="{{ game.GameBanner }}"
+                 alt="{{ game.GameTitle }} banner">
+        {% else %}
+            <div class="community-banner-empty" id="bannerEmpty">
+                <i class="fas fa-image"></i>
+                <span>No banner uploaded</span>
+            </div>
+            <img id="bannerImg" class="community-banner-img" src="" alt="" style="display:none;">
+        {% endif %}
+
+        {% if can_edit_banner %}
+            <button class="banner-upload-btn" onclick="document.getElementById('bannerFileInput').click()">
+                <i class="fas fa-camera"></i>
+                {% if game.GameBanner %}Change Banner{% else %}Upload Banner{% endif %}
+            </button>
+            <input type="file" id="bannerFileInput" accept="image/*" style="display:none;">
+        {% endif %}
+    </div>
+
+    <!-- Header card -->
+    <div class="community-page-header">
+        <div class="community-page-icon">
+            {% if game.image_url %}
+                <img src="{{ game.image_url }}"
+                     alt="{{ game.GameTitle }}"
+                     onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\'fas fa-gamepad\'></i>';">
+            {% else %}
+                <i class="fas fa-gamepad"></i>
+            {% endif %}
+        </div>
+        <div>
+            <h1 class="community-page-title">{{ game.GameTitle }}</h1>
+            <div class="community-page-meta">
+                <span class="division-badge">{{ game.Division }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Body placeholder -->
+    <div class="community-page-body">
+        <i class="fas fa-hammer"></i>
+        <p>Content coming soon.</p>
+    </div>
+
+</div>
+
+<!-- Image Cropper Modal -->
+<div id="imageCropperModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-crop-alt"></i> Crop Banner</h2>
+            <button class="modal-close" onclick="closeImageCropper()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Adjust and crop your banner image</p>
+            <div class="cropper-container-wrapper">
+                <img id="imageToCrop" style="max-width:100%; display:block;">
+            </div>
+            <div class="crop-controls">
+                <button type="button" onclick="cropZoomIn()"><i class="fas fa-search-plus"></i> Zoom In</button>
+                <button type="button" onclick="cropZoomOut()"><i class="fas fa-search-minus"></i> Zoom Out</button>
+                <button type="button" onclick="cropRotateLeft()"><i class="fas fa-undo"></i> Rotate Left</button>
+                <button type="button" onclick="cropRotateRight()"><i class="fas fa-redo"></i> Rotate Right</button>
+                <button type="button" onclick="cropReset()"><i class="fas fa-sync-alt"></i> Reset</button>
+            </div>
+            <p class="crop-preview-text">
+                <i class="fas fa-info-circle"></i>
+                Drag to move &bull; Use corners to resize crop area
+            </p>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeImageCropper()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="applyCrop()">
+                    <i class="fas fa-check"></i> Apply Crop
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<script src="{{ url_for('static', filename='image-cropper.js') }}"></script>
+<script src="{{ url_for('static', filename='communities.js') }}"></script>
+{% endblock %}

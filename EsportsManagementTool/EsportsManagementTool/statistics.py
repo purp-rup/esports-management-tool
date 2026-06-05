@@ -2,9 +2,7 @@
 Esports Program Statistics Module
 Calculates comprehensive statistics for the admin statistics page
 """
-from datetime import datetime, timedelta
 import MySQLdb.cursors
-
 
 class EsportsStatistics:
     """

@@ -1,30 +1,12 @@
 /**
- * image-cropper.js
- * ============================================================================
+ * ===================================================
  * UNIVERSAL IMAGE CROPPER SYSTEM
- * ============================================================================
- * Provides centralized image cropping functionality using Cropper.js
- * Used by multiple modules: leagues, communities, profile avatars, etc.
- *
- * Features:
- * - Square aspect ratio cropping (1:1)
- * - Zoom, rotate, and reset controls
- * - Modal-safe scroll management
- * - Context-aware blob storage
- * - High-quality output (400x400px)
- *
- * ORGANIZED BY CLAUDE AI
- * ============================================================================
+ * ===================================================
  */
 
 // ============================================
 // GLOBAL STATE
 // ============================================
-
-/**
- * Cropper.js instance
- * @type {Cropper|null}
- */
 let cropper = null;
 
 /**
@@ -39,6 +21,7 @@ let currentImageField = null;
  * Different contexts use different variable names for backwards compatibility
  */
 let croppedImageBlob = null;           // Used by leagues
+let bannerCroppedImageBlob = null;     // Used by community banner
 let communityCroppedImageBlob = null;  // Used by communities
 let avatarCroppedImageBlob = null;     // Used by profile avatar
 
@@ -78,7 +61,7 @@ function openImageCropper(file, context = null) {
             }
 
             cropper = new Cropper(imageElement, {
-                aspectRatio: 1, // Square crop
+                aspectRatio: currentImageField === 'banner' ? 16 / 5 : 1,
                 viewMode: 1,
                 dragMode: 'move',
                 autoCropArea: 0.8,
@@ -161,13 +144,12 @@ function cropReset() {
     if (cropper) cropper.reset();
 }
 
-// ============================================
-// APPLY CROP - CONTEXT-AWARE
-// ============================================
+// ================================
+// APPLY CROP
+// ================================
 
 /**
  * Apply crop and route to correct handler based on context
- * Generates 400x400px PNG with high quality
  */
 function applyCrop() {
     if (!cropper) return;
@@ -192,6 +174,10 @@ function applyCrop() {
 
         case 'avatar':
             handleAvatarCrop(cropSettings);
+            break;
+
+        case 'banner':
+            handleBannerCrop(cropSettings);
             break;
 
         default:
@@ -255,6 +241,48 @@ function handleAvatarCrop(settings) {
     }, 'image/png');
 }
 
+/**
+ * Handle crop for community banner.
+ * Output: 1280×400px PNG (16:5 aspect ratio)
+ */
+function handleBannerCrop(settings) {
+    const bannerSettings = {
+        width: 1280,
+        height: 400,
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high',
+    };
+
+    cropper.getCroppedCanvas(bannerSettings).toBlob((blob) => {
+        bannerCroppedImageBlob = blob;
+        closeImageCropper();
+
+        const gameIdEl = document.getElementById('communityGameId');
+        if (!gameIdEl) return;
+
+        const formData = new FormData();
+        formData.append('banner', blob, 'banner.png');
+
+        fetch(`/api/game/${gameIdEl.value}/banner`, { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const img   = document.getElementById('bannerImg');
+                    const empty = document.getElementById('bannerEmpty');
+                    img.src = data.banner_url;
+                    img.style.display = 'block';
+                    if (empty) empty.style.display = 'none';
+
+                    const btn = document.querySelector('.banner-upload-btn');
+                    if (btn) btn.innerHTML = '<i class="fas fa-camera"></i> Change Banner';
+                } else {
+                    alert('Banner upload failed: ' + data.message);
+                }
+            })
+            .catch(() => alert('Banner upload failed. Please try again.'));
+    }, 'image/png');
+}
+
 // ============================================
 // UTILITY - GET CROPPED BLOB
 // ============================================
@@ -272,6 +300,8 @@ function getCroppedImageBlob(context) {
             return communityCroppedImageBlob;
         case 'avatar':
             return avatarCroppedImageBlob;
+        case 'banner':
+            return bannerCroppedImageBlob;
         default:
             return null;
     }
@@ -291,6 +321,9 @@ function clearCroppedImageBlob(context) {
             break;
         case 'avatar':
             avatarCroppedImageBlob = null;
+            break;
+        case 'banner':
+            bannerCroppedImageBlob = null;
             break;
     }
 }
@@ -321,3 +354,4 @@ window.currentImageField = currentImageField;
 window.croppedImageBlob = croppedImageBlob;
 window.communityCroppedImageBlob = communityCroppedImageBlob;
 window.avatarCroppedImageBlob = avatarCroppedImageBlob;
+window.bannerCroppedImageBlob = bannerCroppedImageBlob;

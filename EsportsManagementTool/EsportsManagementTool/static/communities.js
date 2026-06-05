@@ -458,6 +458,21 @@ function updateGameIcon(game) {
     }
 }
 
+// Initialise banner upload behaviour on the community page
+function initBannerUpload() {
+    const input = document.getElementById('bannerFileInput');
+    if (!input) return;
+
+    input.addEventListener('change', function () {
+        if (this.files && this.files[0]) {
+            openImageCropper(this.files[0], 'banner');
+            this.value = '';
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initBannerUpload);
+
 // Display community stats, including leagues, total members, and total teams for the current season
 async function displayCommunityStats(gameId, game) {
     // Load leagues for this game's current season
@@ -795,9 +810,9 @@ function createCommunityCard(community) {
             </p>
             <p class="community-joined">Joined ${community.joined_at}</p>
         </div>
-        <button class="btn btn-sm btn-primary" onclick="openCommunityModal(${community.id})">
+        <a class="btn btn-sm btn-primary" href="/community/${community.id}">
             <i class="fas fa-eye"></i> View
-        </button>
+        </a>
     `;
 
     return card;
