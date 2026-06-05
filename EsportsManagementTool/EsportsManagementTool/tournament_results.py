@@ -236,7 +236,7 @@ def register_tournament_results_routes(app, mysql, login_required, roles_require
             days_until_end = (end_date - datetime.now().date()).days
             
             # Only show notification if within 30 days of season end
-            if days_until_end > 30 or days_until_end < 0:
+            if days_until_end > 7 or days_until_end < 0:
                 return jsonify({
                     'success': True,
                     'has_pending': False,
