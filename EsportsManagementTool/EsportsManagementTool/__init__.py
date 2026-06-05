@@ -661,6 +661,10 @@ from EsportsManagementTool import email_manager
 email_manager.register_verification_routes(app, mysql)
 email_manager.register_test_routes(app)
 
+# Register forgot password routes
+from EsportsManagementTool import forgot_password
+forgot_password.register_forgot_password_routes(app, mysql)
+
 
 # =======================================
 # CALENDAR API ENDPOINTS

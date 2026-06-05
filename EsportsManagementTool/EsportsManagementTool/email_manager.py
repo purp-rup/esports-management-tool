@@ -182,6 +182,49 @@ def send_reminder_email(user_email, user_firstname, season_name, game_title, pen
         print(f"Error sending reminder email to {user_email}: {str(e)}")
         return False
 
+# Forgot Password Email
+def send_password_reset_email(email: str, token: str, user_firstname: str) -> bool:
+    """
+    Send a password reset link to the user's registered email.
+    The link expires after 1 hour.
+    """
+    try:
+        reset_url = url_for('reset_password', token=token, _external=True)
+        msg = Message('Reset Your Stockton Esports Password', recipients=[email])
+        msg.html = f'''
+            <div style="background-color: #f4f4f4; width: 100%; margin: 0; padding: 10px 0; font-family: 'Inter', sans-serif;">
+                <div style="background-color: #ffffff; max-width: 600px; margin: 0 auto;">
+                    <div style="margin: 0; padding: 0;">
+                        <img src="https://res.cloudinary.com/dltfdjwzs/image/upload/v1780009089/01235ad8-2454-4a46-98cd-163de62e7fa0.png"
+                             style="width: 100%; display: block; margin: 0; padding: 0;">
+                    </div>
+                    <div style="padding: 8px 10px 20px 30px;">
+                        <br>
+                        <p style="text-align: left; font-weight: bold;">Hello, {user_firstname}!</p>
+                        <div style="padding-left: 15px;">
+                            <p style="font-size: 15px;">We received a request to reset your Stockton Esports Management Tool password.</p>
+                            <p style="font-size: 15px;">Click the button below to choose a new password:</p>
+                            <a href="{reset_url}"
+                               style="display: inline-block; padding: 12px 24px; background-color: #6a0dad; color: #ffffff;
+                                      text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 15px;">
+                                Reset My Password
+                            </a>
+                            <br><br>
+                            <p style="font-size: 15px;">This link will expire in <strong>1 hour</strong>.</p>
+                            <p style="font-size: 15px;">If you did not request a password reset, you can safely ignore this email.</p>
+                        </div>
+                        <p style="text-align: left;">- EsMT Team</p>
+                    </div>
+                    {get_email_footer()}
+                </div>
+            </div>
+        '''
+        mail.send(msg)
+        return True
+    except Exception as e:
+        print(f"Error sending password reset email to {email}: {e}")
+        return False
+
 
 # =========================================
 # UNIVERSAL EMAIL FOOTER
@@ -242,3 +285,8 @@ def register_test_routes(app):
                 2
             )
             return "GM reminder email sent - check localhost:8025"
+
+        @app.route('/test-email/password-reset')
+        def test_password_reset_email():
+            send_password_reset_email("test@go.stockton.edu", "test-token", "testfirstname")
+            return "Password reset email sent - check localhost:8025"
