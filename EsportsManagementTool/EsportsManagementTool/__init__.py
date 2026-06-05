@@ -279,14 +279,16 @@ from EsportsManagementTool.email_manager import send_verify_email
 # LANDING PAGE STATISTICS
 # ============================================
 def index_statistics():
-    # Stores total user count, active team count, and number of all-member events hosted
+    # Stores total player count for current season, active team count, and number of all-member events hosted
     stats = []
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
         cursor.execute("""
             SELECT COUNT(*)
-            FROM users;
+            FROM users u JOIN season_roles sr ON u.id = sr.userid
+                JOIN seasons s ON sr.season_id = s.season_id
+            WHERE s.is_active = 1 AND sr.is_player = 1;
         """)
         stats.append(cursor.fetchone()['COUNT(*)'])
 
