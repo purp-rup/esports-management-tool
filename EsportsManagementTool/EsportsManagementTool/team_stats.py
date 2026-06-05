@@ -448,6 +448,47 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
             }), 500
 
     # ============================================
+    # CHECK RECORD PERMISSIONS
+    # ============================================
+    @app.route('/api/teams/<team_id>/can-record', methods=['GET'])
+    @login_required
+    def can_record_results(team_id):
+        """
+        Check if current user can record match/tournament results for a team.
+        Returns true if user is the GM for this team's game OR is an admin.
+        Used to conditionally show the Record Results button on the team stats page.
+        """
+        user_id = session.get('id')
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            # Check admin status
+            permissions = get_user_permissions(user_id)
+            if permissions.get('is_admin'):
+                return jsonify({'success': True, 'can_record': True}), 200
+
+            # Check if user is GM for this team's game
+            cursor.execute("""
+                SELECT g.gm_id
+                FROM teams t
+                JOIN games g ON t.gameID = g.GameID
+                WHERE t.TeamID = %s
+            """, (team_id,))
+
+            result = cursor.fetchone()
+            if not result:
+                return jsonify({'success': False, 'can_record': False}), 404
+
+            can_record = result['gm_id'] == user_id
+            return jsonify({'success': True, 'can_record': can_record}), 200
+
+        except Exception as e:
+            print(f"Error checking record permissions: {str(e)}")
+            return jsonify({'success': False, 'can_record': False}), 500
+        finally:
+            cursor.close()
+
+    # ============================================
     # DELETE MATCH RESULT
     # ============================================
     @app.route('/api/teams/delete-match-result/<int:result_id>', methods=['DELETE'])
