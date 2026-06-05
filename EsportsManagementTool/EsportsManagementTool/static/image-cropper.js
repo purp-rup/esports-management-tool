@@ -22,8 +22,9 @@ let currentImageField = null;
  */
 let croppedImageBlob = null;           // Used by leagues
 let bannerCroppedImageBlob = null;     // Used by community banner
-let communityCroppedImageBlob = null;  // Used by communities
+let communityCroppedImageBlob = null;  // Used as community icon
 let avatarCroppedImageBlob = null;     // Used by profile avatar
+let carouselCroppedImageBlob = null;  // Used by community photo carousel
 
 // ============================================
 // CROPPER MODAL - OPEN/CLOSE
@@ -61,7 +62,8 @@ function openImageCropper(file, context = null) {
             }
 
             cropper = new Cropper(imageElement, {
-                aspectRatio: currentImageField === 'banner' ? 16 / 5 : 1,
+                aspectRatio: currentImageField === 'banner'   ? 16 / 5  :
+                             currentImageField === 'carousel' ? 16 / 9  : 1,
                 viewMode: 1,
                 dragMode: 'move',
                 autoCropArea: 0.8,
@@ -167,19 +169,18 @@ function applyCrop() {
         case 'league':
             handleLeagueCrop(cropSettings);
             break;
-
         case 'community':
             handleCommunityCrop(cropSettings);
             break;
-
         case 'avatar':
             handleAvatarCrop(cropSettings);
             break;
-
         case 'banner':
             handleBannerCrop(cropSettings);
             break;
-
+        case 'carousel':
+            handleCarouselCrop(cropSettings);
+            break;
         default:
             console.warn('Unknown image field type:', currentImageField);
             // Fallback to league behavior for backwards compatibility
@@ -283,6 +284,45 @@ function handleBannerCrop(settings) {
     }, 'image/png');
 }
 
+/**
+ * Handle crop for community photo carousel.
+ * Output: 1280×720px PNG (16:9 aspect ratio)
+ */
+function handleCarouselCrop(settings) {
+    const carouselSettings = {
+        width: 1280,
+        height: 720,
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high',
+    };
+
+    cropper.getCroppedCanvas(carouselSettings).toBlob((blob) => {
+        carouselCroppedImageBlob = blob;
+        closeImageCropper();
+
+        const gameIdEl = document.getElementById('communityGameId');
+        if (!gameIdEl) return;
+
+        const formData = new FormData();
+        formData.append('photo', blob, 'photo.png');
+
+        fetch(`/api/game/${gameIdEl.value}/photos`, { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    carouselPhotos.push(data.photo);
+                    carouselIndex = carouselPhotos.length - 1;
+                    renderCarousel();
+                } else if (data.limit_reached) {
+                    alert(data.message);
+                } else {
+                    alert('Photo upload failed: ' + data.message);
+                }
+            })
+            .catch(() => alert('Photo upload failed. Please try again.'));
+    }, 'image/png');
+}
+
 // ============================================
 // UTILITY - GET CROPPED BLOB
 // ============================================
@@ -302,6 +342,8 @@ function getCroppedImageBlob(context) {
             return avatarCroppedImageBlob;
         case 'banner':
             return bannerCroppedImageBlob;
+        case 'carousel':
+            return carouselCroppedImageBlob;
         default:
             return null;
     }
@@ -324,6 +366,9 @@ function clearCroppedImageBlob(context) {
             break;
         case 'banner':
             bannerCroppedImageBlob = null;
+            break;
+        case 'carousel':
+            carouselCroppedImageBlob = null;
             break;
     }
 }
@@ -355,3 +400,4 @@ window.croppedImageBlob = croppedImageBlob;
 window.communityCroppedImageBlob = communityCroppedImageBlob;
 window.avatarCroppedImageBlob = avatarCroppedImageBlob;
 window.bannerCroppedImageBlob = bannerCroppedImageBlob;
+window.carouselCroppedImageBlob = carouselCroppedImageBlob;

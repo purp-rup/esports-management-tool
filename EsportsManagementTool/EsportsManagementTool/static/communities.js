@@ -458,6 +458,162 @@ function updateGameIcon(game) {
     }
 }
 
+// ============================================
+// COMMUNITY PAGE — PHOTO CAROUSEL
+// ============================================
+
+let carouselPhotos   = [];
+let carouselIndex    = 0;
+let carouselTimer    = null;
+const CAROUSEL_INTERVAL = 5000;
+
+// Fetch photos for this community and boot the carousel
+async function initCarousel() {
+    const track = document.getElementById('carouselTrack');
+    if (!track) return;
+
+    const gameId = document.getElementById('communityGameId')?.value;
+    if (!gameId) return;
+
+    try {
+        const res  = await fetch(`/api/game/${gameId}/photos`);
+        const data = await res.json();
+        if (!data.success) return;
+
+        carouselPhotos = data.photos;
+        renderCarousel();
+    } catch (e) {
+        console.error('Failed to load carousel photos:', e);
+    }
+}
+
+// Rebuild the carousel display from carouselPhotos
+function renderCarousel() {
+    const track   = document.getElementById('carouselTrack');
+    const counter = document.getElementById('carouselCounter');
+    const empty   = document.getElementById('carouselEmpty');
+    const arrows  = document.getElementById('carouselArrows');
+    const delBtn  = document.getElementById('carouselDeleteBtn');
+
+    if (!track) return;
+
+    stopCarouselTimer();
+
+    if (carouselPhotos.length === 0) {
+        track.innerHTML  = '';
+        if (empty)   empty.style.display   = 'flex';
+        if (arrows)  arrows.style.display  = 'none';
+        if (counter) counter.style.display = 'none';
+        if (delBtn)  delBtn.style.display  = 'none';
+        return;
+    }
+
+    if (empty)  empty.style.display  = 'none';
+    if (arrows) arrows.style.display = 'flex';
+
+    // Clamp index in case a deletion left it out of range
+    carouselIndex = Math.min(carouselIndex, carouselPhotos.length - 1);
+
+    track.innerHTML = carouselPhotos.map((p, i) => `
+        <div class="carousel-slide ${i === carouselIndex ? 'active' : ''}"
+             data-index="${i}">
+            <img src="${p.photo_url}" alt="Community photo ${i + 1}">
+        </div>
+    `).join('');
+
+    if (counter) {
+        counter.style.display = 'block';
+        counter.textContent   = `${carouselIndex + 1} / ${carouselPhotos.length}`;
+    }
+
+    if (delBtn) delBtn.style.display = 'flex';
+
+    if (carouselPhotos.length > 1) startCarouselTimer();
+}
+
+// Advance to a specific index with a slide transition
+function goToSlide(index) {
+    const slides = document.querySelectorAll('.carousel-slide');
+    if (!slides.length) return;
+
+    slides[carouselIndex]?.classList.remove('active');
+    carouselIndex = (index + carouselPhotos.length) % carouselPhotos.length;
+    slides[carouselIndex]?.classList.add('active');
+
+    const counter = document.getElementById('carouselCounter');
+    if (counter) counter.textContent = `${carouselIndex + 1} / ${carouselPhotos.length}`;
+}
+
+function carouselNext() {
+    resetCarouselTimer();
+    goToSlide(carouselIndex + 1);
+}
+
+function carouselPrev() {
+    resetCarouselTimer();
+    goToSlide(carouselIndex - 1);
+}
+
+function startCarouselTimer() {
+    carouselTimer = setInterval(() => goToSlide(carouselIndex + 1), CAROUSEL_INTERVAL);
+}
+
+function stopCarouselTimer() {
+    if (carouselTimer) {
+        clearInterval(carouselTimer);
+        carouselTimer = null;
+    }
+}
+
+function resetCarouselTimer() {
+    stopCarouselTimer();
+    if (carouselPhotos.length > 1) startCarouselTimer();
+}
+
+// Upload a photo and initialize cropping
+function initPhotoUpload() {
+    const input = document.getElementById('photoFileInput');
+    if (!input) return;
+
+    input.addEventListener('change', function () {
+        if (this.files && this.files[0]) {
+            openImageCropper(this.files[0], 'carousel');
+            this.value = '';
+        }
+    });
+}
+
+// Photo delete for currently shown photo
+async function deleteCurrentPhoto() {
+    if (!carouselPhotos.length) return;
+
+    const gameId = document.getElementById('communityGameId')?.value;
+    const photo  = carouselPhotos[carouselIndex];
+
+    if (!confirm('Delete this photo? This cannot be undone.')) return;
+
+    try {
+        const res  = await fetch(`/api/game/${gameId}/photos/${photo.photo_id}`, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (data.success) {
+            carouselPhotos.splice(carouselIndex, 1);
+            // Move index back if we just deleted the last item
+            if (carouselIndex >= carouselPhotos.length) carouselIndex = Math.max(0, carouselPhotos.length - 1);
+            renderCarousel();
+        } else {
+            alert('Delete failed: ' + data.message);
+        }
+    } catch (e) {
+        alert('Delete failed. Please try again.');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initCarousel();
+    initPhotoUpload();
+});
+
 // Initialise banner upload behaviour on the community page
 function initBannerUpload() {
     const input = document.getElementById('bannerFileInput');
@@ -832,3 +988,8 @@ window.filterMembers = filterMembers;
 
 //Folder system
 window.displayGamesWithDivisions = displayGamesWithDivisions;
+
+// Photo Carousel
+window.carouselNext        = carouselNext;
+window.carouselPrev        = carouselPrev;
+window.deleteCurrentPhoto  = deleteCurrentPhoto;

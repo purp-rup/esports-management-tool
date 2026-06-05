@@ -39,7 +39,55 @@
                 {% if game.GameBanner %}Change Banner{% else %}Upload Banner{% endif %}
             </button>
             <input type="file" id="bannerFileInput" accept="image/*" style="display:none;">
+            <input type="file" id="photoFileInput" accept="image/*" style="display:none;">
         {% endif %}
+    </div>
+
+    <!-- Carousel section — insert between banner and header card -->
+    <div class="carousel-section">
+        <div class="carousel-header">
+            <h2 class="carousel-title"><i class="fas fa-images"></i> Photos</h2>
+            {% if can_edit_banner %}
+                <div class="carousel-actions">
+                    <button class="carousel-add-btn"
+                            onclick="document.getElementById('photoFileInput').click()"
+                            title="Add photo">
+                        <i class="fas fa-plus"></i> Add Photo
+                    </button>
+                    <button class="carousel-delete-btn"
+                            id="carouselDeleteBtn"
+                            onclick="deleteCurrentPhoto()"
+                            title="Delete current photo"
+                            style="display:none;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="carousel-wrapper">
+            <!-- Empty state -->
+            <div class="carousel-empty" id="carouselEmpty">
+                <i class="fas fa-images"></i>
+                <span>No photos yet</span>
+            </div>
+
+            <!-- Slides -->
+            <div class="carousel-track" id="carouselTrack"></div>
+
+            <!-- Arrows -->
+            <div class="carousel-arrows" id="carouselArrows" style="display:none;">
+                <button class="carousel-arrow carousel-arrow-prev" onclick="carouselPrev()">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button class="carousel-arrow carousel-arrow-next" onclick="carouselNext()">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <!-- Counter -->
+            <div class="carousel-counter" id="carouselCounter" style="display:none;"></div>
+        </div>
     </div>
 
     <!-- Header card -->

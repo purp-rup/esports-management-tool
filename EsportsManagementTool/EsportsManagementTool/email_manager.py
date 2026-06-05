@@ -2,7 +2,6 @@
 Esports Management Tool Automatic Email Handler/Email Testing
 This file verifies and sends all automatic emails & can test emails via Mailpit.
 """
-
 from EsportsManagementTool import app, mail
 from flask import url_for, redirect, flash
 from flask_mail import Message
