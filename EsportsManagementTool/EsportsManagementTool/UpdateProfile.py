@@ -2,15 +2,12 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
 import bcrypt
-from dotenv import load_dotenv
-import requests
 from EsportsManagementTool import app
 import MySQLdb.cursors
 import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
 load_dotenv()
-import os
 
 mysql = MySQL()
 
