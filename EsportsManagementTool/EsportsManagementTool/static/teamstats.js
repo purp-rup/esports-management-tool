@@ -148,7 +148,7 @@ async function loadStatsTab(teamId, gameId, leagueId = null) {
  * Render the complete stats content with league filter dropdown
  * Displays summary cards and match history
  */
-function renderStatsContent() {
+async function renderStatsContent() {
     const statsPanel = document.getElementById('statsTabContent');
 
     // Calculate statistics
@@ -160,6 +160,16 @@ function renderStatsContent() {
     if (totalMatches > 0) {
         const rawPercentage = (wins / totalMatches) * 100;
         winPercentage = (rawPercentage % 1 === 0) ? rawPercentage.toFixed(0) : rawPercentage.toFixed(1);
+    }
+
+    // Check if current user can record results for this team
+    let canRecordResults = false;
+    try {
+        const permResponse = await fetch(`/api/teams/${currentStatsTeamId}/can-record`);
+        const permData = await permResponse.json();
+        canRecordResults = permData.success && permData.can_record;
+    } catch (e) {
+        console.error('Error checking record permissions:', e);
     }
 
     // Build league filter dropdown
@@ -181,6 +191,17 @@ function renderStatsContent() {
             </div>
         `;
     }
+
+    // Build tournament results button for GMs and admins
+    const tournamentBtnHTML = canRecordResults ? `
+        <button class="btn btn-primary btn-sm" 
+                onclick="openRecordResultsModal()" 
+                title="Record team results for your teams"
+                style="display: flex; align-items: center; gap: 0.4rem;">
+            <i class="fas fa-trophy"></i>
+            Record Team Results
+        </button>
+    ` : '';
 
     // Build stats UI
     statsPanel.innerHTML = `
@@ -243,6 +264,7 @@ function renderStatsContent() {
                         Match History
                         ${currentLeagueFilter ? `<span style="color: var(--stockton-blue); font-size: 0.875rem; font-weight: normal; margin-left: 0.5rem;">(${availableLeagues.find(l => l.id === currentLeagueFilter)?.name})</span>` : ''}
                     </h3>
+                    ${tournamentBtnHTML}
                 </div>
 
                 ${renderMatchHistory()}

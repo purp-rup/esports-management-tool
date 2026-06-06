@@ -22,9 +22,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /**
  * Check if GM has pending tournament results
- * Shows banner if within 30 days of season end
+ * Shows banner if within 7 days of season end, once per day per browser session
  */
 function checkPendingResults() {
+    // Only show banner once per day — check localStorage for today's date
+    const today = new Date().toISOString().split('T')[0];
+    const lastShown = localStorage.getItem('tournamentBannerDate');
+    if (lastShown === today) {
+        return; // Already shown today, skip API call entirely
+    }
+
     fetch('/api/tournament-results/check-pending')
         .then(response => response.json())
         .then(data => {
@@ -34,6 +41,9 @@ function checkPendingResults() {
                     data.days_until_end,
                     data.season_name
                 );
+                // Record that we showed the banner today so it won't reappear until tomorrow
+                const today = new Date().toISOString().split('T')[0];
+                localStorage.setItem('tournamentBannerDate', today);
             }
         })
         .catch(error => {
