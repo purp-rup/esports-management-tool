@@ -461,10 +461,9 @@ function updateGameIcon(game) {
 // ============================================
 // COMMUNITY PAGE — PHOTO CAROUSEL
 // ============================================
-
-let carouselPhotos   = [];
-let carouselIndex    = 0;
-let carouselTimer    = null;
+let carouselPhotos  = [];
+let carouselIndex   = 0;
+let carouselTimer   = null;
 const CAROUSEL_INTERVAL = 5000;
 
 // Fetch photos for this community and boot the carousel
@@ -479,7 +478,6 @@ async function initCarousel() {
         const res  = await fetch(`/api/game/${gameId}/photos`);
         const data = await res.json();
         if (!data.success) return;
-
         carouselPhotos = data.photos;
         renderCarousel();
     } catch (e) {
@@ -500,7 +498,7 @@ function renderCarousel() {
     stopCarouselTimer();
 
     if (carouselPhotos.length === 0) {
-        track.innerHTML  = '';
+        track.innerHTML = '';
         if (empty)   empty.style.display   = 'flex';
         if (arrows)  arrows.style.display  = 'none';
         if (counter) counter.style.display = 'none';
@@ -511,12 +509,10 @@ function renderCarousel() {
     if (empty)  empty.style.display  = 'none';
     if (arrows) arrows.style.display = 'flex';
 
-    // Clamp index in case a deletion left it out of range
     carouselIndex = Math.min(carouselIndex, carouselPhotos.length - 1);
 
     track.innerHTML = carouselPhotos.map((p, i) => `
-        <div class="carousel-slide ${i === carouselIndex ? 'active' : ''}"
-             data-index="${i}">
+        <div class="carousel-slide ${i === carouselIndex ? 'active' : ''}" data-index="${i}">
             <img src="${p.photo_url}" alt="Community photo ${i + 1}">
         </div>
     `).join('');
@@ -531,7 +527,6 @@ function renderCarousel() {
     if (carouselPhotos.length > 1) startCarouselTimer();
 }
 
-// Advance to a specific index with a slide transition
 function goToSlide(index) {
     const slides = document.querySelectorAll('.carousel-slide');
     if (!slides.length) return;
@@ -544,33 +539,21 @@ function goToSlide(index) {
     if (counter) counter.textContent = `${carouselIndex + 1} / ${carouselPhotos.length}`;
 }
 
-function carouselNext() {
-    resetCarouselTimer();
-    goToSlide(carouselIndex + 1);
-}
-
-function carouselPrev() {
-    resetCarouselTimer();
-    goToSlide(carouselIndex - 1);
-}
+function carouselNext() { resetCarouselTimer(); goToSlide(carouselIndex + 1); }
+function carouselPrev() { resetCarouselTimer(); goToSlide(carouselIndex - 1); }
 
 function startCarouselTimer() {
     carouselTimer = setInterval(() => goToSlide(carouselIndex + 1), CAROUSEL_INTERVAL);
 }
-
 function stopCarouselTimer() {
-    if (carouselTimer) {
-        clearInterval(carouselTimer);
-        carouselTimer = null;
-    }
+    if (carouselTimer) { clearInterval(carouselTimer); carouselTimer = null; }
 }
-
 function resetCarouselTimer() {
     stopCarouselTimer();
     if (carouselPhotos.length > 1) startCarouselTimer();
 }
 
-// Upload a photo and initialize cropping
+// Upload a photo to the carousel
 function initPhotoUpload() {
     const input = document.getElementById('photoFileInput');
     if (!input) return;
@@ -583,35 +566,121 @@ function initPhotoUpload() {
     });
 }
 
-// Photo delete for currently shown photo
-async function deleteCurrentPhoto() {
-    if (!carouselPhotos.length) return;
+/**
+ * Open the photo manager popup anchored to the carousel wrapper.
+ * Shows all photos in a horizontal strip, each with an × delete button.
+ */
+function openPhotoManager() {
+    closePhotoManager(); // Remove any existing instance
 
+    if (carouselPhotos.length === 0) return;
+
+    const wrapper = document.querySelector('.carousel-wrapper');
+    if (!wrapper) return;
+
+    const popup = document.createElement('div');
+    popup.id = 'photoManagerPopup';
+    popup.className = 'photo-manager-popup';
+
+    popup.innerHTML = `
+        <div class="photo-manager-header">
+            <span>Manage Photos</span>
+            <button class="photo-manager-close" onclick="closePhotoManager()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="photo-manager-strip">
+            ${carouselPhotos.map(p => `
+                <div class="photo-manager-thumb" data-photo-id="${p.photo_id}">
+                    <img src="${p.photo_url}" alt="Photo">
+                    <button class="photo-manager-delete-btn"
+                            onclick="confirmDeletePhoto(${p.photo_id})"
+                            title="Delete this photo">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    // Anchor popup to bottom of carousel wrapper, capped to its width
+    wrapper.appendChild(popup);
+
+    // Close when clicking outside
+    setTimeout(() => {
+        document.addEventListener('click', outsidePhotoManagerClick);
+    }, 0);
+}
+
+function closePhotoManager() {
+    document.getElementById('photoManagerPopup')?.remove();
+    document.removeEventListener('click', outsidePhotoManagerClick);
+}
+
+function outsidePhotoManagerClick(e) {
+    const popup       = document.getElementById('photoManagerPopup');
+    const delBtn      = document.getElementById('carouselDeleteBtn');
+    const deleteModal = document.getElementById('deleteConfirmModal');
+    if (
+        popup &&
+        !popup.contains(e.target) &&
+        e.target !== delBtn &&
+        !delBtn?.contains(e.target) &&
+        !deleteModal?.contains(e.target)
+    ) {
+        closePhotoManager();
+    }
+}
+
+// Show confirmation then delete the photo.
+function confirmDeletePhoto(photoId) {
+    const photo = carouselPhotos.find(p => p.photo_id === photoId);
+    if (!photo) return;
+
+    openDeleteConfirmModal({
+        title: 'Delete Photo?',
+        message: 'Are you sure you want to permanently delete this photo? This cannot be undone.',
+        buttonText: 'Delete Photo',
+        itemId: photoId,
+        onConfirm: async (id) => {
+            await executePhotoDelete(id);
+        }
+    });
+}
+
+async function executePhotoDelete(photoId) {
     const gameId = document.getElementById('communityGameId')?.value;
-    const photo  = carouselPhotos[carouselIndex];
-
-    if (!confirm('Delete this photo? This cannot be undone.')) return;
 
     try {
-        const res  = await fetch(`/api/game/${gameId}/photos/${photo.photo_id}`, { method: 'DELETE' });
+        const res  = await fetch(`/api/game/${gameId}/photos/${photoId}`, { method: 'DELETE' });
         const data = await res.json();
 
         if (data.success) {
-            carouselPhotos.splice(carouselIndex, 1);
-            // Move index back if we just deleted the last item
-            if (carouselIndex >= carouselPhotos.length) carouselIndex = Math.max(0, carouselPhotos.length - 1);
+            const idx = carouselPhotos.findIndex(p => p.photo_id === photoId);
+            if (idx !== -1) carouselPhotos.splice(idx, 1);
+            if (carouselIndex >= carouselPhotos.length) {
+                carouselIndex = Math.max(0, carouselPhotos.length - 1);
+            }
+            closeDeleteConfirmModal();
             renderCarousel();
+            showDeleteSuccessMessage('Photo deleted successfully.');
         } else {
-            alert('Delete failed: ' + data.message);
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage('Delete failed: ' + data.message);
         }
     } catch (e) {
-        alert('Delete failed. Please try again.');
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Delete failed. Please try again.');
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const gameId = document.getElementById('communityGameId')?.value;
+
     initCarousel();
     initPhotoUpload();
+
+    if (gameId) loadNextCommunityEvent(gameId);
 });
 
 // Initialise banner upload behaviour on the community page
@@ -836,7 +905,6 @@ async function loadNextCommunityEvent(gameId) {
     `;
 
     try {
-        console.log(`Fetching scheduled event for game ${gameId}`);
         const response = await fetch(`/api/games/${gameId}/next-scheduled-event`);
 
         if (!response.ok) {
@@ -844,7 +912,6 @@ async function loadNextCommunityEvent(gameId) {
         }
 
         const data = await response.json();
-        console.log('Game scheduled event response:', data);
 
         if (data.success && data.event) {
             const event = data.event;
@@ -992,4 +1059,6 @@ window.displayGamesWithDivisions = displayGamesWithDivisions;
 // Photo Carousel
 window.carouselNext        = carouselNext;
 window.carouselPrev        = carouselPrev;
-window.deleteCurrentPhoto  = deleteCurrentPhoto;
+window.openPhotoManager    = openPhotoManager;
+window.closePhotoManager   = closePhotoManager;
+window.confirmDeletePhoto  = confirmDeletePhoto;

@@ -1176,7 +1176,6 @@
     overflow: hidden;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
-    margin-bottom: 1.25rem;
 }
 
 .community-banner-img {
@@ -1284,7 +1283,7 @@
 
 /* ── Placeholder body ── */
 .community-page-body {
-    margin-top: 1.5rem;
+    margin-top: 1rem;
     padding: 3rem 1.5rem;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -1393,77 +1392,66 @@
     gap: 0.75rem;
 }
 
+/* ============================================
+   COMMUNITY PAGE LAYOUT
+   ============================================ */
+.community-page-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
+}
+
+
 /* =========================================
     COMMUNITY PAGE — PHOTO CAROUSEL
    ========================================= */
-
 .carousel-section {
+    margin-top: 1rem;
     margin-bottom: 1.25rem;
 }
 
-.carousel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.75rem;
-}
-
-.carousel-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 0;
-}
-
-.carousel-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
 .carousel-add-btn {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
+    position: absolute;
+    bottom: 0.75rem;
+    right: 0.75rem;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 6px;
-    padding: 0.35rem 0.75rem;
+    padding: 0.4rem 0.75rem;
     font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    transition: all 0.2s;
+    gap: 0.4rem;
+    transition: background 0.2s;
     font-family: 'Inter', sans-serif;
+    z-index: 2;
 }
 
-.carousel-add-btn:hover {
-    background: var(--hover-bg);
-    color: var(--text-primary);
-    border-color: var(--text-secondary);
-}
+.carousel-add-btn:hover { background: rgba(0, 0, 0, 0.85); }
 
 .carousel-delete-btn {
-    background: transparent;
-    border: 1px solid var(--border-color);
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: rgba(0, 0, 0, 0.65);
     color: #ff5252;
+    border: 1px solid rgba(255, 82, 82, 0.4);
     border-radius: 6px;
-    padding: 0.35rem 0.6rem;
+    padding: 0.4rem 0.6rem;
     font-size: 0.8rem;
     cursor: pointer;
     display: flex;
     align-items: center;
-    transition: all 0.2s;
+    transition: background 0.2s;
     font-family: 'Inter', sans-serif;
+    z-index: 2;
 }
 
-.carousel-delete-btn:hover {
-    background: rgba(255, 82, 82, 0.1);
-    border-color: #ff5252;
-}
+.carousel-delete-btn:hover { background: rgba(180, 0, 0, 0.55); }
 
 /* ── Carousel wrapper ── */
 .carousel-wrapper {
@@ -1480,7 +1468,6 @@
 .carousel-empty {
     width: 100%;
     height: 100%;
-    display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
@@ -1563,15 +1550,126 @@
     pointer-events: none;
 }
 
-    /* ── Mobile ── */
-    @media (max-width: 520px) {
-        .community-page-container { padding: 0 1rem; }
+/* ============================================
+   COMMUNITY PAGE — PHOTO MANAGER POPUP
+   Append to communities.css
+   ============================================ */
+.photo-manager-popup {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(10, 10, 10, 0.92);
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 0 12px 12px;
+    padding: 0.75rem;
+    z-index: 10;
+    backdrop-filter: blur(6px);
+}
 
-        .community-page-icon {
-            width: 52px;
-            height: 52px;
-            font-size: 1.5rem;
-        }
+.photo-manager-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
 
-        .community-banner-wrapper { height: 150px; }
+.photo-manager-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.85rem;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.photo-manager-close:hover { color: var(--text-primary); }
+
+.photo-manager-strip {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    /* Hide scrollbar but keep it functional */
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+.photo-manager-strip::-webkit-scrollbar {
+    height: 4px;
+}
+
+.photo-manager-strip::-webkit-scrollbar-track { background: transparent; }
+.photo-manager-strip::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
+.photo-manager-thumb {
+    position: relative;
+    flex-shrink: 0;
+    width: 80px;
+    height: 56px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.photo-manager-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.photo-manager-delete-btn {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ff5252;
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    padding: 0;
+    line-height: 1;
+}
+
+.photo-manager-delete-btn:hover { background: rgba(180, 0, 0, 0.8); }
+
+
+/* ── Mobile ── */
+@media (max-width: 520px) {
+    .community-page-container { padding: 0 1rem; }
+
+    .community-page-icon {
+        width: 52px;
+        height: 52px;
+        font-size: 1.5rem;
     }
+
+    .community-banner-wrapper { height: 150px; }
+}
+
+/* Right column (carousel) stacks on top */
+@media (max-width: 768px) {
+    .community-page-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .community-col-right {
+        order: -1;
+    }
+}
