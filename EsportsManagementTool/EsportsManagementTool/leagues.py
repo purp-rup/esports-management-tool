@@ -1,16 +1,12 @@
 """
 League management module
 Handles CRUD operations for leagues
-Stores images as BLOB data (matching games pattern)
+Stores images as image URLS to Cloudinary DB (matching games pattern)
 """
-from EsportsManagementTool.universal_helpers import get_user_permissions
-from flask import request, jsonify, send_file
-from werkzeug.utils import secure_filename
+from flask import request, jsonify
 import MySQLdb.cursors
-from io import BytesIO
 import cloudinary
 import cloudinary.uploader
-import os
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 

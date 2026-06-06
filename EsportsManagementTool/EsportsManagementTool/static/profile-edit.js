@@ -69,6 +69,9 @@ function setupAvatarFilePreview() {
                 return;
             }
 
+            // Open the universal image cropper with 'avatar' context
+            openImageCropper(file, 'avatar');
+
             // Show preview of selected image
             const reader = new FileReader();
             reader.onload = function(event) {
