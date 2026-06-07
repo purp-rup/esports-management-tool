@@ -596,6 +596,10 @@ def community_page(game_id):
 
         game['image_url'] = f'/game-image/{game_id}' if game['has_image'] else None
 
+        member_counts, team_counts = get_game_stats(cursor, [game_id])
+        game['member_count'] = member_counts.get(game_id, 0)
+        game['team_count'] = team_counts.get(game_id, 0)
+
         permissions = get_user_permissions(session['id'])
         can_edit_banner = (
                 permissions['is_admin'] or

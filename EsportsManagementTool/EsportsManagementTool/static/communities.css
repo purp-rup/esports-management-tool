@@ -543,7 +543,7 @@
     border-radius: 4px;
     color: var(--stockton-blue) !important;
     text-decoration: none;
-    font-size: 0.75rem !important;
+    font-size: 0.5rem !important;
     font-weight: 500;
     transition: all 0.2s;
     width: auto;
@@ -559,8 +559,8 @@
 
 /* League logo - small circular */
 .game-league-badge-logo {
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
@@ -568,24 +568,23 @@
 
 /* League icon (fallback) */
 .game-league-badge-icon {
-    font-size: 0.5625rem;
+    font-size: 0.5rem;
     color: var(--stockton-blue);
     width: 12px;
     text-align: center;
 }
 
-/* League name - compact */
+/* League name */
 .game-league-badge-name {
+    font-size: 0.65rem;
     font-weight: 500;
     white-space: nowrap;
 }
 
-/* External link icon - tiny */
+/* External link icon */
 .game-league-badge-external {
-    font-size: 0.8rem !important;
     opacity: 0.7;
     flex-shrink: 0;
-    margin-top: 0.5rem;
 }
 
 .game-league-badge:hover .game-league-badge-external {
@@ -1281,21 +1280,119 @@
     font-weight: 500;
 }
 
-/* ── Placeholder body ── */
-.community-page-body {
-    margin-top: 1rem;
-    padding: 3rem 1.5rem;
+/* ============================================
+   COMMUNITY PAGE — DESCRIPTION CARD
+   ============================================ */
+.community-description-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    text-align: center;
-    color: var(--text-secondary);
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }
 
-.community-page-body i {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-    display: block;
+.community-description-text {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
+
+.community-description-empty {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.community-card-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 0.75rem 0;
+}
+
+/* ── Stat boxes — smaller than modal variant ── */
+.community-stats-and-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: auto;
+}
+
+.community-stat-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-left: auto;
+}
+
+.community-stat-row.has-leagues {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.community-stat-box {
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.5rem 0.25rem;
+    text-align: center;
+}
+
+.community-stat-box i {
+    color: var(--stockton-blue);
+}
+
+.community-stat-number {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.2rem;
+}
+
+.community-stat-label {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── Member list button ── */
+.community-member-list-btn {
+    padding: 0.6rem 1rem;
+    background: var(--stockton-blue);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: black;
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s;
+}
+
+/* ============================================
+   COMMUNITY PAGE — FORUM PLACEHOLDER
+   ============================================ */
+
+.community-forum-placeholder {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    background: var(--stockton-black);
+    border-radius: 8px;
+    margin-top: 1.25rem;
+}
+
+.community-forum-placeholder i {
+    font-size: 2rem;
     color: var(--border-color);
 }
 
@@ -1399,7 +1496,13 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.25rem;
-    align-items: start;
+    align-items: stretch;
+}
+
+.community-col-left {
+    display: flex;
+    flex-direction: column;
+    margin-top: 1rem;
 }
 
 
@@ -1552,7 +1655,6 @@
 
 /* ============================================
    COMMUNITY PAGE — PHOTO MANAGER POPUP
-   Append to communities.css
    ============================================ */
 .photo-manager-popup {
     position: absolute;

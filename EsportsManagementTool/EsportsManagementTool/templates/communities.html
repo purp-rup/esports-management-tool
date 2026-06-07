@@ -50,9 +50,46 @@
 
         <!-- Left column -->
         <div class="community-col-left">
-            <div class="community-page-body">
-                <i class="fas fa-hammer"></i>
-                <p>Content coming soon.</p>
+            <div class="community-description-card">
+
+                <!-- Description -->
+                {% if game.Description %}
+                    <p class="community-description-text">{{ game.Description }}</p>
+                {% else %}
+                    <p class="community-description-empty">No description provided.</p>
+                {% endif %}
+
+                <!-- Divider -->
+                <div class="community-card-divider"></div>
+
+                <!-- Stats and member list button -->
+                <div class="community-stats-and-btn">
+                    <button class="community-member-list-btn" disabled>
+                        <i class="fas fa-list"></i>
+                        <span>Members</span>
+                    </button>
+                    <div class="community-stat-row">
+                        <div class="community-stat-box" id="communityLeaguesBox" style="display:none;">
+                            <div class="game-leagues-badges" id="communityLeaguesBadges"></div>
+                        </div>
+                        <div class="community-stat-box">
+                            <i class="fas fa-users"></i>
+                            <div class="community-stat-number">{{ game.member_count }}</div>
+                            <div class="community-stat-label">Members</div>
+                        </div>
+                        <div class="community-stat-box">
+                            <i class="fas fa-shield-alt"></i>
+                            <div class="community-stat-number">{{ game.team_count }}</div>
+                            <div class="community-stat-label">Teams</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Forum placeholder -->
+                <div class="community-forum-placeholder">
+                    <i class="fas fa-comments"></i>
+                    <p>Forum coming soon.</p>
+                </div>
             </div>
         </div>
 

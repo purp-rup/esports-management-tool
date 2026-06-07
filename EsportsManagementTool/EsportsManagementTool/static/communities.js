@@ -458,6 +458,47 @@ function updateGameIcon(game) {
     }
 }
 
+/**
+ * ===========================
+ * COMMUNITY PAGE LEAGUES
+ * ==========================
+ */
+async function initCommunityStats(gameId) {
+    const leaguesBox   = document.getElementById('communityLeaguesBox');
+    const leaguesBadges = document.getElementById('communityLeaguesBadges');
+    if (!leaguesBox || !leaguesBadges) return;
+
+    try {
+        const res  = await fetch(`/api/game/${gameId}/current-leagues`);
+        const data = await res.json();
+
+        if (!data.success || !data.leagues?.length) return;
+
+        leaguesBadges.innerHTML = data.leagues.map(league => {
+            const logoHtml = league.logo
+                ? `<img src="${league.logo}" alt="${league.name}" class="game-league-badge-logo">`
+                : '<i class="fas fa-trophy game-league-badge-icon"></i>';
+
+            return league.website_url
+                ? `<a href="${league.website_url}" target="_blank" rel="noopener noreferrer"
+                      class="game-league-badge" title="Visit ${league.name} website">
+                       ${logoHtml}
+                       <span class="game-league-badge-name">${league.name}</span>
+                       <i class="fas fa-external-link-alt game-league-badge-external"></i>
+                   </a>`
+                : `<span class="game-league-badge">
+                       ${logoHtml}
+                       <span class="game-league-badge-name">${league.name}</span>
+                   </span>`;
+        }).join('');
+
+        leaguesBox.style.display = 'block';
+        leaguesBox.closest('.community-stat-row')?.classList.add('has-leagues');
+    } catch (e) {
+        console.error('Error loading community leagues:', e);
+    }
+}
+
 // ============================================
 // COMMUNITY PAGE — PHOTO CAROUSEL
 // ============================================
@@ -680,7 +721,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initCarousel();
     initPhotoUpload();
 
-    if (gameId) loadNextCommunityEvent(gameId);
+    if (gameId)
+        loadNextCommunityEvent(gameId);
+        initCommunityStats(gameId);
 });
 
 // Initialise banner upload behaviour on the community page
