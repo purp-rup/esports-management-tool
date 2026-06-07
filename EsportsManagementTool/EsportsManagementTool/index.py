@@ -5,13 +5,13 @@ import MySQLdb.cursors
 # ============================================
 # LANDING PAGE STATISTICS
 # ============================================
-def index_statistics() -> list[str]:
-    """Returns a list of statistics for use on the landing page."""
+def index_statistics() ->  tuple[list[str], str | None]:
+    """Returns a list of statistics and the season name for use on the landing page."""
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
         season_id = get_season_id(cursor)
-        return get_season_stats(cursor, season_id)
+        return get_season_stats(cursor, season_id), get_season_name(cursor, season_id)
     finally:
         cursor.close()
 
@@ -68,6 +68,17 @@ def get_season_id(cursor) -> int | None:
         return row['season_id']
     return None
 
+def get_season_name(cursor, season_id) -> str | None:
+    """Returns the season name for a given season_id."""
+    cursor.execute("""
+        SELECT season_name
+        FROM seasons
+        WHERE season_id = %s;
+    """, (season_id,))
+    row = cursor.fetchone()
+    if row:
+        return row['season_name']
+    return None
 
 def get_season_stats(cursor, season_id: int) -> list[str]:
     """Returns the season stats for a given season_id."""
@@ -95,9 +106,11 @@ def get_season_stats(cursor, season_id: int) -> list[str]:
     # Total all-member events hosted
     cursor.execute("""
                    SELECT COUNT(*)
-                   FROM generalevents
-                   WHERE visibility = 'all_members';
-                   """)
+                   FROM generalevents ge
+                            JOIN seasons s ON ge.season_id = s.season_id
+                   WHERE visibility = 'all_members'
+                   AND ge.season_id = %s;
+                   """, (season_id,))
     event_count = cursor.fetchone()['COUNT(*)']
 
     # Total communities

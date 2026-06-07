@@ -327,9 +327,9 @@ def index():
         finally:
             cursor.close()
 
-    stats = index_statistics()
+    stats, season_name = index_statistics()
 
-    return render_template('index.html', stats=stats)
+    return render_template('index.html', stats=stats, season_name=season_name)
 
 
 @app.route('/login', methods=['GET', 'POST'])
