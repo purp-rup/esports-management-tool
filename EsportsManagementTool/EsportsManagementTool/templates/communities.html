@@ -64,7 +64,8 @@
 
                 <!-- Stats and member list button -->
                 <div class="community-stats-and-btn">
-                    <button class="community-member-list-btn" disabled>
+                    <button class="community-member-list-btn" id="memberListBtn"
+                            onclick="toggleMemberListPopup()">
                         <i class="fas fa-list"></i>
                         <span>Members</span>
                     </button>
@@ -85,11 +86,26 @@
                     </div>
                 </div>
 
+                <!-- Member list popup -->
+                <div class="member-list-popup" id="memberListPopup" style="display:none;">
+                    <div class="member-popup-arrow"></div>
+                    <input type="text"
+                           id="memberListSearch"
+                           class="member-list-search"
+                           placeholder="Search members..."
+                           oninput="filterListItems('memberListSearch', '#memberListGrid .member-popup-item', ['username', 'name'], 'flex')">
+                    <div class="member-list-popup-grid" id="memberListGrid"></div>
+                    <div class="member-list-popup-empty" id="memberListEmpty" style="display:none;">
+                        No members found.
+                    </div>
+                </div>
+
                 <!-- Forum placeholder -->
                 <div class="community-forum-placeholder">
                     <i class="fas fa-comments"></i>
                     <p>Forum coming soon.</p>
                 </div>
+
             </div>
         </div>
 
@@ -146,48 +162,11 @@
 {% if can_edit_banner %}
     <input type="file" id="photoFileInput" accept="image/*" style="display:none;">
 {% endif %}
-
-<!-- Image Cropper Modal -->
-<div id="imageCropperModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-crop-alt"></i> Crop Image</h2>
-            <button class="modal-close" onclick="closeImageCropper()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-body">
-            <p class="modal-subtitle">Adjust and crop your image</p>
-            <div class="cropper-container-wrapper">
-                <img id="imageToCrop" style="max-width:100%; display:block;">
-            </div>
-            <div class="crop-controls">
-                <button type="button" onclick="cropZoomIn()"><i class="fas fa-search-plus"></i> Zoom In</button>
-                <button type="button" onclick="cropZoomOut()"><i class="fas fa-search-minus"></i> Zoom Out</button>
-                <button type="button" onclick="cropRotateLeft()"><i class="fas fa-undo"></i> Rotate Left</button>
-                <button type="button" onclick="cropRotateRight()"><i class="fas fa-redo"></i> Rotate Right</button>
-                <button type="button" onclick="cropReset()"><i class="fas fa-sync-alt"></i> Reset</button>
-            </div>
-            <p class="crop-preview-text">
-                <i class="fas fa-info-circle"></i>
-                Drag to move &bull; Use corners to resize crop area
-            </p>
-            <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeImageCropper()">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button type="button" class="btn btn-primary" onclick="applyCrop()">
-                    <i class="fas fa-check"></i> Apply Crop
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
 <script src="{{ url_for('static', filename='modalDelete.js') }}"></script>
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <script src="{{ url_for('static', filename='image-cropper.js') }}"></script>

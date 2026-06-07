@@ -573,7 +573,7 @@ def delete_community(game_id):
 
 
 # ==========================================
-# COMMUNITY PAGES (IN PROGRESS)
+# COMMUNITY PAGES
 # ==========================================
 @app.route('/community/<int:game_id>')
 @login_required

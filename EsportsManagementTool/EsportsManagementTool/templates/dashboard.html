@@ -657,93 +657,6 @@
         </div>
     </div>
 
-    <!-- Game Details Modal -->
-    <div id="communityModal" class="modal">
-        <div class="modal-content modal-content-large">
-            <div class="modal-header">
-                <h2 id="communityModalTitle">Game Details</h2>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <!-- GM Button will be inserted here by JavaScript -->
-                    <div id="gmButtonContainer"></div>
-
-                    <button class="modal-close" onclick="closeCommunityModal()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="modal-body">
-                <!-- Loading Spinner -->
-                <div id="gameDetailsLoading" class="loading-spinner" style="text-align: center; padding: 2rem;">
-                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
-                    <p style="color: var(--text-secondary); margin-top: 1rem;">Loading game details...</p>
-                </div>
-
-                <!-- Game Details Content -->
-                <div id="gameDetailsContent" style="display: none;">
-                    <div class="game-details-header">
-                        <div class="game-details-icon" id="gameDetailsIcon"></div>
-                        <div class="game-details-info">
-                            <h3 id="gameDetailsTitle"></h3>
-                            <p id="gameDetailsDescription"></p>
-                        </div>
-                    </div>
-
-                    <!-- Game stats row - now includes next scheduled event -->
-                    <div class="game-stats-and-event">
-                        <div class="game-stats-row">
-                            <div class="game-stat-card">
-                                <i class="fas fa-users"></i>
-                                <div class="game-stat-number" id="gameDetailsMemberCount">0</div>
-                                <div class="game-stat-label">Members</div>
-                            </div>
-                            <div class="game-stat-card">
-                                <i class="fas fa-shield-alt"></i>
-                                <div class="game-stat-number" id="gameDetailsTeamCount">0</div>
-                                <div class="game-stat-label">Teams</div>
-                            </div>
-                        </div>
-
-                        <!-- Next Scheduled Event Card -->
-                        <div id="gameNextScheduledEventContainer" class="game-next-event-container">
-                            <!-- Event will be loaded here -->
-                        </div>
-                    </div>
-
-                    <div class="game-members-section">
-                        <h3>Community Members</h3>
-
-                        <!-- Search input FIRST -->
-                        <input type="text"
-                               id="memberSearch"
-                               placeholder="Search members..."
-                               onkeyup="filterMembers()"
-                               style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px; background: var(--dark-bg); border: 1px solid var(--border-color); color: var(--text-primary);">
-
-                        <!-- Members list SECOND -->
-                        <div id="gameMembersList" class="members-list">
-                            <!-- Members will be populated here -->
-                        </div>
-
-                        <!-- Empty state -->
-                        <div id="gameNoMembers" class="empty-state-small" style="display: none;">
-                            <i class="fas fa-users-slash"></i>
-                            <p>No members yet. Be the first to join!</p>
-                        </div>
-                    </div>
-
-                    <div class="game-details-actions">
-                        <button id="gameDetailsJoinBtn" class="btn btn-success" style="display: none;">
-                            <i class="fas fa-user-plus"></i> <span>Join Community</span>
-                        </button>
-                        <button id="gameDetailsLeaveBtn" class="btn btn-secondary" style="display: none;">
-                            <i class="fas fa-sign-out-alt"></i> <span>Leave Community</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Assign Game Manager Modal -->
     <div id="assignGMModal" class="modal">
         <div class="modal-content">
@@ -1963,6 +1876,7 @@
     </div>
 </div>
 
+<!-- Manage Communities Modal -->
 <div id="manageCommunitiesModal" class="modal">
     <div class="modal-content modal-content-large">
         <div class="modal-header">
@@ -2136,62 +2050,6 @@
                 </p>
                 <button onclick="syncAvatarFromModal()" class="btn btn-primary" style="background-color: #5865F2 !important;">
                     Sync from Discord
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Image Cropper Modal -->
-<div id="imageCropperModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-crop-alt"></i> Crop Image</h2>
-            <button class="modal-close" onclick="closeImageCropper()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-body">
-            <p class="modal-subtitle">Adjust and crop your image to fit perfectly</p>
-
-            <div class="cropper-container-wrapper">
-                <img id="imageToCrop" style="max-width: 100%; display: block;">
-            </div>
-
-            <div class="crop-controls">
-                <button type="button" onclick="cropZoomIn()" title="Zoom In">
-                    <i class="fas fa-search-plus"></i>
-                    <span>Zoom In</span>
-                </button>
-                <button type="button" onclick="cropZoomOut()" title="Zoom Out">
-                    <i class="fas fa-search-minus"></i>
-                    <span>Zoom Out</span>
-                </button>
-                <button type="button" onclick="cropRotateLeft()" title="Rotate Left">
-                    <i class="fas fa-undo"></i>
-                    <span>Rotate Left</span>
-                </button>
-                <button type="button" onclick="cropRotateRight()" title="Rotate Right">
-                    <i class="fas fa-redo"></i>
-                    <span>Rotate Right</span>
-                </button>
-                <button type="button" onclick="cropReset()" title="Reset">
-                    <i class="fas fa-sync-alt"></i>
-                    <span>Reset</span>
-                </button>
-            </div>
-
-            <p class="crop-preview-text">
-                <i class="fas fa-info-circle"></i>
-                Drag to move the image • Use corners to resize crop area
-            </p>
-
-            <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeImageCropper()">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button type="button" class="btn btn-primary" onclick="applyCrop()">
-                    <i class="fas fa-check"></i> Apply Crop
                 </button>
             </div>
         </div>
