@@ -278,37 +278,7 @@ from EsportsManagementTool.email_manager import send_verify_email
 # ============================================
 # LANDING PAGE STATISTICS
 # ============================================
-def index_statistics():
-    # Stores total player count for current season, active team count, and number of all-member events hosted
-    stats = []
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    try:
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM users u JOIN season_roles sr ON u.id = sr.userid
-                JOIN seasons s ON sr.season_id = s.season_id
-            WHERE s.is_active = 1 AND sr.is_player = 1;
-        """)
-        stats.append(cursor.fetchone()['COUNT(*)'])
-
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM teams t JOIN seasons s ON t.season_id = s.season_id
-            WHERE is_active = 1;
-        """)
-        stats.append(cursor.fetchone()['COUNT(*)'])
-
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM generalevents
-            WHERE visibility = 'all_members';
-        """)
-        stats.append(cursor.fetchone()['COUNT(*)'])
-    finally:
-        cursor.close()
-
-    return stats
+from EsportsManagementTool.index import index_statistics
 
 
 # ============================================
