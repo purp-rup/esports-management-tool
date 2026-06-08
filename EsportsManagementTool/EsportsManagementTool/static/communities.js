@@ -91,7 +91,7 @@ function createConfirmModal(title, gameTitle, benefits, note, type, onConfirm) {
 
     const icon = type === 'success' ? 'fa-user-plus' : 'fa-sign-out-alt';
     const headerColor = type === 'success' ? '' : 'style="background-color: #ff9800;"';
-    const btnClass = type === 'success' ? 'btn-success' : 'btn-warning';
+    const btnClass = type === 'success' ? 'join-btn' : 'leave-btn';
     const btnIcon = type === 'success' ? 'fa-check' : 'fa-sign-out-alt';
     const btnText = type === 'success' ? 'Join' : 'Leave';
 
@@ -408,7 +408,7 @@ async function initCommunityStats(gameId) {
         }).join('');
 
         leaguesBox.style.display = 'block';
-        leaguesBox.closest('.community-stat-row')?.classList.add('has-leagues');
+        leaguesBox.closest('.community-card-stat-row')?.classList.add('has-leagues');
     } catch (e) {
         console.error('Error loading community leagues:', e);
     }
@@ -648,8 +648,9 @@ async function toggleMemberListPopup() {
         grid.innerHTML = '';
 
         if (data.success && data.game.members?.length) {
+            const currentUsername = document.getElementById('currentUsername')?.value;
             data.game.members.forEach(member => {
-                const item = createMemberPopupItem(member);
+                const item = createMemberPopupItem(member, data.game.assigned_gm_id, currentUsername);
                 grid.appendChild(item);
             });
         } else {
@@ -680,11 +681,14 @@ function outsideMemberListClick(e) {
 }
 
 // Builds a single user profile element in the member list popup
-function createMemberPopupItem(member) {
+function createMemberPopupItem(member, gmId, currentUsername) {
     const item = document.createElement('div');
     item.className = 'member-popup-item';
     item.setAttribute('data-username', member.username.toLowerCase());
     item.setAttribute('data-name', member.name.toLowerCase());
+
+    if (member.id === gmId)                                    item.classList.add('member-popup-item--gm');
+    if (member.username.toLowerCase() === currentUsername?.toLowerCase()) item.classList.add('member-popup-item--self');
 
     const avatarHtml = member.profile_picture
         ? `<img src="${member.profile_picture}" alt="${member.username}" class="member-avatar">`
@@ -746,15 +750,15 @@ async function loadNextCommunityEvent(gameId) {
                         ${sourceBadge}
                     </div>
                     <div class="game-next-event-content">
-                        <div class="game-next-event-time">
-                            ${event.is_all_day
-                                ? '<i class="fas fa-calendar"></i> All Day'
-                                : `<i class="fas fa-clock"></i> ${event.start_time}`
-                            }
-                        </div>
                         <div class="game-next-event-title">${event.name}</div>
                         <div class="game-next-event-date">
                             <i class="fas fa-calendar-day"></i> ${event.date}
+                        </div>
+                        <div class="game-next-event-time">
+                            ${event.is_all_day || !event.start_time
+                                ? '<i class="fas fa-calendar"></i> All Day'
+                                : `<i class="fas fa-clock"></i> ${event.start_time}`
+                            }
                         </div>
                         <span class="game-next-event-type ${event.event_type.toLowerCase()}">
                             ${event.event_type}

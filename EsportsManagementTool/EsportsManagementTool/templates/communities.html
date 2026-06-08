@@ -10,13 +10,14 @@
  
 {% block content %}
 <input type="hidden" id="communityGameId" value="{{ game.GameID }}">
+<input type="hidden" id="currentUsername" value="{{ session.username }}">
 
 <div class="community-page-container">
 
-    <!-- Breadcrumb -->
-    <nav class="breadcrumb">
+    <!-- nav-bar -->
+    <nav class="nav-bar">
         <a href="{{ url_for('dashboard') }}">Dashboard</a>
-        <span class="breadcrumb-sep"><i class="fas fa-chevron-right" style="font-size:0.65rem;"></i></span>
+        <span class="nav-bar-sep"><i class="fas fa-chevron-right" style="font-size:0.65rem;"></i></span>
         <span>{{ game.GameTitle }}</span>
     </nav>
 
@@ -63,25 +64,25 @@
                 <div class="community-card-divider"></div>
 
                 <!-- Stats and member list button -->
-                <div class="community-stats-and-btn">
+                <div class="community-card-stats-and-btn">
                     <button class="community-member-list-btn" id="memberListBtn"
                             onclick="toggleMemberListPopup()">
                         <i class="fas fa-list"></i>
                         <span>Members</span>
                     </button>
-                    <div class="community-stat-row">
-                        <div class="community-stat-box" id="communityLeaguesBox" style="display:none;">
+                    <div class="community-card-stat-row">
+                        <div class="community-page-stat-box" id="communityLeaguesBox" style="display:none;">
                             <div class="game-leagues-badges" id="communityLeaguesBadges"></div>
                         </div>
-                        <div class="community-stat-box">
-                            <i class="fas fa-users"></i>
-                            <div class="community-stat-number">{{ game.member_count }}</div>
-                            <div class="community-stat-label">Members</div>
+                        <div class="community-page-stat-box">
+                            <i class="fas fa-users community-card-stat-icon"></i>
+                            <div class="community-card-stat-number">{{ game.member_count }}</div>
+                            <div class="community-card-stat-label">Members</div>
                         </div>
-                        <div class="community-stat-box">
-                            <i class="fas fa-shield-alt"></i>
-                            <div class="community-stat-number">{{ game.team_count }}</div>
-                            <div class="community-stat-label">Teams</div>
+                        <div class="community-page-stat-box">
+                            <i class="fas fa-shield-alt community-card-stat-icon"></i>
+                            <div class="community-card-stat-number">{{ game.team_count }}</div>
+                            <div class="community-card-stat-label">Teams</div>
                         </div>
                     </div>
                 </div>
