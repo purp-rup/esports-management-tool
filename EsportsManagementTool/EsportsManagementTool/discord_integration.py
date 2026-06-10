@@ -11,11 +11,13 @@ import requests
 from datetime import datetime, timedelta
 import os
 from EsportsManagementTool import EST
+from io import BytesIO
+import cloudinary
+import cloudinary.uploader
 
 # Discord OAuth2 Configuration
 DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID')
 DISCORD_CLIENT_SECRET = os.getenv('DISCORD_CLIENT_SECRET')
-DISCORD_REDIRECT_URI = os.getenv('DISCORD_REDIRECT_URI', 'http://localhost:5000/discord/callback')
 
 # Discord API endpoints
 DISCORD_API_BASE = 'https://discord.com/api/v10'
@@ -272,8 +274,8 @@ def get_discord_info():
 @app.route('/discord/sync-avatar', methods=['POST'])
 def sync_discord_avatar():
     """
-    Syncs Discord profile picture to user's profile
-    Downloads Discord avatar and saves it to static/uploads/avatars/
+    Syncs Discord profile picture to user's profile via Cloudinary
+    Downloads Discord avatar and uploads it to Cloudinary
     Decrypts discord_id for avatar URL construction
     """
     if 'loggedin' not in session:
@@ -282,7 +284,7 @@ def sync_discord_avatar():
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         cursor.execute("""
-            SELECT discord_id, discord_avatar, access_token
+            SELECT discord_id, discord_avatar, access_token, cloudinary_public_id
             FROM discord
             WHERE userid = %s
         """, (session['id'],))
@@ -303,45 +305,52 @@ def sync_discord_avatar():
         
         if not decrypted_discord_id or not access_token:
             cursor.close()
-            return jsonify({'success': False, 'message': 'Failed to decrypt Discord data. Please reconnect your Discord account.'}), 500
-        
+            return jsonify({'success': False,
+                            'message': 'Failed to decrypt Discord data. Please reconnect your Discord account.'}), 500
+
         # Build avatar URL using decrypted discord_id
         avatar_url = f"https://cdn.discordapp.com/avatars/{decrypted_discord_id}/{discord_data['discord_avatar']}.png?size=512"
         
         # Download the avatar image
         avatar_response = requests.get(avatar_url)
         avatar_response.raise_for_status()
-        
-        # Create filename based on user ID
-        filename = f"user_{session['id']}.png"
-        
-        # Determine the upload path
-        upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'avatars')
-        
-        # Create directory if it doesn't exist
-        os.makedirs(upload_dir, exist_ok=True)
-        
-        # Full file path
-        filepath = os.path.join(upload_dir, filename)
-        
-        # Save the image
-        with open(filepath, 'wb') as f:
-            f.write(avatar_response.content)
-        
-        # Update user's profile_picture in database
+
+        # Get old Cloudinary public_id if it exists (for deletion)
+        old_public_id = discord_data.get('cloudinary_public_id')
+
+        # Delete old image from Cloudinary if it exists
+        if old_public_id:
+            cloudinary.uploader.destroy(old_public_id)
+
+        # Wrap image bytes in BytesIO to upload to Cloudinary
+        image_file = BytesIO(avatar_response.content)
+        image_file.name = f"discord_avatar_{session['id']}.png"
+
+        # Upload to Cloudinary
+        upload_result = cloudinary.uploader.upload(
+            image_file,
+            folder='profile_pictures/',
+            transformation=[{'width': 400, 'height': 400, 'crop': 'fill'}]
+        )
+
+        picture_url = upload_result.get('secure_url')
+        public_id = upload_result.get('public_id')
+
+        # Update user's profile_picture in database with Cloudinary URL
         cursor.execute("""
             UPDATE users 
-            SET profile_picture = %s 
+            SET profile_picture = %s,
+                cloudinary_public_id = %s
             WHERE id = %s
-        """, (filename, session['id']))
-        
+        """, (picture_url, public_id, session['id']))
+
         mysql.connection.commit()
         cursor.close()
         
         return jsonify({
             'success': True,
             'message': 'Profile picture synced successfully!',
-            'avatar_url': f"/static/uploads/avatars/{filename}"
+            'avatar_url': picture_url
         })
         
     except requests.exceptions.RequestException as e:
