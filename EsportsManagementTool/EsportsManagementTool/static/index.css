@@ -314,6 +314,12 @@ body {
     border-bottom: 1px solid var(--border-color);
 }
 
+.stats h1 {
+    text-align: center;
+    padding-bottom: 4rem;
+    font-size: clamp(2rem, 3vw, 2.5rem);
+}
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

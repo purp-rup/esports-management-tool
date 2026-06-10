@@ -276,6 +276,12 @@ from EsportsManagementTool.email_manager import send_verify_email
 
 
 # ============================================
+# LANDING PAGE STATISTICS
+# ============================================
+from EsportsManagementTool.index import index_statistics
+
+
+# ============================================
 # AUTHENTICATION ROUTES
 # ============================================
 @app.route('/')
@@ -321,7 +327,9 @@ def index():
         finally:
             cursor.close()
 
-    return render_template('index.html')
+    stats, season_name = index_statistics()
+
+    return render_template('index.html', stats=stats, season_name=season_name)
 
 
 @app.route('/login', methods=['GET', 'POST'])
