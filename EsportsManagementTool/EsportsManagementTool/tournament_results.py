@@ -15,7 +15,7 @@ PLACEMENT_OPTIONS = [
     'Semifinals', 
     'Quarterfinals',
     'Playoffs',
-    'Regular Season'
+    'Did Not Qualify'
 ]
 
 
@@ -208,6 +208,9 @@ def register_tournament_results_routes(app, mysql, login_required, roles_require
         """
         Check if current GM has pending tournament results to record
         Returns count and whether to show notification banner
+
+        Banner display schedule:
+        - Shown continuously from 21 days before season end through the final day
         """
         gm_id = session.get('id')
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -235,8 +238,10 @@ def register_tournament_results_routes(app, mysql, login_required, roles_require
             # Calculate days until season end
             days_until_end = (end_date - datetime.now().date()).days
             
-            # Only show notification if within 30 days of season end
-            if days_until_end > 7 or days_until_end < 0:
+            # Show banner continuously from 21 days before season end
+            show_banner = 0 <= days_until_end <= 21
+            
+            if not show_banner:
                 return jsonify({
                     'success': True,
                     'has_pending': False,
@@ -365,7 +370,7 @@ def get_tournament_results_for_season(mysql, season_id=None):
             'Semifinals': 'semifinals',
             'Quarterfinals': 'quarterfinals',
             'Playoffs': 'playoffs',
-            'Regular Season': 'regular_season'
+            'Did Not Qualify': 'regular_season'
         }
         
         for result in results:

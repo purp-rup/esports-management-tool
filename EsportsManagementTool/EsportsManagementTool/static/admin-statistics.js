@@ -199,7 +199,7 @@ function exportToExcel() {
     csvContent += `Semifinals,${window.statisticsData.tournament_placements.semifinals}\n`;
     csvContent += `Quarterfinals,${window.statisticsData.tournament_placements.quarterfinals}\n`;
     csvContent += `Playoffs,${window.statisticsData.tournament_placements.playoffs}\n`;
-    csvContent += `Regular Season,${window.statisticsData.tournament_placements.regular_season}\n`;
+    csvContent += `Did Not Qualify,${window.statisticsData.tournament_placements.regular_season}\n`;
     csvContent += `In Progress,${window.statisticsData.tournament_placements.in_progress}\n`;
     csvContent += "\n";
     

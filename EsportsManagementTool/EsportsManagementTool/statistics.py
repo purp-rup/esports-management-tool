@@ -524,7 +524,7 @@ class EsportsStatistics:
                 'Semifinals': 'semifinals',
                 'Quarterfinals': 'quarterfinals',
                 'Playoffs': 'playoffs',
-                'Regular Season': 'regular_season'
+                'Did Not Qualify': 'regular_season'
             }
             
             for row in placements_data:
