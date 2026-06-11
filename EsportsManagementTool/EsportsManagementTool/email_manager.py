@@ -162,7 +162,7 @@ def send_reminder_email(user_email, user_firstname, season_name, game_title, pen
                                     Semifinals (3rd–4th place)<br>
                                     Quarterfinals (5th–8th place)<br>
                                     Playoffs (made playoffs)<br>
-                                    Regular Season (did not make playoffs)
+                                    Did Not Qualify (DNQ)
                                 </p>
                                 <p style="font-size: 15px;">Thank you for your prompt attention to this matter.</p>
                             </div>

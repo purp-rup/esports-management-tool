@@ -37,6 +37,7 @@ def check_and_send_reminders(app, mysql):
     Check for seasons nearing end and send reminders to GMs
     
     Reminder schedule:
+    - One reminder at exactly 21 days before end
     - One reminder at exactly 7 days before end
     - Daily reminders for last 3 days
     """
@@ -44,13 +45,13 @@ def check_and_send_reminders(app, mysql):
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
         try:
-            # Get active seasons within 7 days of ending
+            # Get active seasons within 21 days of ending
             cursor.execute("""
                 SELECT season_id, season_name, end_date
                 FROM seasons
                 WHERE is_active = 1
                 AND end_date >= CURDATE()
-                AND end_date <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+                AND end_date <= DATE_ADD(CURDATE(), INTERVAL 21 DAY)
             """)
             
             seasons = cursor.fetchall()
@@ -63,10 +64,9 @@ def check_and_send_reminders(app, mysql):
                 
                 print(f"Checking reminders for {season_name} - {days_until_end} days until end")
                 
-                # Determine if we should send reminders today:
-                # - Exactly 7 days out: one early warning
-                # - Last 3 days: daily reminders
-                should_send = days_until_end <= 3 or days_until_end == 7
+                # Send reminders:
+                # - Exactly 21 days out, exactly 7 days out, last 3 days
+                should_send = days_until_end <= 3 or days_until_end == 7 or days_until_end == 21
                 
                 if should_send:
                     send_season_reminders(mysql, season_id, season_name, end_date, days_until_end)
