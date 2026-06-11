@@ -107,16 +107,14 @@ def send_event_notification(user_email, user_firstname, event_type, start_time, 
                             <br>
                             <p style="text-align: left; font-weight: bold;">Hello, {user_firstname}!</p>
                             <div style="padding-left: 15px;">
-                                <p style="font-size: 15px;">This is a reminder about your upcoming {event_type.lower()}:</p>
+                                <p style="font-size: 15px;">This is a reminder about your <strong>upcoming {event_type.lower()}:</strong></p>
+                                <p style="font-size: 18px;">🎮 {event_details['EventName']} 🎮<br>
                                 <p style="font-size: 15px;">
-                                    <strong>Event:</strong> {event_details['EventName']}<br>
-                                    <strong>Date:</strong> {event_details['date'].strftime('%B %d, %Y')}<br>
-                                    <strong>Time:</strong> {start_time.strftime('%I:%M %p')}<br>
-                                    <strong>Location:</strong> {event_details['location']}
+                                    📍 {event_details['location']}<br>
+                                    📅 {event_details['date'].strftime('%B %d, %Y')}<br>
+                                    🕑 {start_time.strftime('%I:%M %p')}
                                 </p>
-                                <p style="font-size: 15px;"><strong>Event Details:</strong><br>
-                                    {event_details.get('description', 'No additional details')}
-                                </p>
+                                <p style="font-size: 15px;">{event_details.get('description', 'No additional details')}</p>
                                 <p style="font-size: 15px;">We look forward to seeing you there!</p>
                             </div>
                             <p style="text-align: left;">- EsMT Team</p>
@@ -266,7 +264,7 @@ def register_test_routes(app):
             from datetime import date, time
             send_event_notification("test@go.stockton.edu","testfirstname","Match", datetime.now(),
                 {
-                    'EventName': 'Test Match',
+                    'EventName': 'Test Event Name',
                     'date': date.today(),
                     'location': 'Esports Lab',
                     'description': 'description description description description description description description description'
