@@ -121,25 +121,6 @@ async function loadGames() {
 }
 
 /**
- * Display games in grid layout
- * Creates game cards with stats, actions, and membership status
- * @param {Array} games - Array of game objects from API
- */
-async function displayGames(games) {
-    const gridDiv = document.getElementById('rostersGrid');
-    gridDiv.className = 'rosters-grid';
-    gridDiv.innerHTML = '';
-
-    // Check if current user is admin for delete permissions
-    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
-
-    for (const game of games) {
-        const card = createGameCard(game, isAdmin);
-        gridDiv.appendChild(card);
-    }
-}
-
-/**
  * Create a game card element
  * @param {Object} game - Game object from API
  * @param {boolean} isAdmin - Whether current user is admin
@@ -147,7 +128,7 @@ async function displayGames(games) {
  */
 function createGameCard(game, isAdmin) {
     const card = document.createElement('div');
-    card.className = 'roster-card';
+    card.className = 'community-card';
 
     // Extract game data
     const memberCount = game.member_count || 0;
@@ -159,7 +140,7 @@ function createGameCard(game, isAdmin) {
     const iconHTML = game.ImageURL
         ? `<img src="${game.ImageURL}"
                 alt="${game.GameTitle}"
-                class="roster-game-image"
+                class="community-logo"
                 onerror="this.onerror=null; this.parentElement.innerHTML='<i class=&quot;fas fa-gamepad&quot;></i>';">`
         : `<i class="fas fa-gamepad"></i>`;
 
@@ -169,7 +150,7 @@ function createGameCard(game, isAdmin) {
                     onclick="confirmLeaveGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')">
                 <i class="fas fa-sign-out-alt"></i> Leave Community
            </button>`
-        : `<button class="btn btn-success"
+        : `<button class="btn join-btn"
                     onclick="confirmJoinGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')">
                 <i class="fas fa-user-plus"></i> Join Community
            </button>`;
@@ -191,34 +172,31 @@ function createGameCard(game, isAdmin) {
 
     // Build complete card HTML
     card.innerHTML = `
-        <div class="roster-card-header">
-            <div class="roster-icon">
+        <div class="community-card-header">
+            <div class="community-default-icon">
                 ${iconHTML}
             </div>
-            <h3 class="roster-card-title">
+            <h3 class="community-card-title">
                 ${game.GameTitle}
                 ${memberBadge}
             </h3>
         </div>
-        <p class="roster-card-description">${game.Description}</p>
 
-        <div class="roster-card-meta">
-            <div class="roster-stat">
-                <i class="fas fa-users roster-stat-icon"></i>
-                <div class="roster-stat-number">${memberCount}</div>
-                <div class="roster-stat-label">Members</div>
+        <div class="community-card-info">
+            <div class="community-card-stat">
+                <i class="fas fa-users community-card-stat-icon"></i>
+                <div class="community-card-stat-number">${memberCount}</div>
+                <div class="community-card-stat-label">Members</div>
             </div>
-            <div class="roster-stat">
-                <i class="fas fa-shield-alt roster-stat-icon"></i>
-                <div class="roster-stat-number">${teamCount}</div>
-                <div class="roster-stat-label">Teams</div>
+            <div class="community-card-stat">
+                <i class="fas fa-shield-alt community-card-stat-icon"></i>
+                <div class="community-card-stat-number">${teamCount}</div>
+                <div class="community-card-stat-label">Teams</div>
             </div>
         </div>
 
-        <div class="roster-card-actions">
-            <button class="btn btn-primary" onclick="openCommunityModal(${game.GameID})">
-                <i class="fas fa-eye"></i> View Details
-            </button>
+        <div class="community-card-actions">
+            <a class="btn btn-primary" href="/community/${game.GameID}">View Details</a>
             ${joinButtonHTML}
             ${createTeamButtonHTML}
         </div>
@@ -646,7 +624,6 @@ window.setupGameImagePreview = setupGameImagePreview;
 
 // Game loading and display
 window.loadGames = loadGames;
-window.displayGames = displayGames;
 window.loadGamesForDropdown = loadGamesForDropdown;
 window.refreshAllGameDropdowns = refreshAllGameDropdowns;
 

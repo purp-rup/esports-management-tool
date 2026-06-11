@@ -1,74 +1,39 @@
 /* ============================================
-   COMMUNITIES STYLES - STOCKTON ESPORTS
-   Stylesheet for game rosters and communities
-   ORGANIZED BY CLAUDEAI
+   COMMUNITIES STYLES
+   - community cards
+   - community tab division display
+   - community pages
    ============================================ */
 
-/* --------------------------------------------
-   ROSTERS GRID LAYOUT
-   2-column grid for roster cards
-   -------------------------------------------- */
-.rosters-grid {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 1.5rem !important;
-    margin-top: 1.5rem !important;
-    max-width: 100% !important;
-}
-
-/* --------------------------------------------
-   ROSTER CARDS
-   Individual game/roster card components
-   -------------------------------------------- */
-.roster-card {
-    background: var(--dark-bg);
+/* =========================================
+    COMMUNITY CARDS
+   ========================================= */
+.community-card {
     border: 2px solid var(--border-color);
     border-radius: 12px;
-    /* Extra space for delete button */
     padding: 1.25rem 1.25rem;
     transition: all 0.2s;
     cursor: pointer;
     display: flex;
     flex-direction: column;
-    position: relative; /* For absolute positioning of delete button */
+    position: relative;
     overflow: auto;
 }
 
-.roster-card:hover {
+.community-card:hover {
     border-color: var(--stockton-blue);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(121, 189, 233, 0.2);
 }
 
-.roster-card:hover .game-delete-btn {
-    opacity: 1;
-}
-
-/* Roster card header */
-.roster-card-header {
+.community-card-header {
     display: flex;
     align-items: center;
     gap: 1rem;
     margin-bottom: 0.75rem;
 }
 
-.roster-card-title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0;
-}
-
-.roster-card-description {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    line-height: 1.4;
-    margin-bottom: 0.75rem;
-    flex-grow: 0;
-}
-
-/* Roster icon/image */
-.roster-icon {
+.community-default-icon {
     width: 40px;
     height: 40px;
     background: rgba(121, 189, 233, 0.15);
@@ -83,136 +48,98 @@
     position: relative;
 }
 
-.roster-game-image {
+.community-logo {
     width: 100%;
     height: 100%;
     object-fit: cover;
     border-radius: 10px;
-}
-
-/* Delete button */
-.game-delete-btn {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    width: 24px;
-    height: 24px;
-    border: none;
-    border-radius: 4px;
-    background-color: #ff5252;
-    color: white;
-    cursor: pointer;
-    display: flex;
     align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    z-index: 10;
-    font-size: 0.875rem;
-    opacity: 0.9;
 }
 
-.game-delete-btn:hover {
-    background-color: #ff1744;
-    opacity: 1;
-    transform: scale(1.1);
+.community-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
 }
 
-.game-delete-btn:active {
-    transform: scale(0.95);
-}
-
-.game-delete-btn i {
-    pointer-events: none;
-}
-
-/* --------------------------------------------
-   ROSTER CARD STATISTICS
-   Member/event count display
-   -------------------------------------------- */
-.roster-card-meta {
+.community-card-info {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
     padding: 0.75rem 0;
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 0.75rem;
-    text-align: center;
 }
 
-.roster-stat {
+.community-card-stat {
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-.roster-stat-icon {
+.community-card-stat-icon {
     color: var(--stockton-blue);
-    font-size: 1rem;
     margin-bottom: 0.25rem;
 }
 
-.roster-stat-number {
-    font-size: 1.25rem;
-    font-weight: 700;
+.community-card-stat-number {
+    font-weight: 600;
     color: var(--text-primary);
+    margin-bottom: 0.2rem;
     line-height: 1;
 }
 
-.roster-stat-label {
-    font-size: 0.75rem;
+.community-card-stat-label {
+    font-size: 0.6rem;
     color: var(--text-secondary);
-    margin-top: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
-/* --------------------------------------------
-   ROSTER CARD ACTIONS
-   Buttons at bottom of cards
-   -------------------------------------------- */
-.roster-card-actions {
+.community-card-actions {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 0.75rem;
     margin-top: auto;
 }
 
-.roster-card-actions .btn {
+.community-card-actions .btn {
     font-size: 0.875rem;
-    padding: 0.625rem 1.25rem;
-    white-space: nowrap;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
 }
 
-@media (max-width: 590px) {
-    .roster-card-actions {
-        grid-template-columns: 1fr;
-    }
+/* Member badge to show joined communities */
+.member-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #4CAF50;
+    margin-left: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 4px;
 }
 
-.btn-sm {
-    padding: 0.5rem 1rem;
+.member-badge i {
     font-size: 0.875rem;
 }
 
 /* ============================================
-   DIVISION FOLDER SYSTEM FOR COMMUNITIES
-   Collapsible division grouping similar to teams
+   COMMUNITY DIVISION FOLDER SYSTEM
+   Collapsed Division Folder
    ============================================ */
 .rosters-grid-divisions {
     display: flex !important;
-    flex-direction: column !important;
-    gap: 1.5rem !important;
-    margin-top: 1.5rem !important;
-    max-width: 100% !important;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    max-width: 100%;
 }
 
-/* --------------------------------------------
-   COLLAPSED DIVISION FOLDER
-   Compact view showing division name and count
-   -------------------------------------------- */
 .division-folder-collapsed {
     background: var(--dark-bg);
     border: 2px solid var(--border-color);
@@ -258,10 +185,6 @@
     transform: scale(1.05);
 }
 
-.division-collapse-btn i {
-    font-size: 0.875rem;
-}
-
 .division-folder-info {
     display: flex;
     align-items: center;
@@ -283,28 +206,19 @@
     flex-shrink: 0;
 }
 
-.division-details {
-    flex: 1;
-    min-width: 0;
-}
-
 .division-name {
-    margin: 0;
     font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-primary);
 }
 
 .division-count {
-    margin: 0.25rem 0 0 0;
     font-size: 0.875rem;
     color: var(--text-secondary);
 }
 
-/* --------------------------------------------
-   EXPANDED DIVISION BOX
-   Container showing division header + games grid
-   -------------------------------------------- */
+/* ============================================
+   COMMUNITY DIVISION FOLDER SYSTEM
+   Expanded Division Folder
+   ============================================ */
 .division-box-expanded {
     background: var(--dark-bg);
     border: 2px solid var(--border-color);
@@ -333,25 +247,15 @@
     font-size: 1.25rem;
 }
 
-.division-box-header .division-name {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    flex: 1;
-}
-
-/* Games grid inside expanded division */
 .division-games-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
 }
 
-/* --------------------------------------------
-   DIVISION-SPECIFIC COLORS
-   Optional: Different colors per division
-   -------------------------------------------- */
+/* =============================
+   DIVISION COLORS
+   ============================= */
 .division-box-expanded[data-division="Strategy"] .division-icon,
 .division-folder-collapsed[data-division="Strategy"] .division-icon {
     background: linear-gradient(135deg, #8b5cf6, #6d28d9);
@@ -372,215 +276,715 @@
     background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
-/* --------------------------------------------
-   GAME CARDS WITHIN DIVISIONS
-   Adjustments for cards inside division boxes
-   -------------------------------------------- */
-.division-games-grid .roster-card {
-    margin: 0; /* Remove any default margin */
-}
-
-/* --------------------------------------------
-   RESPONSIVE DESIGN
-   Mobile and tablet adaptations
-   -------------------------------------------- */
-@media (max-width: 1400px) {
-    .division-games-grid {
-        grid-template-columns: 2fr;
-    }
-}
-
-@media (max-width: 640px) {
-    .division-games-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 768px) {
-    .division-folder-header {
-        flex-wrap: wrap;
-    }
-
-    .division-box-header {
-        flex-wrap: wrap;
-    }
-
-    .division-collapse-btn {
-        width: 32px;
-        height: 32px;
-        min-width: 32px;
-    }
-
-    .division-icon {
-        width: 40px;
-        height: 40px;
-        min-width: 40px;
-        font-size: 1.25rem;
-    }
-
-    .division-name {
-        font-size: 1.125rem;
-    }
-
-    .division-box-expanded {
-        padding: 1rem;
-    }
-}
-
-/* --------------------------------------------
-   GAME DETAILS MODAL
-   Modal displaying full game information
-   -------------------------------------------- */
-#communityModal {
-    z-index: 10001; /* Higher than manageCommunitiesModal */
-}
-
-/* Modal header section */
-.game-details-header {
-    display: flex;
+/* ==============================
+   PROFILE TAB COMMUNITIES
+   ============================== */
+.my-communities-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1.5rem;
-    align-items: flex-start;
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 2px solid var(--border-color);
+    width: 100%;
 }
 
-.game-details-icon {
-    width: 80px;
-    height: 80px;
+.community-card-small {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.community-card-small:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.community-icon-container {
+    width: 60px;
+    height: 60px;
     background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
-    border-radius: 12px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 2.5rem;
-    flex-shrink: 0;
+    font-size: 1.75rem;
 }
 
-.game-details-icon img {
+.community-icon-small {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 12px;
+    border-radius: 8px;
 }
 
-.game-details-info {
+.community-info-small h4 {
+    margin-top: 0.25rem;
+}
+
+.community-joined {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+/* ===============================
+   COMMUNITY BUTTONS
+   =============================== */
+.join-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.join-btn:hover {
+    background-color: #388E3C;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.join-btn:active {
+    transform: translateY(0);
+}
+
+.leave-btn {
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.leave-btn:hover {
+    background-color: #f57c00;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
+}
+
+/* ========================
+   EMPTY STATES
+   ======================= */
+.empty-state-small {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--text-secondary);
+}
+
+.empty-state-small i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+}
+
+.empty-state-small p {
+    margin: 0;
+}
+
+/* ==============================
+   COMMUNITIES PAGE
+   ============================== */
+.community-page-container {
+    max-width: 1100px;
+    margin: 2rem auto;
+    padding: 0 2rem;
+}
+
+.community-page-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+
+.community-col-left {
+    display: flex;
+    margin-top: 1rem;
+}
+
+.nav-bar {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.nav-bar a {
+    color: var(--stockton-blue);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.nav-bar a:hover { color: #5aabdd; }
+
+.nav-bar-sep { color: var(--border-color); }
+
+/* -- Banner -- */
+.community-banner-wrapper {
+    position: relative;
+    width: 100%;
+    height: 220px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+}
+
+.community-banner-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.community-banner-empty {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.community-banner-empty i {
+    font-size: 2rem;
+    color: var(--border-color);
+}
+
+.banner-upload-btn {
+    position: absolute;
+    bottom: 0.75rem;
+    right: 0.75rem;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: 'Inter', sans-serif;
+}
+
+.banner-upload-btn:hover { background: rgba(0,0,0,0.85); }
+
+/* -- Description Card -- */
+.community-description-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    flex-direction: column;
+    display: flex;
+    position: relative;
     flex: 1;
 }
 
-.game-details-info h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.5rem;
+.community-description-text {
+    font-size: 0.9rem;
     color: var(--text-primary);
+    line-height: 1.7;
+    white-space: pre-wrap;
 }
 
-.game-details-info p {
-    margin: 0;
+.community-description-empty {
+    font-size: 0.875rem;
     color: var(--text-secondary);
-    line-height: 1.6;
+    font-style: italic;
 }
 
-/* --------------------------------------------
-   GAME STATISTICS DISPLAY
-   Stats cards in game details modal
-   -------------------------------------------- */
-.game-stats-and-event {
+.community-card-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 0.75rem 0;
+}
+
+/* ── Stat boxes ── */
+.community-card-stats-and-btn {
     display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: auto;
+    position: relative;
 }
 
-.game-stats-row {
+.community-card-stat-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-    margin-bottom: 0.25rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-left: auto;
 }
 
-.game-stat-card {
-    background: var(--card-background);
-    padding: 1.5rem;
+.community-card-stat-row.has-leagues {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.community-page-stat-box {
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
+    padding: 0.5rem 0.25rem;
     text-align: center;
-    border: 2px solid var(--border-color);
 }
 
-.game-stat-card i {
-    font-size: 2rem;
-    color: var(--stockton-blue);
-    margin-bottom: 0.5rem;
-}
-
-.game-stat-number {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0.5rem 0;
-}
-
-.game-stat-label {
+ /* ── Member list ── */
+.community-member-list-btn {
+    padding: 0.6rem 1rem;
+    background: var(--stockton-blue);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: black;
     font-size: 0.875rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* ============================================
-   LEAGUE BADGES - CONSISTENT STYLING
-   Unified league badge design for teams and games
-   ============================================ */
-
-/* --------------------------------------------
-   GAME DETAILS MODAL - LEAGUE BADGES
-   -------------------------------------------- */
-
-/* League stat card - special styling without number */
-.game-stat-card.leagues-card {
+    font-weight: 500;
+    font-family: 'Inter', sans-serif;
     display: flex;
-    flex-direction: column;
-    padding: 1.25rem 1rem;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s;
 }
 
-.game-stat-card.leagues-card > i {
-    font-size: 2rem;
-    color: var(--stockton-blue);
-    margin-bottom: 0.25rem;
+.member-list-popup {
+    position: absolute;
+    width: 320px;
+    background: #161616;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem;
+    z-index: 50;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
-.game-stat-card.leagues-card .game-stat-label {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.5rem;
+.member-popup-arrow {
+    position: absolute;
+    top: -8px;
+    left: 20px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid #161616;
+    pointer-events: none;
+    filter: drop-shadow(0 -1px 0 var(--border-color));
 }
 
-/* League badges container - horizontal inline */
-.game-leagues-badges {
+.member-list-search {
+    width: 100%;
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.45rem 0.75rem;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    font-family: 'Inter', sans-serif;
+    margin-bottom: 0.75rem;
+    outline: none;
+}
+
+.member-list-search:focus {
+    border-color: var(--stockton-blue);
+}
+
+.member-list-popup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    max-height: 98px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+.member-list-popup-grid::-webkit-scrollbar { width: 4px; }
+.member-list-popup-grid::-webkit-scrollbar-track { background: transparent; }
+.member-list-popup-grid::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
+.member-popup-item {
     display: flex;
     flex-direction: row;
+    align-items: center;
     gap: 0.5rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    background: #00080F;
+    border: 1px solid var(--border-color);
+    cursor: default;
+}
+
+.member-popup-item .member-avatar,
+.member-popup-item .member-avatar-initials {
+    width: 28px;
+    height: 28px;
+    font-size: 0.7rem;
+    border-radius: 50%;
+}
+
+.member-popup-username {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.member-list-loading {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    padding: 1rem 0;
+    grid-column: 1 / -1;
+}
+
+.member-list-popup-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    padding: 0.5rem 0;
+}
+
+/* -- Special member borders -- */
+.member-popup-item--gm {
+    border-color: var(--stockton-yellow);
+}
+
+.member-popup-item--self {
+    border-color: var(--stockton-blue);
+}
+
+.member-popup-item--gm.member-popup-item--self {
+    border-color: var(--stockton-yellow);
+}
+
+/* -- Forum Placeholder */
+.community-forum-placeholder {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 100%;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    background: var(--stockton-black);
+    border-radius: 8px;
+    margin-top: 1.25rem;
+}
+
+.community-forum-placeholder i {
+    font-size: 2rem;
+    color: var(--border-color);
+}
+
+/* ── Cropper modal ── */
+.cropper-container-wrapper {
+    height: 300px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #000;
+}
+
+.crop-controls {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 1rem 0;
     flex-wrap: wrap;
 }
 
-/* League badge - compact horizontal pills */
-.game-league-badge {
-    display: inline-flex !important;
+.crop-controls button {
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
     align-items: center;
     gap: 0.35rem;
-    padding: 0.25rem 0.5rem !important;
+    transition: background 0.2s;
+}
+
+.crop-controls button:hover { background: var(--border-color); }
+
+.crop-preview-text {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+/* -- Photo Carousel -- */
+.carousel-section {
+    margin-top: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.carousel-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+}
+
+.carousel-empty {
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.carousel-empty i {
+    font-size: 2rem;
+    color: var(--border-color);
+}
+
+/* ── Slides ── */
+.carousel-track {
+    width: 100%;
+    height: 100%;
+}
+
+.carousel-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.carousel-slide.active {
+    opacity: 1;
+}
+
+.carousel-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.carousel-arrows {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0.75rem;
+    pointer-events: none;
+}
+
+.carousel-arrow {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: all;
+    transition: background 0.2s;
+    font-size: 0.85rem;
+}
+
+.carousel-arrow:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.carousel-counter {
+    position: absolute;
+    bottom: 0.6rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    pointer-events: none;
+}
+
+.carousel-add-btn {
+    position: absolute;
+    bottom: 0.75rem;
+    right: 0.75rem;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: background 0.2s;
+    font-family: 'Inter', sans-serif;
+    z-index: 2;
+}
+
+.carousel-add-btn:hover { background: rgba(0, 0, 0, 0.85); }
+
+.carousel-delete-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: rgba(0, 0, 0, 0.65);
+    color: #ff5252;
+    border: 1px solid rgba(255, 82, 82, 0.4);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.2s;
+    font-family: 'Inter', sans-serif;
+    z-index: 2;
+}
+
+.carousel-delete-btn:hover { background: rgba(180, 0, 0, 0.55); }
+
+/* -- Photo Manager Popup -- */
+.photo-manager-popup {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(10, 10, 10, 0.92);
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 0 12px 12px;
+    padding: 0.75rem;
+    z-index: 10;
+    backdrop-filter: blur(6px);
+}
+
+.photo-manager-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.photo-manager-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.85rem;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.photo-manager-close:hover { color: var(--text-primary); }
+
+.photo-manager-strip {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+
+.photo-manager-strip::-webkit-scrollbar {
+    height: 4px;
+}
+
+.photo-manager-strip::-webkit-scrollbar-track { background: transparent; }
+.photo-manager-strip::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
+.photo-manager-thumb {
+    position: relative;
+    width: 80px;
+    height: 56px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.photo-manager-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.photo-manager-delete-btn {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ff5252;
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    padding: 0;
+    line-height: 1;
+}
+
+.photo-manager-delete-btn:hover { background: rgba(180, 0, 0, 0.8); }
+
+/* -- League Badges -- */
+.game-league-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.5rem;
     background: rgba(121, 189, 233, 0.1);
     border: 1px solid rgba(121, 189, 233, 0.3);
     border-radius: 4px;
-    color: var(--stockton-blue) !important;
+    color: var(--stockton-blue);
     text-decoration: none;
-    font-size: 0.75rem !important;
-    font-weight: 500;
+    font-size: 0.5rem;
     transition: all 0.2s;
     width: auto;
     line-height: 1.2;
@@ -593,49 +997,36 @@
     box-shadow: 0 2px 4px rgba(121, 189, 233, 0.3);
 }
 
-/* League logo - small circular */
 .game-league-badge-logo {
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
 }
 
-/* League icon (fallback) */
 .game-league-badge-icon {
-    font-size: 0.5625rem;
+    font-size: 0.5rem;
     color: var(--stockton-blue);
     width: 12px;
     text-align: center;
 }
 
-/* League name - compact */
 .game-league-badge-name {
+    font-size: 0.65rem;
     font-weight: 500;
-    white-space: nowrap;
 }
 
-/* External link icon - tiny */
 .game-league-badge-external {
-    font-size: 0.8rem !important;
     opacity: 0.7;
     flex-shrink: 0;
-    margin-top: 0.5rem;
 }
 
 .game-league-badge:hover .game-league-badge-external {
     opacity: 1;
 }
 
-/* --------------------------------------------
-   NEXT SCHEDULED EVENT
-   Upcoming event card in game details
-   -------------------------------------------- */
-.game-next-event-container {
-    width: 100%;
-}
-
+/* -- Next Scheduled Event Card -- */
 .game-next-event-card {
     background: var(--dark-bg);
     border: 2px solid var(--border-color);
@@ -665,9 +1056,6 @@
 }
 
 .game-next-event-header h4 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
     color: var(--text-primary);
 }
 
@@ -719,6 +1107,11 @@
     width: fit-content;
 }
 
+.game-next-event-type.event {
+    background: rgba(121, 189, 233, 0.2);
+    color: #1B93F2;
+}
+
 .game-next-event-type.match {
     background: rgba(255, 82, 82, 0.2);
     color: #ff5252;
@@ -741,7 +1134,6 @@
     border: 1px solid rgba(167, 139, 250, 0.3);
 }
 
-/* Empty state for no events */
 .game-next-event-empty {
     text-align: center;
     padding: 2rem 1rem;
@@ -780,445 +1172,43 @@
     color: #2196F3;
 }
 
-/* --------------------------------------------
-   MEMBERS SECTION
-   Member list in game details modal
-   -------------------------------------------- */
-.game-members-section {
-    margin-top: 2rem;
-}
-
-.game-members-section h3 {
-    margin-bottom: 1rem;
-    font-size: 1.25rem;
-    color: var(--text-primary);
-}
-
-.members-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    max-height: 400px;
-    overflow-y: auto;
-    margin-top: 1rem;
-}
-
-.member-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.75rem;
-    background: var(--background-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    transition: background 0.2s;
-}
-
-.member-item:hover {
-    background: var(--hover-bg);
-}
-
-/* Assigned GM highlighting */
-.member-item.assigned-gm {
-    background: rgba(33, 150, 243, 0.1);
-    border: 2px solid #2196F3;
-}
-
-/* Member avatar */
-.member-avatar,
-.member-avatar-initials {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex-shrink: 0;
-}
-
-.member-avatar-initials {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--stockton-blue);
-    color: white;
-    font-weight: 600;
-    font-size: 0.875rem;
-}
-
-/* Member information */
-.member-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.member-name {
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.25rem;
-}
-
-.member-username {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-}
-
-/* Member badge (for "You" indicator) */
-.member-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #4CAF50;
-    margin-left: 0.5rem;
-    padding: 0.25rem 0.5rem;
-    background: rgba(76, 175, 80, 0.1);
-    border-radius: 4px;
-}
-
-.member-badge i {
-    font-size: 0.875rem;
-}
-
-/* --------------------------------------------
-   MEMBER ROLE BADGES
-   Role indicators in member lists
-   -------------------------------------------- */
-.member-item .role-badge {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    margin-left: auto;
-}
-
-.member-item .role-badge.admin {
-    background-color: #ff5252;
-    color: white;
-}
-
-/* GM badge - base styling */
-.member-item .role-badge.gm {
-    background-color: #2196F3;
-    color: white;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-/* GM badge when assigned to THIS game */
-.member-item .role-badge.gm.assigned {
-    background: linear-gradient(135deg, #2196F3, #1976D2);
-    border: 2px solid gold;
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
-    padding-right: 0.65rem;
-}
-
-.member-item .role-badge.gm img {
-    width: 16px;
-    height: 16px;
-    border-radius: 3px;
-    object-fit: cover;
-    margin-right: 0;
-}
-
-.member-item .role-badge.player {
-    background-color: #e3d500;
-    color: white;
-}
-
-.member-item .role-badge.member {
-    background-color: #868e96;
-    color: white;
-}
-
-/* --------------------------------------------
-   MY COMMUNITIES GRID
-   Profile page community cards
-   -------------------------------------------- */
-.my-communities-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-    width: 100%;
-}
-
-.community-card-small {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: space-between;
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 1.25rem 1.5rem;
-    box-sizing: border-box;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.community-card-small:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-}
-
-.community-card-small h3,
-.community-card-small p {
-    margin: 0.4rem 0;
-    line-height: 1.5;
-    word-break: break-word;
-}
-
-.community-card-small .community-meta {
-    margin-top: 0.5rem;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-}
-
-/* Community icon */
-.community-icon-container {
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 1.75rem;
-    flex-shrink: 0;
-}
-
-.community-icon-small {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 8px;
-}
-
-/* Community info */
-.community-info-small {
-    flex: 1;
-    min-width: 0;
-}
-
-.community-info-small h4 {
-    margin: 0 0 0.25rem 0;
-    font-size: 1rem;
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.community-joined {
-    margin: 0.25rem 0 0 0;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-
-/* --------------------------------------------
-   GAME DETAILS ACTIONS
-   Action buttons in modal footer
-   -------------------------------------------- */
-.game-details-actions {
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 2px solid var(--border-color);
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-}
-
-/* Compact join/leave buttons with expand animation */
-#gameDetailsJoinBtn,
-#gameDetailsLeaveBtn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    border-radius: 50px;
-    width: 44px;
-    height: 44px;
-    overflow: hidden;
-    transition: width 0.3s ease, padding 0.3s ease;
-    white-space: nowrap;
-}
-
-#gameDetailsJoinBtn span,
-#gameDetailsLeaveBtn span {
-    display: none;
-}
-
-#gameDetailsJoinBtn:hover,
-#gameDetailsLeaveBtn:hover {
-    width: auto;
-    padding: 0.5rem 1rem;
-}
-
-#gameDetailsJoinBtn:hover span,
-#gameDetailsLeaveBtn:hover span {
-    display: inline;
-}
-
-/* --------------------------------------------
-   BUTTONS
-   All button styles and variants
-   -------------------------------------------- */
-
-/* Success button (Join) */
-.btn-success {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.btn-success:hover {
-    background-color: #388E3C;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
-}
-
-.btn-success:active {
-    transform: translateY(0);
-}
-
-/* Warning button (Leave) */
-.btn-warning {
-    background-color: #ff9800;
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.btn-warning:hover {
-    background-color: #f57c00;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
-}
-
-/* GM Assignment buttons */
-.btn-assign-gm {
-    background: linear-gradient(135deg, #2196F3, #1976D2);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.25rem;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.btn-assign-gm:hover {
-    background: linear-gradient(135deg, #1976D2, #1565C0);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
-}
-
-.btn-remove-gm {
-    background: linear-gradient(135deg, #ff9800, #f57c00);
-    color: white;
-}
-
-.btn-remove-gm:hover {
-    background: linear-gradient(135deg, #f57c00, #e65100);
-}
-
-/* Header action buttons */
-.btn-header-action {
-    background: none;
-    border: 2px solid var(--border-color);
-    color: var(--text-primary);
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 1rem;
-}
-
-.btn-header-action:hover {
-    background: var(--hover-bg);
-    border-color: var(--stockton-blue);
-    color: var(--stockton-blue);
-}
-
-.btn-assign-gm-header:hover {
-    border-color: #2196F3;
-    color: #2196F3;
-    background: rgba(33, 150, 243, 0.1);
-}
-
-.btn-remove-gm-header:hover {
-    border-color: #ff9800;
-    color: #ff9800;
-    background: rgba(255, 152, 0, 0.1);
-}
-
-/* --------------------------------------------
-   EMPTY STATES
-   No content placeholders
-   -------------------------------------------- */
-.empty-state-small {
-    text-align: center;
-    padding: 2rem 1rem;
-    color: var(--text-secondary);
-}
-
-.empty-state-small i {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    opacity: 0.5;
-}
-
-.empty-state-small p {
-    margin: 0;
-}
-
-/* --------------------------------------------
+/* ===================================
    RESPONSIVE DESIGN
    Mobile and tablet adaptations
-   -------------------------------------------- */
+   =================================== */
+@media (max-width: 1400px) {
+    .division-games-grid {
+        grid-template-columns: 2fr;
+    }
+}
+
 @media (max-width: 768px) {
-    .game-details-header {
-        flex-direction: column;
-        text-align: center;
+    .division-folder-header {
+        flex-wrap: wrap;
     }
 
-    .game-details-icon {
-        margin: 0 auto;
+    .division-box-header {
+        flex-wrap: wrap;
     }
 
-    .game-stats-row {
-        grid-template-columns: repeat(2, 1fr);
+    .division-collapse-btn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
     }
 
-    .game-stats-and-event {
-        gap: 1rem;
+    .division-icon {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        font-size: 1.25rem;
     }
 
-    .game-next-event-card {
+    .division-name {
+        font-size: 1.125rem;
+    }
+
+    .division-box-expanded {
         padding: 1rem;
     }
 
@@ -1226,11 +1216,30 @@
         grid-template-columns: 1fr;
     }
 
-    .game-details-actions {
-        flex-direction: column;
+    /* Right community page column (carousel) stacks on top */
+    .community-page-columns {
+        grid-template-columns: 1fr;
     }
 
-    .game-details-actions button {
-        width: 100%;
+    .community-col-right {
+        order: -1;
     }
+}
+
+@media (max-width: 640px) {
+    .division-games-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .community-page-container { padding: 0 1rem; }
+
+    .community-page-icon {
+        width: 52px;
+        height: 52px;
+        font-size: 1.5rem;
+    }
+
+    .community-banner-wrapper { height: 150px; }
 }

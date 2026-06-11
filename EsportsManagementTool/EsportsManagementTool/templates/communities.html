@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+ 
+{% block title %}{{ game.GameTitle }} — Stockton Esports{% endblock %}
+ 
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='modals.css') }}">
+{% endblock %}
+ 
+{% block content %}
+<input type="hidden" id="communityGameId" value="{{ game.GameID }}">
+<input type="hidden" id="currentUsername" value="{{ session.username }}">
+
+<div class="community-page-container">
+
+    <!-- nav-bar -->
+    <nav class="nav-bar">
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <span class="nav-bar-sep"><i class="fas fa-chevron-right" style="font-size:0.65rem;"></i></span>
+        <span>{{ game.GameTitle }}</span>
+    </nav>
+
+    <!-- Banner -->
+    <div class="community-banner-wrapper">
+        {% if game.GameBanner %}
+            <img id="bannerImg"
+                 class="community-banner-img"
+                 src="{{ game.GameBanner }}"
+                 alt="{{ game.GameTitle }} banner">
+        {% else %}
+            <div class="community-banner-empty" id="bannerEmpty">
+                <i class="fas fa-image"></i>
+                <span>No banner uploaded</span>
+            </div>
+            <img id="bannerImg" class="community-banner-img" src="" alt="" style="display:none;">
+        {% endif %}
+
+        {% if can_edit_banner %}
+            <button class="banner-upload-btn"
+                    onclick="document.getElementById('bannerFileInput').click()">
+                <i class="fas fa-camera"></i>
+                {% if game.GameBanner %}Change Banner{% else %}Upload Banner{% endif %}
+            </button>
+            <input type="file" id="bannerFileInput" accept="image/*" style="display:none;">
+        {% endif %}
+    </div>
+
+    <!-- Two-column body -->
+    <div class="community-page-columns">
+
+        <!-- Left column -->
+        <div class="community-col-left">
+            <div class="community-description-card">
+
+                <!-- Description -->
+                {% if game.Description %}
+                    <p class="community-description-text">{{ game.Description }}</p>
+                {% else %}
+                    <p class="community-description-empty">No description provided.</p>
+                {% endif %}
+
+                <!-- Divider -->
+                <div class="community-card-divider"></div>
+
+                <!-- Stats and member list button -->
+                <div class="community-card-stats-and-btn">
+                    <button class="community-member-list-btn" id="memberListBtn"
+                            onclick="toggleMemberListPopup()">
+                        <i class="fas fa-list"></i>
+                        <span>Members</span>
+                    </button>
+                    <div class="community-card-stat-row">
+                        <div class="community-page-stat-box" id="communityLeaguesBox" style="display:none;">
+                            <div class="game-leagues-badges" id="communityLeaguesBadges"></div>
+                        </div>
+                        <div class="community-page-stat-box">
+                            <i class="fas fa-users community-card-stat-icon"></i>
+                            <div class="community-card-stat-number">{{ game.member_count }}</div>
+                            <div class="community-card-stat-label">Members</div>
+                        </div>
+                        <div class="community-page-stat-box">
+                            <i class="fas fa-shield-alt community-card-stat-icon"></i>
+                            <div class="community-card-stat-number">{{ game.team_count }}</div>
+                            <div class="community-card-stat-label">Teams</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Member list popup -->
+                <div class="member-list-popup" id="memberListPopup" style="display:none;">
+                    <div class="member-popup-arrow"></div>
+                    <input type="text"
+                           id="memberListSearch"
+                           class="member-list-search"
+                           placeholder="Search members..."
+                           oninput="filterListItems('memberListSearch', '#memberListGrid .member-popup-item', ['username', 'name'], 'flex')">
+                    <div class="member-list-popup-grid" id="memberListGrid"></div>
+                    <div class="member-list-popup-empty" id="memberListEmpty" style="display:none;">
+                        No members found.
+                    </div>
+                </div>
+
+                <!-- Forum placeholder -->
+                <div class="community-forum-placeholder">
+                    <i class="fas fa-comments"></i>
+                    <p>Forum coming soon.</p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right column -->
+        <div class="community-col-right">
+
+            <!-- Carousel -->
+            <div class="carousel-section">
+                <div class="carousel-wrapper">
+
+                    <div class="carousel-empty" id="carouselEmpty">
+                        <i class="fas fa-images"></i>
+                        <span>No photos yet</span>
+                    </div>
+
+                    <div class="carousel-track" id="carouselTrack"></div>
+
+                    <div class="carousel-arrows" id="carouselArrows" style="display:none;">
+                        <button class="carousel-arrow carousel-arrow-prev" onclick="carouselPrev()">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="carousel-arrow carousel-arrow-next" onclick="carouselNext()">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+
+                    <div class="carousel-counter" id="carouselCounter" style="display:none;"></div>
+
+                    {% if can_edit_banner %}
+                        <button class="carousel-add-btn"
+                                onclick="document.getElementById('photoFileInput').click()"
+                                title="Add photo">
+                            <i class="fas fa-camera"></i> Add Photo
+                        </button>
+                        <button class="carousel-delete-btn"
+                                id="carouselDeleteBtn"
+                                onclick="openPhotoManager()"
+                                title="Manage photos"
+                                style="display:none;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    {% endif %}
+
+                </div>
+            </div>
+
+            <!-- Next scheduled event -->
+            <div id="gameNextScheduledEventContainer" class="game-next-event-container"></div>
+
+        </div>
+    </div>
+</div>
+
+{% if can_edit_banner %}
+    <input type="file" id="photoFileInput" accept="image/*" style="display:none;">
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
+<script src="{{ url_for('static', filename='modalDelete.js') }}"></script>
+<script src="{{ url_for('static', filename='modals.js') }}"></script>
+<script src="{{ url_for('static', filename='image-cropper.js') }}"></script>
+<script src="{{ url_for('static', filename='events.js') }}"></script>
+<script src="{{ url_for('static', filename='communities.js') }}"></script>
+{% endblock %}

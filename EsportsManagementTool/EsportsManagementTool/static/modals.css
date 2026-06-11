@@ -19,6 +19,7 @@
     overflow: auto;
     background-color: rgba(0, 0, 0, 0.7);
     animation: fadeIn 0.2s;
+    align-items: center;
 }
 
 .modal-content {

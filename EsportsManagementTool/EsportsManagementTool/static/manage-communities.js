@@ -157,7 +157,7 @@ function renderCommunitiesGrid() {
             <div class="community-header-right">
                 <div class="community-header-actions">
                     <button class="community-action-btn"
-                            onclick="openCommunityModal(${community.id}); event.stopPropagation();"
+                            onclick="window.location.href='/community/${community.id}'; event.stopPropagation();"
                             title="View community">
                         <i class="fas fa-eye"></i>
                     </button>

@@ -344,7 +344,7 @@
 }
 
 /* Warning button (deactivate) */
-.btn-warning {
+.leave-btn {
   background-color: #ff9800;
   color: white;
   border: none;
@@ -354,12 +354,12 @@
   transition: background-color 0.2s;
 }
 
-.btn-warning:hover {
+.leave-btn:hover {
   background-color: #f57c00;
 }
 
 /* Success button (activate) */
-.btn-success {
+.join-btn {
   background-color: #4CAF50;
   color: white;
   border: none;
@@ -369,7 +369,7 @@
   transition: background-color 0.2s;
 }
 
-.btn-success:hover {
+.join-btn:hover {
   background-color: #388E3C;
 }
 

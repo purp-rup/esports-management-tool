@@ -3,12 +3,22 @@
  * Handles community-specific functionality including:
  * - Community membership (join/leave)
  * - GM assignment and management
+ * - Community pages
  * - User's communities display (profile tab)
  * ============================================================================
  */
 
 // Currently selected game ID for GM assignment operations
 let currentGameIdForGM = null;
+
+// Initialize photo carousel elements
+let carouselPhotos  = [];
+let carouselIndex   = 0;
+let carouselTimer   = null;
+const CAROUSEL_INTERVAL = 5000;
+
+// Initialize member popup
+let memberListOpen = false;
 
 /**
  * Initialize communities module
@@ -34,11 +44,6 @@ function initializeCommunitiesModule() {
     }
 }
 
-// Initialize on DOM load
-document.addEventListener('DOMContentLoaded', function() {
-    initializeCommunitiesModule();
-});
-
 // ============================================
 // COMMUNITY MEMBERSHIP - JOIN/LEAVE
 // ============================================
@@ -55,9 +60,8 @@ function confirmJoinGame(gameId, gameTitle) {
         ],
         'You can always leave later if you change your mind.',
         'success',
-        () => joinGame(gameId, gameTitle)
+        () => updateGameMembership(gameId, 'join')
     );
-
     document.body.appendChild(modal);
 }
 
@@ -73,9 +77,8 @@ function confirmLeaveGame(gameId, gameTitle) {
         ],
         'You can always rejoin if you change your mind',
         'warning',
-        () => leaveGame(gameId, gameTitle)
+        () => updateGameMembership(gameId, 'leave')
     );
-
     document.body.appendChild(modal);
 }
 
@@ -88,7 +91,7 @@ function createConfirmModal(title, gameTitle, benefits, note, type, onConfirm) {
 
     const icon = type === 'success' ? 'fa-user-plus' : 'fa-sign-out-alt';
     const headerColor = type === 'success' ? '' : 'style="background-color: #ff9800;"';
-    const btnClass = type === 'success' ? 'btn-success' : 'btn-warning';
+    const btnClass = type === 'success' ? 'join-btn' : 'leave-btn';
     const btnIcon = type === 'success' ? 'fa-check' : 'fa-sign-out-alt';
     const btnText = type === 'success' ? 'Join' : 'Leave';
 
@@ -145,69 +148,50 @@ function closeConfirmModal() {
     }
 }
 
-// Execute joining a game community
-async function joinGame(gameId, gameTitle) {
+// Accepts joining and leaving community to change user membership
+async function updateGameMembership(gameId, action) {
     closeConfirmModal();
-
     try {
-        const response = await fetch(`/api/game/${gameId}/join`, {
+        const res  = await fetch(`/api/game/${gameId}/${action}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
-
-        const data = await response.json();
-
+        const data = await res.json();
         if (data.success) {
             alert(data.message);
-
-            // Close game details modal if open
-            if (typeof closeCommunityModal === 'function') {
-                closeCommunityModal();
-            }
-
-            // Reload games to update UI
-            if (typeof loadGames === 'function') {
-                loadGames();
-            }
+            if (typeof closeCommunityModal === 'function') closeCommunityModal();
+            if (typeof loadGames === 'function') loadGames();
         } else {
             alert(`Error: ${data.message}`);
         }
     } catch (error) {
-        console.error('Error joining community:', error);
-        alert('Failed to join community. Please try again.');
+        console.error(`Error ${action}ing community:`, error);
+        alert(`Failed to ${action} community. Please try again.`);
     }
 }
 
-// Execute leaving a game community
-async function leaveGame(gameId, gameTitle) {
-    closeConfirmModal();
+/**
+ * Update join/leave action buttons based on membership status
+ * If a user is currently in community, show leave action. If not a member, show join action.
+ */
+function updateActionButtons(game, gameId) {
+    const joinBtn = document.getElementById('gameDetailsJoinBtn');
+    const leaveBtn = document.getElementById('gameDetailsLeaveBtn');
 
-    try {
-        const response = await fetch(`/api/game/${gameId}/leave`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            alert(data.message);
-
-            // Close game details modal if open
-            if (typeof closeCommunityModal === 'function') {
-                closeCommunityModal();
-            }
-
-            // Reload games to update UI
-            if (typeof loadGames === 'function') {
-                loadGames();
-            }
-        } else {
-            alert(`Error: ${data.message}`);
+    if (game.is_member) {
+        // User is a member, show leave button
+        if (joinBtn) joinBtn.style.display = 'none';
+        if (leaveBtn) {
+            leaveBtn.style.display = 'inline-flex';
+            leaveBtn.onclick = () => confirmLeaveGame(gameId, game.title);
         }
-    } catch (error) {
-        console.error('Error leaving community:', error);
-        alert('Failed to leave community. Please try again.');
+    } else {
+        // User is not a member, show join button
+        if (leaveBtn) leaveBtn.style.display = 'none';
+        if (joinBtn) {
+            joinBtn.style.display = 'inline-flex';
+            joinBtn.onclick = () => confirmJoinGame(gameId, game.title);
+        }
     }
 }
 
@@ -390,260 +374,336 @@ function getDivisionIcon(division) {
 }
 
 // ============================================
-// COMMUNITY MODAL
+// COMMUNITY PAGE
 // ============================================
-async function openCommunityModal(gameId) {
-    currentGameId = gameId;
-    const modal = document.getElementById('communityModal');
-    const loading = document.getElementById('gameDetailsLoading');
-    const content = document.getElementById('gameDetailsContent');
 
-    // Show modal and loading state
-    modal.style.display = 'block';
-    loading.style.display = 'block';
-    content.style.display = 'none';
-    document.body.style.overflow = 'hidden';
+// Builds stats and leagues for a community
+async function initCommunityStats(gameId) {
+    const leaguesBox   = document.getElementById('communityLeaguesBox');
+    const leaguesBadges = document.getElementById('communityLeaguesBadges');
+    if (!leaguesBox || !leaguesBadges) return;
 
     try {
-        // Fetch game details from API
-        const response = await fetch(`/api/game/${gameId}/details`);
-        const data = await response.json();
+        const res  = await fetch(`/api/game/${gameId}/current-leagues`);
+        const data = await res.json();
+
+        if (!data.success || !data.leagues?.length) return;
+
+        leaguesBadges.innerHTML = data.leagues.map(league => {
+            const logoHtml = league.logo
+                ? `<img src="${league.logo}" alt="${league.name}" class="game-league-badge-logo">`
+                : '<i class="fas fa-trophy game-league-badge-icon"></i>';
+
+            return league.website_url
+                ? `<a href="${league.website_url}" target="_blank" rel="noopener noreferrer"
+                      class="game-league-badge" title="Visit ${league.name} website">
+                       ${logoHtml}
+                       <span class="game-league-badge-name">${league.name}</span>
+                       <i class="fas fa-external-link-alt game-league-badge-external"></i>
+                   </a>`
+                : `<span class="game-league-badge">
+                       ${logoHtml}
+                       <span class="game-league-badge-name">${league.name}</span>
+                   </span>`;
+        }).join('');
+
+        leaguesBox.style.display = 'block';
+        leaguesBox.closest('.community-card-stat-row')?.classList.add('has-leagues');
+    } catch (e) {
+        console.error('Error loading community leagues:', e);
+    }
+}
+
+// Fetch photos for this community and boot the carousel
+async function initCarousel() {
+    const track = document.getElementById('carouselTrack');
+    if (!track) return;
+
+    const gameId = document.getElementById('communityGameId')?.value;
+    if (!gameId) return;
+
+    try {
+        const res  = await fetch(`/api/game/${gameId}/photos`);
+        const data = await res.json();
+        if (!data.success) return;
+        carouselPhotos = data.photos;
+        renderCarousel();
+    } catch (e) {
+        console.error('Failed to load carousel photos:', e);
+    }
+}
+
+// Rebuild the carousel display from carouselPhotos
+function renderCarousel() {
+    const track   = document.getElementById('carouselTrack');
+    const counter = document.getElementById('carouselCounter');
+    const empty   = document.getElementById('carouselEmpty');
+    const arrows  = document.getElementById('carouselArrows');
+    const delBtn  = document.getElementById('carouselDeleteBtn');
+
+    if (!track) return;
+
+    stopCarouselTimer();
+
+    if (carouselPhotos.length === 0) {
+        track.innerHTML = '';
+        if (empty)   empty.style.display   = 'flex';
+        if (arrows)  arrows.style.display  = 'none';
+        if (counter) counter.style.display = 'none';
+        if (delBtn)  delBtn.style.display  = 'none';
+        return;
+    }
+
+    if (empty)  empty.style.display  = 'none';
+    if (arrows) arrows.style.display = 'flex';
+
+    carouselIndex = Math.min(carouselIndex, carouselPhotos.length - 1);
+
+    track.innerHTML = carouselPhotos.map((p, i) => `
+        <div class="carousel-slide ${i === carouselIndex ? 'active' : ''}" data-index="${i}">
+            <img src="${p.photo_url}" alt="Community photo ${i + 1}">
+        </div>
+    `).join('');
+
+    if (counter) {
+        counter.style.display = 'block';
+        counter.textContent   = `${carouselIndex + 1} / ${carouselPhotos.length}`;
+    }
+
+    if (delBtn) delBtn.style.display = 'flex';
+
+    if (carouselPhotos.length > 1) startCarouselTimer();
+}
+
+// Change photo carousel slides, either on a timer or via clicking the arrows
+function goToSlide(index) {
+    const slides = document.querySelectorAll('.carousel-slide');
+    if (!slides.length) return;
+
+    slides[carouselIndex]?.classList.remove('active');
+    carouselIndex = (index + carouselPhotos.length) % carouselPhotos.length;
+    slides[carouselIndex]?.classList.add('active');
+
+    const counter = document.getElementById('carouselCounter');
+    if (counter) counter.textContent = `${carouselIndex + 1} / ${carouselPhotos.length}`;
+}
+
+function carouselNext() { resetCarouselTimer(); goToSlide(carouselIndex + 1); }
+function carouselPrev() { resetCarouselTimer(); goToSlide(carouselIndex - 1); }
+
+function startCarouselTimer() {
+    carouselTimer = setInterval(() => goToSlide(carouselIndex + 1), CAROUSEL_INTERVAL);
+}
+function stopCarouselTimer() {
+    if (carouselTimer) { clearInterval(carouselTimer); carouselTimer = null; }
+}
+function resetCarouselTimer() {
+    stopCarouselTimer();
+    if (carouselPhotos.length > 1) startCarouselTimer();
+}
+
+/**
+ * Open the photo manager popup anchored to the carousel wrapper.
+ * Shows all photos in a horizontal strip, each with an × delete button.
+ */
+function openPhotoManager() {
+    closePhotoManager(); // Remove any existing instance
+
+    if (carouselPhotos.length === 0) return;
+
+    const wrapper = document.querySelector('.carousel-wrapper');
+    if (!wrapper) return;
+
+    const popup = document.createElement('div');
+    popup.id = 'photoManagerPopup';
+    popup.className = 'photo-manager-popup';
+
+    popup.innerHTML = `
+        <div class="photo-manager-header">
+            <span>Manage Photos</span>
+            <button class="photo-manager-close" onclick="closePhotoManager()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="photo-manager-strip">
+            ${carouselPhotos.map(p => `
+                <div class="photo-manager-thumb" data-photo-id="${p.photo_id}">
+                    <img src="${p.photo_url}" alt="Photo">
+                    <button class="photo-manager-delete-btn"
+                            onclick="confirmDeletePhoto(${p.photo_id})"
+                            title="Delete this photo">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    // Anchor popup to bottom of carousel wrapper, capped to its width
+    wrapper.appendChild(popup);
+
+    // Close when clicking outside
+    setTimeout(() => {
+        document.addEventListener('click', outsidePhotoManagerClick);
+    }, 0);
+}
+
+function closePhotoManager() {
+    document.getElementById('photoManagerPopup')?.remove();
+    document.removeEventListener('click', outsidePhotoManagerClick);
+}
+
+function outsidePhotoManagerClick(e) {
+    const popup       = document.getElementById('photoManagerPopup');
+    const delBtn      = document.getElementById('carouselDeleteBtn');
+    const deleteModal = document.getElementById('deleteConfirmModal');
+    if (
+        popup &&
+        !popup.contains(e.target) &&
+        e.target !== delBtn &&
+        !delBtn?.contains(e.target) &&
+        !deleteModal?.contains(e.target)
+    ) {
+        closePhotoManager();
+    }
+}
+
+// Show confirmation then delete the photo.
+function confirmDeletePhoto(photoId) {
+    const photo = carouselPhotos.find(p => p.photo_id === photoId);
+    if (!photo) return;
+
+    openDeleteConfirmModal({
+        title: 'Delete Photo?',
+        message: 'Are you sure you want to permanently delete this photo? This cannot be undone.',
+        buttonText: 'Delete Photo',
+        itemId: photoId,
+        onConfirm: async (id) => {
+            await executePhotoDelete(id);
+        }
+    });
+}
+
+async function executePhotoDelete(photoId) {
+    const gameId = document.getElementById('communityGameId')?.value;
+
+    try {
+        const res  = await fetch(`/api/game/${gameId}/photos/${photoId}`, { method: 'DELETE' });
+        const data = await res.json();
 
         if (data.success) {
-            const game = data.game;
-
-            // Update modal header with game title
-            document.getElementById('communityModalTitle').textContent = game.title;
-            document.getElementById('gameDetailsTitle').textContent = game.title;
-            document.getElementById('gameDetailsDescription').textContent = game.description;
-
-            // Update game icon/image
-            updateGameIcon(game);
-
-            // Load and display leagues + stats
-            await displayCommunityStats(gameId, game);
-
-            // Populate members list
-            populateMembersList(game.members, gameId);
-
-            // Update join/leave buttons
-            updateActionButtons(game, gameId);
-
-            // Show content, hide loading
-            loading.style.display = 'none';
-            content.style.display = 'block';
-
-            // Load next scheduled event
-            await loadNextCommunityEvent(gameId);
+            const idx = carouselPhotos.findIndex(p => p.photo_id === photoId);
+            if (idx !== -1) carouselPhotos.splice(idx, 1);
+            if (carouselIndex >= carouselPhotos.length) {
+                carouselIndex = Math.max(0, carouselPhotos.length - 1);
+            }
+            closeDeleteConfirmModal();
+            renderCarousel();
+            showDeleteSuccessMessage('Photo deleted successfully.');
         } else {
-            throw new Error(data.message || 'Failed to load game details');
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage('Delete failed: ' + data.message);
         }
-    } catch (error) {
-        // Handle errors and show error message
-        console.error('Error loading game details:', error);
-        loading.innerHTML = `
-            <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ff5252;"></i>
-            <p style="color: var(--text-secondary); margin-top: 1rem;">Failed to load game details</p>
-        `;
+    } catch (e) {
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Delete failed. Please try again.');
     }
 }
 
-// Update game icon in community page
-function updateGameIcon(game) {
-    const iconDiv = document.getElementById('gameDetailsIcon');
-    if (game.image_url) {
-        iconDiv.innerHTML = `<img src="${game.image_url}" alt="${game.title}" class="game-details-image">`;
-    } else {
-        iconDiv.innerHTML = '<i class="fas fa-gamepad"></i>';
-    }
-}
+// ============================================
+// COMMUNITY PAGE — MEMBER LIST POPUP
+// ===========================================
+async function toggleMemberListPopup() {
+    const popup = document.getElementById('memberListPopup');
+    if (!popup) return;
 
-// Display community stats, including leagues, total members, and total teams for the current season
-async function displayCommunityStats(gameId, game) {
-    // Load leagues for this game's current season
-    let leaguesHtml = '';
+    if (memberListOpen) {
+        closeMemberListPopup();
+        return;
+    }
+
+    memberListOpen = true;
+    popup.style.display = 'block';
+
+    const btn  = document.getElementById('memberListBtn');
+    const card = btn.closest('.community-description-card');
+    const btnRect  = btn.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    popup.style.top  = (btnRect.bottom - cardRect.top + 8) + 'px';
+    popup.style.left = (btnRect.left  - cardRect.left) + 'px';
+
+    const gameId = document.getElementById('communityGameId')?.value;
+    const grid   = document.getElementById('memberListGrid');
+    const empty  = document.getElementById('memberListEmpty');
+    const search = document.getElementById('memberListSearch');
+
+    grid.innerHTML  = '<div class="member-list-loading"><i class="fas fa-spinner fa-spin"></i></div>';
+    empty.style.display = 'none';
+    if (search) { search.value = ''; search.style.display = 'block'; }
+
     try {
-        const leaguesResponse = await fetch(`/api/game/${gameId}/current-leagues`);
-        const leaguesData = await leaguesResponse.json();
+        const res  = await fetch(`/api/game/${gameId}/details`);
+        const data = await res.json();
 
-        if (leaguesData.success && leaguesData.leagues && leaguesData.leagues.length > 0) {
-            // Build league badges
-            const leagueBadgesHtml = leaguesData.leagues.map(league => {
-                const logoHtml = league.logo
-                    ? `<img src="${league.logo}" alt="${league.name}" class="game-league-badge-logo">`
-                    : '<i class="fas fa-trophy game-league-badge-icon"></i>';
+        grid.innerHTML = '';
 
-                // If there's a website URL, make it a link
-                if (league.website_url) {
-                    return `
-                        <a href="${league.website_url}"
-                           target="_blank"
-                           rel="noopener noreferrer"
-                           class="game-league-badge"
-                           title="Visit ${league.name} website">
-                            ${logoHtml}
-                            <span class="game-league-badge-name">${league.name}</span>
-                            <i class="fas fa-external-link-alt game-league-badge-external"></i>
-                        </a>
-                    `;
-                } else {
-                    return `
-                        <span class="game-league-badge">
-                            ${logoHtml}
-                            <span class="game-league-badge-name">${league.name}</span>
-                        </span>
-                    `;
-                }
-            }).join('');
-
-            // Create leagues stat card with just icon, label, and badges
-            leaguesHtml = `
-                <div class="game-stat-card leagues-card">
-                    <i class="fas fa-trophy"></i>
-                    <div class="game-stat-label">Leagues</div>
-                    <div class="game-leagues-badges">
-                        ${leagueBadgesHtml}
-                    </div>
-                </div>
-            `;
+        if (data.success && data.game.members?.length) {
+            const currentUsername = document.getElementById('currentUsername')?.value;
+            data.game.members.forEach(member => {
+                const item = createMemberPopupItem(member, data.game.assigned_gm_id, currentUsername);
+                grid.appendChild(item);
+            });
+        } else {
+            empty.style.display = 'block';
+            if (search) search.style.display = 'none';
         }
-    } catch (error) {
-        console.error('Error loading leagues:', error);
+    } catch (e) {
+        grid.innerHTML = '<div class="member-list-loading">Failed to load members.</div>';
+        console.error('Error loading member list:', e);
     }
 
-    // Build stats row HTML
-    const statsRowHtml = `
-        ${leaguesHtml}
-        <div class="game-stat-card">
-            <i class="fas fa-users"></i>
-            <div class="game-stat-number">${game.member_count || 0}</div>
-            <div class="game-stat-label">Members</div>
-        </div>
-        <div class="game-stat-card">
-            <i class="fas fa-shield-alt"></i>
-            <div class="game-stat-number">${game.team_count || 0}</div>
-            <div class="game-stat-label">Teams</div>
-        </div>
+    setTimeout(() => document.addEventListener('click', outsideMemberListClick), 0);
+}
+
+function closeMemberListPopup() {
+    const popup = document.getElementById('memberListPopup');
+    if (popup) popup.style.display = 'none';
+    memberListOpen = false;
+    document.removeEventListener('click', outsideMemberListClick);
+}
+
+function outsideMemberListClick(e) {
+    const popup = document.getElementById('memberListPopup');
+    const btn   = document.getElementById('memberListBtn');
+    if (popup && !popup.contains(e.target) && !btn?.contains(e.target)) {
+        closeMemberListPopup();
+    }
+}
+
+// Builds a single user profile element in the member list popup
+function createMemberPopupItem(member, gmId, currentUsername) {
+    const item = document.createElement('div');
+    item.className = 'member-popup-item';
+    item.setAttribute('data-username', member.username.toLowerCase());
+    item.setAttribute('data-name', member.name.toLowerCase());
+
+    if (member.id === gmId)                                    item.classList.add('member-popup-item--gm');
+    if (member.username.toLowerCase() === currentUsername?.toLowerCase()) item.classList.add('member-popup-item--self');
+
+    const avatarHtml = member.profile_picture
+        ? `<img src="${member.profile_picture}" alt="${member.username}" class="member-avatar">`
+        : `<div class="member-avatar-initials">${member.name.split(' ').map(n => n[0]).join('')}</div>`;
+
+    item.innerHTML = `
+        ${avatarHtml}
+        <span class="member-popup-username">@${member.username}</span>
     `;
-
-    // Find the stats row container and update it
-    const statsRow = document.querySelector('.game-stats-row');
-    if (statsRow) {
-        statsRow.innerHTML = statsRowHtml;
-    }
+    return item;
 }
 
-// Gather membership to populate members list in community modal
-function populateMembersList(members, gameId) {
-    const membersList = document.getElementById('gameMembersList');
-    const noMembers = document.getElementById('gameNoMembers');
-    const searchInput = document.getElementById('memberSearch');
-
-    if (members.length > 0) {
-        membersList.innerHTML = '';
-        membersList.style.display = 'block';
-        noMembers.style.display = 'none';
-
-        // Show search input
-        if (searchInput) {
-            searchInput.style.display = 'block';
-            searchInput.value = ''; // Clear previous search
-        }
-
-        // Create member item for each member
-        members.forEach(member => {
-            const memberItem = createMemberItem(member, gameId);
-            membersList.appendChild(memberItem);
-        });
-    } else {
-        // No members, show empty state
-        membersList.style.display = 'none';
-        noMembers.style.display = 'block';
-        if (searchInput) {
-            searchInput.style.display = 'none';
-        }
-    }
-}
-
-// Create a member card to display in the community modal
-function createMemberItem(member, gameId) {
-    const memberItem = document.createElement('div');
-    const isAssignedGM = member.is_game_manager;
-
-    memberItem.className = 'member-item' + (isAssignedGM ? ' assigned-gm' : '');
-    memberItem.setAttribute('data-username', member.username.toLowerCase());
-    memberItem.setAttribute('data-name', member.name.toLowerCase());
-
-    // Profile picture or initials
-    let profilePicHTML;
-    if (member.profile_picture) {
-        profilePicHTML = `<img src="${member.profile_picture}" alt="${member.name}" class="member-avatar">`;
-    } else {
-        const initials = member.name.split(' ').map(n => n[0]).join('');
-        profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
-    }
-
-    // Build role badges using shared function
-    const badgesHTML = buildUniversalRoleBadges({
-        userId: member.id,
-        roles: member.roles || [],
-        contextGameId: gameId
-    });
-
-    memberItem.innerHTML = `
-        ${profilePicHTML}
-        <div class="member-info">
-            <div class="member-name">${member.name}</div>
-            <div class="member-username">@${member.username}</div>
-        </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            ${badgesHTML}
-        </div>
-    `;
-
-    return memberItem;
-}
-
-/**
- * Filter members in the community modal
- * Uses universal filterListItems function
- */
-const filterMembers = () =>
-    filterListItems('memberSearch', '#gameMembersList .member-item', ['username', 'name']);
-
-/**
- * Update join/leave action buttons based on membership status
- * If a user is currently in community, show leave action. If not a member, show join action.
- */
-function updateActionButtons(game, gameId) {
-    const joinBtn = document.getElementById('gameDetailsJoinBtn');
-    const leaveBtn = document.getElementById('gameDetailsLeaveBtn');
-
-    if (game.is_member) {
-        // User is a member, show leave button
-        if (joinBtn) joinBtn.style.display = 'none';
-        if (leaveBtn) {
-            leaveBtn.style.display = 'inline-flex';
-            leaveBtn.onclick = () => confirmLeaveGame(gameId, game.title);
-        }
-    } else {
-        // User is not a member, show join button
-        if (leaveBtn) leaveBtn.style.display = 'none';
-        if (joinBtn) {
-            joinBtn.style.display = 'inline-flex';
-            joinBtn.onclick = () => confirmJoinGame(gameId, game.title);
-        }
-    }
-}
-
-// Close community modal (needs to be consolidated)
-function closeCommunityModal() {
-    const modal = document.getElementById('communityModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-}
+// Filter members in popup
+const filterMemberListPopup = () =>
+    filterListItems('memberListSearch', '#memberListGrid .member-popup-item', ['username', 'name'], 'flex');
 
 /**
  * Load next scheduled event for game community
@@ -665,7 +725,6 @@ async function loadNextCommunityEvent(gameId) {
     `;
 
     try {
-        console.log(`Fetching scheduled event for game ${gameId}`);
         const response = await fetch(`/api/games/${gameId}/next-scheduled-event`);
 
         if (!response.ok) {
@@ -673,7 +732,6 @@ async function loadNextCommunityEvent(gameId) {
         }
 
         const data = await response.json();
-        console.log('Game scheduled event response:', data);
 
         if (data.success && data.event) {
             const event = data.event;
@@ -692,15 +750,15 @@ async function loadNextCommunityEvent(gameId) {
                         ${sourceBadge}
                     </div>
                     <div class="game-next-event-content">
-                        <div class="game-next-event-time">
-                            ${event.is_all_day
-                                ? '<i class="fas fa-calendar"></i> All Day'
-                                : `<i class="fas fa-clock"></i> ${event.start_time}`
-                            }
-                        </div>
                         <div class="game-next-event-title">${event.name}</div>
                         <div class="game-next-event-date">
                             <i class="fas fa-calendar-day"></i> ${event.date}
+                        </div>
+                        <div class="game-next-event-time">
+                            ${event.is_all_day || !event.start_time
+                                ? '<i class="fas fa-calendar"></i> All Day'
+                                : `<i class="fas fa-clock"></i> ${event.start_time}`
+                            }
                         </div>
                         <span class="game-next-event-type ${event.event_type.toLowerCase()}">
                             ${event.event_type}
@@ -795,25 +853,61 @@ function createCommunityCard(community) {
             </p>
             <p class="community-joined">Joined ${community.joined_at}</p>
         </div>
-        <button class="btn btn-sm btn-primary" onclick="openCommunityModal(${community.id})">
+        <a class="btn btn-sm btn-primary" href="/community/${community.id}">
             <i class="fas fa-eye"></i> View
-        </button>
+        </a>
     `;
 
     return card;
 }
 
+// ==================================
+// HELPERS
+// ==================================
+function initFileInputCropper(inputId, cropperContext) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.addEventListener('change', function () {
+        if (this.files && this.files[0]) {
+            openImageCropper(this.files[0], cropperContext);
+            this.value = '';
+        }
+    });
+}
+
+// ===========================================
+// CONTENT LOADING
+// ===========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const gameId = document.getElementById('communityGameId')?.value;
+
+    // Dashboard communities tab
+    initializeCommunitiesModule();
+
+    // Community page
+    initCarousel();
+    initFileInputCropper('bannerFileInput', 'banner');
+    initFileInputCropper('photoFileInput', 'carousel');
+
+    if (gameId) {
+        loadNextCommunityEvent(gameId);
+        initCommunityStats(gameId);
+    }
+});
+
 // ============================================
 // EXPORT FUNCTIONS
 // ============================================
 
-// Community membership
-window.closeConfirmModal = closeConfirmModal;
-
-// Community Modal
-window.openCommunityModal = openCommunityModal;
-window.closeCommunityModal = closeCommunityModal;
-window.filterMembers = filterMembers;
-
 //Folder system
 window.displayGamesWithDivisions = displayGamesWithDivisions;
+
+// Photo Carousel
+window.carouselNext        = carouselNext;
+window.carouselPrev        = carouselPrev;
+window.openPhotoManager    = openPhotoManager;
+window.closePhotoManager   = closePhotoManager;
+
+//Member list popup
+window.toggleMemberListPopup = toggleMemberListPopup;
+window.filterMemberListPopup = filterMemberListPopup;

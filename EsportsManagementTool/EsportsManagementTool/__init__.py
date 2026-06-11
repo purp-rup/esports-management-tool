@@ -274,7 +274,6 @@ def cleanup_inactive_users():
 # ============================================
 from EsportsManagementTool.email_manager import send_verify_email
 
-
 # ============================================
 # LANDING PAGE STATISTICS
 # ============================================
@@ -632,6 +631,7 @@ from EsportsManagementTool import vods
 from EsportsManagementTool import seasons
 from EsportsManagementTool import leagues
 from EsportsManagementTool import statistics
+from EsportsManagementTool import photo_upload
 
 # ================================
 # REGISTER MODULE ROUTES

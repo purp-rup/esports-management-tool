@@ -34,44 +34,44 @@
  */
 const MODAL_CLOSE_HANDLERS = {
     // Universal delete confirmation modal
-    'deleteConfirmModal': closeDeleteConfirmModal,
+    'deleteConfirmModal': () => closeDeleteConfirmModal(),
 
     // Event-related modals
-    'dayEventsModal': closeDayModal,
-    'eventDetailsModal': closeEventModal,
-    'createEventModal': closeCreateEventModal,
+    'dayEventsModal': () => closeDayModal(),
+    'eventDetailsModal': () => closeEventModal(),
+    'createEventModal': () => closeCreateEventModal(),
 
     // Game/Community-related modals
-    'communityModal': closeCommunityModal,
-    'assignGMModal': closeAssignGMModal,
-    'manageCommunitiesModal': closeManageCommunitiesModal,
+    'communityModal': () => closeCommunityModal(),
+    'assignGMModal': () => closeAssignGMModal(),
+    'manageCommunitiesModal': () => closeManageCommunitiesModal(),
 
     // Team-related modals
-    'createTeamModal': closeCreateTeamModal,
-    'addTeamMembersModal': closeAddTeamMembersModal,
+    'createTeamModal': () => closeCreateTeamModal(),
+    'addTeamMembersModal': () => closeAddTeamMembersModal(),
 
     // Profile-related modals
-    'changeAvatarModal': closeAvatarModal,
-    'editProfileModal': closeEditProfileModal,
-    'changePasswordModal': closeChangePasswordModal,
+    'changeAvatarModal': () => closeAvatarModal(),
+    'editProfileModal': () => closeEditProfileModal(),
+    'changePasswordModal': () => closeChangePasswordModal(),
 
     // Scheduled events
-    'scheduleDetailsModal': closeScheduleModal,
-    'createScheduledEventModal': closeCreateScheduledEventModal,
+    'scheduleDetailsModal': () => closeScheduleModal(),
+    'createScheduledEventModal': () => closeCreateScheduledEventModal(),
 
     // Stats modal
-    'recordMatchResultModal': closeRecordResultModal,
-    'matchDetailsModal': closeMatchDetailsModal,
+    'recordMatchResultModal': () => closeRecordResultModal(),
+    'matchDetailsModal': () => closeMatchDetailsModal(),
 
     // VOD Modals
-    'addVodModal': closeAddVodModal,
-    'vodPlayerModal': closeVodPlayerModal,
+    'addVodModal': () => closeAddVodModal(),
+    'vodPlayerModal': () => closeVodPlayerModal(),
 
     //Seasons Modal
-    'manageSeasonsModal': closeManageSeasonsModal,
+    'manageSeasonsModal': () => closeManageSeasonsModal(),
 
     // Leagues Modal
-    'manageLeaguesModal': closeManageLeaguesModal
+    'manageLeaguesModal': () => closeManageLeaguesModal()
 };
 
 // ============================================
