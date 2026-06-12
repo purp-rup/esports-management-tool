@@ -155,14 +155,6 @@ function createGameCard(game, isAdmin) {
                 <i class="fas fa-user-plus"></i> Join Community
            </button>`;
 
-    // Create Team button (only for GMs of this specific game)
-    const createTeamButtonHTML = isGameManager
-        ? `<button class="btn btn-primary"
-                    onclick="checkSeasonBeforeTeamCreation(${game.GameID}, '${escapeHtml(game.GameTitle)}', '${game.TeamSizes}')">
-                <i class="fas fa-plus"></i> Create Team
-           </button>`
-        : '';
-
     // Member badge for joined communities
     const memberBadge = isMember
         ? `<span class="member-badge">
@@ -198,7 +190,6 @@ function createGameCard(game, isAdmin) {
         <div class="community-card-actions">
             <a class="btn btn-primary" href="/community/${game.GameID}">View Details</a>
             ${joinButtonHTML}
-            ${createTeamButtonHTML}
         </div>
     `;
 

@@ -1043,6 +1043,55 @@ def delete_team():
         cursor.close()
 
 
+@app.route('/api/teams/managed-games', methods=['GET'])
+@login_required
+@roles_required('admin', 'gm', 'developer')
+def get_managed_games():
+    """
+    Return games the current user manages (is GM of).
+    Admins/developers get all games.
+    GMs get only their assigned games.
+    """
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        perms = get_user_permissions(session['id'])
+
+        if perms['is_admin'] or perms['is_developer']:
+            cursor.execute("""
+                SELECT GameID, GameTitle, Abbreviation, TeamSizes, Division,
+                       CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image
+                FROM games
+                WHERE hidden = 0
+                ORDER BY GameTitle ASC
+            """)
+        else:
+            cursor.execute("""
+                SELECT GameID, GameTitle, Abbreviation, TeamSizes, Division,
+                       CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image
+                FROM games
+                WHERE gm_id = %s AND hidden = 0
+                ORDER BY GameTitle ASC
+            """, (session['id'],))
+
+        games = cursor.fetchall()
+
+        games_list = [{
+            'GameID':    g['GameID'],
+            'GameTitle': g['GameTitle'],
+            'TeamSizes': g['TeamSizes'],
+            'Division':  g['Division'],
+            'image_url': f'/game-image/{g["GameID"]}' if g['has_image'] else None
+        } for g in games]
+
+        return jsonify({'success': True, 'games': games_list})
+
+    except Exception as e:
+        print(f"Error fetching managed games: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    finally:
+        cursor.close()
+
 # =====================================
 # HELPER FUNCTIONS
 # =====================================

@@ -1089,6 +1089,110 @@ function handleDivisionFilterChange(event) {
 }
 
 // ============================================
+// CREATE TEAM FROM TEAMS TAB
+// ============================================
+
+/**
+ * Open create team flow from the Teams sidebar.
+ * If the GM manages exactly one game, goes straight to team creation.
+ * If they manage multiple, shows a game-picker first.
+ * Admins/developers see all games.
+ */
+async function openCreateTeam() {
+    try {
+        // Check for active season first
+        const seasonResponse = await fetch('/api/seasons/current');
+        const seasonData = await seasonResponse.json();
+
+        // Fetch games this user manages
+        const gamesResponse = await fetch('/api/teams/managed-games');
+        const gamesData = await gamesResponse.json();
+
+        if (!gamesData.success || !gamesData.games || gamesData.games.length === 0) {
+            alert('You are not assigned as Game Manager for any games.');
+            return;
+        }
+
+        if (gamesData.games.length === 1) {
+            // Only one game — go straight to team creation
+            const game = gamesData.games[0];
+            openCreateTeamModal(game.GameID, game.GameTitle, game.TeamSizes);
+        } else {
+            // Multiple games — show picker modal
+            openGamePickerModal(gamesData.games);
+        }
+    } catch (error) {
+        console.error('Error opening create team flow:', error);
+        alert('Failed to load game information. Please try again.');
+    }
+}
+
+/**
+ * Open game picker modal so a GM can choose which game to create a team for.
+ */
+function openGamePickerModal(games) {
+    // Remove any existing picker
+    const existingModal = document.getElementById('gamePickerModal');
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'gamePickerModal';
+    modal.className = 'modal';
+    modal.style.display = 'block';
+
+    const gameListHTML = games.map(game => {
+        const iconHTML = game.image_url
+            ? `<img src="${game.image_url}" alt="${game.GameTitle}"
+                    style="width:36px;height:36px;object-fit:cover;border-radius:8px;"
+                    onerror="this.style.display='none'">`
+            : `<i class="fas fa-gamepad" style="font-size:1.25rem;color:var(--stockton-blue);"></i>`;
+
+        return `
+            <button class="game-picker-option"
+                    onclick="closeGamePickerModal(); openCreateTeamModal(${game.GameID}, '${game.GameTitle.replace(/'/g, "\\'")}', '${game.TeamSizes}')">
+                <div class="game-picker-icon">${iconHTML}</div>
+                <div class="game-picker-info">
+                    <div class="game-picker-title">${game.GameTitle}</div>
+                    <div class="game-picker-division" style="font-size:0.8rem;color:var(--text-secondary);">${game.Division || ''}</div>
+                </div>
+                <i class="fas fa-chevron-right" style="color:var(--text-secondary);margin-left:auto;"></i>
+            </button>
+        `;
+    }).join('');
+
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Select a Game</h2>
+                <button class="modal-close" onclick="closeGamePickerModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-subtitle">Choose which game to create a team for</p>
+                <div class="game-picker-list">
+                    ${gameListHTML}
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Close the game picker modal
+ */
+function closeGamePickerModal() {
+    const modal = document.getElementById('gamePickerModal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// ============================================
 // EXPORT FUNCTIONS TO GLOBAL SCOPE
 // ============================================
 
@@ -1107,6 +1211,8 @@ window.hideDivisionFilterDropdown = hideDivisionFilterDropdown;
 window.handleDivisionFilterChange = handleDivisionFilterChange;
 window.invalidateTeamsCache = invalidateTeamsCache;
 window.isCacheFresh = isCacheFresh;
+window.openCreateTeam = openCreateTeam;
+window.closeGamePickerModal = closeGamePickerModal;
 
 //Past Season Exports
 window.initializePastSeasonFilter = initializePastSeasonFilter;
