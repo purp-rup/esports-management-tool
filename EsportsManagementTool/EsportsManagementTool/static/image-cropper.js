@@ -244,6 +244,7 @@ function handleCommunityCrop(settings) {
 function handleAvatarCrop(settings) {
     cropper.getCroppedCanvas(settings).toBlob((blob) => {
         avatarCroppedImageBlob = blob;
+        window.avatarCroppedImageBlob = blob;
 
         const preview = document.getElementById('avatarPreview');
         if (preview) {

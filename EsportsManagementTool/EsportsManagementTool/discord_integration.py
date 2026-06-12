@@ -291,14 +291,30 @@ def sync_discord_avatar():
         
         discord_data = cursor.fetchone()
         
+        # Decrypt access token
+        access_token = decrypt_token(discord_data['access_token'])
+        decrypted_discord_id = decrypt_token(discord_data['discord_id'])
+
+        # FETCH FRESH USER DATA FROM DISCORD - gets CURRENT avatar hash
+        user_headers = {'Authorization': f'Bearer {access_token}'}
+        user_response = requests.get(DISCORD_USER_URL, headers=user_headers)
+        user_response.raise_for_status()
+        fresh_user_data = user_response.json()
+
         if not discord_data:
             cursor.close()
             return jsonify({'success': False, 'message': 'No Discord account connected'}), 400
         
-        if not discord_data['discord_avatar']:
+        if not access_token or not decrypted_discord_id:
             cursor.close()
-            return jsonify({'success': False, 'message': 'No Discord avatar available'}), 400
-        
+            return jsonify({'success': False,
+                            'message': 'Failed to decrypt Discord data. Please reconnect your Discord account.'}), 500
+
+        # GET FRESH AVATAR HASH FROM DISCORD, NOT FROM DATABASE
+        discord_avatar = fresh_user_data.get('avatar')
+
+        avatar_url = f"https://cdn.discordapp.com/avatars/{decrypted_discord_id}/{discord_avatar}.png?size=512"
+
         # Decrypt sensitive data
         decrypted_discord_id = decrypt_token(discord_data['discord_id'])
         access_token = decrypt_token(discord_data['access_token'])
@@ -307,6 +323,11 @@ def sync_discord_avatar():
             cursor.close()
             return jsonify({'success': False,
                             'message': 'Failed to decrypt Discord data. Please reconnect your Discord account.'}), 500
+
+        if not discord_avatar:
+            cursor.close()
+            return jsonify({'success': False,
+                            'message': 'You do not have a custom Discord avatar set. Please set a profile picture on Discord and try again.'}), 400
 
         # Build avatar URL using decrypted discord_id
         avatar_url = f"https://cdn.discordapp.com/avatars/{decrypted_discord_id}/{discord_data['discord_avatar']}.png?size=512"
@@ -343,6 +364,13 @@ def sync_discord_avatar():
                 cloudinary_public_id = %s
             WHERE id = %s
         """, (picture_url, public_id, session['id']))
+
+        # Update discord table with FRESH avatar hash so it's current for next time
+        cursor.execute("""
+                    UPDATE discord
+                    SET discord_avatar = %s
+                    WHERE userid = %s
+                """, (discord_avatar, session['id']))
 
         mysql.connection.commit()
         cursor.close()
