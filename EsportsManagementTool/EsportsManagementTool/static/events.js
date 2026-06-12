@@ -1341,7 +1341,7 @@ async function openEventModal(eventId, source = 'events') {
     const spinner = document.getElementById('eventLoadingSpinner');
     const content = document.getElementById('eventDetailsContent');
     const deleteBtn = document.getElementById('deleteEventBtn');
-    const titleElement = document.getElementById('eventModalsTitle');
+    const titleElement = document.getElementById('eventModalTitle');
 
     EventState.currentEventId = eventId;
     EventState.deletionSource = source;
