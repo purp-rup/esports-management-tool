@@ -1341,7 +1341,7 @@ async function openEventModal(eventId, source = 'events') {
     const spinner = document.getElementById('eventLoadingSpinner');
     const content = document.getElementById('eventDetailsContent');
     const deleteBtn = document.getElementById('deleteEventBtn');
-    const titleElement = document.getElementById('eventDetailsTitle');
+    const titleElement = document.getElementById('eventModalsTitle');
 
     EventState.currentEventId = eventId;
     EventState.deletionSource = source;
@@ -1981,7 +1981,7 @@ function toggleEditMode() {
     const editForm = document.getElementById('eventEditForm');
     const editBtn = document.getElementById('editEventBtn');
     const deleteBtn = document.getElementById('deleteEventBtn');
-    const titleElement = document.getElementById('eventDetailsTitle');
+    const titleElement = document.getElementById('eventModalTitle');
 
     // Hide view mode, show edit mode
     setElementDisplay(content, 'none');

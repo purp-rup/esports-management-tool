@@ -1,36 +1,17 @@
 /**
- * landing-calendar.js
+ * calendar.js
  * Landing Page Calendar System with improved error handling
  */
 
 // Global variables - use unique names to avoid conflicts with dashboard scripts
 let currentDate = new Date();
-let landingEventsData = {};  // Renamed from landingEventsData to avoid conflict with events.js
+let calendarEventsData = {};  
 let isUserLoggedIn = false;
 let clickOutsideHandler = null; // Listens for clicks outside of popups
 let activeAnchorElement = null;
 
 window.currentEventId = null;
 window.currentEventData = null;
-
-// Modal close functions (must be defined before modals.js loads)
-window.closeEventModal = function() {
-    const modal = document.getElementById('eventDetailsModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-    window.currentEventId = null;
-    window.currentEventData = null;
-};
-
-window.closeDayModal = function() {
-    const modal = document.getElementById('dayEventsModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-};
 
 // Scroll locking helper functions for event popups
 let scrollLockOffset = 0;
@@ -88,23 +69,24 @@ function handleDynamicReposition() {
     }
 }
 
-// Stub functions for dashboard-only modals
-window.closeCreateEventModal = function() {};
-window.closeCreateGameModal = function() {};
-window.closeCreateTeamModal = function() {};
-window.closeCommunityModal = function() {};
-window.closeAssignGMModal = function() {};
-window.closeAvatarModal = function() {};
-window.closeEditProfileModal = function() {};
-window.closeChangePasswordModal = function() {};
-window.closeDeleteConfirmModal = function() {};
-window.closeAddTeamMembersModal = function() {};
-window.closeCreateScheduledEventModal = function() {};
-window.closeAddVodModal = function() {};
-
-function closeEventModal() { window.closeEventModal(); }
-function closeDayModal() { window.closeDayModal(); }
-function closeEventPopup() {window.closeEventPopup(); }
+[
+    'closeCreateEventModal',
+    'closeCreateGameModal', 
+    'closeCreateTeamModal',
+    'closeCommunityModal',
+    'closeAssignGMModal',
+    'closeAvatarModal',
+    'closeEditProfileModal',
+    'closeChangePasswordModal',
+    'closeDeleteConfirmModal',
+    'closeAddTeamMembersModal',
+    'closeCreateScheduledEventModal',
+    'closeAddVodModal'
+].forEach(function(name) {
+    if (typeof window[name] !== 'function') {
+        window[name] = function() {};
+    }
+});
 
 // Initialization
 document.addEventListener('DOMContentLoaded', function() {
@@ -242,13 +224,13 @@ function loadCalendarEvents() {
         })
         .then(data => {
             console.log('Events loaded:', data);
-            landingEventsData = data;
+            calendarEventsData = data;
             displayEvents();
             updateTodayEvents();
         })
         .catch(error => {
             console.error('Error loading events:', error);
-            landingEventsData = {};
+            calendarEventsData = {};
             displayEvents();
             updateTodayEvents();
         });
@@ -261,8 +243,8 @@ function displayEvents() {
 
     let eventCount = 0;
 
-    Object.keys(landingEventsData).forEach(dateKey => {
-        const events = landingEventsData[dateKey];
+    Object.keys(calendarEventsData).forEach(dateKey => {
+        const events = calendarEventsData[dateKey];
         const container = document.getElementById(`events-${dateKey}`);
 
         if (!container || !events || events.length === 0) return;
@@ -320,7 +302,7 @@ function updateTodayEvents() {
     const day = String(today.getDate()).padStart(2, '0');
     const dateKey = `${year}-${month}-${day}`;
 
-    const todayEvents = landingEventsData[dateKey] || [];
+    const todayEvents = calendarEventsData[dateKey] || [];
     const container = document.getElementById('todayEventsList');
 
     if (!container) {
@@ -356,14 +338,14 @@ function updateTodayEvents() {
         item.appendChild(type);
 
         item.addEventListener('click', function() {
-            openEventModal(event.id);
+            openCalendarEventModal(event.id);
         });
 
         container.appendChild(item);
     });
 }
 
-function openEventModal(eventId) {
+function openCalendarEventModal(eventId) {
     const modal = document.getElementById('eventDetailsModal');
     const modalBody = document.getElementById('eventModalBody');
 
@@ -530,7 +512,7 @@ function openDayModal(dateKey, dateDisplay) {
     const body = document.getElementById('dayModalBody');
 
     title.textContent = `Events on ${dateDisplay}`;
-    const events = landingEventsData[dateKey] || [];
+    const events = calendarEventsData[dateKey] || [];
 
     if (events.length === 0) {
         body.innerHTML = '<p style="color: var(--text-secondary);">No events on this day</p>';
@@ -538,7 +520,7 @@ function openDayModal(dateKey, dateDisplay) {
         let html = '';
         events.forEach(event => {
             html += `
-                <div class="modal-event-item" onclick="closeDayModal(); openEventModal(${event.id});">
+                <div class="modal-event-item" onclick="closeDayModal(); openCalendarEventModal(${event.id});">
                     ${event.time ? `<div class="modal-event-time">${event.time}</div>` : ''}
                     <div class="modal-event-title">${event.title}</div>
                     ${event.description ? `<div class="modal-event-description">${event.description}</div>` : ''}
@@ -870,4 +852,29 @@ async function toggleEventSubscription() {
         console.error('Error toggling subscription:', err);
         alert('Failed to toggle subscription.');
     }
+}
+
+// These are defined at the END so they always win over anything modals.js set earlier
+window.closeEventModal = function() {
+    const modal = document.getElementById('eventDetailsModal');
+    if (modal) modal.style.display = 'none';
+    window.currentEventId = null;
+    window.currentEventData = null;
+    document.body.style.overflow = '';
+};
+
+window.closeDayModal = function() {
+    const modal = document.getElementById('dayEventsModal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+};
+
+function closeEventModal() { window.closeEventModal(); }
+function closeDayModal() { window.closeDayModal(); }
+function closeEventPopup() { window.closeEventPopup(); }
+
+window.openCalendarEventModal = openCalendarEventModal;
+
+if (typeof window.openEventModal !== 'function') {
+    window.openEventModal = openCalendarEventModal;
 }

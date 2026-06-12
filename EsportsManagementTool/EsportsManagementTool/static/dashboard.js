@@ -68,13 +68,6 @@ document.addEventListener('DOMContentLoaded', function() {
  */
 function initializeDashboardModules() {
 
-    // Initialize events module (from events.js)
-    // Only initializes if both the function and server data are available
-    if (typeof initializeEventsModule === 'function' && typeof eventsDataFromServer !== 'undefined') {
-        initializeEventsModule(eventsDataFromServer);
-        console.log('Events module initialized');
-    }
-
     // Initialize admin panel if admin tab exists (from admin-panel.js)
     // Only initializes for users with admin access
     const adminTab = document.querySelector('[data-tab="admin"]');
@@ -82,9 +75,16 @@ function initializeDashboardModules() {
         initializeAdminPanel();
         console.log('Admin panel initialized');
     }
-
     // Note: Other modules (communities, profile, etc.) initialize themselves
     // or are initialized by their respective loaded scripts
+    
+    // Initialize events module on page load
+    const eventsTab = document.querySelector('[data-tab="events"]');
+    if (eventsTab && typeof loadEvents === 'function') {
+        setTimeout(() => {
+            loadEvents();
+    }, 150);
+    }
 }
 
 // ============================================
