@@ -81,21 +81,21 @@
 
     <!-- Calendar Tab -->
     <div id="calendar" class="tab-content active">
-        <div class="calendar-container">
+        <div class="calendar-container" style="visibility: hidden;">
             <!-- Main Calendar Section -->
             <div class="calendar-main">
                 <div class="calendar-wrapper">
                     <!-- Calendar Navigation -->
                     <div class="calendar-navigation">
-                        <a href="{{ url_for('dashboard', year=prev_year, month=prev_month) }}" class="nav-button">
+                        <button class="nav-button" id="prevMonth">
                             <i class="fas fa-chevron-left"></i>
                             <span>Previous</span>
-                        </a>
-                        <h1 class="calendar-month-year">{{ month_name }} {{ year }}</h1>
-                        <a href="{{ url_for('dashboard', year=next_year, month=next_month) }}" class="nav-button">
+                        </button>
+                        <h2 class="calendar-month-year" id="currentMonthYear"></h2>
+                        <button class="nav-button" id="nextMonth">
                             <span>Next</span>
                             <i class="fas fa-chevron-right"></i>
-                        </a>
+                        </button>
                     </div>
 
                     <!-- Days of week header -->
@@ -110,58 +110,16 @@
                     </div>
 
                     <!-- Calendar grid -->
-                    <div class="calendar-grid">
-                        {% for week in month_calendar %}
-                            {% for day in week %}
-                                {% if day == 0 %}
-                                    <div class="calendar-cell empty"></div>
-                                {% else %}
-                                    {% set day_date = '%04d-%02d-%02d'|format(year, month, day) %}
-                                    {% set is_today = (day_date == today_str) %}
-
-                                    <div class="calendar-cell {% if is_today %}today{% endif %}">
-                                        <div class="day-number">{{ day }}</div>
-
-                                        <div class="events-container">
-                                            {% if day_date in events_by_date %}
-                                                {% set day_events = events_by_date[day_date] %}
-
-                                                {% for event in day_events[:3] %}
-                                                    <div class="event-link" onclick="openEventModal({{ event.id }}, 'calendar')">
-                                                        <div class="event {{ event.event_type|lower }} {% if event.is_scheduled %}scheduled-event{% endif %}"
-                                                             data-event-type="{{ event.event_type|lower }}"
-                                                             {% if event.is_scheduled %}data-scheduled="true" data-schedule-id="{{ event.schedule_id }}"{% endif %}
-                                                             title="Click to view details"
-                                                             {% if not event.time %}class="all-day"{% endif %}>
-                                                            <div class="event-title">{{ event.title }}</div>
-                                                            {% if event.time %}
-                                                                <div class="event-time">{{ event.time }}</div>
-                                                            {% endif %}
-                                                        </div>
-                                                    </div>
-                                                {% endfor %}
-
-                                                {% if day_events|length > 3 %}
-                                                    <div class="event-overflow"
-                                                         onclick="openDayModal('{{ day_date }}', '{{ month_name }} {{ day }}, {{ year }}')"
-                                                         style="cursor: pointer; color: var(--stockton-blue); text-decoration: underline;">
-                                                        +{{ day_events|length - 3 }} more
-                                                    </div>
-                                                {% endif %}
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                {% endif %}
-                            {% endfor %}
-                        {% endfor %}
+                    <div class="calendar-grid" id="calendarGrid">
+                        <!-- Populated by calendar.js -->
                     </div>
 
                     <!-- Calendar Footer -->
-<!--                    <div class="calendar-footer">-->
-<!--                        <a href="{{ url_for('dashboard') }}" class="today-button">-->
-<!--                            <i class="fas fa-calendar-day"></i> Jump to Today-->
-<!--                        </a>-->
-<!--                    </div>-->
+                         <!-- <div class="calendar-footer"> -->
+                            <!-- <a href="{{ url_for('dashboard') }}" class="today-button"> -->
+                                <!-- <i class="fas fa-calendar-day"></i> Jump to Today -->
+                            <!-- </a> -->
+                        <!-- </div> -->
                 </div>
             </div>
 
@@ -200,28 +158,9 @@
                 <!-- Today's Events Card -->
                 <div class="sidebar-card">
                     <h3><i class="fas fa-calendar-day"></i> Today's Events</h3>
-                    {% set today_events = events_by_date.get(today_str, []) %}
-                    {% if today_events %}
-                        <div class="today-events-list">
-                            {% for event in today_events %}
-                                <div class="today-event-item" onclick="openEventModal({{ event.id }}, 'calendar')">
-                                    <div class="today-event-time">
-                                        {% if event.time %}
-                                            <i class="fas fa-clock"></i> {{ event.time }}
-                                        {% else %}
-                                            <i class="fas fa-calendar"></i> All Day
-                                        {% endif %}
-                                    </div>
-                                    <div class="today-event-title">{{ event.title }}</div>
-                                    <span class="today-event-type {{ event.event_type|lower }}">{{ event.event_type }}</span>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin: 0;">
-                            No events scheduled for today.
-                        </p>
-                    {% endif %}
+                    <div class="today-events-list" id="todayEventsList">
+                        <p style="color: var(--text-secondary); font-size: 0.875rem;">No events today</p>   
+                    </div>
                 </div>
             </div>
         </div>
@@ -1541,12 +1480,12 @@
 <div id="dayEventsModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="modalDayTitle"></h2>
+            <h2 id="dayModalTitle"></h2>
             <button class="modal-close" onclick="closeDayModal()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <div class="modal-body" id="modalEventsList">
+        <div class="modal-body" id="dayModalBody">
             <!-- Events will be populated here -->
         </div>
     </div>
@@ -2085,6 +2024,7 @@
 <script src="{{ url_for('static', filename='tournament-results.js') }}"></script>
 <!-- Must load second-to-last -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
+<script src="{{ url_for('static', filename='calendar.js') }}"></script>
 <!-- Must load last -->
 <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 
@@ -2097,8 +2037,11 @@
 
     // Set global user context for events module
     window.currentUserId = {{ session.id }};
-
-    // Events data for calendar
-    const eventsDataFromServer = {{ events_by_date | tojson }};
+    
+    document.addEventListener('click', function(e) {
+        if (!e.target.classList.contains('modal')) return;
+        const closeBtn = e.target.querySelector('.modal-header .modal-close, .modal-header .close');
+        if (closeBtn) closeBtn.click();
+    });
 </script>
 {% endblock %}
