@@ -565,7 +565,8 @@ async function submitMatchResult(event) {
         event_id: document.getElementById('matchEventSelect').value,
         result: document.querySelector('input[name="matchResult"]:checked')?.value,
         notes: document.getElementById('matchNotes').value,
-        is_playoffs: document.getElementById('matchPlayoffs').checked
+        is_playoffs: document.getElementById('matchPlayoffs').checked,
+        opponent_school: document.getElementById('matchOpponentSchool').value.trim()
     };
 
     // ========================================
@@ -707,6 +708,12 @@ async function editMatchResult(eventId) {
         notesField.value = match.notes;
     }
 
+    // Set opponent school if it exists
+    const opponentSchoolField = document.getElementById('matchOpponentSchool');
+    if (opponentSchoolField) {
+        opponentSchoolField.value = match.opponent_school || '';
+    }
+
     // Set playoffs checkbox if applicable
     const playoffsCheckbox = document.getElementById('matchPlayoffs');
     if (playoffsCheckbox) {
@@ -807,6 +814,20 @@ async function openMatchDetailsModal(eventId) {
                     <i class="fas ${resultIcon}"></i>
                     ${match.result.toUpperCase()}
                 </span>
+            `;
+        }
+
+        // Opponent School
+        let opponentSchoolHTML = '';
+        if (match.opponent_school && match.opponent_school.trim()) {
+            opponentSchoolHTML = `
+                <div class="match-detail-section">
+                    <div class="match-detail-label">
+                        <i class="fas fa-shield-alt"></i>
+                        Opponent School
+                    </div>
+                    <div class="match-detail-value">${match.opponent_school}</div>
+                </div>
             `;
         }
 
@@ -930,6 +951,7 @@ async function openMatchDetailsModal(eventId) {
                     </div>
                 </div>
 
+                ${opponentSchoolHTML}
                 ${leagueHTML}
                 ${playoffsHTML}
                 ${notesHTML}
