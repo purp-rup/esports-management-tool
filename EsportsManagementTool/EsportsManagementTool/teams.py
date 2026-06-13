@@ -672,7 +672,14 @@ def get_teams_for_sidebar():
 @app.route('/api/teams/sidebar-filters')
 @login_required
 def get_team_sidebar_filters():
-    """Get list of available view options based on user's roles"""
+    """
+    Get list of available view options based on user's roles.
+    Each role independently contributes its own views.
+    Admins: All Teams, Past Seasons, Division filters.
+    GMs: Managed Teams, Past Managed.
+    Players: My Teams, My Past Teams.
+    Any user associated with teams always sees the filter dropdown.
+    """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         perms = get_permissions_for_sidebar(session['id'])
@@ -681,20 +688,20 @@ def get_team_sidebar_filters():
         if perms['is_admin'] or perms['is_developer']:
             views.append({'value': 'all', 'label': 'All Teams', 'priority': 1})
 
-        if perms['manages_games']:
+        if perms['is_admin'] or perms['is_developer'] or perms['manages_games']:
             views.append({'value': 'manage', 'label': 'Managed Teams', 'priority': 2})
-            views.append({'value': 'past_managed', 'label': 'Old Managed Teams', 'priority': 3})
+            views.append({'value': 'past_managed', 'label': 'Past Managed Teams', 'priority': 3})
 
-        if perms['in_teams']:
+        if perms['is_player']:
             views.append({'value': 'play', 'label': 'My Teams', 'priority': 4})
-            views.append({'value': 'my_past_teams', 'label': 'My Old Teams', 'priority': 5})
+            views.append({'value': 'my_past_teams', 'label': 'My Past Teams', 'priority': 5})
 
         views.sort(key=lambda x: x['priority'])
 
         return jsonify({
             'success': True,
             'views': views,
-            'has_multiple': len(views) > 1
+            'has_multiple': len(views) > 0
         })
 
     except Exception as e:
