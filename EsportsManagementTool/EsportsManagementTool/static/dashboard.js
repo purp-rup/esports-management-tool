@@ -80,10 +80,18 @@ function initializeDashboardModules() {
     
     // Initialize events module on page load
     const eventsTab = document.querySelector('[data-tab="events"]');
-    if (eventsTab && typeof loadEvents === 'function') {
-        setTimeout(() => {
-            loadEvents();
-    }, 150);
+    if (eventsTab) {
+        // Initialize events module (from events.js)
+        if (typeof initializeEventsModule === 'function') {
+            initializeEventsModule(typeof eventsDataFromServer !== 'undefined' ? eventsDataFromServer : {});
+            console.log('Events module initialized');
+        }
+
+        if (typeof loadEvents === 'function') {
+            setTimeout(() => {
+                loadEvents();
+            }, 150);
+        }
     }
 }
 

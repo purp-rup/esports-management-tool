@@ -1,6 +1,5 @@
 /**
- * calendar.js
- * Landing Page Calendar System with improved error handling
+ * Handles logic & rendering for both calendars.
  */
 
 // Global variables - use unique names to avoid conflicts with dashboard scripts
@@ -227,13 +226,20 @@ function loadCalendarEvents() {
             calendarEventsData = data;
             displayEvents();
             updateTodayEvents();
+            revealCalendar();
         })
         .catch(error => {
             console.error('Error loading events:', error);
             calendarEventsData = {};
             displayEvents();
             updateTodayEvents();
+            revealCalendar();
         });
+}
+
+function revealCalendar() {
+    const calendarMain = document.querySelector('.calendar-container');
+    if (calendarMain) calendarMain.style.visibility = 'visible';
 }
 
 function displayEvents() {

@@ -349,6 +349,14 @@ function setElementDisplay(element, displayValue) {
 }
 
 /**
+ * Enable a dropdown element (re-enable after loading state)
+ * @param {HTMLElement|null} dropdown - Dropdown element to enable
+ */
+function enableDropdown(dropdown) {
+    if (dropdown) dropdown.disabled = false;
+}
+
+/**
  * Escape single quotes in strings for safe HTML attribute use
  * @param {string} str - String to escape
  * @returns {string} Escaped string
