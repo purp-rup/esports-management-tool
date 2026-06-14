@@ -690,10 +690,14 @@ def get_team_sidebar_filters():
 
         if perms['is_admin'] or perms['is_developer'] or perms['manages_games']:
             views.append({'value': 'manage', 'label': 'Managed Teams', 'priority': 2})
+
+            if perms['is_admin'] or perms['is_developer'] or perms['manages_games'] or perms['has_managed_teams']:
             views.append({'value': 'past_managed', 'label': 'Past Managed Teams', 'priority': 3})
 
-        if perms['is_player']:
+        if perms['is_player'] or perms['in_teams']:
             views.append({'value': 'play', 'label': 'My Teams', 'priority': 4})
+
+        if perms['in_teams']:
             views.append({'value': 'my_past_teams', 'label': 'My Past Teams', 'priority': 5})
 
         views.sort(key=lambda x: x['priority'])
@@ -1106,6 +1110,7 @@ def get_permissions_for_sidebar(user_id):
     """
     Extends get_user_permissions with team/game membership checks
     needed to determine which sidebar views to show.
+    Checks past records directly so former GMs and players can still see their past teams.
     """
     perms = get_user_permissions(user_id)
 
@@ -1113,16 +1118,23 @@ def get_permissions_for_sidebar(user_id):
     try:
         manages_games = False
         in_teams = False
+        has_managed_teams = False
 
         if perms['is_admin'] or perms['is_developer'] or perms['is_gm']:
             cursor.execute("SELECT COUNT(*) as count FROM games WHERE gm_id = %s", (user_id,))
             manages_games = cursor.fetchone()['count'] > 0
 
-        if perms['is_player']:
-            cursor.execute("SELECT COUNT(*) as count FROM team_members WHERE user_id = %s", (user_id,))
-            in_teams = cursor.fetchone()['count'] > 0
+        cursor.execute("SELECT COUNT(*) as count FROM team_members WHERE user_id = %s", (user_id,))
+        in_teams = cursor.fetchone()['count'] > 0
 
-        return {**perms, 'manages_games': manages_games, 'in_teams': in_teams}
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM teams t
+            JOIN games g ON t.gameID = g.GameID
+            WHERE g.gm_id = %s
+        """, (user_id,))
+        has_managed_teams = cursor.fetchone()['count'] > 0
+
+        return {**perms, 'manages_games': manages_games, 'in_teams': in_teams, 'has_managed_teams': has_managed_teams}
     finally:
         cursor.close()
 
