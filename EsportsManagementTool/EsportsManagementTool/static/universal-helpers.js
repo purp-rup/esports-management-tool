@@ -44,6 +44,26 @@ function enableDropdown(dropdown) {
     dropdown.style.cursor = 'pointer';
 }
 
+/**
+ * Attach a live character counter to a text area.
+ */
+function attachCharacterCounter(textareaId, maxLength) {
+    const textarea = document.getElementById(textareaId);
+    if (!textarea) return;
+
+    textarea.setAttribute('maxlength', maxLength);
+
+    const counter = document.createElement('div');
+    counter.className = 'char-counter';
+    counter.textContent = `0 / ${maxLength}`;
+
+    textarea.parentNode.insertBefore(counter, textarea.nextSibling);
+
+    textarea.addEventListener('input', function() {
+        counter.textContent = `${textarea.value.length} / ${maxLength}`;
+    });
+}
+
 // ========================================
 // UTILITIES
 // =======================================

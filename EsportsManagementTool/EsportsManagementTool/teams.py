@@ -691,7 +691,7 @@ def get_team_sidebar_filters():
         if perms['is_admin'] or perms['is_developer'] or perms['manages_games']:
             views.append({'value': 'manage', 'label': 'Managed Teams', 'priority': 2})
 
-            if perms['is_admin'] or perms['is_developer'] or perms['manages_games'] or perms['has_managed_teams']:
+        if perms['is_admin'] or perms['is_developer'] or perms['manages_games'] or perms['has_managed_teams']:
             views.append({'value': 'past_managed', 'label': 'Past Managed Teams', 'priority': 3})
 
         if perms['is_player'] or perms['in_teams']:

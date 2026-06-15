@@ -947,3 +947,11 @@
         grid-column: span 1 !important;
     }
 }
+
+/* Character counter displayed below text boxes */
+.char-counter {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: right;
+    margin-top: 0.25rem;
+}
