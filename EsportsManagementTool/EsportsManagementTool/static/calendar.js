@@ -239,6 +239,8 @@ function loadCalendarEvents() {
 
 function revealCalendar() {
     const calendarMain = document.querySelector('.calendar-container');
+    const spinner = document.getElementById('calendarLoadingSpinner');
+    if (spinner) spinner.style.display = 'none';
     if (calendarMain) calendarMain.style.visibility = 'visible';
 }
 
