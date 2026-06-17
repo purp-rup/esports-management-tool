@@ -37,42 +37,30 @@
         <p>Welcome back, {{ user.firstname }}! Here's what's happening with your esports journey.</p>
     </div>
 
-    <!-- Mobile Tab Dropdown -->
-    <select class="tab-dropdown fa-icons" id="tabDropdown">
-        <option class="fa-icons" value="calendar">&#xf133; Calendar</option>
-        <option value="profile">&#xf007; Profile</option>
-        <option value="rosters">&#xf086; Communities</option>
-        <option value="events">&#xf274; Events</option>
-        <option value="teams">&#xe533; Teams</option>
-        {% if user.is_admin or user.is_developer %}
-        <option value="admin">&#xf085; Admin</option>
-        {% endif %}
-    </select>
-
     <!-- Tab Navigation -->
     <div class="tab-navigation">
-        <button class="tab-button active" data-tab="calendar">
+        <button class="tab-button {% if preferred_tab == 'calendar' %}active{% endif %}" data-tab="calendar">
             <i class="fa-regular fa-calendar tab-icon"></i>
             <span>Calendar</span>
         </button>
-        <button class="tab-button" data-tab="profile">
+        <button class="tab-button {% if preferred_tab == 'profile' %}active{% endif %}" data-tab="profile">
             <i class="fa-regular fa-user tab-icon"></i>
             <span>Profile</span>
         </button>
-        <button class="tab-button" data-tab="rosters">
+        <button class="tab-button {% if preferred_tab == 'rosters' %}active{% endif %}" data-tab="rosters">
             <i class="fa-solid fa-users tab-icon"></i>
             <span>Communities</span>
         </button>
-        <button class="tab-button" data-tab="events">
+        <button class="tab-button {% if preferred_tab == 'events' %}active{% endif %}" data-tab="events">
             <i class="fa-regular fa-calendar-days tab-icon"></i>
             <span>Events</span>
         </button>
-        <button class="tab-button" data-tab="teams">
+        <button class="tab-button {% if preferred_tab == 'teams' %}active{% endif %}" data-tab="teams">
             <i class="fa-solid fa-gamepad tab-icon"></i>
             <span>Teams</span>
         </button>
         {% if user.is_admin or user.is_developer %}
-        <button class="tab-button" data-tab="admin">
+        <button class="tab-button {% if preferred_tab == 'admin' %}active{% endif %}" data-tab="admin">
             <i class="fa-solid fa-shield-halved tab-icon"></i>
             <span>Admin</span>
         </button>
@@ -80,7 +68,7 @@
     </div>
 
     <!-- Calendar Tab -->
-    <div id="calendar" class="tab-content active">
+    <div id="calendar" class="tab-content {% if preferred_tab == 'calendar' %}active{% endif %}">
         <div class="calendar-container">
             <!-- Main Calendar Section -->
             <div class="calendar-main">
@@ -228,7 +216,7 @@
     </div>
 
     <!-- Profile Tab -->
-    <div id="profile" class="tab-content">
+    <div id="profile" class="tab-content {% if preferred_tab == 'profile' %}active{% endif %}">
         <div class="content-card">
             <div class="card-header">
                 <h2>Profile</h2>
@@ -285,7 +273,7 @@
             </div>
         </div>
 
-            <!-- NEW: Notification Settings Card -->
+            <!-- Notification Settings Card -->
             <div class="content-card" style="margin-top: 1rem;">
                 <div class="card-header">
                     <h2>Notification Settings</h2>
@@ -426,6 +414,35 @@
                     </div>
                 </form>
             </div>
+
+        <!-- Preferred Tab Settings -->
+        <div class="content-card" style="margin-top: 1rem;">
+              <div class="card-header">
+                  <h2>Preferred Tab</h2>
+                  <p>Choose which tab opens first when you visit the dashboard</p>
+              </div>
+
+              <div class="event-filter-dropdown">
+                  <label for="preferredTabSelect">Default Tab:</label>
+                  <select id="preferredTabSelect" name="preferred_tab">
+                      <option value="calendar" {% if preferred_tab == 'calendar' %}selected{% endif %}>Calendar</option>
+                      <option value="profile" {% if preferred_tab == 'profile' %}selected{% endif %}>Profile</option>
+                      <option value="rosters" {% if preferred_tab == 'rosters' %}selected{% endif %}>Communities</option>
+                      <option value="events" {% if preferred_tab == 'events' %}selected{% endif %}>Events</option>
+                      <option value="teams" {% if preferred_tab == 'teams' %}selected{% endif %}>Teams</option>
+                      {% if user.is_admin or user.is_developer %}
+                      <option value="admin" {% if preferred_tab == 'admin' %}selected{% endif %}>Admin</option>
+                      {% endif %}
+                  </select>
+              </div>
+              <div class="profile-actions" style="vertical-align: center; margin-top: 1rem;">
+                  <button type="button" id="savePreferredTabBtn" class="btn btn-primary">
+                      <span id="savePreferredTabBtnText">Save Preferred Tab</span>
+                      <i id="savePreferredTabBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                  </button>
+                  <div id="preferredTabMessage" class="form-message" style="display: none; margin-bottom: 0; padding: 0;"></div>
+              </div>
+        </div>
 
         <!-- My Communities Section -->
         <div class="content-card" style="margin-top: 1rem;">
@@ -628,7 +645,7 @@
         </div>
 
     <!-- Communities Tab -->
-    <div id="rosters" class="tab-content">
+    <div id="rosters" class="tab-content {% if preferred_tab == 'rosters' %}active{% endif %}">
         <div class="content-card">
             <div class="card-header">
                 <div>
@@ -692,7 +709,7 @@
     </div>
 
     <!-- Events Tab -->
-    <div id="events" class="tab-content">
+    <div id="events" class="tab-content {% if preferred_tab == 'events' %}active{% endif %}">
         <div class="content-card">
             <div class="card-header">
                 <div>
@@ -942,7 +959,7 @@
     </div>
 
     <!-- Teams Tab -->
-    <div id="teams" class="tab-content">
+    <div id="teams" class="tab-content {% if preferred_tab == 'teams' %}active{% endif %}">
         <div class="teams-layout">
             <!-- LEFT SIDEBAR: Team List -->
             <aside class="teams-sidebar">
@@ -1408,7 +1425,7 @@
 
     <!-- Admin Tab -->
     {% if user.is_admin or user.is_developer %}
-    <div id="admin" class="tab-content">
+    <div id="admin" class="tab-content {% if preferred_tab == 'admin' %}active{% endif %}">
         <div class="content-card">
             <div class="card-header">
                 <div>

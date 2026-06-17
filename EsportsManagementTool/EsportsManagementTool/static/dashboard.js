@@ -37,6 +37,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     initializeTabNavigation();
 
+    // ========================================
+    // PREFERRED TAB SETTING
+    // ========================================
+
+    initializePreferredTabSetting();
+
     // =======================================
     // PAGE RELOAD CONSISTENCY SETUP
     //========================================
@@ -93,14 +99,13 @@ function initializeDashboardModules() {
 
 /**
  * Initialize tab navigation system
- * Sets up both desktop buttons and mobile dropdown
+ * Sets up desktop buttons
  * Handles URL hash for deep linking to specific tabs
  */
 function initializeTabNavigation() {
     // Get all tab navigation elements
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
-    const tabDropdown = document.getElementById('tabDropdown');
 
     // Check for URL hash to restore previous tab state
     // Useful for returning to a specific tab after external actions
@@ -116,7 +121,6 @@ function initializeTabNavigation() {
 
     /**
      * Switch between dashboard tabs
-     * Updates both desktop buttons and mobile dropdown to stay in sync
      *
      * @param {string} targetTab - ID of the tab content to display
      *
@@ -140,11 +144,6 @@ function initializeTabNavigation() {
             targetContent.classList.add('active');
         }
 
-        // Sync mobile dropdown selection
-        if (tabDropdown) {
-            tabDropdown.value = targetTab;
-        }
-
         // Optional: Update URL hash for bookmarking/sharing
         // Commented out to avoid cluttering browser history
         // window.location.hash = targetTab;
@@ -161,16 +160,50 @@ function initializeTabNavigation() {
             switchTab(targetTab);
         });
     });
+}
 
-    // ========================================
-    // MOBILE TAB DROPDOWN
-    // ========================================
+// ============================================
+// PREFERRED TAB SETTING
+// ============================================
 
-    // Attach change handler to mobile dropdown
-    // Keeps mobile and desktop navigation in sync
-    if (tabDropdown) {
-        tabDropdown.addEventListener('change', function() {
-            switchTab(this.value);
-        });
-    }
+function initializePreferredTabSetting() {
+    const saveButton = document.getElementById('savePreferredTabBtn');
+    const select = document.getElementById('preferredTabSelect');
+    const message = document.getElementById('preferredTabMessage');
+    const btnText = document.getElementById('savePreferredTabBtnText');
+    const btnSpinner = document.getElementById('savePreferredTabBtnSpinner');
+
+    if (!saveButton || !select) return;
+
+    saveButton.addEventListener('click', function() {
+        if (btnText) btnText.style.display = 'none';
+        if (btnSpinner) btnSpinner.style.display = 'inline-block';
+        saveButton.disabled = true;
+
+        fetch('/profile/preferred-tab', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ preferred_tab: select.value })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (message) {
+                    message.textContent = data.success ? 'Saved!' : (data.message || 'Failed to save preferred tab.');
+                    message.style.color = data.success ? 'green' : 'red';
+                    message.style.display = 'inline';
+                }
+            })
+            .catch(() => {
+                if (message) {
+                    message.textContent = 'Failed to save preferred tab.';
+                    message.style.color = 'red';
+                    message.style.display = 'inline';
+                }
+            })
+            .finally(() => {
+                if (btnText) btnText.style.display = 'inline';
+                if (btnSpinner) btnSpinner.style.display = 'none';
+                saveButton.disabled = false;
+            });
+    });
 }

@@ -56,6 +56,18 @@ def dashboard(year=None, month=None):
     """, (session['id'],))
     preferences = cursor.fetchone()
 
+    # Get preferred tab, defaults to calendar
+    cursor.execute("""
+        SELECT preferred_tab 
+        FROM tab_preferences 
+        WHERE user_id = %s
+    """, (session['id'],))
+    tab_preference = cursor.fetchone()
+    preferred_tab = tab_preference['preferred_tab'] if tab_preference else 'calendar'
+
+    if preferred_tab == 'admin' and not (user['is_admin'] or user['is_developer']):
+        preferred_tab = 'calendar'
+
     # Default to current month/year if not specified
     if year is None or month is None:
         today = datetime.now()
@@ -272,6 +284,7 @@ def dashboard(year=None, month=None):
             user=user,
             is_verified=is_verified,
             preferences=preferences,
+            preferred_tab=preferred_tab,
             month_calendar=month_calendar,
             month_name=month_name,
             year=year,
@@ -291,6 +304,36 @@ def dashboard(year=None, month=None):
             developers=developers,
             user_list=user_list
         )
+
+    finally:
+        cursor.close()
+
+@app.route('/profile/preferred-tab', methods=['POST'])
+@login_required
+def save_preferred_tab():
+    """Route to save a user's preferred tab to be displayed when opening the dashboard."""
+    data = request.get_json()
+    preferred_tab = data.get('preferred_tab')
+
+    valid_tabs = ['calendar', 'profile', 'rosters', 'events', 'teams', 'admin']
+    if preferred_tab not in valid_tabs:
+        return jsonify({'success': False, 'message': 'Invalid tab selection'}), 400
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            INSERT INTO tab_preferences (user_id, preferred_tab)
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE preferred_tab = %s
+        """, (session['id'], preferred_tab, preferred_tab))
+        mysql.connection.commit()
+
+        return jsonify({'success': True, 'message': 'Preferred tab saved'})
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error saving preferred tab: {str(e)}")
+        return jsonify({'success': False, 'message': 'Database error occurred'}), 500
 
     finally:
         cursor.close()
