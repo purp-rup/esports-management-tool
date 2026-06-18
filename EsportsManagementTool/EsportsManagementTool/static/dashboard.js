@@ -55,6 +55,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 100);
         }
     }
+
+    // Character Counter        
+    attachCharacterCounter('gameDescription', 250);
+    attachCharacterCounter('matchNotes', 250);
 });
 
 // ============================================

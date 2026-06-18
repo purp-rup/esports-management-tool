@@ -672,7 +672,14 @@ def get_teams_for_sidebar():
 @app.route('/api/teams/sidebar-filters')
 @login_required
 def get_team_sidebar_filters():
-    """Get list of available view options based on user's roles"""
+    """
+    Get list of available view options based on user's roles.
+    Each role independently contributes its own views.
+    Admins: All Teams, Past Seasons, Division filters.
+    GMs: Managed Teams, Past Managed.
+    Players: My Teams, My Past Teams.
+    Any user associated with teams always sees the filter dropdown.
+    """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         perms = get_permissions_for_sidebar(session['id'])
@@ -681,20 +688,24 @@ def get_team_sidebar_filters():
         if perms['is_admin'] or perms['is_developer']:
             views.append({'value': 'all', 'label': 'All Teams', 'priority': 1})
 
-        if perms['manages_games']:
+        if perms['is_admin'] or perms['is_developer'] or perms['manages_games']:
             views.append({'value': 'manage', 'label': 'Managed Teams', 'priority': 2})
-            views.append({'value': 'past_managed', 'label': 'Old Managed Teams', 'priority': 3})
+
+        if perms['is_admin'] or perms['is_developer'] or perms['manages_games'] or perms['has_managed_teams']:
+            views.append({'value': 'past_managed', 'label': 'Past Managed Teams', 'priority': 3})
+
+        if perms['is_player'] or perms['in_teams']:
+            views.append({'value': 'play', 'label': 'My Teams', 'priority': 4})
 
         if perms['in_teams']:
-            views.append({'value': 'play', 'label': 'My Teams', 'priority': 4})
-            views.append({'value': 'my_past_teams', 'label': 'My Old Teams', 'priority': 5})
+            views.append({'value': 'my_past_teams', 'label': 'My Past Teams', 'priority': 5})
 
         views.sort(key=lambda x: x['priority'])
 
         return jsonify({
             'success': True,
             'views': views,
-            'has_multiple': len(views) > 1
+            'has_multiple': len(views) > 0
         })
 
     except Exception as e:
@@ -1043,6 +1054,55 @@ def delete_team():
         cursor.close()
 
 
+@app.route('/api/teams/managed-games', methods=['GET'])
+@login_required
+@roles_required('admin', 'gm', 'developer')
+def get_managed_games():
+    """
+    Return games the current user manages (is GM of).
+    Admins/developers get all games.
+    GMs get only their assigned games.
+    """
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        perms = get_user_permissions(session['id'])
+
+        if perms['is_admin'] or perms['is_developer']:
+            cursor.execute("""
+                SELECT GameID, GameTitle, Abbreviation, TeamSizes, Division,
+                       CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image
+                FROM games
+                WHERE hidden = 0
+                ORDER BY GameTitle ASC
+            """)
+        else:
+            cursor.execute("""
+                SELECT GameID, GameTitle, Abbreviation, TeamSizes, Division,
+                       CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image
+                FROM games
+                WHERE gm_id = %s AND hidden = 0
+                ORDER BY GameTitle ASC
+            """, (session['id'],))
+
+        games = cursor.fetchall()
+
+        games_list = [{
+            'GameID':    g['GameID'],
+            'GameTitle': g['GameTitle'],
+            'TeamSizes': g['TeamSizes'],
+            'Division':  g['Division'],
+            'image_url': f'/game-image/{g["GameID"]}' if g['has_image'] else None
+        } for g in games]
+
+        return jsonify({'success': True, 'games': games_list})
+
+    except Exception as e:
+        print(f"Error fetching managed games: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    finally:
+        cursor.close()
+
 # =====================================
 # HELPER FUNCTIONS
 # =====================================
@@ -1050,6 +1110,7 @@ def get_permissions_for_sidebar(user_id):
     """
     Extends get_user_permissions with team/game membership checks
     needed to determine which sidebar views to show.
+    Checks past records directly so former GMs and players can still see their past teams.
     """
     perms = get_user_permissions(user_id)
 
@@ -1057,16 +1118,23 @@ def get_permissions_for_sidebar(user_id):
     try:
         manages_games = False
         in_teams = False
+        has_managed_teams = False
 
         if perms['is_admin'] or perms['is_developer'] or perms['is_gm']:
             cursor.execute("SELECT COUNT(*) as count FROM games WHERE gm_id = %s", (user_id,))
             manages_games = cursor.fetchone()['count'] > 0
 
-        if perms['is_player']:
-            cursor.execute("SELECT COUNT(*) as count FROM team_members WHERE user_id = %s", (user_id,))
-            in_teams = cursor.fetchone()['count'] > 0
+        cursor.execute("SELECT COUNT(*) as count FROM team_members WHERE user_id = %s", (user_id,))
+        in_teams = cursor.fetchone()['count'] > 0
 
-        return {**perms, 'manages_games': manages_games, 'in_teams': in_teams}
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM teams t
+            JOIN games g ON t.gameID = g.GameID
+            WHERE g.gm_id = %s
+        """, (user_id,))
+        has_managed_teams = cursor.fetchone()['count'] > 0
+
+        return {**perms, 'manages_games': manages_games, 'in_teams': in_teams, 'has_managed_teams': has_managed_teams}
     finally:
         cursor.close()
 

@@ -893,14 +893,20 @@
                 <div class="teams-sidebar-header">
                     <div class="sidebar-header-top">
                         <h2>Teams</h2>
-                        <!-- View Switcher Dropdown (only visible for multi-role users) -->
-                        <div id="teamViewSwitcher" class="view-switcher hidden">
-                            <select id="teamViewSelect" class="view-switcher-select">
-                                <!-- Options populated dynamically by JavaScript -->
-                            </select>
-                        </div>
+                        {% if user.is_admin or user.is_developer or user.is_gm %}
+                        <button id="createTeamSidebarBtn"
+                                class="btn btn-primary btn-create-team-sidebar"
+                                onclick="openCreateTeam()">
+                            <i class="fas fa-plus"></i> Create Team
+                        </button>
+                        {% endif %}
                     </div>
-                    <p class="teams-subtitle">Select a team to view details</p>
+                    <!-- View Switcher Dropdown moves below the header row -->
+                    <div id="teamViewSwitcher" class="view-switcher hidden">
+                        <select id="teamViewSelect" class="view-switcher-select">
+                            <!-- Options populated dynamically by JavaScript -->
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Loading State -->

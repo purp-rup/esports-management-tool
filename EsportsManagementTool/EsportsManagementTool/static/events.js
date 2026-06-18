@@ -1725,6 +1725,9 @@ function openCreateEventModal() {
     setElementDisplay(formMessage, 'none');
     setElementDisplay(leagueGroup, 'none'); // ADD THIS LINE - Hide league field initially
     clearSelectedGames('create');
+    
+    // Character Counter
+    attachCharacterCounter('eventDescription', 250);
 
     // Load games after modal is rendered
     setTimeout(() => {
@@ -2021,6 +2024,10 @@ function createEditForm() {
     
     // Setup location dropdown
     setupEditLocationDropdown(event.location);
+
+    // Character Counter
+    attachCharacterCounter('editDescription', 250);
+
     
     // **MOVED: Wait for DOM to be ready before calling these functions**
     setTimeout(() => {

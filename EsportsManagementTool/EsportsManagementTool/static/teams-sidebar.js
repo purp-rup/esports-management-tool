@@ -127,11 +127,8 @@ async function initializeViewSwitcher() {
             const validStoredView = window.availableViews.find(v => v.value === storedView);
             window.currentView = validStoredView ? storedView : window.availableViews[0].value;
 
-            if (data.has_multiple) {
-                renderViewSwitcher();
-            } else {
-                hideViewSwitcher();
-            }
+            // Always render — any user associated with teams sees the dropdown
+            renderViewSwitcher();
 
             initializeDivisionFilter();
             initializePastSeasonFilter();
@@ -162,33 +159,28 @@ function renderViewSwitcher() {
         const option = document.createElement('option');
         option.value = view.value;
         option.textContent = view.label;
+        option.setAttribute('data-base-label', view.label);
         if (view.value === window.currentView) {
             option.selected = true;
         }
         viewSelect.appendChild(option);
     });
 
-    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
+    const isAdmin = window.userPermissions?.is_admin || window.userPermissions?.is_developer || false;
 
-    // Add division filter option for admins
     if (isAdmin) {
         const divisionOption = document.createElement('option');
         divisionOption.value = 'division';
         divisionOption.textContent = 'Divisions';
-        if (window.currentView === 'division') {
-            divisionOption.selected = true;
-        }
+        divisionOption.setAttribute('data-base-label', 'Divisions');
+        if (window.currentView === 'division') divisionOption.selected = true;
         viewSelect.appendChild(divisionOption);
-    }
 
-    // Add past seasons option for admins/devs
-    if (isAdmin) {
         const pastSeasonOption = document.createElement('option');
         pastSeasonOption.value = 'past_seasons';
         pastSeasonOption.textContent = 'Past Seasons';
-        if (window.currentView === 'past_seasons') {
-            pastSeasonOption.selected = true;
-        }
+        pastSeasonOption.setAttribute('data-base-label', 'Past Seasons');
+        if (window.currentView === 'past_seasons') pastSeasonOption.selected = true;
         viewSelect.appendChild(pastSeasonOption);
     }
 
@@ -268,7 +260,6 @@ async function loadTeams() {
     const sidebarLoading = document.getElementById('teamsSidebarLoading');
     const sidebarList = document.getElementById('teamsSidebarList');
     const sidebarEmpty = document.getElementById('teamsSidebarEmpty');
-    const sidebarSubtitle = document.querySelector('.teams-subtitle');
 
     if (window.availableViews.length === 0) {
         await initializeViewSwitcher();
@@ -291,9 +282,7 @@ async function loadTeams() {
         sidebarList.style.display = 'none';
         sidebarEmpty.style.display = 'block';
 
-        if (sidebarSubtitle) {
-            sidebarSubtitle.textContent = 'Past Seasons (0)';
-        }
+        updateDropdownCount(0);
 
         if (sidebarEmpty) {
             sidebarEmpty.innerHTML = `<i class="fas fa-calendar"></i><p>Select a past season to view teams</p>`;
@@ -304,7 +293,7 @@ async function loadTeams() {
     // Check cache first
     if (teamsCache[cacheKey] && isCacheFresh(cacheKey)) {
         console.log('Using cached teams data');
-        renderFromCache(teamsCache[cacheKey], sidebarLoading, sidebarList, sidebarEmpty, sidebarSubtitle);
+        renderFromCache(teamsCache[cacheKey], sidebarLoading, sidebarList, sidebarEmpty);
         return;
     }
 
@@ -318,9 +307,7 @@ async function loadTeams() {
         let url = `/api/teams/sidebar?view=${window.currentView}`;
 
         // Add season parameter if filtering past seasons
-        if (selectedSeasonId) {
-            url += `&season_id=${selectedSeasonId}`;
-        }
+        if (selectedSeasonId) url += `&season_id=${selectedSeasonId}`;
 
         const response = await fetch(url);
         const data = await response.json();
@@ -344,40 +331,25 @@ async function loadTeams() {
 
             window.allTeamsData = teamsToDisplay;
 
-            if (sidebarSubtitle) {
-                const viewLabel = getSubtitleForView(window.currentView, teamsToDisplay.length);
-                sidebarSubtitle.textContent = viewLabel;
-            }
+            updateDropdownCount(teamsToDisplay.length);
 
             if (teamsToDisplay.length > 0) {
                 renderTeamsSidebar(teamsToDisplay);
                 sidebarLoading.style.display = 'none';
                 sidebarList.style.display = 'flex';
             } else {
-                if (sidebarSubtitle) {
-                    const viewLabel = getSubtitleForView(window.currentView, 0);
-                    sidebarSubtitle.textContent = viewLabel;
-                }
-
+                updateDropdownCount(0);
                 if (sidebarEmpty) {
-                    const emptyMessage = getEmptyMessageForView(window.currentView);
-                    sidebarEmpty.innerHTML = `<i class="fas fa-users"></i><p>${emptyMessage}</p>`;
+                    sidebarEmpty.innerHTML = `<i class="fas fa-users"></i><p>${getEmptyMessageForView(window.currentView)}</p>`;
                 }
-
                 sidebarLoading.style.display = 'none';
                 sidebarEmpty.style.display = 'block';
             }
         } else {
-            if (sidebarSubtitle) {
-                const viewLabel = getSubtitleForView(window.currentView, 0);
-                sidebarSubtitle.textContent = viewLabel;
-            }
-
+            updateDropdownCount(0);
             if (sidebarEmpty) {
-                const emptyMessage = getEmptyMessageForView(window.currentView);
-                sidebarEmpty.innerHTML = `<i class="fas fa-users"></i><p>${emptyMessage}</p>`;
+                sidebarEmpty.innerHTML = `<i class="fas fa-users"></i><p>${getEmptyMessageForView(window.currentView)}</p>`;
             }
-
             sidebarLoading.style.display = 'none';
             sidebarEmpty.style.display = 'block';
         }
@@ -391,29 +363,20 @@ async function loadTeams() {
 /**
  * Helper function to render from cached data
  */
-function renderFromCache(cachedTeams, sidebarLoading, sidebarList, sidebarEmpty, sidebarSubtitle) {
+function renderFromCache(cachedTeams, sidebarLoading, sidebarList, sidebarEmpty) {
     window.allTeamsData = cachedTeams;
 
-    if (sidebarSubtitle) {
-        const viewLabel = getSubtitleForView(window.currentView, cachedTeams.length);
-        sidebarSubtitle.textContent = viewLabel;
-    }
+    updateDropdownCount(cachedTeams.length);
 
     if (cachedTeams.length > 0) {
         renderTeamsSidebar(cachedTeams);
         sidebarLoading.style.display = 'none';
         sidebarList.style.display = 'flex';
     } else {
-        if (sidebarSubtitle) {
-            const viewLabel = getSubtitleForView(window.currentView, 0);
-            sidebarSubtitle.textContent = viewLabel;
-        }
-
+        updateDropdownCount(0);
         if (sidebarEmpty) {
-            const emptyMessage = getEmptyMessageForView(window.currentView);
-            sidebarEmpty.innerHTML = `<i class="fas fa-users"></i><p>${emptyMessage}</p>`;
+            sidebarEmpty.innerHTML = `<i class="fas fa-users"></i><p>${getEmptyMessageForView(window.currentView)}</p>`;
         }
-
         sidebarLoading.style.display = 'none';
         sidebarEmpty.style.display = 'block';
     }
@@ -536,6 +499,23 @@ function renderTeamsSidebar(teams) {
 
         sidebarList.appendChild(teamItem);
     });
+}
+
+/**
+ * Update the currently selected dropdown option to show the team count.
+ */
+function updateDropdownCount(count) {
+    const viewSelect = document.getElementById('teamViewSelect');
+    if (!viewSelect) return;
+
+    const selectedOption = viewSelect.options[viewSelect.selectedIndex];
+    if (!selectedOption) return;
+
+    const baseLabel = selectedOption.getAttribute('data-base-label')
+        || selectedOption.textContent.replace(/\s*\(\d+\)$/, '').trim();
+
+    selectedOption.setAttribute('data-base-label', baseLabel);
+    selectedOption.textContent = `${baseLabel} (${count})`;
 }
 
 // ============================================
@@ -1089,6 +1069,110 @@ function handleDivisionFilterChange(event) {
 }
 
 // ============================================
+// CREATE TEAM FROM TEAMS TAB
+// ============================================
+
+/**
+ * Open create team flow from the Teams sidebar.
+ * If the GM manages exactly one game, goes straight to team creation.
+ * If they manage multiple, shows a game-picker first.
+ * Admins/developers see all games.
+ */
+async function openCreateTeam() {
+    try {
+        // Check for active season first
+        const seasonResponse = await fetch('/api/seasons/current');
+        const seasonData = await seasonResponse.json();
+
+        // Fetch games this user manages
+        const gamesResponse = await fetch('/api/teams/managed-games');
+        const gamesData = await gamesResponse.json();
+
+        if (!gamesData.success || !gamesData.games || gamesData.games.length === 0) {
+            alert('You are not assigned as Game Manager for any games.');
+            return;
+        }
+
+        if (gamesData.games.length === 1) {
+            // Only one game — go straight to team creation
+            const game = gamesData.games[0];
+            openCreateTeamModal(game.GameID, game.GameTitle, game.TeamSizes);
+        } else {
+            // Multiple games — show picker modal
+            openGamePickerModal(gamesData.games);
+        }
+    } catch (error) {
+        console.error('Error opening create team flow:', error);
+        alert('Failed to load game information. Please try again.');
+    }
+}
+
+/**
+ * Open game picker modal so a GM can choose which game to create a team for.
+ */
+function openGamePickerModal(games) {
+    // Remove any existing picker
+    const existingModal = document.getElementById('gamePickerModal');
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'gamePickerModal';
+    modal.className = 'modal';
+    modal.style.display = 'block';
+
+    const gameListHTML = games.map(game => {
+        const iconHTML = game.image_url
+            ? `<img src="${game.image_url}" alt="${game.GameTitle}"
+                    style="width:36px;height:36px;object-fit:cover;border-radius:8px;"
+                    onerror="this.style.display='none'">`
+            : `<i class="fas fa-gamepad" style="font-size:1.25rem;color:var(--stockton-blue);"></i>`;
+
+        return `
+            <button class="game-picker-option"
+                    onclick="closeGamePickerModal(); openCreateTeamModal(${game.GameID}, '${game.GameTitle.replace(/'/g, "\\'")}', '${game.TeamSizes}')">
+                <div class="game-picker-icon">${iconHTML}</div>
+                <div class="game-picker-info">
+                    <div class="game-picker-title">${game.GameTitle}</div>
+                    <div class="game-picker-division" style="font-size:0.8rem;color:var(--text-secondary);">${game.Division || ''}</div>
+                </div>
+                <i class="fas fa-chevron-right" style="color:var(--text-secondary);margin-left:auto;"></i>
+            </button>
+        `;
+    }).join('');
+
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Select a Game</h2>
+                <button class="modal-close" onclick="closeGamePickerModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-subtitle">Choose which game to create a team for</p>
+                <div class="game-picker-list">
+                    ${gameListHTML}
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Close the game picker modal
+ */
+function closeGamePickerModal() {
+    const modal = document.getElementById('gamePickerModal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// ============================================
 // EXPORT FUNCTIONS TO GLOBAL SCOPE
 // ============================================
 
@@ -1107,6 +1191,9 @@ window.hideDivisionFilterDropdown = hideDivisionFilterDropdown;
 window.handleDivisionFilterChange = handleDivisionFilterChange;
 window.invalidateTeamsCache = invalidateTeamsCache;
 window.isCacheFresh = isCacheFresh;
+window.openCreateTeam = openCreateTeam;
+window.closeGamePickerModal = closeGamePickerModal;
+window.updateDropdownCount = updateDropdownCount;
 
 //Past Season Exports
 window.initializePastSeasonFilter = initializePastSeasonFilter;
