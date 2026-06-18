@@ -147,7 +147,9 @@
     color: var(--text-secondary);
     font-size: 0.875rem;
     line-height: 1.4;
-}
+    word-break: break-word;
+    overflow-wrap: break-word;
+}   
 
 .modal-event-meta {
     display: flex;
@@ -222,6 +224,14 @@
     color: var(--text-primary);
     line-height: 1.5;
     margin: 0;
+}
+
+.event-detail-value {
+    color: var(--text-primary);
+    flex: 1;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    min-width: 0;
 }
 
 /* --------------------------------------------
@@ -863,6 +873,64 @@
     border-right: none;
     filter: drop-shadow(1px 0 0 var(--border-color, #222));
 }
+
+/* --------------------------------------------
+   ICON COLORING
+   Event Modal and Popup Details
+   -------------------------------------------- */
+
+/* Event Details Modal - Icon Coloring (matches dashboard structure) */
+.event-card-details[data-event-type="tournament"] .event-detail-icon {
+    background: var(--event-tournament-light);
+    color: var(--event-tournament);
+}
+
+.event-card-details[data-event-type="match"] .event-detail-icon {
+    background: var(--event-match-light);
+    color: var(--event-match);
+}
+
+.event-card-details[data-event-type="practice"] .event-detail-icon {
+    background: var(--event-practice-light);
+    color: var(--event-practice);
+}
+
+.event-card-details[data-event-type="event"] .event-detail-icon {
+    background: var(--event-event-light);
+    color: var(--event-event);
+}
+
+.event-card-details[data-event-type="misc"] .event-detail-icon {
+    background: var(--event-misc-light);
+    color: var(--event-misc);
+}
+
+/* Event Details Popup - Icon Coloring (matches dashboard structure) */
+.event-popup-details[data-event-type="tournament"] .popup-icon {
+    background: var(--event-tournament-light);
+    color: var(--event-tournament);
+}
+
+.event-popup-details[data-event-type="match"] .popup-icon {
+    background: var(--event-match-light);
+    color: var(--event-match);
+}
+
+.event-popup-details[data-event-type="practice"] .popup-icon {
+    background: var(--event-practice-light);
+    color: var(--event-practice);
+}
+
+.event-popup-details[data-event-type="event"] .popup-icon {
+    background: var(--event-event-light);
+    color: var(--event-event);
+}
+
+.event-popup-details[data-event-type="misc"] .popup-icon {
+    background: var(--event-misc-light);
+    color: var(--event-misc);
+}
+
 
 /* --------------------------------------------
    ANIMATIONS

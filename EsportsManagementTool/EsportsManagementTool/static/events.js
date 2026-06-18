@@ -349,6 +349,14 @@ function setElementDisplay(element, displayValue) {
 }
 
 /**
+ * Enable a dropdown element (re-enable after loading state)
+ * @param {HTMLElement|null} dropdown - Dropdown element to enable
+ */
+function enableDropdown(dropdown) {
+    if (dropdown) dropdown.disabled = false;
+}
+
+/**
  * Escape single quotes in strings for safe HTML attribute use
  * @param {string} str - String to escape
  * @returns {string} Escaped string
@@ -1341,7 +1349,7 @@ async function openEventModal(eventId, source = 'events') {
     const spinner = document.getElementById('eventLoadingSpinner');
     const content = document.getElementById('eventDetailsContent');
     const deleteBtn = document.getElementById('deleteEventBtn');
-    const titleElement = document.getElementById('eventDetailsTitle');
+    const titleElement = document.getElementById('eventModalTitle');
 
     EventState.currentEventId = eventId;
     EventState.deletionSource = source;
@@ -1981,7 +1989,7 @@ function toggleEditMode() {
     const editForm = document.getElementById('eventEditForm');
     const editBtn = document.getElementById('editEventBtn');
     const deleteBtn = document.getElementById('deleteEventBtn');
-    const titleElement = document.getElementById('eventDetailsTitle');
+    const titleElement = document.getElementById('eventModalTitle');
 
     // Hide view mode, show edit mode
     setElementDisplay(content, 'none');
