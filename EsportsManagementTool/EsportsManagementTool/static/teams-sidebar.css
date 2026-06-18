@@ -581,6 +581,61 @@
 }
 
 /* --------------------------------------------
+   CREATE TEAM & GAME PICKER 
+   Teams sidebar header button and game select
+   modal styles
+   -------------------------------------------- */
+
+/* Create Team button in sidebar header */
+.btn-create-team-sidebar {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Game picker modal options */
+.game-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.game-picker-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--background-secondary, #1e2130);
+    border: 1px solid var(--border-color, #2d3148);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.game-picker-option:hover {
+    background: var(--hover-bg, #252840);
+    border-color: var(--stockton-blue, #79bde9);
+}
+
+.game-picker-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.game-picker-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+}
+
+/* --------------------------------------------
    RESPONSIVE DESIGN
    Mobile and tablet adaptations
    -------------------------------------------- */

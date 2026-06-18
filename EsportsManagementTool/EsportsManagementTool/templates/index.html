@@ -53,7 +53,7 @@
             <p>Stay up to date with matches, practices, and community events</p>
         </div>
 
-        <div class="calendar-container">
+        <div class="calendar-container" style="visibility: hidden;">
             <!-- Calendar Navigation -->
             <div class="calendar-navigation">
                 <a href="#" class="nav-button" id="prevMonth">
@@ -240,8 +240,8 @@
     window.currentUserId = {{ session.id }};
     {% endif %}
 </script>
-<!-- Load landing-calendar.js FIRST to define modal close handlers -->
-<script src="{{ url_for('static', filename='landing-calendar.js') }}"></script>
+<!-- Load calendar.js FIRST to define modal close handlers -->
+<script src="{{ url_for('static', filename='calendar.js') }}"></script>
 <!-- Then load modals.js which references those handlers -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <!-- DO NOT load events.js - it conflicts with landing calendar functions -->

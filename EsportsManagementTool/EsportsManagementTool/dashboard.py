@@ -27,9 +27,8 @@ def allowed_file(filename):
 Main route to allow all users to access the dashboard.
 """
 @app.route('/dashboard')
-@app.route('/dashboard/<int:year>/<int:month>')
 @login_required  # Added security
-def dashboard(year=None, month=None):
+def dashboard():
     # Get user data
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute("SELECT * FROM users WHERE id = %s", (session['id'],))
@@ -67,144 +66,13 @@ def dashboard(year=None, month=None):
 
     if preferred_tab == 'admin' and not (user['is_admin'] or user['is_developer']):
         preferred_tab = 'calendar'
-
-    # Default to current month/year if not specified
-    if year is None or month is None:
-        today = datetime.now()
-        year = today.year
-        month = today.month
-
-    # Validate month and year
-    if month < 1 or month > 12:
-        flash('Invalid month!')
-        return redirect(url_for('dashboard'))
-    if year < 1900 or year > 2100:
-        flash('Year must be between 1900 and 2100!')
-        return redirect(url_for('dashboard'))
-
+        
     # Get today's date for highlighting
     today = datetime.now()
-    today_str = today.strftime('%Y-%m-%d')
-
-    # Get calendar information
-    cal.setfirstweekday(cal.SUNDAY)
-    month_calendar = cal.monthcalendar(year, month)
-    month_name = cal.month_name[month]
-
-    # Calculate previous and next month
-    if month == 1:
-        prev_month = 12
-        prev_year = year - 1
-    else:
-        prev_month = month - 1
-        prev_year = year
-
-    if month == 12:
-        next_month = 1
-        next_year = year + 1
-    else:
-        next_month = month + 1
-        next_year = year
 
     # Get events from database for this month - WITH VISIBILITY FILTERING
     try:
         user_id = session['id']
-
-        # Build visibility query
-        # An event is visible if:
-        # 1. It's not a scheduled event (schedule_id is NULL), OR
-        # 2. The user created the scheduled event (GM access), OR
-        # 3. It's a scheduled event with visibility = 'all_members', OR
-        # 4. It's a scheduled event with visibility = 'team' AND user is in that team, OR
-        # 5. It's a scheduled event with visibility = 'game_players' AND user is a player for that game, OR
-        # 6. It's a scheduled event with visibility = 'game_community' AND user is in that game's community
-
-        cursor.execute("""
-            SELECT ge.* 
-            FROM generalevents ge
-            LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
-            WHERE YEAR(ge.Date) = %s AND MONTH(ge.Date) = %s
-            AND (
-                -- Non-scheduled events (always visible)
-                ge.schedule_id IS NULL
-                OR
-                -- GM can see all events they created
-                se.created_by = %s
-                OR
-                -- Scheduled events with 'all_members' visibility
-                se.visibility = 'all_members'
-                OR
-                -- Scheduled events with 'team' visibility - user must be in the team
-                (se.visibility = 'team' AND EXISTS (
-                    SELECT 1 FROM team_members tm 
-                    WHERE tm.team_id = se.team_id 
-                    AND tm.user_id = %s
-                ))
-                OR
-                -- Scheduled events with 'game_players' visibility - user must be a player for that game
-                (se.visibility = 'game_players' AND EXISTS (
-                    SELECT 1 FROM team_members tm
-                    JOIN teams t ON tm.team_id = t.TeamID
-                    WHERE t.gameID = se.game_id
-                    AND tm.user_id = %s
-                ))
-                OR
-                -- Scheduled events with 'game_community' visibility - user must be in game's community
-                (se.visibility = 'game_community' AND EXISTS (
-                    SELECT 1 FROM in_communities ic
-                    WHERE ic.game_id = se.game_id
-                    AND ic.user_id = %s
-                ))
-            )
-            ORDER BY ge.Date, ge.StartTime
-        """, (year, month, user_id, user_id, user_id, user_id))
-
-        events = cursor.fetchall()
-
-        # Organize events by date
-        events_by_date = {}
-        for event in events:
-            date_str = event['Date'].strftime('%Y-%m-%d')
-
-            # Handle timedelta for StartTime and convert to 12-hour format
-            if event['StartTime']:
-                total_seconds = int(event['StartTime'].total_seconds())
-                hours = total_seconds // 3600
-                minutes = (total_seconds % 3600) // 60
-
-                # Check if this is an all-day event (00:00 to 23:59)
-                end_total_seconds = int(event['EndTime'].total_seconds()) if event['EndTime'] else 0
-                end_hours = end_total_seconds // 3600
-                end_minutes = (end_total_seconds % 3600) // 60
-
-                is_all_day = (hours == 0 and minutes == 0 and end_hours == 23 and end_minutes == 59)
-
-                # Convert to 12-hour format
-                period = 'AM' if hours < 12 else 'PM'
-                display_hours = hours if hours == 0 else (hours if hours <= 12 else hours - 12)
-                if display_hours == 0:
-                    display_hours = 12  # Handle midnight (0:00 -> 12:00 AM)
-
-                # Only show time if NOT all-day
-                time_str = None if is_all_day else f"{display_hours}:{minutes:02d} {period}"
-            else:
-                time_str = None
-                is_all_day = False
-
-            event_data = {
-                'id': event['EventID'],
-                'time': time_str,  # Will be None for all-day events
-                'title': event['EventName'],
-                'description': event['Description'] if event['Description'] else '',
-                'event_type': event['EventType'] if event.get('EventType') else 'Event',
-                'is_all_day': is_all_day,
-                'is_scheduled': event.get('is_scheduled', False),
-                'schedule_id': event.get('schedule_id')
-            }
-
-            if date_str not in events_by_date:
-                events_by_date[date_str] = []
-            events_by_date[date_str].append(event_data)
 
         # --- Admin Panel Stats ---
         total_users = active_users = admins = gms = players = developers = 0
@@ -285,16 +153,6 @@ def dashboard(year=None, month=None):
             is_verified=is_verified,
             preferences=preferences,
             preferred_tab=preferred_tab,
-            month_calendar=month_calendar,
-            month_name=month_name,
-            year=year,
-            month=month,
-            events_by_date=events_by_date,
-            today_str=today_str,
-            prev_year=prev_year,
-            prev_month=prev_month,
-            next_year=next_year,
-            next_month=next_month,
             total_users=total_users,
             active_users=active_users,
             current_season_name=current_season_name,

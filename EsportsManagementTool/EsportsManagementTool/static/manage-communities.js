@@ -384,6 +384,9 @@ function showCommunityForm(community = null) {
             this.value = this.value.toUpperCase();
         });
     }
+
+    // Character Counter
+    attachCharacterCounter('communityDescription', 250);
 }
 
 // Submit community creation/editing form

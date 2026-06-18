@@ -467,6 +467,9 @@ function openCreateScheduledEventModal() {
         eventTypeSelect.addEventListener('change', handleEventTypeChangeForLeague);
     }
 
+    // Character Counter
+    attachCharacterCounter('scheduledDescription', 250);
+
     // Show modal
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
@@ -1073,6 +1076,9 @@ function openEditScheduleMode(scheduleId) {
 
     // Attach form submit handler
     document.getElementById('editScheduleForm').addEventListener('submit', handleEditScheduleSubmit);
+
+    // Character Counter
+    attachCharacterCounter('editScheduleDescription', 250);
 
     // Hide edit/delete buttons while in edit mode
     document.getElementById('editScheduleBtn').style.display = 'none';

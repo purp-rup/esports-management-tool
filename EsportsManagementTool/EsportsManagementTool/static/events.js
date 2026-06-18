@@ -349,6 +349,14 @@ function setElementDisplay(element, displayValue) {
 }
 
 /**
+ * Enable a dropdown element (re-enable after loading state)
+ * @param {HTMLElement|null} dropdown - Dropdown element to enable
+ */
+function enableDropdown(dropdown) {
+    if (dropdown) dropdown.disabled = false;
+}
+
+/**
  * Escape single quotes in strings for safe HTML attribute use
  * @param {string} str - String to escape
  * @returns {string} Escaped string
@@ -1341,7 +1349,7 @@ async function openEventModal(eventId, source = 'events') {
     const spinner = document.getElementById('eventLoadingSpinner');
     const content = document.getElementById('eventDetailsContent');
     const deleteBtn = document.getElementById('deleteEventBtn');
-    const titleElement = document.getElementById('eventDetailsTitle');
+    const titleElement = document.getElementById('eventModalTitle');
 
     EventState.currentEventId = eventId;
     EventState.deletionSource = source;
@@ -1717,6 +1725,9 @@ function openCreateEventModal() {
     setElementDisplay(formMessage, 'none');
     setElementDisplay(leagueGroup, 'none'); // ADD THIS LINE - Hide league field initially
     clearSelectedGames('create');
+    
+    // Character Counter
+    attachCharacterCounter('eventDescription', 250);
 
     // Load games after modal is rendered
     setTimeout(() => {
@@ -1981,7 +1992,7 @@ function toggleEditMode() {
     const editForm = document.getElementById('eventEditForm');
     const editBtn = document.getElementById('editEventBtn');
     const deleteBtn = document.getElementById('deleteEventBtn');
-    const titleElement = document.getElementById('eventDetailsTitle');
+    const titleElement = document.getElementById('eventModalTitle');
 
     // Hide view mode, show edit mode
     setElementDisplay(content, 'none');
@@ -2013,6 +2024,10 @@ function createEditForm() {
     
     // Setup location dropdown
     setupEditLocationDropdown(event.location);
+
+    // Character Counter
+    attachCharacterCounter('editDescription', 250);
+
     
     // **MOVED: Wait for DOM to be ready before calling these functions**
     setTimeout(() => {

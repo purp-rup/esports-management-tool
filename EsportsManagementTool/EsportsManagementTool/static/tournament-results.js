@@ -281,6 +281,9 @@ function displayRecordResultsModal(teams, season, placementOptions) {
     modalBody.appendChild(resultsContainer);
     modalBody.appendChild(notesSection);
     
+    // Character Counter
+    attachCharacterCounter('tournamentNotes', 250);
+
     // Modal footer
     const modalFooter = document.createElement('div');
     modalFooter.className = 'modal-footer';
