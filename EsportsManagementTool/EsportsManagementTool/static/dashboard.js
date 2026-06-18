@@ -60,6 +60,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 tabElement.click();
             }, 100);
         }
+    } else {
+        // Force a click on the current tab to ensure content is fetched
+        const activeTabElement = document.querySelector('.tab-button.active');
+        if (activeTabElement) {
+            setTimeout(() => {
+                activeTabElement.click();
+            }, 100);
+        }
     }
 });
 
