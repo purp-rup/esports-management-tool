@@ -311,7 +311,7 @@ def add_vod_comment(vod_id):
         INSERT INTO vod_comments
         (vod_id, user_id, comment_text, timestamp_seconds, created_at)
         VALUES (%s, %s, %s, %s, %s)
-        ''', (vod_id, user_id, comment_text, timestamp_seconds, datetime.now(EST)))
+        ''', (vod_id, user_id, comment_text, timestamp_seconds, app.get_current_time))
 
     mysql.connection.commit()
     comment_id = cursor.lastrowid
