@@ -18,6 +18,7 @@ import cloudinary.uploader
 # Discord OAuth2 Configuration
 DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID')
 DISCORD_CLIENT_SECRET = os.getenv('DISCORD_CLIENT_SECRET')
+DISCORD_REDIRECT_URI = os.getenv('DISCORD_REDIRECT_URI', 'http://localhost:5000/discord/callback')
 
 # Discord API endpoints
 DISCORD_API_BASE = 'https://discord.com/api/v10'
@@ -315,10 +316,6 @@ def sync_discord_avatar():
 
         avatar_url = f"https://cdn.discordapp.com/avatars/{decrypted_discord_id}/{discord_avatar}.png?size=512"
 
-        # Decrypt sensitive data
-        decrypted_discord_id = decrypt_token(discord_data['discord_id'])
-        access_token = decrypt_token(discord_data['access_token'])
-        
         if not decrypted_discord_id or not access_token:
             cursor.close()
             return jsonify({'success': False,
