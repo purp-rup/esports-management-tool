@@ -57,7 +57,7 @@ const MODAL_CLOSE_HANDLERS = {
 
     // Scheduled events
     'scheduleDetailsModal': () => closeScheduleModal(),
-    'createScheduledEventModal': () => closeCreateScheduledEventModal(),
+    'createScheduledEventModal': () => closeCreateScheduleModal(),
 
     // Stats modal
     'recordMatchResultModal': () => closeRecordResultModal(),

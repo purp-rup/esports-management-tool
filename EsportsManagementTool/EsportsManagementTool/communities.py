@@ -1196,7 +1196,7 @@ def get_game_list():
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         try:
-            cursor.execute("SELECT GameID, GameTitle FROM games ORDER BY GameTitle ASC")
+            cursor.execute("SELECT GameID, GameTitle, Abbreviation FROM games ORDER BY GameTitle ASC")
             games = cursor.fetchall()
 
             return jsonify({'success': True, 'games': games}), 200

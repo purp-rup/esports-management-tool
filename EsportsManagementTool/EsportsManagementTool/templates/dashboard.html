@@ -659,108 +659,119 @@
                 <div>
                     <h2>Events</h2>
                     <p>Manage matches, practices, and community events</p>
+
+                    <div class="event-header-controls">
+                        <!-- Filter Controls Container - NO MORE ROWS, direct children -->
+                        <div class="event-filters-container">
+                            <!-- Column 1, Row 1 -->
+                            <div class="event-filter-dropdown">
+                                <label for="eventFilter">Filter by:</label>
+                                <select id="eventFilter" onchange="filterEvents()">
+                                    <option value="subscribed" {% if not (user.is_admin or user.is_developer or user.is_gm) %}selected{% endif %}>Subscribed Events</option>
+                                    <option value="all" {% if user.is_admin or user.is_developer or user.is_gm %}selected{% endif %}>All Events</option>
+                                    <option value="upcoming">Next 7 days</option>
+                                    <option value="upcoming14">Next 14 days</option>
+                                    <option value="past30">Last 30 days</option>
+                                    {% if user.is_admin or user.is_developer or user.is_gm %}
+                                    <option value="created_by_me">Created by Me</option>
+                                    {% endif %}
+                                    {% if user.is_admin or user.is_developer %}
+                                    <option value="past_season">Past Seasons</option>
+                                    {% endif %}
+                                    <option value="type">Type</option>
+                                    <option value="game">Game</option>
+                                </select>
+                            </div>
+
+                            <!-- Column 2, Row 1 -->
+                            <div class="event-filter-dropdown" id="pastSeasonSecondaryFilterContainer" style="display: none;">
+                                <label for="pastSeasonSecondaryFilter">Then by:</label>
+                                <select id="pastSeasonSecondaryFilter" onchange="filterEventsByPastSeason()">
+                                    <option value="all">All Events</option>
+                                    <option value="created_by_me">Created by Me</option>
+                                    <option value="type">Type</option>
+                                    <option value="game">Game</option>
+                                </select>
+                            </div>
+
+                            <!-- Column 1, Row 2 -->
+                            <div class="event-filter-dropdown" id="pastSeasonSelectContainer" style="display: none;">
+                                <label for="pastSeasonSelect">Season:</label>
+                                <select id="pastSeasonSelect" onchange="handlePastSeasonSelection()">
+                                    <option value="">Select Past Season</option>
+                                </select>
+                                <div id="pastSeasonLoadingIndicator" style="display: none;">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                </div>
+                            </div>
+
+                            <!-- Column 2, Row 2 -->
+                            <div class="event-filter-dropdown" id="eventTypeFilterContainer" style="display: none;">
+                                <label for="eventTypeFilter">Type:</label>
+                                <select id="eventTypeFilter" onchange="handleTypeFilterChange()">
+                                    <option value="">Select Type</option>
+                                    <option value="tournament">Tournament</option>
+                                    <option value="match">Match</option>
+                                    <option value="practice">Practice</option>
+                                    <option value="event">Event</option>
+                                    <option value="misc">Misc</option>
+                                </select>
+                            </div>
+
+                            <!-- Game Filter - also Column 2, Row 2 (only one shows at a time) -->
+                            <div class="event-filter-dropdown" id="gameFilterContainer" style="display: none;">
+                                <label for="gameFilter">Game:</label>
+                                <select id="gameFilter" onchange="handleGameFilterChange()">
+                                    <option value="">Select Game</option>
+                                </select>
+                                <div id="gameFilterLoadingIndicator" style="display: none;">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Create Event Button (stays in top right) -->
+                        {% if user.is_admin or user.is_developer or user.is_gm %}
+                        <button class="btn btn-primary" onclick="openCreateEventModal()">
+                            <i class="fas fa-plus"></i> Create Event
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
+            </div>
 
-                <div class="event-header-controls">
-                    <!-- Filter Controls Container - NO MORE ROWS, direct children -->
-                    <div class="event-filters-container">
-                        <!-- Column 1, Row 1 -->
-                        <div class="event-filter-dropdown">
-                            <label for="eventFilter">Filter by:</label>
-                            <select id="eventFilter" onchange="filterEvents()">
-                                <option value="subscribed" {% if not (user.is_admin or user.is_developer or user.is_gm) %}selected{% endif %}>Subscribed Events</option>
-                                <option value="all" {% if user.is_admin or user.is_developer or user.is_gm %}selected{% endif %}>All Events</option>
-                                <option value="upcoming">Next 7 days</option>
-                                <option value="upcoming14">Next 14 days</option>
-                                <option value="past30">Last 30 days</option>
-                                {% if user.is_admin or user.is_developer or user.is_gm %}
-                                <option value="created_by_me">Created by Me</option>
-                                {% endif %}
-                                {% if user.is_admin or user.is_developer %}
-                                <option value="past_season">Past Seasons</option>
-                                {% endif %}
-                                <option value="type">Type</option>
-                                <option value="game">Game</option>
-                            </select>
-                        </div>
-
-                        <!-- Column 2, Row 1 -->
-                        <div class="event-filter-dropdown" id="pastSeasonSecondaryFilterContainer" style="display: none;">
-                            <label for="pastSeasonSecondaryFilter">Then by:</label>
-                            <select id="pastSeasonSecondaryFilter" onchange="filterEventsByPastSeason()">
-                                <option value="all">All Events</option>
-                                <option value="created_by_me">Created by Me</option>
-                                <option value="type">Type</option>
-                                <option value="game">Game</option>
-                            </select>
-                        </div>
-
-                        <!-- Column 1, Row 2 -->
-                        <div class="event-filter-dropdown" id="pastSeasonSelectContainer" style="display: none;">
-                            <label for="pastSeasonSelect">Season:</label>
-                            <select id="pastSeasonSelect" onchange="handlePastSeasonSelection()">
-                                <option value="">Select Past Season</option>
-                            </select>
-                            <div id="pastSeasonLoadingIndicator" style="display: none;">
-                                <i class="fas fa-spinner fa-spin"></i>
-                            </div>
-                        </div>
-
-                        <!-- Column 2, Row 2 -->
-                        <div class="event-filter-dropdown" id="eventTypeFilterContainer" style="display: none;">
-                            <label for="eventTypeFilter">Type:</label>
-                            <select id="eventTypeFilter" onchange="handleTypeFilterChange()">
-                                <option value="">Select Type</option>
-                                <option value="tournament">Tournament</option>
-                                <option value="match">Match</option>
-                                <option value="practice">Practice</option>
-                                <option value="event">Event</option>
-                                <option value="misc">Misc</option>
-                            </select>
-                        </div>
-
-                        <!-- Game Filter - also Column 2, Row 2 (only one shows at a time) -->
-                        <div class="event-filter-dropdown" id="gameFilterContainer" style="display: none;">
-                            <label for="gameFilter">Game:</label>
-                            <select id="gameFilter" onchange="handleGameFilterChange()">
-                                <option value="">Select Game</option>
-                            </select>
-                            <div id="gameFilterLoadingIndicator" style="display: none;">
-                                <i class="fas fa-spinner fa-spin"></i>
-                            </div>
-                        </div>
+            <div class="events-layout">
+                <div class="events-list-pane">
+                    <!-- Events Loading State -->
+                    <div id="eventsLoading" style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                        <p>Loading events...</p>
                     </div>
 
-                    <!-- Create Event Button (stays in top right) -->
-                    {% if user.is_admin or user.is_developer or user.is_gm %}
-                    <button class="btn btn-primary" onclick="openCreateEventModal()">
-                        <i class="fas fa-plus"></i> Create Event
-                    </button>
-                    {% endif %}
+                    <!-- Events Grid Container -->
+                    <div id="eventsContainer" style="display: none;">
+                        <!-- Events will be dynamically loaded here -->
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="eventsEmptyState" class="events-empty-state" style="display: none;">
+                        <div class="events-empty-state-icon">🎮</div>
+                        {% if user.is_admin or user.is_developer or user.is_gm %}
+                        <h3>No Events Found</h3>
+                        <p>Click "Create Event" to add your first event</p>
+                        {% else %}
+                        <h3>No Subscribed Events Found</h3>
+                        <p>Subscribe to events to see them here, or check back later</p>
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
 
-            <!-- Events Loading State -->
-            <div id="eventsLoading" style="text-align: center; padding: 2rem;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
-                <p>Loading events...</p>
-            </div>
-
-            <!-- Events Grid Container -->
-            <div id="eventsContainer" style="display: none;">
-                <!-- Events will be dynamically loaded here -->
-            </div>
-
-            <!-- Empty State -->
-            <div id="eventsEmptyState" class="events-empty-state" style="display: none;">
-                <div class="events-empty-state-icon">🎮</div>
-                {% if user.is_admin or user.is_developer or user.is_gm %}
-                <h3>No Events Found</h3>
-                <p>Click "Create Event" to add your first event</p>
-                {% else %}
-                <h3>No Subscribed Events Found</h3>
-                <p>Subscribe to events to see them here, or check back later</p>
-                {% endif %}
+                <div class="events-detail-pane" id="eventsDetailPane">
+                    <div class="events-detail-placeholder">
+                        <i class="fas fa-calendar-day"></i>
+                        <p>Select an event to view its details here</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1001,7 +1012,7 @@
                                 <!-- Schedule button SECOND -->
                                 <button id="createScheduleBtn"
                                         class="btn btn-create-schedule"
-                                        onclick="openCreateScheduledEventModal()"
+                                        onclick="openCreateScheduleModal()"
                                         style="display: none;">
                                     <i class="fas fa-calendar-plus"></i> Schedule Event
                                 </button>
@@ -1174,7 +1185,7 @@
         <div class="modal-content modal-content-large">
             <div class="modal-header">
                 <h2>Create Scheduled Event</h2>
-                <button class="modal-close" onclick="closeCreateScheduledEventModal()">
+                <button class="modal-close" onclick="closeCreateScheduleModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1324,7 +1335,7 @@
                     <div id="scheduledEventMessage" class="form-message" style="display: none;"></div>
 
                     <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" onclick="closeCreateScheduledEventModal()">
+                        <button type="button" class="btn btn-secondary" onclick="closeCreateScheduleModal()">
                             Cancel
                         </button>
                         <button type="submit" class="btn btn-primary">

@@ -1,7 +1,6 @@
 /* ============================================
    DASHBOARD BASE STYLES
    Core stylesheet for dashboard layout
-   ORGANIZED BY CLAUDEAI
    ============================================ */
 
 /* --------------------------------------------
@@ -76,13 +75,10 @@ main {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    /*align-items: flex-start;*/
-    /*flex-wrap: wrap;*/
 }
 
 .card-header h2 {
     font-size: 1.5rem;
-    margin-bottom: 0.25rem;
 }
 
 .card-header p {
@@ -176,16 +172,11 @@ main {
 @media (max-width: 1038px) {
   .card-header {
     flex-direction: column;
-    /*gap: 1rem;*/
   }
 
   .card-header .btn {
     width: 100%;
   }
-
-  /*.card-header p {*/
-  /*    display: none;*/
-  /*}*/
 
   .dashboard-header {
     display: none;

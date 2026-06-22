@@ -1,21 +1,16 @@
 /**
  * ============================================
- * EVENTS.JS - REFACTORED & CONSOLIDATED
- * ORGANIZED BY CLAUDEAI
+ * events.js
  * ============================================
- * Handles all event-related functionality for the dashboard
- * Including: event loading, filtering, CRUD operations, modals, and notifications
- *
+ * Handles all general event-related functionality
+ * - event loading
+ * - filtering events in the events tab
+ * - CRUD operations for events
  */
 
 // ============================================
 // GLOBAL STATE MANAGEMENT
 // ============================================
-
-/**
- * Centralized state object for all event-related data
- * Prevents global variable sprawl and makes state management clearer
- */
 const EventState = {
     // Current modal context
     currentEventId: null,
@@ -41,9 +36,7 @@ const EventState = {
     // Calendar day modal data
     eventsData: {},
 
-    /**
-     * Reset state to defaults
-     */
+    // Reset state to defaults
     reset() {
         this.currentEventId = null;
         this.currentEventData = null;
@@ -53,9 +46,7 @@ const EventState = {
         this.deletionSource = 'events';
     },
 
-    /**
-     * Update user permissions
-     */
+    // Update user permissions
     setPermissions(isAdmin, isGm, isDeveloper) {
         this.permissions.is_admin = isAdmin;
         this.permissions.is_gm = isGm;
@@ -67,20 +58,14 @@ const EventState = {
 // INITIALIZATION
 // ============================================
 
-/**
- * Initialize events module when DOM is ready
- * @param {Object} eventsDataFromServer - Pre-loaded events data from server
- */
+// Pull events from server
 function initializeEventsModule(eventsDataFromServer) {
     EventState.eventsData = eventsDataFromServer || {};
     attachEventListeners();
     console.log('Events module initialized');
 }
 
-/**
- * Attach all event-related listeners
- * Centralized listener management for easier maintenance
- */
+// Event listener for easier management
 function attachEventListeners() {
     // Events tab click
     const eventsTab = document.querySelector('[data-tab="events"]');
@@ -113,10 +98,7 @@ function attachEventListeners() {
 // API & DATA LOADING
 // ============================================
 
-/**
- * Load events from the server with optional filtering
- * Handles loading states and error cases
- */
+// Load events from server based on filtering criteria
 function loadEvents() {
     const elements = {
         loading: document.getElementById('eventsLoading'),
@@ -133,9 +115,11 @@ function loadEvents() {
     const queryParams = buildEventFilterParams();
 
     // Fetch events
-    fetch(`/api/events?${queryParams}`)
-        .then(response => response.json())
-        .then(data => {
+    Promise.all([
+        fetch(`/api/events?${queryParams}`).then(response => response.json()),
+        loadGamesList()
+    ])
+        .then(([data]) => {
             if (data.success) {
                 EventState.setPermissions(data.is_admin, data.is_developer, data.is_gm);
                 renderEvents(data.events, data.is_admin, data.is_developer, data.is_gm);
@@ -153,10 +137,7 @@ function loadEvents() {
         });
 }
 
-/**
- * Build query parameters for event filtering
- * @returns {string} URL-encoded query string
- */
+// Build different filter options for events
 function buildEventFilterParams() {
     const filterSelect = document.getElementById('eventFilter');
     const filterValue = filterSelect?.value || 'all';
@@ -167,7 +148,6 @@ function buildEventFilterParams() {
     if (PastSeasonFilterState.selectedSeasonId) {
         params += `&season_id=${PastSeasonFilterState.selectedSeasonId}`;
     }
-    // Otherwise, backend will default to active season
 
     // Add event type filter if applicable
     if (filterValue === 'type') {
@@ -184,10 +164,7 @@ function buildEventFilterParams() {
     return params;
 }
 
-/**
- * Load games list from API (cached after first load)
- * @returns {Promise<Array>} Array of game objects
- */
+// Loads games for game filtering
 async function loadGamesList() {
     if (EventState.gamesListCache) {
         return EventState.gamesListCache;
@@ -210,279 +187,9 @@ async function loadGamesList() {
     }
 }
 
-/**
- * Clear the games cache (useful if games are added/updated)
- */
-function clearGamesCache() {
-    EventState.gamesListCache = null;
-}
-
-// ============================================
-// LEAGUE DROPDOWN MANAGEMENT
-// ============================================
-
-/**
- * Load leagues for any dropdown context
- * Centralized league loading to avoid duplication
- * @param {string} dropdownId - ID of the select element
- * @param {number} selectedLeagueId - League to pre-select (optional)
- * @returns {Promise<boolean>} Success status
- */
-async function loadLeaguesForDropdown(dropdownId, selectedLeagueId = null) {
-    const dropdown = document.getElementById(dropdownId);
-    
-    if (!dropdown) {
-        console.warn(`League dropdown ${dropdownId} not found`);
-        return false;
-    }
-    
-    // **UPDATED: If we have a selectedLeagueId, force reload to ensure we set it**
-    const hasRealOptions = dropdown.options.length > 1 && 
-                           dropdown.options[1].value !== '';
-    
-    // Skip loading only if we have options AND no league to select
-    if (hasRealOptions && !selectedLeagueId) {
-        console.log(`Leagues already loaded for ${dropdownId}`);
-        return true;
-    }
-    
-    // Show loading state
-    dropdown.innerHTML = '<option value="">Loading leagues...</option>';
-    dropdown.disabled = true;
-    
-    try {
-        const response = await fetch('/league/all');
-        const data = await response.json();
-        
-        // Always rebuild the dropdown to ensure clean state
-        dropdown.innerHTML = '<option value="">Select league</option>';
-        
-        if (data.leagues && data.leagues.length > 0) {
-            data.leagues.forEach(league => {
-                const option = document.createElement('option');
-                option.value = league.id;
-                option.textContent = league.name;
-                
-                if (selectedLeagueId && league.id === selectedLeagueId) {
-                    option.selected = true;
-                    console.log(`Selected league ${league.id} (${league.name})`);
-                }
-                
-                dropdown.appendChild(option);
-            });
-            console.log(`Loaded ${data.leagues.length} leagues for ${dropdownId}`);
-            return true;
-        } else {
-            dropdown.innerHTML = '<option value="">No leagues available</option>';
-            console.warn(`No leagues found for ${dropdownId}`);
-            return false;
-        }
-    } catch (error) {
-        console.error('Error loading leagues:', error);
-        dropdown.innerHTML = '<option value="">Error loading leagues</option>';
-        return false;
-    } finally {
-        dropdown.disabled = false;
-    }
-}
-
-/**
- * Show/hide and configure league field based on event type
- * @param {string} context - 'create' or 'edit'
- */
-function handleLeagueFieldVisibility(context) {
-    const prefix = context === 'edit' ? 'edit' : '';
-    const eventTypeId = prefix ? `${prefix}EventType` : 'eventType';
-    const leagueGroupId = prefix ? `${prefix}EventLeagueFieldGroup` : 'eventLeagueFieldGroup';
-    const leagueDropdownId = prefix ? `${prefix}EventLeagueDropdown` : 'eventLeagueDropdown';
-    
-    const eventTypeSelect = document.getElementById(eventTypeId);
-    const leagueGroup = document.getElementById(leagueGroupId);
-    const leagueDropdown = document.getElementById(leagueDropdownId);
-    
-    if (!eventTypeSelect || !leagueGroup || !leagueDropdown) {
-        console.warn(`League field elements not found for context: ${context}`);
-        return;
-    }
-    
-    const eventType = eventTypeSelect.value;
-    const isMatch = eventType === 'Match';
-    
-    // Show/hide league field
-    leagueGroup.style.display = isMatch ? 'flex' : 'none';
-    
-    // Update required attribute
-    if (isMatch) {
-        leagueDropdown.setAttribute('required', 'required');
-        
-        // Update label to show required
-        const label = leagueGroup.querySelector('label');
-        if (label && !label.innerHTML.includes('*')) {
-            label.innerHTML = 'League <span style="color: #ff5252;">*</span>';
-        }
-        
-        // Load leagues if not already loaded
-        loadLeaguesForDropdown(leagueDropdownId);
-    } else {
-        leagueDropdown.removeAttribute('required');
-        leagueDropdown.value = '';
-        
-        // Update label to show optional
-        const label = leagueGroup.querySelector('label');
-        if (label) {
-            label.textContent = 'League (Optional)';
-        }
-    }
-}
-
-// ============================================
-// UTILITY FUNCTIONS
-// ============================================
-
-/**
- * Set element display style (with null check)
- * @param {HTMLElement|null} element - Element to modify
- * @param {string} displayValue - Display value ('block', 'none', etc.)
- */
-function setElementDisplay(element, displayValue) {
-    if (element) element.style.display = displayValue;
-}
-
-/**
- * Enable a dropdown element (re-enable after loading state)
- * @param {HTMLElement|null} dropdown - Dropdown element to enable
- */
-function enableDropdown(dropdown) {
-    if (dropdown) dropdown.disabled = false;
-}
-
-/**
- * Escape single quotes in strings for safe HTML attribute use
- * @param {string} str - String to escape
- * @returns {string} Escaped string
- */
-function escapeQuotes(str) {
-    return str.replace(/'/g, "\\'");
-}
-
-/**
- * Convert 12-hour time format to 24-hour format for input[type="time"]
- * @param {string} time12h - Time in 12-hour format (e.g., "2:30 PM")
- * @returns {string} Time in 24-hour format (e.g., "14:30")
- */
-function convertTo24Hour(time12h) {
-    if (!time12h) return '';
-
-    const [time, period] = time12h.split(' ');
-    let [hours, minutes] = time.split(':');
-
-    hours = parseInt(hours);
-
-    if (period === 'PM' && hours !== 12) {
-        hours += 12;
-    } else if (period === 'AM' && hours === 12) {
-        hours = 0;
-    }
-
-    return `${hours.toString().padStart(2, '0')}:${minutes}`;
-}
-
-/**
- * Check if current user can delete an event
- * Time-based deletion (24-hour window for creators, always for developers)
- * @param {Object} event - Event object
- * @returns {boolean} True if user can delete
- */
-function canUserDeleteEvent(event) {
-    const is_developer = window.userPermissions?.is_developer || false;
-    const is_gm = window.userPermissions?.is_gm || false;
-    const is_admin = window.userPermissions?.is_admin || false;
-    const sessionUserId = window.currentUserId || 0;
-
-    // Developers can always delete
-    if (is_developer) {
-        return true;
-    }
-
-    // Check if within 24-hour window
-    if (!event.created_at) {
-        return false;
-    }
-
-    const createdAt = new Date(event.created_at);
-    const now = new Date();
-    const hoursSinceCreation = (now - createdAt) / (1000 * 60 * 60);
-    const within24Hours = hoursSinceCreation <= 24;
-
-    // Admins can delete ANY event within 24 hours
-    if (is_admin) {
-        return within24Hours;
-    }
-
-    // GMs can only delete events they created (within 24-hour window)
-    if (is_gm) {
-        // Must be the creator
-        if (event.created_by !== sessionUserId) {
-            return false;
-        }
-
-        return within24Hours; // FIXED: Use within24Hours instead of canDelete
-    }
-
-    // Non-GM, non-admin, non-developer users cannot delete
-    return false;
-}
-
-/**
- * Get time remaining for deletion window
- * @param {string} createdAt - ISO timestamp of creation
- * @returns {string} Human-readable time remaining
- */
-function getDeletionTimeRemaining(createdAt) {
-    if (!createdAt) return null;
-
-    const created = new Date(createdAt);
-    const now = new Date();
-    const deletionDeadline = new Date(created.getTime() + (24 * 60 * 60 * 1000));
-
-    if (now >= deletionDeadline) {
-        return null; // Window expired
-    }
-
-    const msRemaining = deletionDeadline - now;
-    const hoursRemaining = Math.floor(msRemaining / (1000 * 60 * 60));
-    const minutesRemaining = Math.floor((msRemaining % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (hoursRemaining > 0) {
-        return `${hoursRemaining}h ${minutesRemaining}m remaining`;
-    } else {
-        return `${minutesRemaining}m remaining`;
-    }
-}
-
-/**
- * Check if current user can edit an event
- * @param {Object} event - Event object
- * @returns {boolean} True if user can edit
- */
-function canUserEditEvent(event) {
-    const is_admin = window.userPermissions?.is_admin || false;
-    const is_developer = window.userPermissions?.is_developer || false;
-    const is_gm = window.userPermissions?.is_gm || false;
-    const sessionUserId = window.currentUserId || 0;
-    return is_admin || is_developer || (is_gm && event.created_by === sessionUserId);
-}
-
-// ============================================
-// GAME TAG SYSTEM - UNIFIED FOR CREATE & EDIT
-// ============================================
-// This section consolidates all game selection logic
-// Both create and edit modals use the same tag system
-
-/**
- * Game tag configuration object
- * Defines element IDs for different contexts (create vs edit)
- */
+/* ===============================
+   Game Dropdown Tag System
+   =============================== */
 const GameTagConfig = {
     create: {
         dropdown: 'gameDropdown',
@@ -567,11 +274,7 @@ async function initializeGameTagSelector(context = 'create', preSelectedGames = 
     }
 }
 
-/**
- * Attach change listener to game dropdown
- * @param {HTMLElement} dropdown - The dropdown element
- * @param {string} context - Either 'create' or 'edit'
- */
+// Attach change listeners for game dropdown
 function attachGameDropdownListener(dropdown, context) {
     // Remove existing listener by cloning
     const clone = dropdown.cloneNode(true);
@@ -590,11 +293,7 @@ function attachGameDropdownListener(dropdown, context) {
     });
 }
 
-/**
- * Add a game tag to the selected games
- * @param {string} gameTitle - Title of game to add
- * @param {string} context - Either 'create' or 'edit'
- */
+// Add a tag to selected games for an event
 function addGameTag(gameTitle, context = 'create') {
     if (EventState.selectedGames.includes(gameTitle)) return;
 
@@ -604,11 +303,7 @@ function addGameTag(gameTitle, context = 'create') {
     updateDropdownOptions(context);
 }
 
-/**
- * Remove a game tag from selected games
- * @param {string} gameTitle - Title of game to remove
- * @param {string} context - Either 'create' or 'edit'
- */
+// Remove a tag from the selected games
 function removeGameTag(gameTitle, context = 'create') {
     EventState.selectedGames = EventState.selectedGames.filter(game => game !== gameTitle);
     updateGameTagsDisplay(context);
@@ -616,10 +311,7 @@ function removeGameTag(gameTitle, context = 'create') {
     updateDropdownOptions(context);
 }
 
-/**
- * Update the visual display of selected game tags
- * @param {string} context - Either 'create' or 'edit'
- */
+// Update display of selected games
 function updateGameTagsDisplay(context = 'create') {
     const config = GameTagConfig[context];
     const container = document.getElementById(config.container);
@@ -644,10 +336,7 @@ function updateGameTagsDisplay(context = 'create') {
     });
 }
 
-/**
- * Update dropdown options to hide already-selected games
- * @param {string} context - Either 'create' or 'edit'
- */
+// Update dropdown when games are selected or deselected
 function updateDropdownOptions(context = 'create') {
     const config = GameTagConfig[context];
     const dropdown = document.getElementById(config.dropdown);
@@ -670,10 +359,7 @@ function updateDropdownOptions(context = 'create') {
     });
 }
 
-/**
- * Update the hidden input with selected games as JSON
- * @param {string} context - Either 'create' or 'edit'
- */
+// Update list of hidden games as games are selected or deselected
 function updateHiddenGamesInput(context = 'create') {
     const config = GameTagConfig[context];
     const hiddenInput = document.getElementById(config.hiddenInput);
@@ -682,10 +368,7 @@ function updateHiddenGamesInput(context = 'create') {
     }
 }
 
-/**
- * Clear all selected games
- * @param {string} context - Either 'create' or 'edit'
- */
+// Clear all selected games
 function clearSelectedGames(context = 'create') {
     EventState.selectedGames = [];
     updateGameTagsDisplay(context);
@@ -693,17 +376,20 @@ function clearSelectedGames(context = 'create') {
     updateDropdownOptions(context);
 }
 
-// ============================================
-// SINGLE-SELECT GAME DROPDOWN (FOR FILTERS)
-// ============================================
+/* ===============================
+   Event Filtering
+   =============================== */
 
-/**
- * Populate a single-select dropdown with games
- * Used for filtering, not for multi-select tag system
- * @param {string} selectId - ID of the select element
- * @param {string} loadingIndicatorId - ID of loading indicator (optional)
- * @param {string} selectedGame - Game to pre-select (optional)
- */
+// Global state for season filtering
+const PastSeasonFilterState = {
+    selectedSeasonId: null,
+    selectedSeasonName: '',
+    availablePastSeasons: [],
+    secondaryFilter: 'all',
+    isFilteringPastSeason: false
+};
+
+// Populate single-select game dropdown for filter
 async function populateGameDropdown(selectId, loadingIndicatorId = null, selectedGame = null) {
     const selectElement = document.getElementById(selectId);
     if (!selectElement) return;
@@ -742,29 +428,12 @@ async function populateGameDropdown(selectId, loadingIndicatorId = null, selecte
     }
 }
 
-/**
- * Load games for filter dropdown
- */
+// Load games for filter dropdown
 async function loadGamesForFilter() {
     await populateGameDropdown('gameFilter', 'gameFilterLoadingIndicator');
 }
 
-// ============================================
-// EVENT FILTERING
-// ============================================
-
-// Global state for season filtering
-const PastSeasonFilterState = {
-    selectedSeasonId: null,
-    selectedSeasonName: '',
-    availablePastSeasons: [],
-    secondaryFilter: 'all',
-    isFilteringPastSeason: false
-};
-
-/**
- * Load past seasons for filtering (admin/dev only)
- */
+// Load past seasons filter
 async function loadPastSeasonsForFilter() {
     const seasonSelect = document.getElementById('pastSeasonSelect');
     const loadingIndicator = document.getElementById('pastSeasonLoadingIndicator');
@@ -808,10 +477,7 @@ async function loadPastSeasonsForFilter() {
     }
 }
 
-/**
- * Filter events based on dropdown selection
- * Manages visibility of secondary filter dropdowns
- */
+// Filter events based on dropdown selection
 function filterEvents() {
     const filterSelect = document.getElementById('eventFilter');
     const filterValue = filterSelect?.value || 'all';
@@ -869,9 +535,7 @@ function filterEvents() {
     SEASON FILTERING STUFF
    ================================ */
 
-/**
- * Handle past season selection
- */
+// Handle past season selection
 function handlePastSeasonSelection() {
     const seasonSelect = document.getElementById('pastSeasonSelect');
     const seasonId = seasonSelect?.value;
@@ -904,9 +568,7 @@ function handlePastSeasonSelection() {
     updateFilterColumnsCount();
 }
 
-/**
- * Filter events by past season and secondary filter
- */
+// Filter events by past season and secondary filter
 function filterEventsByPastSeason() {
     const secondaryFilter = document.getElementById('pastSeasonSecondaryFilter');
     const secondaryValue = secondaryFilter?.value || 'all';
@@ -936,9 +598,7 @@ function filterEventsByPastSeason() {
     updateFilterColumnsCount();
 }
 
-/**
- * Filter by past season and type
- */
+// Filter by past season and type
 function filterBySeasonAndType() {
     const typeFilter = document.getElementById('eventTypeFilter');
     if (typeFilter?.value) {
@@ -946,9 +606,7 @@ function filterBySeasonAndType() {
     }
 }
 
-/**
- * Filter by past season and game
- */
+// Filter by past season and game
 function filterBySeasonAndGame() {
     const gameFilter = document.getElementById('gameFilter');
     if (gameFilter?.value) {
@@ -956,9 +614,7 @@ function filterBySeasonAndGame() {
     }
 }
 
-/**
- * Handle type filter change - routes to correct function based on context
- */
+// Handle type filter change - routes to correct function based on context
 function handleTypeFilterChange() {
     if (PastSeasonFilterState.isFilteringPastSeason) {
         filterBySeasonAndType();
@@ -967,9 +623,7 @@ function handleTypeFilterChange() {
     }
 }
 
-/**
- * Handle game filter change - routes to correct function based on context
- */
+// Handle game filter change - routes to correct function based on context
 function handleGameFilterChange() {
     if (PastSeasonFilterState.isFilteringPastSeason) {
         filterBySeasonAndGame();
@@ -978,9 +632,7 @@ function handleGameFilterChange() {
     }
 }
 
-/**
- * Load events for selected past season with filters
- */
+// Load events for selected past season with filters
 function loadEventsForPastSeason() {
     if (!PastSeasonFilterState.selectedSeasonId) {
         console.warn('No past season selected');
@@ -1045,9 +697,7 @@ function loadEventsForPastSeason() {
         });
 }
 
-/**
- * Update empty state message for past season filtering
- */
+// Update empty state message for past season filtering
 function updatePastSeasonEmptyStateMessage() {
     const emptyStateDiv = document.getElementById('eventsEmptyState');
     const emptyStateTitle = emptyStateDiv?.querySelector('h3');
@@ -1080,9 +730,7 @@ function updatePastSeasonEmptyStateMessage() {
     emptyStateText.textContent = text;
 }
 
-/**
- * Filter events by type (called when type dropdown changes)
- */
+// Filter events by type (called when type dropdown changes)
 function filterEventsByType() {
     const typeFilterSelect = document.getElementById('eventTypeFilter');
     if (typeFilterSelect?.value) {
@@ -1090,9 +738,7 @@ function filterEventsByType() {
     }
 }
 
-/**
- * Filter events by game (called when game dropdown changes)
- */
+// Filter events by game (called when game dropdown changes)
 function filterEventsByGame() {
     const gameFilterSelect = document.getElementById('gameFilter');
     if (gameFilterSelect?.value) {
@@ -1119,12 +765,7 @@ function updateFilterColumnsCount() {
 // EVENT RENDERING
 // ============================================
 
-/**
- * Render events in the grid
- * @param {Array} events - Array of event objects
- * @param {boolean} isAdmin - Whether user is admin
- * @param {boolean} isGm - Whether user is GM
- */
+// Render events in the grid
 function renderEvents(events, isAdmin, isGm) {
     const containerDiv = document.getElementById('eventsContainer');
     const emptyStateDiv = document.getElementById('eventsEmptyState');
@@ -1141,75 +782,46 @@ function renderEvents(events, isAdmin, isGm) {
     }</div>`;
 
     containerDiv.innerHTML = gridHTML;
+
+    // Open detail panel on card click (not the modal)
+    containerDiv.querySelectorAll('.event-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+            openEventDetailPanel(parseInt(card.dataset.eventId));
+        });
+    });
+
     setElementDisplay(containerDiv, 'block');
     setElementDisplay(emptyStateDiv, 'none');
 }
 
+// Builds individual event cards
 function createEventCard(event, isAdmin, isGm) {
     const canDelete = canUserDeleteEvent(event);
-
     const ongoingIndicator = event.is_ongoing
         ? '<div class="event-ongoing-indicator" title="Event is currently ongoing"></div>'
         : '';
 
-    // Build delete button
-    let deleteButton = '';
-    if (canDelete) {
-        deleteButton = `
-            <button class="btn btn-secondary btn-delete"
-                    onclick="event.stopPropagation(); openDeleteEventModal(${event.id}, '${escapeQuotes(event.name)}')">
-                <i class="fas fa-trash"></i>
-            </button>
-        `;
-    }
-
-    const gameDisplay = formatGameDisplay(event.game);
+    const gameDisplay = formatGameDisplay(event.game, event.team_name, event.is_scheduled);
     const eventTypeClass = (event.event_type || 'event').toLowerCase();
     const scheduledClass = event.is_scheduled ? 'scheduled-event' : '';
-
-    const seasonIndicator = event.season_name ? `
-        <div class="event-season-indicator" title="${event.season_is_active ? 'Active Season' : 'Past Season'}">
-            <span style="color: ${event.season_is_active ? '#22c55e' : '#94a3b8'};">●</span>
-            ${event.season_name}
-        </div>
-    ` : '';
+    const timeDisplay = event.start_time ? event.start_time : '';
 
     return `
-        <div class="event-card ${scheduledClass}"
-             data-event-type="${eventTypeClass}"
-             ${event.is_scheduled ? `data-scheduled="true" data-schedule-id="${event.schedule_id}"` : ''}
-             onclick="openEventModal(${event.id})">
+        <div class="event-card ${scheduledClass}" data-event-type="${eventTypeClass}" data-event-id="${event.id}" ...>
             ${ongoingIndicator}
-            <div class="event-card-header">
-                <h3 class="event-card-title">${event.name}</h3>
-                ${seasonIndicator}
+            <div class="event-card-top">
+                <span class="event-card-name">${event.name}</span>
+                <span class="event-card-game">${gameDisplay}</span>
             </div>
-
-            <div class="event-card-details">
-                ${createEventDetailRow('calendar', 'Date', event.date)}
-                ${event.start_time ? createEventDetailRow('clock', 'Time', `${event.start_time} - ${event.end_time}`) : ''}
-                ${createEventDetailRow('tag', 'Type', `<span class="event-type-badge" data-type="${eventTypeClass}">${event.event_type}</span>`)}
-                ${createEventDetailRow('gamepad', 'Game', gameDisplay)}
-                ${createEventDetailRow('map-marker-alt', 'Location', event.location)}
-            </div>
-
-            <div class="event-card-actions">
-                <button class="btn btn-primary" onclick="event.stopPropagation(); openEventModal(${event.id})">
-                    <i class="fas fa-eye"></i> View Details
-                </button>
-                ${deleteButton}
+            <div class="event-card-bottom">
+                <span class="event-card-date"><i class="fas fa-calendar"></i>${event.date}</span>
+                ${timeDisplay ? `<span class="event-card-time">${timeDisplay}</span>` : ''}
             </div>
         </div>
     `;
 }
 
-/**
- * Create a detail row for event card
- * @param {string} icon - FontAwesome icon name (without 'fa-' prefix)
- * @param {string} label - Label text
- * @param {string} value - Value HTML
- * @returns {string} HTML string for detail row
- */
+// Create a detail row for event card
 function createEventDetailRow(icon, label, value) {
     return `
         <div class="event-detail-row">
@@ -1222,24 +834,22 @@ function createEventDetailRow(icon, label, value) {
     `;
 }
 
-/**
- * Format game display (truncate if multiple games)
- * @param {string} gameStr - Comma-separated game string
- * @returns {string} Formatted game display string
- */
-function formatGameDisplay(gameStr) {
-    if (!gameStr || gameStr === 'N/A') return 'None';
-
-    const games = gameStr.split(', ');
-    if (games.length > 2) {
-        return `${games.slice(0, 2).join(', ')} +${games.length - 2} more`;
-    }
-    return gameStr;
+// Look up a game's abbreviation from the cached games list
+function getGameAbbreviation(title) {
+    const game = EventState.gamesListCache?.find(g => g.GameTitle === title);
+    return game?.Abbreviation || title; // fall back to full title if not found/not loaded yet
 }
 
-/**
- * Update empty state message based on current filter
- */
+// Format game display: first game's abbreviation, plus a count of any others
+function formatGameDisplay(gameStr, teamName, isScheduled) {
+    if (isScheduled && teamName) return teamName;
+    if (!gameStr || gameStr === 'N/A') return '';
+
+    const games = gameStr.split(', ').map(getGameAbbreviation);
+    return games.length > 1 ? `${games[0]} +${games.length - 1}` : games[0];
+}
+
+// Update empty state message based on current filter
 function updateEmptyStateMessage() {
     const emptyStateDiv = document.getElementById('eventsEmptyState');
     const filterSelect = document.getElementById('eventFilter');
@@ -1256,11 +866,7 @@ function updateEmptyStateMessage() {
     emptyStateText.textContent = message.text;
 }
 
-/**
- * Get empty state message based on filter type
- * @param {string} filterValue - Current filter value
- * @returns {Object} Object with title and text properties
- */
+// Get empty state message based on filter type
 function getEmptyStateMessage(filterValue) {
     const messages = {
         subscribed: {
@@ -1320,9 +926,7 @@ function getEmptyStateMessage(filterValue) {
     };
 }
 
-/**
- * Show error state when events fail to load
- */
+// Show error state when events fail to load
 function showEventsError() {
     const containerDiv = document.getElementById('eventsContainer');
     if (!containerDiv) return;
@@ -1387,14 +991,7 @@ async function openEventModal(eventId, source = 'events') {
     }
 }
 
-/**
- * Set modal loading state
- * @param {HTMLElement} modal - Modal element
- * @param {HTMLElement} spinner - Spinner element
- * @param {HTMLElement} content - Content element
- * @param {HTMLElement} deleteBtn - Delete button element
- * @param {boolean} isLoading - Whether modal is loading
- */
+// Set modal loading state
 function setModalLoadingState(modal, spinner, content, deleteBtn, isLoading) {
     modal.style.display = 'block';
     setElementDisplay(spinner, isLoading ? 'block' : 'none');
@@ -1403,11 +1000,7 @@ function setModalLoadingState(modal, spinner, content, deleteBtn, isLoading) {
     document.body.style.overflow = 'hidden';
 }
 
-/**
- * Build event details HTML
- * @param {Object} event - Event object
- * @returns {string} HTML string for event details
- */
+// Build event details HTML
 function buildEventDetailsHTML(event) {
     const sections = [];
 
@@ -1458,14 +1051,124 @@ function buildEventDetailsHTML(event) {
     return `<div class="event-detail-grid">${sections.join('')}</div>`;
 }
 
-/**
- * Create a detail section for event modal
- * @param {string} icon - FontAwesome icon name
- * @param {string} title - Section title
- * @param {string} content - Section content
- * @param {boolean} fullWidth - Whether section spans full width
- * @returns {string} HTML string for detail section
- */
+// Populate the right-hand detail panel when a card is clicked
+async function openEventDetailPanel(eventId) {
+    const pane = document.getElementById('eventsDetailPane');
+    EventState.currentEventId = eventId;
+
+    // Show loading state
+    pane.innerHTML = `
+        <div class="events-detail-placeholder">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading event...</p>
+        </div>
+    `;
+
+    try {
+        const response = await fetch(`/api/event/${eventId}`);
+        if (!response.ok) throw new Error('Failed to fetch event');
+        const event = await response.json();
+        EventState.currentEventData = event;
+
+        const eventTypeClass = (event.event_type || 'event').toLowerCase();
+
+        // Build detail rows
+        const rows = [];
+
+        if (event.start_time) {
+            const timeStr = `${event.start_time}${event.end_time ? ' – ' + event.end_time : ''}`;
+            rows.push(detailRow('clock', 'Time', timeStr));
+        }
+
+        if (event.game && event.game !== 'N/A') {
+            rows.push(detailRow('gamepad', 'Game', event.game));
+        }
+
+        if (event.event_type === 'Match' && event.league_name) {
+            rows.push(detailRow('trophy', 'League', event.league_name));
+        }
+
+        if (event.location) {
+            rows.push(detailRow('map-marker-alt', 'Location', event.location));
+        }
+
+        if (event.description) {
+            rows.push(detailRow('info-circle', 'Description', event.description));
+        }
+
+        pane.innerHTML = `
+            <div class="events-detail-panel" data-event-type="${eventTypeClass}">
+                <div class="events-detail-banner-wrapper">
+                    <div class="events-detail-banner">
+                        <i class="fas fa-image"></i>&nbsp; Banner coming soon
+                    </div>
+                    <div class="events-detail-banner-actions">
+                        ${canUserEditEvent(event) ? `
+                            <button class="events-detail-banner-btn" title="Edit event"
+                                    onclick="toggleEditMode()">
+                                <i class="fas fa-edit"></i>
+                            </button>` : ''}
+                        ${canUserDeleteEvent(event) ? `
+                            <button class="events-detail-banner-btn delete" title="Delete event"
+                                    onclick="openDeleteEventModal(${event.id}, '${escapeQuotes(event.name)}')">
+                                <i class="fas fa-trash"></i>
+                            </button>` : ''}
+                    </div>
+                </div>
+                <h2 class="events-detail-title">${event.name}</h2>
+                <div class="events-detail-sections">
+                    <div class="events-detail-row">
+                        <div class="event-detail-icon"><i class="fas fa-calendar-alt"></i></div>
+                        <div class="events-detail-row-text">
+                            <h4>Date</h4>
+                            <p>${event.date}</p>
+                        </div>
+                        <span class="game-next-event-type ${eventTypeClass} events-detail-type-badge">${event.event_type || 'Event'}</span>
+                    </div>
+                    ${rows.join('')}
+                </div>
+                <div class="notification-opt-in">
+                    <div class="notification-icon"><i class="fas fa-bell"></i></div>
+                    <div class="notification-text">
+                        <div class="title">Event Reminders</div>
+                        <div class="subtitle">Get notified about this event</div>
+                    </div>
+                    <button class="notification-btn" id="detailSubscribeBtn"
+                            onclick="toggleEventSubscription()">
+                        <span id="detailSubscribeBtnText">Loading...</span>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Reuse the existing notification loader to set subscribe button state
+        await loadNotificationSection(eventId);
+
+    } catch (error) {
+        console.error('Error loading event detail panel:', error);
+        pane.innerHTML = `
+            <div class="events-detail-placeholder">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Failed to load event details.</p>
+            </div>
+        `;
+    }
+}
+
+// Build a single detail row for the panel
+function detailRow(icon, label, value) {
+    return `
+        <div class="events-detail-row">
+            <div class="event-detail-icon"><i class="fas fa-${icon}"></i></div>
+            <div class="events-detail-row-text">
+                <h4>${label}</h4>
+                <p>${value}</p>
+            </div>
+        </div>
+    `;
+}
+
+// Create a detail section for event modal
 function createDetailSection(icon, title, content, fullWidth = false) {
     const style = fullWidth ? ' style="grid-column: 1 / -1;"' : '';
     return `
@@ -1479,10 +1182,7 @@ function createDetailSection(icon, title, content, fullWidth = false) {
     `;
 }
 
-/**
- * Create notification section HTML
- * @returns {string} HTML string for notification section
- */
+// Create notification section HTML
 function createNotificationSection() {
     return `
         <div class="event-notification-section full-width"
@@ -1504,9 +1204,7 @@ function createNotificationSection() {
     `;
 }
 
-/**
- * Update edit/delete buttons based on permissions
- */
+// Update edit/delete buttons based on permissions
 function updateEventModalButtons(event) {
     const editBtn = document.getElementById("editEventBtn");
     const deleteBtn = document.getElementById("deleteEventBtn");
@@ -1536,12 +1234,7 @@ function updateEventModalButtons(event) {
     }
 }
 
-/**
- * Handle event load error
- * @param {HTMLElement} titleElement - Title element
- * @param {HTMLElement} content - Content element
- * @param {HTMLElement} spinner - Spinner element
- */
+// Handle event load error
 function handleEventLoadError(titleElement, content, spinner) {
     if (titleElement) {
         titleElement.textContent = 'Error Loading Event';
@@ -1559,161 +1252,17 @@ function handleEventLoadError(titleElement, content, spinner) {
     setElementDisplay(content, 'block');
 }
 
-/**
- * Close event details modal
- */
-function closeEventModal() {
-    const modal = document.getElementById('eventDetailsModal');
-    const deleteBtn = document.getElementById("deleteEventBtn");
-    const editBtn = document.getElementById("editEventBtn");
-    const content = document.getElementById("eventDetailsContent");
-    const editForm = document.getElementById("eventEditForm");
-
-    // Hide modal and its elements
-    setElementDisplay(modal, 'none');
-    setElementDisplay(deleteBtn, 'none');
-    setElementDisplay(editBtn, 'none');
-    setElementDisplay(content, 'none');
-    setElementDisplay(editForm, 'none');
-
-    // Check if there are other modals still open before restoring scroll
-    const openModals = document.querySelectorAll('.modal');
-    const hasOpenModals = Array.from(openModals).some(m => {
-        if (m.id === 'eventDetailsModal') return false;
-        const style = window.getComputedStyle(m);
-        return style.display === 'block' || style.display === 'flex' || m.classList.contains('active');
-    });
-
-    if (!hasOpenModals) {
-        document.body.style.overflow = "auto";
-    }
-
-    EventState.reset();
-}
-
-/**
- * Load leagues for event edit form
- */
-async function loadLeaguesForEventEdit() {
-    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
-    const loadingIndicator = document.getElementById('editEventLeagueLoadingIndicator');
-    
-    if (!leagueDropdown) return;
-    
-    // Don't reload if already populated (more than just the placeholder)
-    if (leagueDropdown.options.length > 1) return;
-    
-    setElementDisplay(loadingIndicator, 'block');
-    leagueDropdown.disabled = true;
-    
-    try {
-        const response = await fetch('/league/all');
-        const data = await response.json();
-        
-        if (data.leagues && data.leagues.length > 0) {
-            // Keep the placeholder and add leagues
-            data.leagues.forEach(league => {
-                const option = document.createElement('option');
-                option.value = league.id;
-                option.textContent = league.name;
-                leagueDropdown.appendChild(option);
-            });
-        } else {
-            leagueDropdown.innerHTML = '<option value="">No leagues available</option>';
-        }
-    } catch (error) {
-        console.error('Error loading leagues for edit:', error);
-        leagueDropdown.innerHTML = '<option value="">Error loading leagues</option>';
-    } finally {
-        setElementDisplay(loadingIndicator, 'none');
-        leagueDropdown.disabled = false;
-    }
-}
-
-// ============================================
-// EVENT NOTIFICATIONS
-// ============================================
-
-/**
- * Load notification section for an event
- * @param {number} eventId - Event ID
- */
-async function loadNotificationSection(eventId) {
-    const btn = document.getElementById('notificationBtn');
-    const btnText = document.getElementById('notificationBtnText');
-
-    if (!btn || !btnText) return;
-
-    try {
-        const response = await fetch(`/api/event/${eventId}/subscription-status`);
-        const data = await response.json();
-
-        // Check if notifications are enabled
-        if (!data.notifications_enabled) {
-            btn.disabled = true;
-            btn.classList.add('disabled');
-            btnText.textContent = 'Enable notifications in Profile';
-            return;
-        }
-
-        // Update subscription status
-        btn.disabled = false;
-        btn.classList.remove('disabled');
-        btn.classList.toggle('subscribed', data.subscribed);
-        btnText.textContent = data.subscribed ? 'Subscribed' : 'Subscribe';
-
-    } catch (err) {
-        console.error('Error fetching subscription status:', err);
-        btn.disabled = true;
-        btnText.textContent = 'Error';
-    }
-}
-
-/**
- * Toggle event subscription
- */
-async function toggleEventSubscription() {
-    const btn = document.getElementById('notificationBtn');
-    const btnText = document.getElementById('notificationBtnText');
-
-    if (!EventState.currentEventId) return;
-
-    try {
-        const response = await fetch(
-            `/api/event/${EventState.currentEventId}/toggle-subscription`,
-            { method: 'POST' }
-        );
-        const data = await response.json();
-
-        if (data.error) {
-            alert(data.error);
-            return;
-        }
-
-        // Update button state
-        const isSubscribed = data.status === 'subscribed';
-        btn.classList.toggle('subscribed', isSubscribed);
-        btnText.textContent = isSubscribed ? 'Subscribed' : 'Subscribe';
-
-    } catch (err) {
-        console.error('Error toggling subscription:', err);
-        alert('Failed to toggle subscription.');
-    }
-}
-
 // ============================================
 // CREATE EVENT MODAL
 // ============================================
 
-/**
- * Open create event modal
- */
+// Open create event modal
 function openCreateEventModal() {
     const modal = document.getElementById('createEventModal');
     const form = document.getElementById('createEventForm');
     const customLocationGroup = document.getElementById('customLocationGroup');
     const formMessage = document.getElementById('formMessage');
-    const leagueGroup = document.getElementById('eventLeagueFieldGroup'); // ADD THIS LINE
+    const leagueGroup = document.getElementById('eventLeagueFieldGroup');
 
     // Show modal
     setElementDisplay(modal, 'block');
@@ -1723,7 +1272,7 @@ function openCreateEventModal() {
     form.reset();
     setElementDisplay(customLocationGroup, 'none');
     setElementDisplay(formMessage, 'none');
-    setElementDisplay(leagueGroup, 'none'); // ADD THIS LINE - Hide league field initially
+    setElementDisplay(leagueGroup, 'none');
     clearSelectedGames('create');
     
     // Character Counter
@@ -1739,20 +1288,14 @@ function openCreateEventModal() {
     }, 50);
 }
 
-/**
- * Close create event modal
- */
+// Close create event modal
 function closeCreateEventModal() {
     const modal = document.getElementById('createEventModal');
     setElementDisplay(modal, 'none');
     document.body.style.overflow = 'auto';
 }
 
-/**
- * Handle location dropdown change
- * Shows/hides custom location input
- * @param {Event} e - Change event
- */
+// Handle location dropdown change
 function handleLocationChange(e) {
     const customLocationGroup = document.getElementById('customLocationGroup');
     const customLocationInput = document.getElementById('customLocation');
@@ -1767,9 +1310,7 @@ function handleLocationChange(e) {
     }
 }
 
-/**
- * Handle event type change - hide game field for Misc events
- */
+// Handle event type change - hide game field for Misc events
 function handleEventTypeChange() {
     const eventType = document.getElementById('eventType')?.value;
     const gameFieldGroup = document.getElementById('gameFieldGroup');
@@ -1781,16 +1322,9 @@ function handleEventTypeChange() {
     } else {
         setElementDisplay(gameFieldGroup, 'block');
     }
-    
-    // Handle league field visibility
-    handleLeagueFieldVisibility('create'); 
 }
 
-/**
- * Toggle all-day event button
- * Switches between "All Day?" and "All Day" states
- * Manages time input states accordingly
- */
+// Toggle all-day event button
 function toggleAllDayEvent() {
     const allDayCheckbox = document.getElementById('allDayEvent');
     const allDayButton = document.getElementById('allDayButton');
@@ -1841,10 +1375,7 @@ function toggleAllDayEvent() {
     }
 }
 
-/**
- * Handle create event form submission
- * @param {Event} e - Submit event
- */
+// Handle create event form submission
 async function handleCreateEventSubmit(e) {
     e.preventDefault();
 
@@ -1914,11 +1445,7 @@ async function handleCreateEventSubmit(e) {
 // DAY MODAL (CALENDAR VIEW)
 // ============================================
 
-/**
- * Open day events modal (for calendar view)
- * @param {string} date - Date string
- * @param {string} dateTitle - Formatted date title
- */
+// Open day events modal
 function openDayModal(date, dateTitle) {
     const modal = document.getElementById('dayEventsModal');
     const modalTitle = document.getElementById('modalDayTitle');
@@ -1943,11 +1470,7 @@ function openDayModal(date, dateTitle) {
     document.body.style.overflow = 'hidden';
 }
 
-/**
- * Create event item for day modal
- * @param {Object} event - Event object
- * @returns {HTMLElement} Event item element
- */
+// Create event item for day modal
 function createDayModalEventItem(event) {
     const eventItem = document.createElement('div');
     eventItem.className = 'modal-event-item';
@@ -1970,9 +1493,7 @@ function createDayModalEventItem(event) {
     return eventItem;
 }
 
-/**
- * Close day modal
- */
+// Close day modal
 function closeDayModal() {
     const modal = document.getElementById('dayEventsModal');
     setElementDisplay(modal, 'none');
@@ -1983,10 +1504,7 @@ function closeDayModal() {
 // EDIT EVENT MODAL
 // ============================================
 
-/**
- * Toggle edit mode
- * Switches from view mode to edit mode in the event modal
- */
+// Toggle edit mode
 function toggleEditMode() {
     const content = document.getElementById('eventDetailsContent');
     const editForm = document.getElementById('eventEditForm');
@@ -2007,9 +1525,7 @@ function toggleEditMode() {
     createEditForm();
 }
 
-/**
- * Create edit form with pre-populated data
- */
+// Create edit form with pre-populated data
 function createEditForm() {
     const editForm = document.getElementById('eventEditForm');
     if (!EventState.currentEventData) return;
@@ -2034,24 +1550,11 @@ function createEditForm() {
         // Handle event type (will show/hide league field)
         handleEditEventTypeChange();
         
-        // Load leagues if this is a Match event
-        if (event.event_type === 'Match') {
-            const dropdown = document.getElementById('editEventLeagueDropdown');
-            if (dropdown) {
-                console.log('Loading leagues for edit event, current league_id:', event.league_id);
-                loadLeaguesForDropdown('editEventLeagueDropdown', event.league_id);
-            } else {
-                console.error('editEventLeagueDropdown not found!');
-            }
-        }
+
     }, 50); // Small delay to ensure DOM is ready
 }
 
-/**
- * Create edit form fields
- * @param {Object} event - Event object
- * @returns {string} HTML string for form fields
- */
+// Create edit form fields
 function createEditFormFields(event) {
     const escapedDescription = (event.description || '')
         .replace(/&/g, '&amp;')
@@ -2187,11 +1690,7 @@ function createEditFormFields(event) {
     `;
 }
 
-/**
- * Create event type options
- * @param {string} selectedType - Currently selected type
- * @returns {string} HTML string for options
- */
+// Create event type options
 function createEventTypeOptions(selectedType) {
     const types = ['Event', 'Match', 'Practice', 'Tournament', 'Misc'];
     return types.map(type =>
@@ -2199,11 +1698,7 @@ function createEventTypeOptions(selectedType) {
     ).join('');
 }
 
-/**
- * Create game tag field
- * @param {string} context - 'create' or 'edit'
- * @returns {string} HTML string for game tag field
- */
+// Create game tag field
 function createGameTagField(context) {
     const prefix = context === 'edit' ? 'edit' : '';
     const idPrefix = prefix ? `${prefix}` : '';
@@ -2231,11 +1726,7 @@ function createGameTagField(context) {
     `;
 }
 
-/**
- * Create time input fields
- * @param {Object} event - Event object
- * @returns {string} HTML string for time fields
- */
+// Create time input fields
 function createTimeFields(event) {
     return `
         <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -2253,12 +1744,7 @@ function createTimeFields(event) {
     `;
 }
 
-/**
- * Create location fields
- * @param {string} context - 'create' or 'edit'
- * @param {string} currentLocation - Current location value
- * @returns {string} HTML string for location fields
- */
+// Create location fields
 function createLocationFields(context, currentLocation = '') {
     const prefix = context === 'edit' ? 'edit' : '';
     const idPrefix = prefix ? `${prefix}` : '';
@@ -2286,10 +1772,7 @@ function createLocationFields(context, currentLocation = '') {
     `;
 }
 
-/**
- * Create form action buttons
- * @returns {string} HTML string for action buttons
- */
+// Create form action buttons
 function createFormActionButtons() {
     return `
         <div class="form-actions">
@@ -2303,10 +1786,7 @@ function createFormActionButtons() {
     `;
 }
 
-/**
- * Setup edit location dropdown with current value
- * @param {string} currentLocation - Current location
- */
+// Setup edit location dropdown with current value
 function setupEditLocationDropdown(currentLocation) {
     const presetLocations = [
         'Campus Center',
@@ -2347,9 +1827,7 @@ function setupEditLocationDropdown(currentLocation) {
     });
 }
 
-/**
- * Handle event type change in edit form
- */
+// Handle event type change in edit form
 function handleEditEventTypeChange() {
     const eventType = document.getElementById('editEventType')?.value;
     const gameFieldGroup = document.getElementById('editGameFieldGroup');
@@ -2395,8 +1873,7 @@ function handleEditEventTypeChange() {
             label.innerHTML = 'League <span style="color: #ff5252;">*</span>';
         }
         
-        // Load leagues if not already loaded
-        loadLeaguesForDropdown('editEventLeagueDropdown');
+
     } else {
         leagueDropdown.removeAttribute('required');
         leagueDropdown.value = '';
@@ -2410,9 +1887,7 @@ function handleEditEventTypeChange() {
 }
 
 
-/**
- * Submit event edit
- */
+// Submit edit event
 async function submitEventEdit() {
     const formMessage = document.getElementById('editFormMessage');
     const submitBtn = document.querySelector('#editEventFormData .btn-primary');
@@ -2472,10 +1947,7 @@ async function submitEventEdit() {
     }
 }
 
-/**
- * Gather edit form data
- * @returns {Object} Form data object
- */
+// Gather edit form data
 function gatherEditFormData() {
     const locationSelect = document.getElementById('editLocation');
     const customLocationInput = document.getElementById('editCustomLocation');
@@ -2500,9 +1972,7 @@ function gatherEditFormData() {
     };
 }
 
-/**
- * Cancel edit mode
- */
+// Cancel edit mode
 function cancelEdit() {
     const content = document.getElementById('eventDetailsContent');
     const editForm = document.getElementById('eventEditForm');
@@ -2520,10 +1990,7 @@ function cancelEdit() {
 // DELETE EVENT
 // ============================================
 
-/**
- * Open delete confirmation modal for events
- * Uses universal delete modal system
- */
+// Open delete confirmation modal for events
 async function openDeleteEventModal(eventId, eventName) {
     EventState.currentDeleteEventId = eventId;
     EventState.currentDeleteEventName = eventName;
@@ -2567,10 +2034,7 @@ async function openDeleteEventModal(eventId, eventName) {
     });
 }
 
-/**
- * Function triggered when an event is confirmed to be deleted.
- * @param - eventId is the ID of the event being deleted.
- **/
+// Function triggered when an event is confirmed to be deleted
 async function confirmDeleteEvent(eventId) {
     try {
         const response = await fetch(`/api/events/${eventId}`, {
@@ -2632,9 +2096,7 @@ async function confirmDeleteEvent(eventId) {
     }
 }
 
-/**
- * Handle delete error messages
- */
+// Handle delete error messages
 function handleDeleteError(message) {
     window.closeDeleteConfirmModal();
 
@@ -2647,10 +2109,7 @@ function handleDeleteError(message) {
     }
 }
 
-/**
- * Delete event (called from event details modal)
- * Uses the same confirmation modal as card deletion
- */
+// Delete event (called from event details modal)
 async function deleteEvent() {
     if (!EventState.currentEventId) {
         alert("Event ID not found.");
@@ -2683,18 +2142,124 @@ async function deleteEvent() {
 }
 
 // ============================================
+// UTILITY FUNCTIONS
+// ============================================
+
+// Set element display style (with null check)
+function setElementDisplay(element, displayValue) {
+    if (element) element.style.display = displayValue;
+}
+
+// Escape single quotes in strings for safe HTML attribute use
+function escapeQuotes(str) {
+    return str.replace(/'/g, "\\'");
+}
+
+// Convert 12-hour time format to 24-hour format for input[type="time"]
+function convertTo24Hour(time12h) {
+    if (!time12h) return '';
+
+    const [time, period] = time12h.split(' ');
+    let [hours, minutes] = time.split(':');
+
+    hours = parseInt(hours);
+
+    if (period === 'PM' && hours !== 12) {
+        hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+    }
+
+    return `${hours.toString().padStart(2, '0')}:${minutes}`;
+}
+
+/* ========================================
+   HELPERS
+   ======================================== */
+
+// Check if current user can delete an event
+function canUserDeleteEvent(event) {
+    const is_developer = window.userPermissions?.is_developer || false;
+    const is_gm = window.userPermissions?.is_gm || false;
+    const is_admin = window.userPermissions?.is_admin || false;
+    const sessionUserId = window.currentUserId || 0;
+
+    // Developers can always delete
+    if (is_developer) {
+        return true;
+    }
+
+    // Check if within 24-hour window
+    if (!event.created_at) {
+        return false;
+    }
+
+    const createdAt = new Date(event.created_at);
+    const now = new Date();
+    const hoursSinceCreation = (now - createdAt) / (1000 * 60 * 60);
+    const within24Hours = hoursSinceCreation <= 24;
+
+    // Admins can delete ANY event within 24 hours
+    if (is_admin) {
+        return within24Hours;
+    }
+
+    // GMs can only delete events they created (within 24-hour window)
+    if (is_gm) {
+        // Must be the creator
+        if (event.created_by !== sessionUserId) {
+            return false;
+        }
+
+        return within24Hours; // FIXED: Use within24Hours instead of canDelete
+    }
+
+    // Non-GM, non-admin, non-developer users cannot delete
+    return false;
+}
+
+// Get time remaining for deletion window
+function getDeletionTimeRemaining(createdAt) {
+    if (!createdAt) return null;
+
+    const created = new Date(createdAt);
+    const now = new Date();
+    const deletionDeadline = new Date(created.getTime() + (24 * 60 * 60 * 1000));
+
+    if (now >= deletionDeadline) {
+        return null; // Window expired
+    }
+
+    const msRemaining = deletionDeadline - now;
+    const hoursRemaining = Math.floor(msRemaining / (1000 * 60 * 60));
+    const minutesRemaining = Math.floor((msRemaining % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hoursRemaining > 0) {
+        return `${hoursRemaining}h ${minutesRemaining}m remaining`;
+    } else {
+        return `${minutesRemaining}m remaining`;
+    }
+}
+
+// Check if current user can edit an event
+function canUserEditEvent(event) {
+    const is_admin = window.userPermissions?.is_admin || false;
+    const is_developer = window.userPermissions?.is_developer || false;
+    const is_gm = window.userPermissions?.is_gm || false;
+    const sessionUserId = window.currentUserId || 0;
+    return is_admin || is_developer || (is_gm && event.created_by === sessionUserId);
+}
+
+// ============================================
 // GLOBAL EXPORTS
 // ============================================
 window.initializeEventsModule = initializeEventsModule;
 window.loadEvents = loadEvents;
 window.filterEvents = filterEvents;
-window.filterEventsByType = filterEventsByType;
-window.filterEventsByGame = filterEventsByGame;
 
 // Event Modal Functions
 window.openEventModal = openEventModal;
 window.closeEventModal = closeEventModal;
-window.toggleEventSubscription = toggleEventSubscription;
 
 // Day Modal Functions (Calendar)
 window.openDayModal = openDayModal;
@@ -2708,33 +2273,11 @@ window.toggleAllDayEvent = toggleAllDayEvent;
 
 // Edit Event Functions
 window.toggleEditMode = toggleEditMode;
-window.cancelEdit = cancelEdit;
-window.submitEventEdit = submitEventEdit;
 window.handleEditEventTypeChange = handleEditEventTypeChange;
 
 // Delete Event Functions
 window.deleteEvent = deleteEvent;
-window.confirmDeleteEvent = confirmDeleteEvent;
-window.canUserDeleteEvent = canUserDeleteEvent;
-window.getDeletionTimeRemaining = getDeletionTimeRemaining;
-
-// Game Tag System Functions
-window.addGameTag = addGameTag;
-window.removeGameTag = removeGameTag;
-window.clearSelectedGames = clearSelectedGames;
 
 //Filtering with seasons
-window.loadPastSeasonsForFilter = loadPastSeasonsForFilter;
 window.handlePastSeasonSelection = handlePastSeasonSelection;
 window.filterEventsByPastSeason = filterEventsByPastSeason;
-window.filterBySeasonAndType = filterBySeasonAndType;
-window.filterBySeasonAndGame = filterBySeasonAndGame;
-window.loadEventsForPastSeason = loadEventsForPastSeason;
-
-// Utility Functions
-window.loadGamesForFilter = loadGamesForFilter;
-window.clearGamesCache = clearGamesCache;
-
-//Leagues added to modals for match case
-window.handleLeagueFieldVisibility = handleLeagueFieldVisibility;
-window.loadLeaguesForDropdown = loadLeaguesForDropdown;

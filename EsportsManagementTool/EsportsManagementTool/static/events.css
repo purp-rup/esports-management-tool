@@ -1,29 +1,14 @@
 /* ============================================
-   EVENTS TAB STYLES
-   Event management and display interface
-   ORGANIZED BY CLAUDEAI
+   EVENTS RELATED STYLES
+   - Event cards
+   - Event pills and colors
+   - Event tab structure
+   - Calendar pills
    ============================================ */
 
-/* --------------------------------------------
-   CARD HEADER LAYOUT
-   Header section with filters and actions
-   -------------------------------------------- */
-#events .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 2rem;
-}
-
-#events .card-header > div:first-child {
-    flex: 0 1 auto;
-}
-
-/* --------------------------------------------
+/* =============================
    EVENT FILTER DROPDOWN
-   Dropdown for filtering events by type
-   -------------------------------------------- */
-/* Main header controls wrapper - keeps filters and button together */
+   ============================= */
 .event-header-controls {
     display: flex;
     flex-direction: column;
@@ -34,7 +19,6 @@
     padding-right: 140px;
 }
 
-/* Filters container - stacks filter rows vertically */
 .event-filters-container {
     display: grid;
     grid-template-columns: auto auto ;
@@ -91,7 +75,6 @@
     box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
 }
 
-/* Loading indicators */
 .event-filter-dropdown > div[id$="LoadingIndicator"] {
     display: inline-flex;
     align-items: center;
@@ -116,59 +99,259 @@
     top: 1px;
 }
 
-/* --------------------------------------------
-   EVENTS GRID LAYOUT
-   Grid container for event cards
-   -------------------------------------------- */
-.events-grid {
+/* ==============================
+   Events Tab Layout
+   ============================== */
+.events-layout {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 1.5rem;
-    margin-top: 2rem;
+    grid-template-columns: 1fr 420px;
+    align-items: start;
 }
 
-/* --------------------------------------------
-   EVENT CARDS
-   Individual event display cards
-   -------------------------------------------- */
+.events-list-pane {
+    min-width: 0;
+    padding-right: 1.25rem;
+    padding-top: 0.15rem;
+    max-height: calc(100vh - 260px);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+}
+
+.events-detail-pane {
+    position: sticky;
+    top: 1rem;
+    align-self: stretch;
+    min-height: 480px;
+    border-left: 1px solid var(--border-color);
+    padding-left: 2rem;
+}
+
+/* ===================================
+   Event Details Sidebar
+   =================================== */
+.events-detail-placeholder {
+    height: 100%;
+    min-height: 460px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.events-detail-placeholder i {
+    font-size: 2.25rem;
+    opacity: 0.35;
+}
+
+.events-detail-placeholder p {
+    font-size: 0.9375rem;
+    max-width: 220px;
+    margin: 0;
+}
+
+/* Panel shown when an event is selected */
+.events-detail-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.events-detail-banner-wrapper {
+    position: relative;
+    margin-bottom: 1.25rem;
+}
+
+.events-detail-banner {
+    width: 100%;
+    height: 70px;
+    background: var(--hover-bg);
+    border: 1px dashed var(--border-color);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    flex-shrink: 0;
+}
+
+.events-detail-banner-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.events-detail-panel:hover .events-detail-banner-actions {
+    opacity: 1;
+}
+
+.events-detail-banner-btn {
+    background: transparent;
+    border: none;
+    color: var(--stockton-blue);
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    opacity: 1;
+}
+
+.events-detail-banner-btn:hover {
+    background: rgba(121, 189, 233, 0.15);
+    color: var(--stockton-blue);
+}
+
+.events-detail-banner-btn:active {
+    transform: scale(0.95);
+}
+
+.events-detail-banner-btn.delete {
+    color: var(--event-match);
+}
+
+.events-detail-banner-btn.delete:hover {
+    background: var(--event-match-light);
+    color: var(--event-match);
+}
+
+.events-detail-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+}
+
+.events-detail-type-badge {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.events-detail-pane .notification-opt-in .subtitle {
+    font-size: 0.7rem;
+}
+
+.events-detail-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    margin-bottom: 1.5rem;
+}
+
+.events-detail-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+}
+
+.events-detail-row .event-detail-icon {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+}
+
+.events-detail-row-text h4 {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin: 0 0 0.1rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.events-detail-row-text p {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* ===============================
+   Event Cards
+   =============================== */
+.events-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.25rem;
+}
+
 .event-card {
     background: var(--dark-bg);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1.5rem;
-    transition: all 0.3s;
-    position: relative;
-    overflow: hidden;
+    border-left: 3px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.875rem 1rem;
+    transition: all 0.2s ease;
     cursor: pointer;
 }
 
 .event-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-3px);
     border-color: var(--stockton-blue);
     box-shadow: 0 8px 16px rgba(121, 189, 233, 0.1);
 }
 
-/* Event card header */
-.event-card-header {
+.event-card-top {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+}
+
+.event-card-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.event-card-game {
+    flex: 0 0 auto;
+    max-width: 45%;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.event-card-bottom {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    align-items: center;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
 }
 
-.event-card-title {
-    flex: 1;
-    margin: 0;
+.event-card-date i {
+    margin-right: 0.35rem;
+    opacity: 0.7;
+    width: 12px;
 }
 
-/* Ongoing event indicator */
+.event-card-time {
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+}
+
+/* Ongoing event indicator - top-left corner dot */
 .event-ongoing-indicator {
     position: absolute;
-    top: -0.5rem;
-    right: -0.5rem;
-    width: 12px;
-    height: 12px;
+    top: -4px;
+    left: -4px;
+    width: 10px;
+    height: 10px;
     background: #4ade80;
     border-radius: 50%;
     border: 2px solid var(--dark-bg);
@@ -176,55 +359,38 @@
     z-index: 10;
 }
 
-/* --------------------------------------------
-   EVENT CARD DETAILS
-   Date, time, and game information display
-   -------------------------------------------- */
-.event-card-details {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
-}
-
-.event-detail-row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.875rem;
-}
-
-.event-detail-icon {
-    width: 40px;
-    height: 40px;
-    background: rgba(121, 189, 233, 0.1);
-    border-radius: 8px;
+/* Delete button - icon only, revealed on card hover */
+.event-card-delete-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--stockton-blue);
-    flex-shrink: 0;
-    font-size: 1.125rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: #ef4444;
+    font-size: 0.6875rem;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s, border-color 0.2s;
+    cursor: pointer;
 }
 
-.event-detail-label {
-    font-weight: 500;
-    color: var(--text-secondary);
-    min-width: 80px;
+.event-card:hover .event-card-delete-btn {
+    opacity: 1;
 }
 
-.event-detail-value {
-    color: var(--text-primary);
-    flex: 1;
+.event-card-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
 }
 
 /* ============================================
    DELETION TIME INDICATORS
-   NEW: Shows time remaining for deletion window
-   Add these styles to events.css
    ============================================ */
-
-/* Deletion time remaining badge */
 .deletion-time-remaining {
     display: inline-flex;
     align-items: center;
@@ -242,18 +408,11 @@
     font-size: 0.625rem;
 }
 
-/* When inside a delete button, use transparent background */
-.btn-delete .deletion-time-remaining {
-    background: transparent;
-}
-
-/* Time remaining in delete button (inline style) */
 .btn-delete span {
     font-size: 0.75rem;
     opacity: 0.9;
 }
 
-/* Delete confirmation modal - time warning box */
 .delete-confirmation-time-warning {
     margin-top: 1rem;
     padding: 0.75rem;
@@ -278,94 +437,37 @@
     margin-left: 0.25rem;
 }
 
-/* --------------------------------------------
-   EVENT TYPE BADGES
-   Color-coded type indicators
-   -------------------------------------------- */
-.event-type-badge {
-    display: inline-block;
-    padding: 0.35rem 0.85rem;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    background: transparent !important;
+/* ============================================
+   Event Card Type Color Accent
+   ============================================ */
+.event-card[data-event-type="tournament"],
+.event-card.tournament {
+    border-left-color: var(--event-tournament);
 }
 
-/* Tournament - Purple Border */
-.event-type-badge[data-type="tournament"],
-.event-type-badge.tournament {
-    border: 1px solid rgba(167, 139, 250, 1) !important;
-    color: rgba(167, 139, 250, 1) !important;
+.event-card[data-event-type="match"],
+.event-card.match {
+    border-left-color: var(--event-match);
 }
 
-/* Match - Red Border */
-.event-type-badge[data-type="match"],
-.event-type-badge.match {
-    border: 1px solid rgba(255, 28, 47, 1) !important;
-    color: rgba(255, 28, 47, 1) !important;
+.event-card[data-event-type="practice"],
+.event-card.practice {
+    border-left-color: var(--event-practice);
 }
 
-/* Practice - Green Border */
-.event-type-badge[data-type="practice"],
-.event-type-badge.practice {
-    border: 1px solid rgba(134, 239, 172, 1) !important;
-    color: rgba(134, 239, 172, 1) !important;
+.event-card[data-event-type="event"],
+.event-card.event {
+    border-left-color: var(--event-event);
 }
 
-/* Event - Blue Border */
-.event-type-badge[data-type="event"],
-.event-type-badge.event {
-    border: 1px solid rgba(147, 197, 253, 1) !important;
-    color: rgba(147, 197, 253, 1) !important;
+.event-card[data-event-type="misc"],
+.event-card.misc {
+    border-left-color: var(--event-misc);
 }
 
-/* Misc - Yellow Border */
-.event-type-badge[data-type="misc"],
-.event-type-badge.misc {
-    border: 1px solid rgba(250, 204, 21, 1) !important;
-    color: rgba(250, 204, 21, 1) !important;
-}
-
-/* --------------------------------------------
-   EVENT TYPE COLORS - CARD ICONS
-   Icon background colors by event type
-   -------------------------------------------- */
-.event-card[data-event-type="tournament"] .event-detail-icon,
-.event-card.tournament .event-detail-icon {
-    background: var(--event-tournament-light);
-    color: var(--event-tournament);
-}
-
-.event-card[data-event-type="match"] .event-detail-icon,
-.event-card.match .event-detail-icon {
-    background: var(--event-match-light);
-    color: var(--event-match);
-}
-
-.event-card[data-event-type="practice"] .event-detail-icon,
-.event-card.practice .event-detail-icon {
-    background: var(--event-practice-light);
-    color: var(--event-practice);
-}
-
-.event-card[data-event-type="event"] .event-detail-icon,
-.event-card.event .event-detail-icon {
-    background: var(--event-event-light);
-    color: var(--event-event);
-}
-
-.event-card[data-event-type="misc"] .event-detail-icon,
-.event-card.misc .event-detail-icon {
-    background: var(--event-misc-light);
-    color: var(--event-misc);
-}
-
-/* --------------------------------------------
-   EVENT TYPE COLORS - CARD BORDERS
-   Border colors on hover by event type
-   -------------------------------------------- */
+/* ===============================================
+   Event Card Hover Borders
+   =============================================== */
 .event-card[data-event-type="tournament"]:hover,
 .event-card.tournament:hover {
     border-color: var(--event-tournament);
@@ -391,154 +493,63 @@
     border-color: var(--event-misc);
 }
 
-/* --------------------------------------------
-   SCHEDULED EVENT STYLING
-   Special styling for scheduled events
-   -------------------------------------------- */
+/* Scheduled event specific colors */
 .event-card.scheduled-event:hover {
-    border: 2px solid white !important;
+    border: 2px solid white;
     box-shadow: 0 8px 16px rgba(255, 255, 255, 0.3);
 }
 
 .event-card.scheduled-event .event-type-badge {
-    border: 2px solid white !important;
+    border: 2px solid white;
     box-shadow: 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
-/* --------------------------------------------
-   EVENT CARD ACTIONS
-   Action buttons at bottom of cards
-   -------------------------------------------- */
-.event-card-actions {
-    display: flex;
-    gap: 0.75rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-color);
-}
-
-.event-card-actions .btn {
-    flex: 0.5;
-    font-size: 0.875rem;
-    padding: 0.625rem 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    border-radius: 6px;
-    font-weight: 500;
-    transition: all 0.2s;
-    cursor: pointer;
-}
-
-.event-card-actions .btn-primary {
-    background: var(--stockton-blue);
-    color: var(--stockton-black);
-    border: none;
-}
-
-.event-card-actions .btn-primary:hover {
-    background: #5aabdd;
-    transform: translateY(-1px);
-}
-
-.event-card-actions .btn-secondary {
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-}
-
-.event-card-actions .btn-secondary:hover {
-    background: var(--hover-bg);
-    color: var(--text-primary);
-    border-color: var(--stockton-blue);
-}
-
-.event-card-actions .btn-delete {
-    background: transparent;
-    color: #ef4444;
-    border: 1px solid #ef4444;
-}
-
-.event-card-actions .btn-delete:hover {
-    background: rgba(239, 68, 68, 0.1);
-    transform: translateY(-1px);
-}
-
-/* --------------------------------------------
-   MODAL - EVENT DETAILS
-   Event detail modal icon colors
-   -------------------------------------------- */
+/* ==============================================
+   Event Details Modal Colors
+   ============================================== */
 #eventDetailsModal {
     z-index: 10002;
 }
+
 .modal-content[data-event-type="tournament"] .event-detail-icon,
-#eventDetailsModal[data-event-type="tournament"] .event-detail-icon {
+#eventDetailsModal[data-event-type="tournament"] .event-detail-icon,
+.events-detail-panel[data-event-type="tournament"] .event-detail-icon {
     background: var(--event-tournament-light);
     color: var(--event-tournament);
 }
 
 .modal-content[data-event-type="match"] .event-detail-icon,
-#eventDetailsModal[data-event-type="match"] .event-detail-icon {
+#eventDetailsModal[data-event-type="match"] .event-detail-icon,
+.events-detail-panel[data-event-type="match"] .event-detail-icon {
     background: var(--event-match-light);
     color: var(--event-match);
 }
 
 .modal-content[data-event-type="practice"] .event-detail-icon,
-#eventDetailsModal[data-event-type="practice"] .event-detail-icon {
+#eventDetailsModal[data-event-type="practice"] .event-detail-icon,
+.events-detail-panel[data-event-type="practice"] .event-detail-icon {
     background: var(--event-practice-light);
     color: var(--event-practice);
 }
 
 .modal-content[data-event-type="event"] .event-detail-icon,
-#eventDetailsModal[data-event-type="event"] .event-detail-icon {
+#eventDetailsModal[data-event-type="event"] .event-detail-icon,
+.events-detail-panel[data-event-type="event"] .event-detail-icon {
     background: var(--event-event-light);
     color: var(--event-event);
 }
 
 .modal-content[data-event-type="misc"] .event-detail-icon,
-#eventDetailsModal[data-event-type="misc"] .event-detail-icon {
+#eventDetailsModal[data-event-type="misc"] .event-detail-icon,
+.events-detail-panel[data-event-type="misc"] .event-detail-icon {
     background: var(--event-misc-light);
     color: var(--event-misc);
 }
 
-/* --------------------------------------------
-   FILTER BUTTONS
-   Alternative filter button style
-   -------------------------------------------- */
-.events-filter {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-}
-
-.filter-button {
-    padding: 0.5rem 1rem;
-    background: transparent;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.filter-button:hover {
-    background: var(--hover-bg);
-    color: var(--text-primary);
-}
-
-.filter-button.active {
-    background: var(--stockton-blue);
-    color: var(--stockton-black);
-    border-color: var(--stockton-blue);
-}
-
-/* -------------------------------------------
-    MULTI-GAME SELECTION
-    Select Multiple games from a dropdown
-    ------------------------------------------ */
-/* Multi-select game dropdown */
+/* ===========================================
+    Create Event Modal
+   =========================================== */
+/* Select multiple games from dropdown */
 select[multiple] {
     padding: 0.5rem;
     background: var(--dark-bg);
@@ -655,10 +666,7 @@ select[multiple]:focus {
     pointer-events: auto !important;
 }
 
-/* --------------------------------------------
-   ALL DAY EVENT TOGGLE
-   Toggle button for all-day events
-   -------------------------------------------- */
+/* All day event toggle */
 .all-day-toggle-btn {
     padding: 0.5rem 1rem;
     background-color: var(--stockton-blue);
@@ -686,10 +694,7 @@ select[multiple]:focus {
     box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
 }
 
-/* --------------------------------------------
-   INFO MESSAGES
-   Informational message banners
-   -------------------------------------------- */
+/* Submission information messages */
 .events-info-message {
     background: rgba(121, 189, 233, 0.1);
     border: 1px solid var(--stockton-blue);
@@ -712,10 +717,7 @@ select[multiple]:focus {
     font-size: 0.875rem;
 }
 
-/* --------------------------------------------
-   EMPTY STATE
-   Display when no events exist
-   -------------------------------------------- */
+/* Events empty state */
 .events-empty-state {
     text-align: center;
     padding: 4rem 2rem;
@@ -738,10 +740,7 @@ select[multiple]:focus {
     font-size: 1rem;
 }
 
-/* --------------------------------------------
-   LOADING STATE
-   Display while fetching events
-   -------------------------------------------- */
+/* Events loading state */
 .events-loading {
     text-align: center;
     padding: 4rem 2rem;
@@ -758,10 +757,9 @@ select[multiple]:focus {
     font-size: 1rem;
 }
 
-/* --------------------------------------------
-   ANIMATIONS
-   Keyframe animations
-   -------------------------------------------- */
+/* ===============================
+   Animations
+   =============================== */
 @keyframes pulse {
     0%, 100% {
         opacity: 1;
@@ -773,10 +771,9 @@ select[multiple]:focus {
     }
 }
 
-/* --------------------------------------------
-   RESPONSIVE DESIGN
-   Mobile and tablet adaptations
-   -------------------------------------------- */
+/* ================================
+   Mobile Friendliness
+   ================================ */
 @media (max-width: 1400px) {
     .event-filter-row {
         flex-wrap: wrap;
@@ -807,15 +804,40 @@ select[multiple]:focus {
     #events .card-header > div:last-child {
         grid-template-columns: 1fr;
     }
+
+    .events-layout {
+        grid-template-columns: 1fr 340px;
+    }
+
+    .events-list-pane {
+        padding-right: 1.5rem;
+    }
+
+    .events-detail-pane {
+        padding-left: 1.5rem;
+    }
 }
 
 @media (max-width: 768px) {
-    .events-grid {
+    .events-layout {
         grid-template-columns: 1fr;
+        gap: 2rem;
     }
 
-    .event-card-actions {
-        flex-direction: column;
+    .events-list-pane {
+        padding-right: 0;
+    }
+
+    .events-detail-pane {
+        position: static;
+        border-left: none;
+        padding-left: 0;
+        border-top: 1px solid var(--border-color);
+        padding-top: 2rem;
+    }
+
+    .events-grid {
+        grid-template-columns: 1fr;
     }
 
     .event-header-controls {
