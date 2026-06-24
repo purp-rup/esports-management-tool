@@ -280,7 +280,7 @@ function displayEvents() {
 
 function createEventElement(event) {
     const eventEl = document.createElement('div');
-    eventEl.className = `event ${event.event_type}`;
+    eventEl.className = `event ${event.event_type}${event.is_scheduled ? ' scheduled-event' : ''}`;
     eventEl.setAttribute('data-event-type', event.event_type);
 
     const title = document.createElement('div');
