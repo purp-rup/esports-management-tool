@@ -55,7 +55,7 @@ function attachCharacterCounter(textareaId, maxLength) {
 
     const counter = document.createElement('div');
     counter.className = 'char-counter';
-    counter.textContent = `0 / ${maxLength}`;
+    counter.textContent = `${textarea.value.length} / ${maxLength}`;
 
     textarea.parentNode.insertBefore(counter, textarea.nextSibling);
 

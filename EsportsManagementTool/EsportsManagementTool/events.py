@@ -354,6 +354,7 @@ def register_event_routes(app, mysql, login_required, roles_required):
                 FROM generalevents ge
                 LEFT JOIN seasons s ON ge.season_id = s.season_id
                 LEFT JOIN league l ON ge.league_id = l.id
+                LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
                 WHERE ge.EventID = %s
             """, (event_id,))
 
@@ -379,7 +380,9 @@ def register_event_routes(app, mysql, login_required, roles_required):
                 'season_name': event.get('season_name'),
                 'season_is_active': event.get('season_is_active', 0),
                 'league_id': event.get('league_id'),
-                'league_name': event.get('league_name')
+                'league_name': event.get('league_name'),
+                'is_scheduled': bool(event.get('is_scheduled', False)),
+                'schedule_id': event.get('schedule_id')
             }
 
             return jsonify(event_data)

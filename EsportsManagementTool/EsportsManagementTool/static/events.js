@@ -790,6 +790,20 @@ function renderEvents(events, isAdmin, isGm) {
         });
     });
 
+    // Dynamically match list pane scroll height to detail pane
+    const detailPane = document.getElementById('eventsDetailPane');
+    const listPane = document.querySelector('.events-list-pane');
+    if (detailPane && listPane) {
+        if (window._detailPaneObserver) window._detailPaneObserver.disconnect();
+        window._detailPaneObserver = new ResizeObserver(() => {
+            listPane.style.maxHeight = '';
+            const detailHeight = detailPane.offsetHeight;
+            const cap = window.innerHeight - 260;
+            listPane.style.maxHeight = Math.max(detailHeight, cap) + 'px';
+        });
+        window._detailPaneObserver.observe(detailPane);
+    }
+
     setElementDisplay(containerDiv, 'block');
     setElementDisplay(emptyStateDiv, 'none');
 }
@@ -1105,7 +1119,7 @@ async function openEventDetailPanel(eventId) {
                     <div class="events-detail-banner-actions">
                         ${canUserEditEvent(event) ? `
                             <button class="events-detail-banner-btn" title="Edit event"
-                                    onclick="toggleEditMode()">
+                                    onclick="togglePanelEditMode()">
                                 <i class="fas fa-edit"></i>
                             </button>` : ''}
                         ${canUserDeleteEvent(event) ? `
@@ -1202,6 +1216,196 @@ function createNotificationSection() {
             </div>
         </div>
     `;
+}
+
+function togglePanelEditMode() {
+    const event = EventState.currentEventData;
+    if (!event) return;
+
+    // Replace title with input
+    const title = document.querySelector('.events-detail-panel .events-detail-title');
+    if (title) {
+        title.outerHTML = `<input id="panelEditName" class="events-detail-title panel-edit-input"
+                                  value="${escapeQuotes(event.name || '')}" type="text">`;
+    }
+
+    // Inject missing rows in correct order before transforming
+    const sections = document.querySelector('.events-detail-panel .events-detail-sections');
+    const existingLabels = [...sections.querySelectorAll('h4')].map(h => h.textContent.trim());
+
+    // Full ordered field list — Date is always present, skip Game for scheduled events
+    const allRows = [
+        { label: 'Time',        icon: 'clock'          },
+        ...(!event.is_scheduled ? [{ label: 'Game', icon: 'gamepad' }] : []),
+        { label: 'Location',    icon: 'map-marker-alt' },
+        { label: 'Description', icon: 'info-circle'    },
+    ];
+
+    // Insert missing rows in order relative to existing ones
+    allRows.forEach(({ label, icon }) => {
+        if (existingLabels.includes(label)) return;
+
+        // Find the row that should come after this one, insert before it
+        const allLabels = ['Date', 'Time', 'Game', 'Location', 'Description'];
+        const afterIndex = allLabels.indexOf(label);
+        let inserted = false;
+
+        for (let i = afterIndex + 1; i < allLabels.length; i++) {
+            const nextLabel = allLabels[i];
+            const nextRow = [...sections.querySelectorAll('.events-detail-row')]
+                .find(r => r.querySelector('h4')?.textContent.trim() === nextLabel);
+            if (nextRow) {
+                nextRow.insertAdjacentHTML('beforebegin', `
+                    <div class="events-detail-row">
+                        <div class="event-detail-icon"><i class="fas fa-${icon}"></i></div>
+                        <div class="events-detail-row-text"><h4>${label}</h4><p></p></div>
+                    </div>
+                `);
+                inserted = true;
+                break;
+            }
+        }
+
+        // If no later row exists, append at end
+        if (!inserted) {
+            sections.insertAdjacentHTML('beforeend', `
+                <div class="events-detail-row">
+                    <div class="event-detail-icon"><i class="fas fa-${icon}"></i></div>
+                    <div class="events-detail-row-text"><h4>${label}</h4><p></p></div>
+                </div>
+            `);
+        }
+    });
+
+    // Transform all rows to editable inputs
+    document.querySelectorAll('.events-detail-panel .events-detail-row').forEach(row => {
+        const label = row.querySelector('h4')?.textContent?.trim();
+        const valueEl = row.querySelector('p');
+        if (!valueEl) return;
+
+        switch (label) {
+            case 'Date':
+                valueEl.outerHTML = `<input id="panelEditDate" class="panel-edit-input"
+                                            type="date" value="${event.date_raw || ''}">`;
+                break;
+            case 'Time':
+                valueEl.outerHTML = `<div class="panel-edit-time-row">
+                    <input id="panelEditStartTime" class="panel-edit-input"
+                           type="time" value="${convertTo24Hour(event.start_time)}">
+                    <span>–</span>
+                    <input id="panelEditEndTime" class="panel-edit-input"
+                           type="time" value="${convertTo24Hour(event.end_time)}">
+                </div>`;
+                break;
+            case 'Game':
+                if (event.is_scheduled) break;
+                valueEl.outerHTML = `
+                    <div>
+                        <div id="editSelectedGamesContainer" class="selected-games-container"></div>
+                        <select id="editGameDropdown" class="panel-edit-input">
+                            <option value="">+ Add a game</option>
+                        </select>
+                        <div id="editGameLoadingIndicator" style="display:none; font-size:0.8125rem; color:var(--text-secondary); margin-top:0.5rem;">
+                            <i class="fas fa-spinner fa-spin"></i> Loading games...
+                        </div>
+                        <input type="hidden" id="editSelectedGamesInput" name="games" value="[]">
+                    </div>
+                `;
+                break;
+            case 'Location':
+                valueEl.outerHTML = `<select id="panelEditLocation" class="panel-edit-input">
+                    <option value="Campus Center" ${event.location === 'Campus Center' ? 'selected' : ''}>Campus Center</option>
+                    <option value="Campus Center Coffee House" ${event.location === 'Campus Center Coffee House' ? 'selected' : ''}>Campus Center Coffee House</option>
+                    <option value="Campus Center Event Room" ${event.location === 'Campus Center Event Room' ? 'selected' : ''}>Campus Center Event Room</option>
+                    <option value="D-108" ${event.location === 'D-108' ? 'selected' : ''}>D-108</option>
+                    <option value="Esports Lab (Commons Building 80)" ${event.location === 'Esports Lab (Commons Building 80)' ? 'selected' : ''}>Esports Lab</option>
+                    <option value="Lakeside Lodge" ${event.location === 'Lakeside Lodge' ? 'selected' : ''}>Lakeside Lodge</option>
+                    <option value="Online" ${event.location === 'Online' ? 'selected' : ''}>Online</option>
+                </select>`;
+                break;
+            case 'Description':
+                valueEl.outerHTML = `<textarea id="panelEditDescription" class="panel-edit-input"
+                                               rows="3">${event.description || ''}</textarea>`;
+                break;
+        }
+    });
+
+    // Initialize game editable field if not scheduled event
+    if (!event.is_scheduled) {
+        initializeGameTagSelector('edit', event.game);
+    }
+
+    //Attach description character counter
+    attachCharacterCounter('panelEditDescription', 250);
+
+    // Swap edit button for save/cancel
+    const editBtn = document.querySelector('.events-detail-banner-btn:not(.delete)');
+    if (editBtn) {
+        editBtn.outerHTML = `
+            <button class="events-detail-banner-btn panel-save-btn" onclick="submitPanelEdit()" title="Save changes">
+                <i class="fas fa-check"></i>
+            </button>
+            <button class="events-detail-banner-btn panel-cancel-btn" onclick="cancelPanelEdit()" title="Cancel">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+    }
+}
+
+function cancelPanelEdit() {
+    if (EventState.currentEventId) {
+        openEventDetailPanel(EventState.currentEventId);
+    }
+}
+
+async function submitPanelEdit() {
+    const nameInput = document.getElementById('panelEditName');
+    if (!nameInput?.value?.trim()) {
+        nameInput?.classList.add('panel-edit-input-error');
+        nameInput?.focus();
+        return;
+    }
+    nameInput.classList.remove('panel-edit-input-error');
+
+    const saveBtn = document.querySelector('.panel-save-btn');
+    if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    const locationSelect = document.getElementById('panelEditLocation');
+
+    const formData = {
+        event_id: EventState.currentEventId,
+        event_name: document.getElementById('panelEditName')?.value,
+        event_type: EventState.currentEventData?.event_type,
+        games: document.getElementById('editSelectedGamesInput')?.value ||
+                JSON.stringify(EventState.currentEventData?.game ? [EventState.currentEventData.game] : []),
+        event_date: document.getElementById('panelEditDate')?.value,
+        start_time: document.getElementById('panelEditStartTime')?.value,
+        end_time: document.getElementById('panelEditEndTime')?.value,
+        location: locationSelect?.value,
+        description: document.getElementById('panelEditDescription')?.value,
+        league_id: EventState.currentEventData?.league_id || null
+    };
+
+    try {
+        const response = await fetch('/api/event/edit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            // Refresh the panel and card with updated data
+            await openEventDetailPanel(EventState.currentEventId);
+            loadEvents();
+        } else {
+            throw new Error(data.message || 'Failed to update event');
+        }
+    } catch (error) {
+        console.error('Error saving event:', error);
+        if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-check"></i>';
+        alert(error.message || 'Failed to save changes.');
+    }
 }
 
 // Update edit/delete buttons based on permissions
@@ -1679,7 +1883,8 @@ function createEditFormFields(event) {
             <div id="editFormMessage" class="form-message" style="display: none;"></div>
 
             <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="cancelEdit()">
+                <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('panelEditForm') ? cancelPanelEdit() : cancelEdit()">
                     <i class="fas fa-times"></i> Cancel
                 </button>
                 <button type="button" class="btn btn-primary" onclick="submitEventEdit()">

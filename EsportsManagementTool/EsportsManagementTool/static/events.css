@@ -112,14 +112,12 @@
     min-width: 0;
     padding-right: 1.25rem;
     padding-top: 0.15rem;
-    max-height: calc(100vh - 260px);
     overflow-y: auto;
     scrollbar-gutter: stable;
+    max-height: calc(100vh - 260px);
 }
 
 .events-detail-pane {
-    position: sticky;
-    top: 1rem;
     align-self: stretch;
     min-height: 480px;
     border-left: 1px solid var(--border-color);
@@ -195,20 +193,23 @@
 }
 
 .events-detail-banner-btn {
-    background: transparent;
-    border: none;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     color: var(--stockton-blue);
-    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.6875rem;
     cursor: pointer;
     transition: all 0.2s;
-    font-size: 0.875rem;
-    border-radius: 6px;
-    opacity: 1;
 }
 
 .events-detail-banner-btn:hover {
     background: rgba(121, 189, 233, 0.15);
-    color: var(--stockton-blue);
+    border-color: #1fc1f2;
 }
 
 .events-detail-banner-btn:active {
@@ -216,12 +217,13 @@
 }
 
 .events-detail-banner-btn.delete {
-    color: var(--event-match);
+    color: #ef4444;
+    transition: background 0.2s, border-color 0.2s;
 }
 
 .events-detail-banner-btn.delete:hover {
-    background: var(--event-match-light);
-    color: var(--event-match);
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
 }
 
 .events-detail-title {
@@ -274,6 +276,55 @@
     margin: 0;
 }
 
+/* Edit Mode */
+.panel-edit-input {
+    background: var(--hover-bg);
+    border: 1px solid var(--stockton-blue);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    padding: 0.3rem 0.5rem;
+    width: 100%;
+    outline: none;
+    font-family: inherit;
+}
+
+.panel-edit-input:focus {
+    box-shadow: 0 0 0 2px rgba(121, 189, 233, 0.2);
+}
+
+textarea.panel-edit-input {
+    resize: vertical;
+    min-height: 64px;
+}
+
+.panel-edit-time-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.panel-edit-time-row .panel-edit-input {
+    width: auto;
+    flex: 1;
+}
+
+.events-detail-title.panel-edit-input {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    width: 100%;
+}
+
+.panel-save-btn {
+    color: var(--event-practice) !important;
+}
+
+.panel-edit-input-error {
+    border-color: var(--event-match) !important;
+    box-shadow: 0 0 0 2px var(--event-match-light);
+}
+
 /* ===============================
    Event Cards
    =============================== */
@@ -281,6 +332,8 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1.25rem;
+    align-items: start;
+    min-height: 100%;
 }
 
 .event-card {
