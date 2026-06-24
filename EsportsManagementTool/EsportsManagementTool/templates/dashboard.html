@@ -1377,10 +1377,10 @@
     {% if user.is_admin or user.is_developer %}
     <div id="admin" class="tab-content {% if preferred_tab == 'admin' %}active{% endif %}">
         <div class="content-card">
-            <div class="card-header">
+            <div class="card header card-header--row">
                 <div>
                     <h2>Admin Panel</h2>
-                    <p>Manage users, roles, and permissions</p>
+                    <p style="font-size: 88%; color: var(--text-secondary)">Manage users, roles, and permissions</p>
                 </div>
                 <div class="admin-btn-list">
                     <button class="btn btn-primary" onclick="openManageLeaguesModal()">
@@ -1416,10 +1416,10 @@
                     </div>
                 </div>
                 <div class="summary-card">
-                    <div class="summary-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="summary-icon"><i class="fa-solid fa-gamepad"></i></div>
                     <div>
-                        <h3>Admins</h3>
-                        <p>{{ admins }}</p>
+                        <h3>Players</h3>
+                        <p>{{ players }}</p>
                     </div>
                 </div>
                 <div class="summary-card">
@@ -1430,10 +1430,10 @@
                     </div>
                 </div>
                 <div class="summary-card">
-                    <div class="summary-icon"><i class="fa-solid fa-gamepad"></i></div>
+                    <div class="summary-icon"><i class="fa-solid fa-shield-halved"></i></div>
                     <div>
-                        <h3>Players</h3>
-                        <p>{{ players }}</p>
+                        <h3>Admins</h3>
+                        <p>{{ admins }}</p>
                     </div>
                 </div>
             </div>

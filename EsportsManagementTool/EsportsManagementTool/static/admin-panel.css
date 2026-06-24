@@ -19,6 +19,15 @@
   gap: 1rem;
 }
 
+.card-header--row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    white-space: nowrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
 @media (max-width: 910px) {
   .admin-content {
     flex-direction: column;
@@ -284,11 +293,13 @@
   gap: 1rem;
   /*overflow: auto;*/
   width: 100%;
+  align-items: center;
   justify-content: right;
 }
 
 .admin-btn-list button {
-    max-height: 3rem;
+    min-height: 2.75rem;
+    padding: 0.65rem 1rem;
 }
 
 @media (max-width: 1038px) {
