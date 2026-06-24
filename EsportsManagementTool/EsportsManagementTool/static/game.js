@@ -105,10 +105,9 @@ async function loadGames() {
         const data = await response.json();
 
         if (data.success && data.games && data.games.length > 0) {
-            // Use division grouping display
-            displayGamesWithDivisions(data.games);
+            displayGamesList(data.games);
             loadingDiv.style.display = 'none';
-            gridDiv.style.display = 'block';
+            gridDiv.style.display = 'flex';
         } else {
             loadingDiv.style.display = 'none';
             emptyDiv.style.display = 'block';
@@ -121,79 +120,97 @@ async function loadGames() {
 }
 
 /**
+ * Display all games as a flat banner list
+ * @param {Array} games - Array of game objects from the API
+ */
+function displayGamesList(games) {
+    const gridDiv = document.getElementById('rostersGrid');
+    gridDiv.className = 'community-list';
+    gridDiv.innerHTML = '';
+
+    window.currentGamesData = games;
+
+    const isAdmin = window.userPermissions?.is_admin || window.userPermissions?.is_developer || false;
+
+    games.forEach(game => {
+        const row = createGameCard(game, isAdmin);
+        gridDiv.appendChild(row);
+    });
+}
+
+/**
  * Create a game card element
  * @param {Object} game - Game object from API
  * @param {boolean} isAdmin - Whether current user is admin
  * @returns {HTMLElement} The created game card element
  */
 function createGameCard(game, isAdmin) {
-    const card = document.createElement('div');
-    card.className = 'community-card';
+    const row = document.createElement('div');
+    row.className = 'community-list-row';
 
-    // Extract game data
     const memberCount = game.member_count || 0;
-    const teamCount = game.team_count || 0;
-    const isMember = game.is_member || false;
-    const isGameManager = game.is_game_manager || false;
+    const teamCount   = game.team_count   || 0;
+    const isMember    = game.is_member    || false;
 
-    // Build game icon (image or fallback icon)
+    // Game card background, prefer GameBanner, fall back to ImageURL
+    const bgUrl = game.GameBanner || game.ImageURL || '';
+    
     const iconHTML = game.ImageURL
         ? `<img src="${game.ImageURL}"
-                alt="${game.GameTitle}"
-                class="community-logo"
-                onerror="this.onerror=null; this.parentElement.innerHTML='<i class=&quot;fas fa-gamepad&quot;></i>';">`
+                alt="${escapeHtml(game.GameTitle)}"
+                onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fas fa-gamepad\\'></i>';">`
         : `<i class="fas fa-gamepad"></i>`;
 
-    // Join/Leave button based on membership status
-    const joinButtonHTML = isMember
-        ? `<button class="btn btn-secondary"
-                    onclick="confirmLeaveGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')">
-                <i class="fas fa-sign-out-alt"></i> Leave Community
-           </button>`
-        : `<button class="btn join-btn"
-                    onclick="confirmJoinGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')">
-                <i class="fas fa-user-plus"></i> Join Community
-           </button>`;
-
-    // Member badge for joined communities
+    // "Joined" badge shown on the left when user is a member
     const memberBadge = isMember
         ? `<span class="member-badge">
-                <i class="fas fa-check-circle"></i> Joined
+               <i class="fas fa-check-circle"></i> Joined
            </span>`
         : '';
 
-    // Build complete card HTML
-    card.innerHTML = `
-        <div class="community-card-header">
-            <div class="community-default-icon">
-                ${iconHTML}
-            </div>
-            <h3 class="community-card-title">
-                ${game.GameTitle}
+    // Join/leave button
+    const actionBtnHTML = isMember
+        ? `<button class="community-list-btn leave-btn"
+                   title="Leave ${escapeHtml(game.GameTitle)}"
+                   onclick="event.stopPropagation(); confirmLeaveGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')">
+               <i class="fas fa-sign-out-alt"></i>
+           </button>`
+        : `<button class="community-list-btn join-btn"
+                   title="Join ${escapeHtml(game.GameTitle)}"
+                   onclick="event.stopPropagation(); confirmJoinGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')">
+               <i class="fas fa-user-plus"></i>
+           </button>`;
+
+    row.innerHTML = `
+        <div class="community-list-bg" style="background-image: url('${bgUrl}');"></div>
+
+        <div class="community-list-left">
+            <div class="community-list-icon">${iconHTML}</div>
+            <div class="community-list-title-group">
+                <span class="community-list-title">${escapeHtml(game.GameTitle)}</span>
                 ${memberBadge}
-            </h3>
-        </div>
-
-        <div class="community-card-info">
-            <div class="community-card-stat">
-                <i class="fas fa-users community-card-stat-icon"></i>
-                <div class="community-card-stat-number">${memberCount}</div>
-                <div class="community-card-stat-label">Members</div>
-            </div>
-            <div class="community-card-stat">
-                <i class="fas fa-shield-alt community-card-stat-icon"></i>
-                <div class="community-card-stat-number">${teamCount}</div>
-                <div class="community-card-stat-label">Teams</div>
             </div>
         </div>
 
-        <div class="community-card-actions">
-            <a class="btn btn-primary" href="/community/${game.GameID}">View Details</a>
-            ${joinButtonHTML}
+        <div class="community-list-right">
+            <div class="community-list-stat">
+                <span class="community-list-stat-number">${memberCount}</span>
+                <span class="community-list-stat-label">Members</span>
+            </div>
+            <div class="community-list-stat">
+                <span class="community-list-stat-number">${teamCount}</span>
+                <span class="community-list-stat-label">Teams</span>
+            </div>
+            ${actionBtnHTML}
         </div>
     `;
 
-    return card;
+    // Clicking anywhere on the row navigates to the community page
+    row.addEventListener('click', () => {
+        window.location.href = `/community/${game.GameID}`;
+    });
+
+    return row;
 }
 
 /**
@@ -615,6 +632,7 @@ window.setupGameImagePreview = setupGameImagePreview;
 
 // Game loading and display
 window.loadGames = loadGames;
+window.displayGamesList = displayGamesList;
 window.loadGamesForDropdown = loadGamesForDropdown;
 window.refreshAllGameDropdowns = refreshAllGameDropdowns;
 

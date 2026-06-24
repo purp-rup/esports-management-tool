@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='teams-sidebar.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='discord.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='communities-list.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='updateProfile.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='scheduled-events.css') }}">
@@ -599,9 +600,9 @@
             </div>
 
             <!-- Loading State -->
-            <div id="rostersLoading" style="text-align: center; padding: 2rem;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
-                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading games...</p>
+            <div id="rostersLoading" class="communities-loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading games...</p>
             </div>
 
             <!-- Games Grid -->
