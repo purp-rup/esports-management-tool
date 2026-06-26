@@ -659,84 +659,131 @@
                 <div>
                     <h2>Events</h2>
                     <p>Manage matches, practices, and community events</p>
+                </div>
 
-                    <div class="event-header-controls">
-                        <!-- Filter Controls Container - NO MORE ROWS, direct children -->
-                        <div class="event-filters-container">
-                            <!-- Column 1, Row 1 -->
-                            <div class="event-filter-dropdown">
-                                <label for="eventFilter">Filter by:</label>
-                                <select id="eventFilter" onchange="filterEvents()">
-                                    <option value="subscribed" {% if not (user.is_admin or user.is_developer or user.is_gm) %}selected{% endif %}>Subscribed Events</option>
-                                    <option value="all" {% if user.is_admin or user.is_developer or user.is_gm %}selected{% endif %}>All Events</option>
-                                    <option value="upcoming">Next 7 days</option>
-                                    <option value="upcoming14">Next 14 days</option>
-                                    <option value="past30">Last 30 days</option>
-                                    {% if user.is_admin or user.is_developer or user.is_gm %}
-                                    <option value="created_by_me">Created by Me</option>
-                                    {% endif %}
-                                    {% if user.is_admin or user.is_developer %}
-                                    <option value="past_season">Past Seasons</option>
-                                    {% endif %}
-                                    <option value="type">Type</option>
-                                    <option value="game">Game</option>
-                                </select>
-                            </div>
+                <div class="event-header-controls">
+                    <!-- Filter Controls Container -->
+                    <div class="event-filters-container">
 
-                            <!-- Column 2, Row 1 -->
-                            <div class="event-filter-dropdown" id="pastSeasonSecondaryFilterContainer" style="display: none;">
-                                <label for="pastSeasonSecondaryFilter">Then by:</label>
-                                <select id="pastSeasonSecondaryFilter" onchange="filterEventsByPastSeason()">
-                                    <option value="all">All Events</option>
-                                    <option value="created_by_me">Created by Me</option>
-                                    <option value="type">Type</option>
-                                    <option value="game">Game</option>
-                                </select>
-                            </div>
+                        <!-- Hidden selects -->
+                        <div style="display:none">
+                            <select id="eventFilter" onchange="filterEvents()">
+                                <option value="subscribed">Subscribed Events</option>
+                                <option value="all" {% if user.is_admin or user.is_developer or user.is_gm %}selected{% endif %}>All Events</option>
+                                <option value="upcoming">Next 7 days</option>
+                                <option value="upcoming14">Next 14 days</option>
+                                <option value="past30">Last 30 days</option>
+                                {% if user.is_admin or user.is_developer or user.is_gm %}<option value="created_by_me">Created by Me</option>{% endif %}
+                                {% if user.is_admin or user.is_developer %}<option value="past_season">Past Seasons</option>{% endif %}
+                                <option value="type">Type</option>
+                                <option value="game">Game</option>
+                            </select>
+                            <select id="pastSeasonSecondaryFilter" onchange="filterEventsByPastSeason()">
+                                <option value="all">All Events</option>
+                                <option value="created_by_me">Created by Me</option>
+                                <option value="type">Type</option>
+                                <option value="game">Game</option>
+                            </select>
+                            <select id="pastSeasonSelect" onchange="handlePastSeasonSelection()">
+                                <option value="">Select Past Season</option>
+                            </select>
+                            <select id="eventTypeFilter" onchange="handleTypeFilterChange()">
+                                <option value="">Select Type</option>
+                                <option value="tournament">Tournament</option>
+                                <option value="match">Match</option>
+                                <option value="practice">Practice</option>
+                                <option value="event">Event</option>
+                                <option value="misc">Misc</option>
+                            </select>
+                            <select id="gameFilter" onchange="handleGameFilterChange()">
+                                <option value="">Select Game</option>
+                            </select>
+                            <div id="gameFilterLoadingIndicator" style="display:none;"></div>
+                            <div id="pastSeasonLoadingIndicator" style="display:none;"></div>
+                            <div id="pastSeasonSecondaryFilterContainer"></div>
+                            <div id="pastSeasonSelectContainer"></div>
+                            <div id="eventTypeFilterContainer"></div>
+                            <div id="gameFilterContainer"></div>
+                        </div>
 
-                            <!-- Column 1, Row 2 -->
-                            <div class="event-filter-dropdown" id="pastSeasonSelectContainer" style="display: none;">
-                                <label for="pastSeasonSelect">Season:</label>
-                                <select id="pastSeasonSelect" onchange="handlePastSeasonSelection()">
-                                    <option value="">Select Past Season</option>
-                                </select>
-                                <div id="pastSeasonLoadingIndicator" style="display: none;">
-                                    <i class="fas fa-spinner fa-spin"></i>
+                        <!-- Box 1: Primary filter -->
+                        <div class="filter-box" id="filterBox1">
+                            <button class="filter-box-btn" id="filterBox1Btn" onclick="toggleFilterBox('filterBox1Panel')">
+                                <span id="filterBox1Label">{% if user.is_admin or user.is_developer or user.is_gm %}All Events{% else %}Subscribed Events{% endif %}</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="filter-box-panel" id="filterBox1Panel">
+                                <div class="filter-box-item" onclick="applyPrimaryFilter('subscribed', 'Subscribed Events')">Subscribed Events</div>
+                                <div class="filter-box-item" onclick="applyPrimaryFilter('all', 'All Events')">All Events</div>
+                                <div class="filter-box-item" onclick="applyPrimaryFilter('upcoming', 'Next 7 Days')">Next 7 Days</div>
+                                <div class="filter-box-item" onclick="applyPrimaryFilter('upcoming14', 'Next 14 Days')">Next 14 Days</div>
+                                <div class="filter-box-item" onclick="applyPrimaryFilter('past30', 'Last 30 Days')">Last 30 Days</div>
+                                {% if user.is_admin or user.is_developer or user.is_gm %}
+                                <div class="filter-box-item" onclick="applyPrimaryFilter('created_by_me', 'Created by Me')">Created by Me</div>
+                                {% endif %}
+                                {% if user.is_admin or user.is_developer %}
+                                <div class="filter-box-item filter-box-item--flyout" id="pastSeasonsFlyoutTrigger">
+                                    Past Seasons <i class="fas fa-chevron-right"></i>
+                                    <div class="filter-box-flyout" id="pastSeasonsFlyout">
+                                        <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                                    </div>
                                 </div>
-                            </div>
-
-                            <!-- Column 2, Row 2 -->
-                            <div class="event-filter-dropdown" id="eventTypeFilterContainer" style="display: none;">
-                                <label for="eventTypeFilter">Type:</label>
-                                <select id="eventTypeFilter" onchange="handleTypeFilterChange()">
-                                    <option value="">Select Type</option>
-                                    <option value="tournament">Tournament</option>
-                                    <option value="match">Match</option>
-                                    <option value="practice">Practice</option>
-                                    <option value="event">Event</option>
-                                    <option value="misc">Misc</option>
-                                </select>
-                            </div>
-
-                            <!-- Game Filter - also Column 2, Row 2 (only one shows at a time) -->
-                            <div class="event-filter-dropdown" id="gameFilterContainer" style="display: none;">
-                                <label for="gameFilter">Game:</label>
-                                <select id="gameFilter" onchange="handleGameFilterChange()">
-                                    <option value="">Select Game</option>
-                                </select>
-                                <div id="gameFilterLoadingIndicator" style="display: none;">
-                                    <i class="fas fa-spinner fa-spin"></i>
+                                {% endif %}
+                                <div class="filter-box-item filter-box-item--flyout">
+                                    Type <i class="fas fa-chevron-right"></i>
+                                    <div class="filter-box-flyout">
+                                        <div class="filter-box-flyout-item" onclick="applyPrimaryFilterWithSub('type', 'Type', 'eventTypeFilter', 'tournament', 'Tournament')">Tournament</div>
+                                        <div class="filter-box-flyout-item" onclick="applyPrimaryFilterWithSub('type', 'Type', 'eventTypeFilter', 'match', 'Match')">Match</div>
+                                        <div class="filter-box-flyout-item" onclick="applyPrimaryFilterWithSub('type', 'Type', 'eventTypeFilter', 'practice', 'Practice')">Practice</div>
+                                        <div class="filter-box-flyout-item" onclick="applyPrimaryFilterWithSub('type', 'Type', 'eventTypeFilter', 'event', 'Event')">Event</div>
+                                        <div class="filter-box-flyout-item" onclick="applyPrimaryFilterWithSub('type', 'Type', 'eventTypeFilter', 'misc', 'Misc')">Misc</div>
+                                    </div>
+                                </div>
+                                <div class="filter-box-item filter-box-item--flyout" id="gameFilterFlyoutTrigger1">
+                                    Game <i class="fas fa-chevron-right"></i>
+                                    <div class="filter-box-flyout" id="gameFilterFlyout1">
+                                        <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Create Event Button (stays in top right) -->
-                        {% if user.is_admin or user.is_developer or user.is_gm %}
-                        <button class="btn btn-primary" onclick="openCreateEventModal()">
-                            <i class="fas fa-plus"></i> Create Event
-                        </button>
-                        {% endif %}
+                        <!-- Box 2: Past season secondary filter (only visible after season selected) -->
+                        <div class="filter-box" id="filterBox2" style="display:none;">
+                            <button class="filter-box-btn" id="filterBox2Btn" onclick="toggleFilterBox('filterBox2Panel')">
+                                <span id="filterBox2Label">All Events</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="filter-box-panel" id="filterBox2Panel">
+                                <div class="filter-box-item" onclick="applySecondaryFilter('all', 'All Events')">All Events</div>
+                                <div class="filter-box-item" onclick="applySecondaryFilter('created_by_me', 'Created by Me')">Created by Me</div>
+                                <div class="filter-box-item filter-box-item--flyout">
+                                    Type <i class="fas fa-chevron-right"></i>
+                                    <div class="filter-box-flyout">
+                                        <div class="filter-box-flyout-item" onclick="applySecondaryFilterWithSub('type', 'Type', 'eventTypeFilter', 'tournament', 'Tournament')">Tournament</div>
+                                        <div class="filter-box-flyout-item" onclick="applySecondaryFilterWithSub('type', 'Type', 'eventTypeFilter', 'match', 'Match')">Match</div>
+                                        <div class="filter-box-flyout-item" onclick="applySecondaryFilterWithSub('type', 'Type', 'eventTypeFilter', 'practice', 'Practice')">Practice</div>
+                                        <div class="filter-box-flyout-item" onclick="applySecondaryFilterWithSub('type', 'Type', 'eventTypeFilter', 'event', 'Event')">Event</div>
+                                        <div class="filter-box-flyout-item" onclick="applySecondaryFilterWithSub('type', 'Type', 'eventTypeFilter', 'misc', 'Misc')">Misc</div>
+                                    </div>
+                                </div>
+                                <div class="filter-box-item filter-box-item--flyout" id="gameFilterFlyoutTrigger2">
+                                    Game <i class="fas fa-chevron-right"></i>
+                                    <div class="filter-box-flyout" id="gameFilterFlyout2">
+                                        <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
+
+                    <!-- Create Event Button (stays in top right) -->
+                    {% if user.is_admin or user.is_developer or user.is_gm %}
+                    <button class="btn btn-primary" onclick="openCreateEventModal()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    {% endif %}
                 </div>
             </div>
 

@@ -389,6 +389,35 @@ def register_event_routes(app, mysql, login_required, roles_required):
         finally:
             cursor.close()
 
+    @app.route('/api/event/<int:event_id>/games')
+    @login_required
+    def api_event_games(event_id):
+        """Get game IDs and banners for an event via event_games table"""
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            cursor.execute("""
+                SELECT g.GameID, g.GameTitle, g.Abbreviation, g.GameBanner
+                FROM event_games eg
+                JOIN games g ON eg.game_id = g.GameID
+                WHERE eg.event_id = %s
+            """, (event_id,))
+            games = cursor.fetchall()
+
+            # Fallback: scheduled events use se.game_id directly
+            if not games:
+                cursor.execute("""
+                    SELECT g.GameID, g.GameTitle, g.Abbreviation, g.GameBanner
+                    FROM generalevents ge
+                    JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+                    JOIN games g ON se.game_id = g.GameID
+                    WHERE ge.EventID = %s
+                """, (event_id,))
+                games = cursor.fetchall()
+
+            return jsonify({'success': True, 'games': games or []})
+        finally:
+            cursor.close()
+
 
     @app.route('/api/event/edit', methods=['POST'])
     @login_required

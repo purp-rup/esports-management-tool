@@ -92,6 +92,10 @@ function attachEventListeners() {
     if (locationSelect) {
         locationSelect.addEventListener('change', handleLocationChange);
     }
+
+    // Filter box flyouts
+    initPastSeasonsFlyout();
+    initGameFlyouts();
 }
 
 // ============================================
@@ -632,6 +636,164 @@ function handleGameFilterChange() {
     }
 }
 
+// ============================================
+// FILTER BOX UI
+// ============================================
+
+function toggleFilterBox(panelId) {
+    const panel = document.getElementById(panelId);
+    const btn = panel?.previousElementSibling;
+    const isOpen = panel?.classList.contains('open');
+
+    // Close all open panels first
+    document.querySelectorAll('.filter-box-panel.open').forEach(p => {
+        p.classList.remove('open');
+        p.previousElementSibling?.classList.remove('active');
+    });
+
+    if (!isOpen) {
+        panel?.classList.add('open');
+        btn?.classList.add('active');
+    }
+}
+
+function applyPrimaryFilter(value, label) {
+    document.getElementById('filterBox1Label').textContent = label;
+    document.getElementById('eventFilter').value = value;
+    closeAllFilterPanels();
+
+    // Hide Box 2 and reset season state
+    document.getElementById('filterBox2').style.display = 'none';
+    PastSeasonFilterState.selectedSeasonId = null;
+    PastSeasonFilterState.isFilteringPastSeason = false;
+
+    filterEvents();
+}
+
+function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, subLabel) {
+    document.getElementById('filterBox1Label').textContent = `${filterLabel}: ${subLabel}`;
+    document.getElementById('eventFilter').value = filterVal;
+    document.getElementById(subSelectId).value = subVal;
+    closeAllFilterPanels();
+
+    document.getElementById('filterBox2').style.display = 'none';
+    PastSeasonFilterState.selectedSeasonId = null;
+    PastSeasonFilterState.isFilteringPastSeason = false;
+
+    handleTypeFilterChange();
+}
+
+function applyPastSeasonFilter(seasonId, seasonName) {
+    document.getElementById('filterBox1Label').textContent = seasonName;
+    document.getElementById('eventFilter').value = 'past_season';
+    document.getElementById('pastSeasonSelect').value = seasonId;
+    closeAllFilterPanels();
+
+    PastSeasonFilterState.isFilteringPastSeason = true;
+    PastSeasonFilterState.selectedSeasonId = seasonId;
+    PastSeasonFilterState.selectedSeasonName = seasonName;
+    PastSeasonFilterState.secondaryFilter = 'all';
+
+    // Show Box 2 with reset label
+    document.getElementById('filterBox2Label').textContent = 'All Events';
+    document.getElementById('filterBox2').style.display = 'block';
+
+    loadEventsForPastSeason();
+}
+
+function applySecondaryFilter(value, label) {
+    document.getElementById('filterBox2Label').textContent = label;
+    document.getElementById('pastSeasonSecondaryFilter').value = value;
+    closeAllFilterPanels();
+    PastSeasonFilterState.secondaryFilter = value;
+    loadEventsForPastSeason();
+}
+
+function applySecondaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, subLabel) {
+    document.getElementById('filterBox2Label').textContent = `${filterLabel}: ${subLabel}`;
+    document.getElementById('pastSeasonSecondaryFilter').value = filterVal;
+    document.getElementById(subSelectId).value = subVal;
+    PastSeasonFilterState.secondaryFilter = filterVal;
+    closeAllFilterPanels();
+    loadEventsForPastSeason();
+}
+
+function closeAllFilterPanels() {
+    document.querySelectorAll('.filter-box-panel.open').forEach(p => {
+        p.classList.remove('open');
+        p.previousElementSibling?.classList.remove('active');
+    });
+}
+
+// Populate past seasons flyout on hover
+function initPastSeasonsFlyout() {
+    const trigger = document.getElementById('pastSeasonsFlyoutTrigger');
+    const flyout = document.getElementById('pastSeasonsFlyout');
+    if (!trigger || !flyout) return;
+
+    let loaded = false;
+    trigger.addEventListener('mouseenter', async () => {
+        if (loaded) return;
+        loaded = true;
+        try {
+            const response = await fetch('/api/seasons/past');
+            const data = await response.json();
+            if (data.success && data.seasons?.length) {
+                flyout.innerHTML = data.seasons.map(s => `
+                    <div class="filter-box-flyout-item"
+                         onclick="applyPastSeasonFilter('${s.season_id}', '${s.season_name.replace(/'/g, "\\'")}')">
+                        ${s.season_name}
+                    </div>
+                `).join('');
+            } else {
+                flyout.innerHTML = '<div class="filter-box-flyout-loading">No past seasons</div>';
+            }
+        } catch {
+            flyout.innerHTML = '<div class="filter-box-flyout-loading">Failed to load</div>';
+        }
+    });
+}
+
+// Populate game flyouts on hover (both Box 1 and Box 2)
+function initGameFlyouts() {
+    ['gameFilterFlyoutTrigger1', 'gameFilterFlyoutTrigger2'].forEach((triggerId, i) => {
+        const trigger = document.getElementById(triggerId);
+        const flyout = document.getElementById(`gameFilterFlyout${i + 1}`);
+        if (!trigger || !flyout) return;
+
+        let loaded = false;
+        trigger.addEventListener('mouseenter', async () => {
+            if (loaded) return;
+            loaded = true;
+            try {
+                const games = await loadGamesList();
+                if (games?.length) {
+                    flyout.innerHTML = games.map(g => `
+                        <div class="filter-box-flyout-item"
+                             onclick="${i === 0
+                                ? `applyPrimaryFilterWithSub('game','Game','gameFilter','${g.GameID}','${g.GameTitle.replace(/'/g, "\\'")}')`
+                                : `applySecondaryFilterWithSub('game','Game','gameFilter','${g.GameID}','${g.GameTitle.replace(/'/g, "\\'")}')`
+                             }">
+                            ${g.GameTitle}
+                        </div>
+                    `).join('');
+                } else {
+                    flyout.innerHTML = '<div class="filter-box-flyout-loading">No games found</div>';
+                }
+            } catch {
+                flyout.innerHTML = '<div class="filter-box-flyout-loading">Failed to load</div>';
+            }
+        });
+    });
+}
+
+// Close panels when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.filter-box')) {
+        closeAllFilterPanels();
+    }
+});
+
 // Load events for selected past season with filters
 function loadEventsForPastSeason() {
     if (!PastSeasonFilterState.selectedSeasonId) {
@@ -1113,8 +1275,8 @@ async function openEventDetailPanel(eventId) {
         pane.innerHTML = `
             <div class="events-detail-panel" data-event-type="${eventTypeClass}">
                 <div class="events-detail-banner-wrapper">
-                    <div class="events-detail-banner">
-                        <i class="fas fa-image"></i>&nbsp; Banner coming soon
+                    <div class="events-detail-banner" id="eventDetailBanner">
+                        <i class="fas fa-image"></i>&nbsp; No banner available
                     </div>
                     <div class="events-detail-banner-actions">
                         ${canUserEditEvent(event) ? `
@@ -1157,6 +1319,7 @@ async function openEventDetailPanel(eventId) {
 
         // Reuse the existing notification loader to set subscribe button state
         await loadNotificationSection(eventId);
+        loadEventBanner(eventId);
 
     } catch (error) {
         console.error('Error loading event detail panel:', error);
@@ -1166,6 +1329,46 @@ async function openEventDetailPanel(eventId) {
                 <p>Failed to load event details.</p>
             </div>
         `;
+    }
+}
+
+async function loadEventBanner(eventId) {
+    const bannerEl = document.getElementById('eventDetailBanner');
+    if (!bannerEl) return;
+
+    try {
+        const response = await fetch(`/api/event/${eventId}/games`);
+        const data = await response.json();
+
+        if (!data.success || !data.games?.length) return;
+
+        const banners = data.games
+            .filter(g => g.GameBanner)
+            .map(g => g.GameBanner);
+
+        if (!banners.length) return;
+
+        if (banners.length === 1) {
+            bannerEl.innerHTML = `<img src="${banners[0]}" class="event-detail-banner-img" alt="Game banner">`;
+            return;
+        }
+
+        bannerEl.innerHTML = banners.map((url, i) => `
+            <img src="${url}" class="event-detail-banner-img event-detail-banner-slide ${i === 0 ? 'active' : ''}"
+                 alt="Game banner ${i + 1}">
+        `).join('');
+
+        let current = 0;
+        const slides = bannerEl.querySelectorAll('.event-detail-banner-slide');
+        clearInterval(bannerEl._slideInterval);
+        bannerEl._slideInterval = setInterval(() => {
+            slides[current].classList.remove('active');
+            current = (current + 1) % slides.length;
+            slides[current].classList.add('active');
+        }, 3500);
+
+    } catch (err) {
+        console.error('Error loading event banner:', err);
     }
 }
 
