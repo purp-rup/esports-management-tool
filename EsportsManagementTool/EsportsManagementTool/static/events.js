@@ -96,6 +96,11 @@ function attachEventListeners() {
     // Filter box flyouts
     initPastSeasonsFlyout();
     initGameFlyouts();
+
+    // Determines whether popout should appear to the right or left of the filter dropdown menu
+    document.querySelectorAll('.filter-box-item--flyout').forEach(trigger => {
+    trigger.addEventListener('mouseenter', () => positionFlyout(trigger));
+    });
 }
 
 // ============================================
@@ -2656,6 +2661,22 @@ function canUserEditEvent(event) {
     const is_gm = window.userPermissions?.is_gm || false;
     const sessionUserId = window.currentUserId || 0;
     return is_admin || is_developer || (is_gm && event.created_by === sessionUserId);
+}
+
+function positionFlyout(triggerEl) {
+    const flyout = triggerEl.querySelector('.filter-box-flyout');
+    if (!flyout) return;
+
+    // Reset first so we can measure natural width
+    flyout.classList.remove('flyout-left');
+    flyout.style.display = 'block';
+
+    const rect = flyout.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 8) {
+        flyout.classList.add('flyout-left');
+    }
+
+    flyout.style.display = '';
 }
 
 // ============================================

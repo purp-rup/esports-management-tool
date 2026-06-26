@@ -657,8 +657,8 @@
         <div class="content-card">
             <div class="card-header">
                 <div>
-                    <h2>Events</h2>
-                    <p>Manage matches, practices, and community events</p>
+                    <h2>Community Events</h2>
+                    <p>View major SU Esports events, team matches, and more!</p>
                 </div>
 
                 <div class="event-header-controls">
@@ -670,13 +670,13 @@
                             <select id="eventFilter" onchange="filterEvents()">
                                 <option value="subscribed">Subscribed Events</option>
                                 <option value="all" {% if user.is_admin or user.is_developer or user.is_gm %}selected{% endif %}>All Events</option>
+                                {% if user.is_admin or user.is_developer or user.is_gm %}<option value="created_by_me">Created by Me</option>{% endif %}
                                 <option value="upcoming">Next 7 days</option>
                                 <option value="upcoming14">Next 14 days</option>
                                 <option value="past30">Last 30 days</option>
-                                {% if user.is_admin or user.is_developer or user.is_gm %}<option value="created_by_me">Created by Me</option>{% endif %}
-                                {% if user.is_admin or user.is_developer %}<option value="past_season">Past Seasons</option>{% endif %}
                                 <option value="type">Type</option>
                                 <option value="game">Game</option>
+                                {% if user.is_admin or user.is_developer %}<option value="past_season">Past Seasons</option>{% endif %}
                             </select>
                             <select id="pastSeasonSecondaryFilter" onchange="filterEventsByPastSeason()">
                                 <option value="all">All Events</option>
@@ -715,20 +715,12 @@
                             <div class="filter-box-panel" id="filterBox1Panel">
                                 <div class="filter-box-item" onclick="applyPrimaryFilter('subscribed', 'Subscribed Events')">Subscribed Events</div>
                                 <div class="filter-box-item" onclick="applyPrimaryFilter('all', 'All Events')">All Events</div>
-                                <div class="filter-box-item" onclick="applyPrimaryFilter('upcoming', 'Next 7 Days')">Next 7 Days</div>
-                                <div class="filter-box-item" onclick="applyPrimaryFilter('upcoming14', 'Next 14 Days')">Next 14 Days</div>
-                                <div class="filter-box-item" onclick="applyPrimaryFilter('past30', 'Last 30 Days')">Last 30 Days</div>
                                 {% if user.is_admin or user.is_developer or user.is_gm %}
                                 <div class="filter-box-item" onclick="applyPrimaryFilter('created_by_me', 'Created by Me')">Created by Me</div>
                                 {% endif %}
-                                {% if user.is_admin or user.is_developer %}
-                                <div class="filter-box-item filter-box-item--flyout" id="pastSeasonsFlyoutTrigger">
-                                    Past Seasons <i class="fas fa-chevron-right"></i>
-                                    <div class="filter-box-flyout" id="pastSeasonsFlyout">
-                                        <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
-                                    </div>
-                                </div>
-                                {% endif %}
+                                <div class="filter-box-item" onclick="applyPrimaryFilter('upcoming', 'Next 7 Days')">Next 7 Days</div>
+                                <div class="filter-box-item" onclick="applyPrimaryFilter('upcoming14', 'Next 14 Days')">Next 14 Days</div>
+                                <div class="filter-box-item" onclick="applyPrimaryFilter('past30', 'Last 30 Days')">Last 30 Days</div>
                                 <div class="filter-box-item filter-box-item--flyout">
                                     Type <i class="fas fa-chevron-right"></i>
                                     <div class="filter-box-flyout">
@@ -745,6 +737,14 @@
                                         <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
                                     </div>
                                 </div>
+                                {% if user.is_admin or user.is_developer %}
+                                <div class="filter-box-item filter-box-item--flyout" id="pastSeasonsFlyoutTrigger">
+                                    Past Seasons <i class="fas fa-chevron-right"></i>
+                                    <div class="filter-box-flyout" id="pastSeasonsFlyout">
+                                        <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -827,13 +827,12 @@
         <div id="createEventModal" class="modal">
             <div class="modal-content modal-content-large">
                 <div class="modal-header">
-                    <h2>Create New Event</h2>
+                    <h2>Create a New Event!</h2>
                     <button class="modal-close" onclick="closeCreateEventModal()">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
                 <div class="modal-body">
-                    <p class="modal-subtitle">Add a new event or match to the calendar</p>
 
                     <form id="createEventForm" class="event-form-modal">
                         <div class="form-group">
@@ -1010,8 +1009,8 @@
                         <i class="fas fa-shield-alt"></i>
                     </div>
                     <h2>Team Management</h2>
-                    <p>Manage teams, players, and performance data</p>
-                    <p class="welcome-hint">Select a team from the sidebar to view details</p>
+                    <p>View rosters, team schedules, match performances, and more! </p>
+                    <p class="welcome-hint">Select a team from the sidebar (if available) to view details</p>
                 </div>
 
                 <!-- Team Details Content -->
