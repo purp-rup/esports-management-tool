@@ -11,16 +11,16 @@
    ============================================ */
 .event-header-controls {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 1rem;
-    flex: 0 1 auto;
-    position: relative;
-    padding-right: 50px;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+    justify-content: flex-end;
 }
 
 .event-filters-container {
     display: flex;
+    flex-shrink: 0;
     gap: 0.2rem;
     align-items: center;
     flex-wrap: wrap;
@@ -132,6 +132,17 @@
     background: transparent;
 }
 
+/* Bridge for left side popout */
+.filter-box-item--flyout::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 100%;
+    width: 0.75rem;
+    height: 100%;
+    background: transparent;
+}
+
 .filter-box-item--flyout:hover .filter-box-flyout {
     display: block;
 }
@@ -161,14 +172,13 @@
     color: var(--text-secondary);
 }
 
-/* Create Event Button - smaller, on first row */
+/* Create Event Button */
 .event-header-controls > .btn-primary {
     flex-shrink: 0;
     white-space: nowrap;
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
-    position: absolute;
-    right: 0;
+    position: static;
 }
 
 /* ==============================
@@ -235,6 +245,7 @@
 .events-detail-banner-wrapper {
     position: relative;
     margin-bottom: 1.25rem;
+    min-height: 0;
 }
 
 .events-detail-banner {
@@ -275,8 +286,9 @@
 .events-detail-banner-actions {
     position: absolute;
     top: 0.5rem;
-    right: 0.5rem;
+    right: 0;
     display: flex;
+    gap: 0.4rem;
     opacity: 0;
     transition: opacity 0.2s;
 }
@@ -920,35 +932,42 @@ select[multiple]:focus {
 /* ================================
    Mobile Friendliness
    ================================ */
-@media (max-width: 1400px) {
-    .event-filter-row {
-        flex-wrap: wrap;
-    }
-}
+
 
 @media (max-width: 1200px) {
-    #events .card-header {
-        flex-direction: column;
-        align-items: flex-start;
+    #events .card-header > div:first-child p {
+        grid-template-columns: 1fr;
     }
 
     .event-header-controls {
         width: 100%;
-        padding-right: 0;
-        position: static;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
     }
 
     .event-header-controls > .btn-primary {
-        position: static;
-        width: 100%;
-        margin-top: 0.75rem;
+        white-space: nowrap;
+        width: auto;
+        padding: 0.45rem 0.75rem;
     }
 }
 
 /* Tablet: Stack to single column */
 @media (max-width: 1024px) {
-    #events .card-header > div:last-child {
+    #events .card-header > div:first-child p {
         grid-template-columns: 1fr;
+    }
+
+    .event-header-controls {
+        width: 100%;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+    }
+
+    .event-header-controls > .btn-primary {
+        white-space: nowrap;
+        width: auto;
+        padding: 0.45rem 0.75rem;
     }
 
     .events-layout {
@@ -965,60 +984,198 @@ select[multiple]:focus {
 }
 
 @media (max-width: 768px) {
+    /* --- Header --- */
+    #events .card-header {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    #events .card-header > div:first-child p {
+        display: none;
+    }
+
+    .event-header-controls {
+        width: 100%;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    .event-filters-container {
+        flex: 0 0 auto;
+    }
+
+    .event-header-controls > .btn-primary {
+        white-space: nowrap;
+        flex: 0 0 auto;
+        width: auto;
+        padding: 0.45rem 0.75rem;
+    }
+
+    /* --- Cards --- */
     .events-layout {
         grid-template-columns: 1fr;
-        gap: 2rem;
     }
 
     .events-list-pane {
         padding-right: 0;
-    }
-
-    .events-detail-pane {
-        position: static;
-        border-left: none;
-        padding-left: 0;
-        border-top: 1px solid var(--border-color);
-        padding-top: 2rem;
-    }
-
-    .events-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .event-header-controls {
-        flex-direction: column;
-        width: 100%;
-        align-items: stretch;
-    }
-
-    .event-filter-row {
-        flex-direction: column;
-        align-items: flex-start;
-        width: 100%;
-    }
-
-    .event-filter-dropdown {
-        width: 100%;
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .event-filter-dropdown select {
+        max-height: none;
+        overflow-x: hidden;
         width: 100%;
         min-width: 0;
     }
 
-    .event-header-controls > .btn-primary {
+    .events-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        min-width: 0;
         width: 100%;
     }
 
+    .event-card {
+        min-width: 0;
+        height: 90px;
+        width: 100%;
+        padding: 0.5rem 0.6rem;
+    }
+
+    .event-card-top {
+        min-width: 0;
+        height: 35px;
+        overflow: hidden;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.15rem;
+    }
+
+    .event-card-name {
+        font-size: 0.75rem;
+        max-width: 100%;
+    }
+
+    .event-card-game {
+        font-size: 0.65rem;
+        margin-left: 0;
+        text-align: left;
+        color: var(--text-secondary);
+    }
+
+    .event-card-bottom {
+        font-size: 0.7rem;
+        overflow: hidden;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.1rem;
+    }
+
+    .event-card-time {
+        font-size: 0.7rem;
+    }
+
+    /* --- Detail panel becomes a bottom sheet --- */
+    .events-detail-pane {
+        display: none; /* hidden by default, JS toggles open */
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 78vh;
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        border-radius: 16px 16px 0 0;
+        background: var(--card-bg);
+        padding: 1rem 1.25rem 1.5rem;
+        z-index: 500;
+        overflow-y: auto;
+        box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+        transform: translateY(100%);
+        transition: transform 0.3s ease;
+    }
+
+    .events-detail-pane.sheet-open {
+        display: block;
+        transform: translateY(0);
+    }
+
+    /* Drag handle */
+    .events-detail-pane::before {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: var(--border-color);
+        border-radius: 2px;
+        margin: 0 auto 1rem;
+    }
+
+    /* Backdrop */
+    .sheet-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 499;
+    }
+
+    .sheet-backdrop.open {
+        display: block;
+    }
+
+    /* --- Filter flyouts become stacked within the panel on mobile --- */
+    .filter-box-item--flyout .filter-box-flyout {
+        position: static;
+        display: none;
+        box-shadow: none;
+        border: none;
+        border-radius: 10px;
+        padding: 0 0 0 1rem;
+        max-height: none;
+    }
+
+    .filter-box-item--flyout:hover .filter-box-flyout {
+        display: none;
+    }
+
+    .filter-box-item--flyout.flyout-expanded .filter-box-flyout {
+        display: block;
+    }
+
+    .filter-box-item--flyout::after,
+    .filter-box-item--flyout::before {
+        display: none;
+    }
+
+    .filter-box-item--flyout > i.fa-chevron-right {
+        transition: transform 0.2s;
+    }
+
+    .filter-box-item--flyout.flyout-expanded > i.fa-chevron-right {
+        transform: rotate(90deg);
+    }
+
+    .filter-box-panel {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        border-radius: 16px 16px 0 0;
+        padding: 1rem 0.5rem 2rem;
+        max-height: 60vh;
+        overflow-y: auto;
+        z-index: 600;
+        box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+    }
+
+    /* Misc */
     .deletion-time-remaining {
         font-size: 0.7rem;
         padding: 0.1rem 0.3rem;
     }
 
     .btn-delete span {
-        display: none; /* Hide time on mobile, show icon only */
+        display: none;
     }
 }

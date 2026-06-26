@@ -743,7 +743,7 @@ async function loadNextCommunityEvent(gameId) {
 
             // Format event card
             container.innerHTML = `
-                <div class="game-next-event-card" onclick="openEventModal(${event.id})">
+                <div class="game-next-event-card" onclick="navigateToEvent(${event.id})">
                     <div class="game-next-event-header">
                         <i class="fas fa-calendar-plus"></i>
                         <h4>Next Community Event</h4>

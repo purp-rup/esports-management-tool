@@ -101,6 +101,24 @@ function attachEventListeners() {
     document.querySelectorAll('.filter-box-item--flyout').forEach(trigger => {
     trigger.addEventListener('mouseenter', () => positionFlyout(trigger));
     });
+
+    // Mobile: tap flyout triggers to expand in-place instead of hover
+    if (window.innerWidth <= 768) {
+        document.querySelectorAll('.filter-box-item--flyout').forEach(trigger => {
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isExpanded = trigger.classList.contains('flyout-expanded');
+                // Collapse all others first
+                document.querySelectorAll('.filter-box-item--flyout.flyout-expanded').forEach(t => {
+                    t.classList.remove('flyout-expanded');
+                });
+                // Toggle this one
+                if (!isExpanded) {
+                    trigger.classList.add('flyout-expanded');
+                }
+            });
+        });
+    }
 }
 
 // ============================================
@@ -144,6 +162,36 @@ function loadEvents() {
         .finally(() => {
             setElementDisplay(elements.loading, 'none');
         });
+
+        // Check if we were redirected here to view a specific event
+        const urlParams = new URLSearchParams(window.location.search);
+        const openEventId = parseInt(urlParams.get('openEvent'));
+        if (openEventId) {
+            window.history.replaceState({}, '', '/dashboard');
+
+            const eventsTab = document.querySelector('[data-tab="events"]');
+            if (eventsTab) eventsTab.click();
+
+            // Pre-fetch event data immediately, in parallel with events loading
+            const eventDataPromise = fetch(`/api/event/${openEventId}`)
+                .then(r => r.json()).catch(() => null);
+            const bannerDataPromise = fetch(`/api/event/${openEventId}/games`)
+                .then(r => r.json()).catch(() => ({ success: false, games: [] }));
+
+            // Open panel exactly once when events container is ready
+            let opened = false;
+            const tryOpen = (attempts = 0) => {
+                if (opened) return;
+                const container = document.getElementById('eventsContainer');
+                if (container && container.style.display !== 'none') {
+                    opened = true;
+                    openEventDetailPanel(openEventId, eventDataPromise, bannerDataPromise);
+                } else if (attempts < 30) {
+                    setTimeout(() => tryOpen(attempts + 1), 150);
+                }
+            };
+            setTimeout(() => tryOpen(), 200);
+        }
 }
 
 // Build different filter options for events
@@ -644,21 +692,28 @@ function handleGameFilterChange() {
 // ============================================
 // FILTER BOX UI
 // ============================================
-
 function toggleFilterBox(panelId) {
     const panel = document.getElementById(panelId);
     const btn = panel?.previousElementSibling;
     const isOpen = panel?.classList.contains('open');
 
-    // Close all open panels first
     document.querySelectorAll('.filter-box-panel.open').forEach(p => {
         p.classList.remove('open');
         p.previousElementSibling?.classList.remove('active');
     });
 
+    const filterBackdrop = document.getElementById('filterBackdrop');
+
     if (!isOpen) {
         panel?.classList.add('open');
         btn?.classList.add('active');
+        if (window.innerWidth <= 768 && filterBackdrop) {
+            filterBackdrop.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+    } else {
+        filterBackdrop?.classList.remove('open');
+        document.body.style.overflow = '';
     }
 }
 
@@ -728,6 +783,8 @@ function closeAllFilterPanels() {
         p.classList.remove('open');
         p.previousElementSibling?.classList.remove('active');
     });
+    document.getElementById('filterBackdrop')?.classList.remove('open');
+    document.body.style.overflow = '';
 }
 
 // Populate past seasons flyout on hover
@@ -776,8 +833,7 @@ function initGameFlyouts() {
                     flyout.innerHTML = games.map(g => `
                         <div class="filter-box-flyout-item"
                              onclick="${i === 0
-                                ? `applyPrimaryFilterWithSub('game','Game','gameFilter','${g.GameID}','${g.GameTitle.replace(/'/g, "\\'")}')`
-                                : `applySecondaryFilterWithSub('game','Game','gameFilter','${g.GameID}','${g.GameTitle.replace(/'/g, "\\'")}')`
+                                ? `applyPrimaryFilterWithSub('game','Game','gameFilter','${g.GameTitle.replace(/'/g, "\\'")}','${g.GameTitle.replace(/'/g, "\\'")}')` : `applySecondaryFilterWithSub('game','Game','gameFilter','${g.GameTitle.replace(/'/g, "\\'")}','${g.GameTitle.replace(/'/g, "\\'")}')`
                              }">
                             ${g.GameTitle}
                         </div>
@@ -949,6 +1005,7 @@ function renderEvents(events, isAdmin, isGm) {
     }</div>`;
 
     containerDiv.innerHTML = gridHTML;
+    setElementDisplay(containerDiv, 'grid');
 
     // Open detail panel on card click (not the modal)
     containerDiv.querySelectorAll('.event-card').forEach(card => {
@@ -1233,8 +1290,13 @@ function buildEventDetailsHTML(event) {
 }
 
 // Populate the right-hand detail panel when a card is clicked
-async function openEventDetailPanel(eventId) {
+async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetchedBannerData = null) {
     const pane = document.getElementById('eventsDetailPane');
+    if (window.innerWidth <= 768) {
+        pane.classList.add('sheet-open');
+        document.getElementById('sheetBackdrop')?.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
     EventState.currentEventId = eventId;
 
     // Show loading state
@@ -1246,7 +1308,9 @@ async function openEventDetailPanel(eventId) {
     `;
 
     try {
-        const response = await fetch(`/api/event/${eventId}`);
+        const response = prefetchedEventData
+            ? { ok: true, json: () => prefetchedEventData }
+            : await fetch(`/api/event/${eventId}`);
         if (!response.ok) throw new Error('Failed to fetch event');
         const event = await response.json();
         EventState.currentEventData = event;
@@ -1277,11 +1341,29 @@ async function openEventDetailPanel(eventId) {
             rows.push(detailRow('info-circle', 'Description', event.description));
         }
 
+        // Fetch banner and event data concurrently
+        const [, bannerData] = await Promise.all([
+            loadNotificationSection(eventId),
+            prefetchedBannerData ||
+                fetch(`/api/event/${eventId}/games`).then(r => r.json()).catch(() => ({ success: false, games: [] }))
+        ]);
+
+        const banners = bannerData.success
+            ? (bannerData.games || []).filter(g => g.GameBanner).map(g => g.GameBanner)
+            : [];
+
+        const bannerHTML = banners.length
+            ? banners.map((url, i) => `
+                <img src="${url}" class="event-detail-banner-img event-detail-banner-slide ${i === 0 ? 'active' : ''}"
+                     alt="Game banner ${i + 1}">
+              `).join('')
+            : '';
+
         pane.innerHTML = `
             <div class="events-detail-panel" data-event-type="${eventTypeClass}">
                 <div class="events-detail-banner-wrapper">
-                    <div class="events-detail-banner" id="eventDetailBanner">
-                        <i class="fas fa-image"></i>&nbsp; No banner available
+                    <div class="events-detail-banner" id="eventDetailBanner" ${!banners.length ? 'style="display:none"' : ''}>
+                        ${bannerHTML}
                     </div>
                     <div class="events-detail-banner-actions">
                         ${canUserEditEvent(event) ? `
@@ -1322,9 +1404,18 @@ async function openEventDetailPanel(eventId) {
             </div>
         `;
 
-        // Reuse the existing notification loader to set subscribe button state
-        await loadNotificationSection(eventId);
-        loadEventBanner(eventId);
+        // Start slideshow if multiple banners
+        if (banners.length > 1) {
+            const bannerEl = document.getElementById('eventDetailBanner');
+            let current = 0;
+            const slides = bannerEl.querySelectorAll('.event-detail-banner-slide');
+            clearInterval(bannerEl._slideInterval);
+            bannerEl._slideInterval = setInterval(() => {
+                slides[current].classList.remove('active');
+                current = (current + 1) % slides.length;
+                slides[current].classList.add('active');
+            }, 3500);
+        }
 
     } catch (error) {
         console.error('Error loading event detail panel:', error);
@@ -1345,13 +1436,19 @@ async function loadEventBanner(eventId) {
         const response = await fetch(`/api/event/${eventId}/games`);
         const data = await response.json();
 
-        if (!data.success || !data.games?.length) return;
+        if (!data.success || !data.games?.length) {
+            bannerEl.style.display = 'none';
+            return;
+        }
 
         const banners = data.games
             .filter(g => g.GameBanner)
             .map(g => g.GameBanner);
 
-        if (!banners.length) return;
+        if (!banners.length) {
+            bannerEl.style.display = 'none';
+            return;
+        }
 
         if (banners.length === 1) {
             bannerEl.innerHTML = `<img src="${banners[0]}" class="event-detail-banner-img" alt="Game banner">`;
@@ -1662,6 +1759,13 @@ function handleEventLoadError(titleElement, content, spinner) {
 
     setElementDisplay(spinner, 'none');
     setElementDisplay(content, 'block');
+}
+
+function closeEventDetailSheet() {
+    const pane = document.getElementById('eventsDetailPane');
+    pane?.classList.remove('sheet-open');
+    document.getElementById('sheetBackdrop')?.classList.remove('open');
+    document.body.style.overflow = '';
 }
 
 // ============================================
@@ -2586,6 +2690,22 @@ function convertTo24Hour(time12h) {
     return `${hours.toString().padStart(2, '0')}:${minutes}`;
 }
 
+function positionFlyout(triggerEl) {
+    const flyout = triggerEl.querySelector('.filter-box-flyout');
+    if (!flyout) return;
+
+    // Reset first so we can measure natural width
+    flyout.classList.remove('flyout-left');
+    flyout.style.display = 'block';
+
+    const rect = flyout.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 8) {
+        flyout.classList.add('flyout-left');
+    }
+
+    flyout.style.display = '';
+}
+
 /* ========================================
    HELPERS
    ======================================== */
@@ -2663,22 +2783,6 @@ function canUserEditEvent(event) {
     return is_admin || is_developer || (is_gm && event.created_by === sessionUserId);
 }
 
-function positionFlyout(triggerEl) {
-    const flyout = triggerEl.querySelector('.filter-box-flyout');
-    if (!flyout) return;
-
-    // Reset first so we can measure natural width
-    flyout.classList.remove('flyout-left');
-    flyout.style.display = 'block';
-
-    const rect = flyout.getBoundingClientRect();
-    if (rect.right > window.innerWidth - 8) {
-        flyout.classList.add('flyout-left');
-    }
-
-    flyout.style.display = '';
-}
-
 // ============================================
 // GLOBAL EXPORTS
 // ============================================
@@ -2708,5 +2812,10 @@ window.handleEditEventTypeChange = handleEditEventTypeChange;
 window.deleteEvent = deleteEvent;
 
 //Filtering with seasons
+window.toggleFilterBox = toggleFilterBox;
 window.handlePastSeasonSelection = handlePastSeasonSelection;
 window.filterEventsByPastSeason = filterEventsByPastSeason;
+
+// Event detail panel opening
+window.openEventDetailPanel = openEventDetailPanel;
+window.closeEventDetailSheet = closeEventDetailSheet;

@@ -718,9 +718,14 @@
                                 {% if user.is_admin or user.is_developer or user.is_gm %}
                                 <div class="filter-box-item" onclick="applyPrimaryFilter('created_by_me', 'Created by Me')">Created by Me</div>
                                 {% endif %}
-                                <div class="filter-box-item" onclick="applyPrimaryFilter('upcoming', 'Next 7 Days')">Next 7 Days</div>
-                                <div class="filter-box-item" onclick="applyPrimaryFilter('upcoming14', 'Next 14 Days')">Next 14 Days</div>
-                                <div class="filter-box-item" onclick="applyPrimaryFilter('past30', 'Last 30 Days')">Last 30 Days</div>
+                                <div class="filter-box-item filter-box-item--flyout">
+                                    Timeframe <i class="fas fa-chevron-right"></i>
+                                    <div class="filter-box-flyout">
+                                        <div class="filter-box-flyout-item" onclick="applyPrimaryFilter('upcoming', 'Next 7 Days')">Next 7 Days</div>
+                                        <div class="filter-box-flyout-item" onclick="applyPrimaryFilter('upcoming14', 'Next 14 Days')">Next 14 Days</div>
+                                        <div class="filter-box-flyout-item" onclick="applyPrimaryFilter('past30', 'Last 30 Days')">Last 30 Days</div>
+                                    </div>
+                                </div>
                                 <div class="filter-box-item filter-box-item--flyout">
                                     Type <i class="fas fa-chevron-right"></i>
                                     <div class="filter-box-flyout">
@@ -787,6 +792,8 @@
                 </div>
             </div>
 
+            <div class="sheet-backdrop" id="sheetBackdrop" onclick="closeEventDetailSheet()"></div>
+            <div class="sheet-backdrop" id="filterBackdrop" onclick="closeAllFilterPanels()"></div>
             <div class="events-layout">
                 <div class="events-list-pane">
                     <!-- Events Loading State -->
