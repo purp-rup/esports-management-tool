@@ -381,40 +381,6 @@
     </script>
     {% endif %}
 
-    <!-- Event Details Modal -->
-    <div id="eventDetailsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="eventModalTitle">Event Details</h2>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <button id="editEventBtn"
-                            class="btn-edit-event"
-                            style="display: none;"
-                            onclick="toggleEditMode()">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button id="deleteEventBtn"
-                            class="btn-delete-event"
-                            style="display: none;"
-                            onclick="deleteEvent()">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    <button class="modal-close" onclick="closeEventModal()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="modal-body" id="eventModalBody">
-                <div id="eventEditForm" style="display: none;"></div>
-                <div id="eventLoadingSpinner" class="loading-spinner">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>Loading event details...</p>
-                </div>
-                <div id="eventDetailsContent" style="display: none;"></div>
-            </div>
-        </div>
-    </div>
-
     <!-- Delete Confirmation Modal -->
     <div id="deleteConfirmModal" class="delete-confirmation-modal">
         <div class="delete-confirmation-content">

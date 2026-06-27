@@ -62,7 +62,6 @@ const EventState = {
 function initializeEventsModule(eventsDataFromServer) {
     EventState.eventsData = eventsDataFromServer || {};
     attachEventListeners();
-    console.log('Events module initialized');
 }
 
 // Event listener for easier management
@@ -214,7 +213,7 @@ function buildEventFilterParams() {
 
     // Add game filter if applicable
     if (filterValue === 'game') {
-        const gameFilter = document.getElementById('gameFilter')?.value;
+        const gameFilter = EventState.selectedGame;
         if (gameFilter) params += `&game=${encodeURIComponent(gameFilter)}`;
     }
 
@@ -582,14 +581,14 @@ function filterEvents() {
         return;
     }
 
-    updateFilterColumnsCount();
+
 
     // Load events with main filter (defaults to current active season on backend)
     loadEvents();
 }
 
 /* ================================
-    SEASON FILTERING STUFF
+    SEASON FILTERING
    ================================ */
 
 // Handle past season selection
@@ -622,7 +621,7 @@ function handlePastSeasonSelection() {
     // Load events for this past season
     loadEventsForPastSeason();
 
-    updateFilterColumnsCount();
+
 }
 
 // Filter events by past season and secondary filter
@@ -652,7 +651,7 @@ function filterEventsByPastSeason() {
     // Load events with secondary filter
     loadEventsForPastSeason();
 
-    updateFilterColumnsCount();
+
 }
 
 // Filter by past season and type
@@ -720,6 +719,7 @@ function toggleFilterBox(panelId) {
 function applyPrimaryFilter(value, label) {
     document.getElementById('filterBox1Label').textContent = label;
     document.getElementById('eventFilter').value = value;
+    EventState.selectedGame = null;
     closeAllFilterPanels();
 
     // Hide Box 2 and reset season state
@@ -734,13 +734,18 @@ function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, 
     document.getElementById('filterBox1Label').textContent = `${filterLabel}: ${subLabel}`;
     document.getElementById('eventFilter').value = filterVal;
     document.getElementById(subSelectId).value = subVal;
+    if (filterVal === 'game') EventState.selectedGame = subVal;
     closeAllFilterPanels();
 
     document.getElementById('filterBox2').style.display = 'none';
     PastSeasonFilterState.selectedSeasonId = null;
     PastSeasonFilterState.isFilteringPastSeason = false;
 
-    handleTypeFilterChange();
+    if (filterVal === 'game') {
+        filterEventsByGame();
+    } else {
+        handleTypeFilterChange();
+    }
 }
 
 function applyPastSeasonFilter(seasonId, seasonName) {
@@ -964,31 +969,14 @@ function filterEventsByType() {
 // Filter events by game (called when game dropdown changes)
 function filterEventsByGame() {
     const gameFilterSelect = document.getElementById('gameFilter');
-    if (gameFilterSelect?.value) {
+    if (gameFilterSelect?.value || EventState.selectedGame) {
         loadEvents();
     }
-}
-
-/**
- * Update the number of visible filter columns
- * Adds data-columns attribute for CSS styling
- */
-function updateFilterColumnsCount() {
-    const filterContainer = document.querySelector('.event-filters-container');
-    if (!filterContainer) return;
-
-    // Count visible filter dropdowns
-    const visibleFilters = filterContainer.querySelectorAll('.event-filter-dropdown:not([style*="display: none"])');
-    const columnCount = visibleFilters.length > 1 ? '2' : '1';
-
-    filterContainer.setAttribute('data-columns', columnCount);
 }
 
 // ============================================
 // EVENT RENDERING
 // ============================================
-
-// Render events in the grid
 function renderEvents(events, isAdmin, isGm) {
     const containerDiv = document.getElementById('eventsContainer');
     const emptyStateDiv = document.getElementById('eventsEmptyState');
@@ -1055,19 +1043,6 @@ function createEventCard(event, isAdmin, isGm) {
                 <span class="event-card-date"><i class="fas fa-calendar"></i>${event.date}</span>
                 ${timeDisplay ? `<span class="event-card-time">${timeDisplay}</span>` : ''}
             </div>
-        </div>
-    `;
-}
-
-// Create a detail row for event card
-function createEventDetailRow(icon, label, value) {
-    return `
-        <div class="event-detail-row">
-            <div class="event-detail-icon">
-                <i class="fas fa-${icon}"></i>
-            </div>
-            <span class="event-detail-label">${label}:</span>
-            <span class="event-detail-value">${value}</span>
         </div>
     `;
 }
@@ -1178,117 +1153,6 @@ function showEventsError() {
     setElementDisplay(containerDiv, 'block');
 }
 
-// ============================================
-// EVENT DETAILS MODAL - VIEW & MANAGEMENT
-// ============================================
-
-/**
- * Open event details modal
- * @param {number} eventId - ID of event to display
- */
-async function openEventModal(eventId, source = 'events') {
-    const modal = document.getElementById('eventDetailsModal');
-    const spinner = document.getElementById('eventLoadingSpinner');
-    const content = document.getElementById('eventDetailsContent');
-    const deleteBtn = document.getElementById('deleteEventBtn');
-    const titleElement = document.getElementById('eventModalTitle');
-
-    EventState.currentEventId = eventId;
-    EventState.deletionSource = source;
-
-    // Set initial loading state
-    if (titleElement) titleElement.textContent = 'Loading...';
-    setModalLoadingState(modal, spinner, content, deleteBtn, true);
-
-    try {
-        // Fetch event details
-        const response = await fetch(`/api/event/${eventId}`);
-        if (!response.ok) throw new Error('Failed to fetch event details');
-
-        const event = await response.json();
-        EventState.currentEventData = event;
-
-        // Add event type for styling
-        const eventTypeClass = (event.event_type || 'event').toLowerCase();
-        modal.setAttribute('data-event-type', eventTypeClass);
-
-        // Update modal content
-        if (titleElement) titleElement.textContent = event.name || 'Event Details';
-        content.innerHTML = buildEventDetailsHTML(event);
-
-        // Show content and update buttons
-        setModalLoadingState(modal, spinner, content, deleteBtn, false);
-        updateEventModalButtons(event);
-
-        // Load notification section
-        await loadNotificationSection(eventId);
-
-    } catch (error) {
-        console.error('Error loading event details:', error);
-        handleEventLoadError(titleElement, content, spinner);
-    }
-}
-
-// Set modal loading state
-function setModalLoadingState(modal, spinner, content, deleteBtn, isLoading) {
-    modal.style.display = 'block';
-    setElementDisplay(spinner, isLoading ? 'block' : 'none');
-    setElementDisplay(content, isLoading ? 'none' : 'block');
-    setElementDisplay(deleteBtn, isLoading ? 'none' : 'flex');
-    document.body.style.overflow = 'hidden';
-}
-
-// Build event details HTML
-function buildEventDetailsHTML(event) {
-    const sections = [];
-
-    // Date section
-    sections.push(createDetailSection('calendar-alt', 'Date', event.date));
-
-    // Time section (if exists)
-    if (event.start_time) {
-        const timeStr = `${event.start_time}${event.end_time ? ' - ' + event.end_time : ''}`;
-        sections.push(createDetailSection('clock', 'Time', timeStr));
-    }
-
-    // Event Type section
-    if (event.event_type) {
-        sections.push(createDetailSection('tag', 'Event Type', event.event_type));
-    }
-
-    // Game section
-    if (event.game) {
-        sections.push(createDetailSection('gamepad', 'Game', event.game));
-    }
-     // League section (only for Match events)
-    if (event.event_type === 'Match' && event.league_name) {
-        sections.push(createDetailSection('trophy', 'League', event.league_name, true));
-    }
-
-    // Location section (full width)
-    if (event.location) {
-        sections.push(createDetailSection('map-marker-alt', 'Location', event.location, true));
-    }
-
-    // Description section (full width)
-    sections.push(`
-        <div class="event-detail-section full-width">
-            <div style="display: flex; gap: 0.75rem;">
-                <div class="event-detail-icon"><i class="fas fa-info-circle"></i></div>
-                <div class="event-detail-content">
-                    <h3>Description</h3>
-                    <p>${event.description}</p>
-                </div>
-            </div>
-        </div>
-    `);
-
-    // Notification section (full width)
-    sections.push(createNotificationSection());
-
-    return `<div class="event-detail-grid">${sections.join('')}</div>`;
-}
-
 // Populate the right-hand detail panel when a card is clicked
 async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetchedBannerData = null) {
     const pane = document.getElementById('eventsDetailPane');
@@ -1342,8 +1206,7 @@ async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetc
         }
 
         // Fetch banner and event data concurrently
-        const [, bannerData] = await Promise.all([
-            loadNotificationSection(eventId),
+        const [bannerData] = await Promise.all([
             prefetchedBannerData ||
                 fetch(`/api/event/${eventId}/games`).then(r => r.json()).catch(() => ({ success: false, games: [] }))
         ]);
@@ -1404,6 +1267,14 @@ async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetc
             </div>
         `;
 
+        // Re-apply scroll lock on mobile after innerHTML replacement
+        if (window.innerWidth <= 768) {
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Now load the notification section
+        await loadNotificationSection(eventId);
+
         // Start slideshow if multiple banners
         if (banners.length > 1) {
             const bannerEl = document.getElementById('eventDetailBanner');
@@ -1428,6 +1299,7 @@ async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetc
     }
 }
 
+// Load banners to display with event detail panel
 async function loadEventBanner(eventId) {
     const bannerEl = document.getElementById('eventDetailBanner');
     if (!bannerEl) return;
@@ -1487,42 +1359,7 @@ function detailRow(icon, label, value) {
     `;
 }
 
-// Create a detail section for event modal
-function createDetailSection(icon, title, content, fullWidth = false) {
-    const style = fullWidth ? ' style="grid-column: 1 / -1;"' : '';
-    return `
-        <div class="event-detail-section"${style}>
-            <div class="event-detail-icon"><i class="fas fa-${icon}"></i></div>
-            <div class="event-detail-content">
-                <h3>${title}</h3>
-                <p>${content}</p>
-            </div>
-        </div>
-    `;
-}
-
-// Create notification section HTML
-function createNotificationSection() {
-    return `
-        <div class="event-notification-section full-width"
-             id="eventNotificationSection"
-             style="grid-column: 1 / -1;">
-            <div class="notification-opt-in" style="width: 100%; display: flex; justify-content: center;">
-                <div class="notification-icon">
-                    <i class="fas fa-bell" style="font-size: 1.5rem;"></i>
-                </div>
-                <div class="notification-text">
-                    <div class="title">Event Reminders</div>
-                    <div class="subtitle">Get notified about this event</div>
-                </div>
-                <button class="notification-btn" id="notificationBtn" onclick="toggleEventSubscription()">
-                    <span id="notificationBtnText">Loading...</span>
-                </button>
-            </div>
-        </div>
-    `;
-}
-
+// Enables and disables event detail panel editing
 function togglePanelEditMode() {
     const event = EventState.currentEventData;
     if (!event) return;
@@ -1657,12 +1494,14 @@ function togglePanelEditMode() {
     }
 }
 
+// Cancel editing in the event detail panel
 function cancelPanelEdit() {
     if (EventState.currentEventId) {
         openEventDetailPanel(EventState.currentEventId);
     }
 }
 
+// Confirms edits made in the event detail panel
 async function submitPanelEdit() {
     const nameInput = document.getElementById('panelEditName');
     if (!nameInput?.value?.trim()) {
@@ -1713,36 +1552,6 @@ async function submitPanelEdit() {
     }
 }
 
-// Update edit/delete buttons based on permissions
-function updateEventModalButtons(event) {
-    const editBtn = document.getElementById("editEventBtn");
-    const deleteBtn = document.getElementById("deleteEventBtn");
-
-    // Show edit button if user can edit
-    if (editBtn && canUserEditEvent(event)) {
-        editBtn.style.display = 'flex';
-    } else {
-        if (editBtn) editBtn.style.display = 'none';
-    }
-
-    // Show delete button if user can delete
-    if (deleteBtn) {
-        const canDelete = canUserDeleteEvent(event);
-
-        if (canDelete) {
-            // Simple trash icon only
-            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-            deleteBtn.title = 'Delete event';
-
-            deleteBtn.style.display = 'flex';
-        } else {
-            deleteBtn.style.display = 'none';
-        }
-    } else {
-        console.error('Delete button element not found!');
-    }
-}
-
 // Handle event load error
 function handleEventLoadError(titleElement, content, spinner) {
     if (titleElement) {
@@ -1761,6 +1570,7 @@ function handleEventLoadError(titleElement, content, spinner) {
     setElementDisplay(content, 'block');
 }
 
+// Closes the event detail pane in mobile view
 function closeEventDetailSheet() {
     const pane = document.getElementById('eventsDetailPane');
     pane?.classList.remove('sheet-open');
@@ -1771,8 +1581,6 @@ function closeEventDetailSheet() {
 // ============================================
 // CREATE EVENT MODAL
 // ============================================
-
-// Open create event modal
 function openCreateEventModal() {
     const modal = document.getElementById('createEventModal');
     const form = document.getElementById('createEventForm');
@@ -1960,8 +1768,6 @@ async function handleCreateEventSubmit(e) {
 // ============================================
 // DAY MODAL (CALENDAR VIEW)
 // ============================================
-
-// Open day events modal
 function openDayModal(date, dateTitle) {
     const modal = document.getElementById('dayEventsModal');
     const modalTitle = document.getElementById('modalDayTitle');
@@ -2017,497 +1823,8 @@ function closeDayModal() {
 }
 
 // ============================================
-// EDIT EVENT MODAL
-// ============================================
-
-// Toggle edit mode
-function toggleEditMode() {
-    const content = document.getElementById('eventDetailsContent');
-    const editForm = document.getElementById('eventEditForm');
-    const editBtn = document.getElementById('editEventBtn');
-    const deleteBtn = document.getElementById('deleteEventBtn');
-    const titleElement = document.getElementById('eventModalTitle');
-
-    // Hide view mode, show edit mode
-    setElementDisplay(content, 'none');
-    setElementDisplay(editForm, 'block');
-    setElementDisplay(editBtn, 'none');
-    setElementDisplay(deleteBtn, 'none');
-
-    if (titleElement) {
-        titleElement.textContent = 'Edit Event';
-    }
-
-    createEditForm();
-}
-
-// Create edit form with pre-populated data
-function createEditForm() {
-    const editForm = document.getElementById('eventEditForm');
-    if (!EventState.currentEventData) return;
-
-    const event = EventState.currentEventData;
-
-    // Set the HTML
-    editForm.innerHTML = createEditFormFields(event);
-
-    // Initialize game tag selector
-    initializeGameTagSelector('edit', event.game);
-    
-    // Setup location dropdown
-    setupEditLocationDropdown(event.location);
-
-    // Character Counter
-    attachCharacterCounter('editDescription', 250);
-
-    
-    // **MOVED: Wait for DOM to be ready before calling these functions**
-    setTimeout(() => {
-        // Handle event type (will show/hide league field)
-        handleEditEventTypeChange();
-        
-
-    }, 50); // Small delay to ensure DOM is ready
-}
-
-// Create edit form fields
-function createEditFormFields(event) {
-    const escapedDescription = (event.description || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-
-    return `
-        <form id="editEventFormData" class="event-form-modal">
-            <div class="form-group">
-                <label for="editEventName">Event Name *</label>
-                <input type="text" 
-                       id="editEventName" 
-                       name="eventName" 
-                       value="${event.name || ''}" 
-                       required>
-            </div>
-
-            <div class="form-group">
-                <label for="editEventType">Event Type *</label>
-                <select id="editEventType" name="eventType" required onchange="handleEditEventTypeChange()">
-                    <option value="Event" ${event.event_type === 'Event' ? 'selected' : ''}>Event</option>
-                    <option value="Tournament" ${event.event_type === 'Tournament' ? 'selected' : ''}>Tournament</option>
-                    <option value="Misc" ${event.event_type === 'Misc' ? 'selected' : ''}>Misc</option>
-                </select>
-            </div>
-
-            <!-- League Field (SINGLE INSTANCE - only shown for Match events) -->
-            <div class="form-group" id="editEventLeagueFieldGroup" style="display: ${event.event_type === 'Match' ? 'flex' : 'none'};">
-                <label for="editEventLeagueDropdown">League ${event.event_type === 'Match' ? '*' : '(Optional)'}</label>
-                <select id="editEventLeagueDropdown" 
-                        name="league_id" 
-                        class="game-dropdown-single" 
-                        ${event.event_type === 'Match' ? 'required' : ''}>
-                    <option value="">Select league</option>
-                </select>
-                <div id="editEventLeagueLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                    <i class="fas fa-spinner fa-spin"></i> Loading leagues...
-                </div>
-            </div>
-
-            <!-- Games Field -->
-            <div class="form-group" id="editGameFieldGroup">
-                <label for="editGameDropdown">Games (Optional)</label>
-                <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
-                    Select games from the dropdown - they'll appear as tags below
-                </div>
-
-                <div id="editSelectedGamesContainer" class="selected-games-container"></div>
-
-                <select id="editGameDropdown" class="game-dropdown-single">
-                    <option value="">+ Add a game</option>
-                </select>
-
-                <div id="editGameLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                    <i class="fas fa-spinner fa-spin"></i> Loading games...
-                </div>
-
-                <input type="hidden" id="editSelectedGamesInput" name="games" value="[]">
-            </div>
-
-            <div class="form-group">
-                <label for="editDate">Date *</label>
-                <input type="date" 
-                       id="editDate" 
-                       name="eventDate" 
-                       value="${event.date_raw || ''}" 
-                       required>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="editStartTime">Start Time *</label>
-                    <input type="time" 
-                           id="editStartTime" 
-                           name="startTime"
-                           value="${convertTo24Hour(event.start_time)}" 
-                           required>
-                </div>
-                <div class="form-group">
-                    <label for="editEndTime">End Time *</label>
-                    <input type="time" 
-                           id="editEndTime" 
-                           name="endTime"
-                           value="${convertTo24Hour(event.end_time)}" 
-                           required>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="editLocation">Location *</label>
-                <select id="editLocation" name="eventLocation" required>
-                    <option value="">Select location</option>
-                    <option value="Campus Center">Campus Center</option>
-                    <option value="Campus Center Coffee House">Campus Center Coffee House</option>
-                    <option value="Campus Center Event Room">Campus Center Event Room</option>
-                    <option value="D-108">D-108</option>
-                    <option value="Esports Lab (Commons Building 80)">Esports Lab (Commons Building 80)</option>
-                    <option value="Lakeside Lodge">Lakeside Lodge</option>
-                    <option value="Online">Online</option>
-                    <option value="other">Other</option>
-                </select>
-            </div>
-
-            <div class="form-group" id="editCustomLocationGroup" style="display: none;">
-                <label for="editCustomLocation">Custom Location</label>
-                <input type="text" 
-                       id="editCustomLocation" 
-                       name="customLocation" 
-                       placeholder="Enter custom location">
-            </div>
-
-            <div class="form-group">
-                <label for="editDescription">Description *</label>
-                <textarea id="editDescription" 
-                          name="eventDescription" 
-                          rows="4"
-                          required>${escapedDescription}</textarea>
-            </div>
-
-            <div id="editFormMessage" class="form-message" style="display: none;"></div>
-
-            <div class="form-actions">
-                <button type="button" class="btn btn-secondary"
-                        onclick="document.getElementById('panelEditForm') ? cancelPanelEdit() : cancelEdit()">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button type="button" class="btn btn-primary" onclick="submitEventEdit()">
-                    <i class="fas fa-save"></i> Save Changes
-                </button>
-            </div>
-        </form>
-    `;
-}
-
-// Create event type options
-function createEventTypeOptions(selectedType) {
-    const types = ['Event', 'Match', 'Practice', 'Tournament', 'Misc'];
-    return types.map(type =>
-        `<option value="${type}" ${selectedType === type ? 'selected' : ''}>${type}</option>`
-    ).join('');
-}
-
-// Create game tag field
-function createGameTagField(context) {
-    const prefix = context === 'edit' ? 'edit' : '';
-    const idPrefix = prefix ? `${prefix}` : '';
-    const capitalPrefix = prefix.charAt(0).toUpperCase() + prefix.slice(1);
-
-    return `
-        <div class="form-group" id="${idPrefix}GameFieldGroup">
-            <label for="${idPrefix}GameDropdown">Games (Optional)</label>
-            <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
-                Select games from the dropdown - they'll appear as tags below
-            </div>
-
-            <div id="${idPrefix}SelectedGamesContainer" class="selected-games-container"></div>
-
-            <select id="${idPrefix}GameDropdown" class="game-dropdown-single">
-                <option value="">+ Add a game</option>
-            </select>
-
-            <div id="${idPrefix}GameLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                <i class="fas fa-spinner fa-spin"></i> Loading games...
-            </div>
-
-            <input type="hidden" id="${idPrefix}SelectedGamesInput" name="games" value="[]">
-        </div>
-    `;
-}
-
-// Create time input fields
-function createTimeFields(event) {
-    return `
-        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-            <div class="form-group" style="margin: 0;">
-                <label for="editStartTime">Start Time</label>
-                <input type="time" id="editStartTime" name="startTime"
-                       value="${convertTo24Hour(event.start_time)}" required>
-            </div>
-            <div class="form-group" style="margin: 0;">
-                <label for="editEndTime">End Time</label>
-                <input type="time" id="editEndTime" name="endTime"
-                       value="${convertTo24Hour(event.end_time)}" required>
-            </div>
-        </div>
-    `;
-}
-
-// Create location fields
-function createLocationFields(context, currentLocation = '') {
-    const prefix = context === 'edit' ? 'edit' : '';
-    const idPrefix = prefix ? `${prefix}` : '';
-
-    return `
-        <div class="form-group">
-            <label for="${idPrefix}Location">Location</label>
-            <select id="${idPrefix}Location" name="eventLocation" required>
-                <option value="">Select location</option>
-                <option value="Campus Center">Campus Center</option>
-                <option value="Campus Center Coffee House">Campus Center Coffee House</option>
-                <option value="Campus Center Event Room">Campus Center Event Room</option>
-                <option value="D-108">D-108</option>
-                <option value="Esports Lab (Commons Building 80)">Esports Lab (Commons Building 80)</option>
-                <option value="Lakeside Lodge">Lakeside Lodge</option>
-                <option value="Online">Online</option>
-                <option value="other">Other</option>
-            </select>
-        </div>
-
-        <div class="form-group" id="${idPrefix}CustomLocationGroup" style="display: none;">
-            <label for="${idPrefix}CustomLocation">Custom Location</label>
-            <input type="text" id="${idPrefix}CustomLocation" name="customLocation" placeholder="Enter custom location">
-        </div>
-    `;
-}
-
-// Create form action buttons
-function createFormActionButtons() {
-    return `
-        <div class="form-actions">
-            <button type="button" class="btn btn-secondary" onclick="cancelEdit()">
-                <i class="fas fa-times"></i> Cancel
-            </button>
-            <button type="button" class="btn btn-primary" onclick="submitEventEdit()">
-                <i class="fas fa-save"></i> Save Changes
-            </button>
-        </div>
-    `;
-}
-
-// Setup edit location dropdown with current value
-function setupEditLocationDropdown(currentLocation) {
-    const presetLocations = [
-        'Campus Center',
-        'Campus Center Coffee House',
-        'Campus Center Event Room',
-        'D-108',
-        'Esports Lab (Commons Building 80)',
-        'Lakeside Lodge',
-        'Online'
-    ];
-
-    const locationSelect = document.getElementById('editLocation');
-    const customLocationGroup = document.getElementById('editCustomLocationGroup');
-    const customLocationInput = document.getElementById('editCustomLocation');
-
-    if (!locationSelect) return;
-
-    // Set current value
-    if (presetLocations.includes(currentLocation)) {
-        locationSelect.value = currentLocation;
-    } else {
-        locationSelect.value = 'other';
-        setElementDisplay(customLocationGroup, 'block');
-        customLocationInput.value = currentLocation;
-        customLocationInput.required = true;
-    }
-
-    // Add change listener
-    locationSelect.addEventListener('change', function() {
-        if (this.value === 'other') {
-            setElementDisplay(customLocationGroup, 'block');
-            customLocationInput.required = true;
-        } else {
-            setElementDisplay(customLocationGroup, 'none');
-            customLocationInput.required = false;
-            customLocationInput.value = '';
-        }
-    });
-}
-
-// Handle event type change in edit form
-function handleEditEventTypeChange() {
-    const eventType = document.getElementById('editEventType')?.value;
-    const gameFieldGroup = document.getElementById('editGameFieldGroup');
-    const leagueGroup = document.getElementById('editEventLeagueFieldGroup');
-    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
-
-    // Only proceed if we have the event type
-    if (!eventType) {
-        console.warn('handleEditEventTypeChange: editEventType not found');
-        return;
-    }
-
-    // Handle game field visibility
-    if (eventType === 'Misc') {
-        if (gameFieldGroup) {
-            setElementDisplay(gameFieldGroup, 'none');
-            clearSelectedGames('edit');
-        }
-    } else {
-        if (gameFieldGroup) {
-            setElementDisplay(gameFieldGroup, 'block');
-        }
-    }
-    
-    // Handle league field visibility
-    if (!leagueGroup || !leagueDropdown) {
-        console.warn('handleEditEventTypeChange: League elements not found');
-        return;
-    }
-    
-    const isMatch = eventType === 'Match';
-    
-    // Show/hide league field
-    leagueGroup.style.display = isMatch ? 'flex' : 'none';
-    
-    // Update required attribute
-    if (isMatch) {
-        leagueDropdown.setAttribute('required', 'required');
-        
-        // Update label to show required
-        const label = leagueGroup.querySelector('label');
-        if (label && !label.innerHTML.includes('*')) {
-            label.innerHTML = 'League <span style="color: #ff5252;">*</span>';
-        }
-        
-
-    } else {
-        leagueDropdown.removeAttribute('required');
-        leagueDropdown.value = '';
-        
-        // Update label to show optional
-        const label = leagueGroup.querySelector('label');
-        if (label) {
-            label.textContent = 'League (Optional)';
-        }
-    }
-}
-
-
-// Submit edit event
-async function submitEventEdit() {
-    const formMessage = document.getElementById('editFormMessage');
-    const submitBtn = document.querySelector('#editEventFormData .btn-primary');
-
-    if (!submitBtn) return;
-
-    const eventType = document.getElementById('editEventType')?.value;
-    const leagueDropdown = document.getElementById('editEventLeagueDropdown');
-    
-    if (eventType === 'Match' && (!leagueDropdown?.value)) {
-        formMessage.textContent = 'Please select a league for Match events.';
-        formMessage.className = 'form-message error';
-        formMessage.style.display = 'block';
-        leagueDropdown?.focus();
-        return;
-    }
-
-    // Set loading state
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-
-    // Gather form data
-    const formData = gatherEditFormData();
-
-    try {
-        const response = await fetch('/api/event/edit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            // Direct manipulation
-            formMessage.textContent = data.message;
-            formMessage.className = 'form-message success';
-            formMessage.style.display = 'block';
-
-            setTimeout(() => {
-                window.location.reload();
-            }, 350);
-        } else {
-            throw new Error(data.message || 'Failed to update event');
-        }
-    } catch (error) {
-        console.error('Error updating event:', error);
-
-        // Direct manipulation for error
-        formMessage.textContent = error.message || 'An error occurred while updating the event';
-        formMessage.className = 'form-message error';
-        formMessage.style.display = 'block';
-
-        // Reset button
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
-    }
-}
-
-// Gather edit form data
-function gatherEditFormData() {
-    const locationSelect = document.getElementById('editLocation');
-    const customLocationInput = document.getElementById('editCustomLocation');
-    const locationValue = locationSelect?.value === 'other'
-        ? customLocationInput?.value
-        : locationSelect?.value;
-
-    const gamesInput = document.getElementById('editSelectedGamesInput');
-    const leagueDropdown = document.getElementById('editEventLeagueDropdown'); 
-
-    return {
-        event_id: EventState.currentEventId,
-        event_name: document.getElementById('editEventName')?.value,
-        event_type: document.getElementById('editEventType')?.value,
-        games: gamesInput?.value || '[]',
-        event_date: document.getElementById('editDate')?.value,
-        start_time: document.getElementById('editStartTime')?.value,
-        end_time: document.getElementById('editEndTime')?.value,
-        location: locationValue,
-        description: document.getElementById('editDescription')?.value,
-        league_id: leagueDropdown?.value || null  
-    };
-}
-
-// Cancel edit mode
-function cancelEdit() {
-    const content = document.getElementById('eventDetailsContent');
-    const editForm = document.getElementById('eventEditForm');
-
-    setElementDisplay(content, 'block');
-    setElementDisplay(editForm, 'none');
-
-    // Restore buttons if user has permissions
-    if (EventState.currentEventData) {
-        updateEventModalButtons(EventState.currentEventData);
-    }
-}
-
-// ============================================
 // DELETE EVENT
 // ============================================
-
-// Open delete confirmation modal for events
 async function openDeleteEventModal(eventId, eventName) {
     EventState.currentDeleteEventId = eventId;
     EventState.currentDeleteEventName = eventName;
@@ -2690,6 +2007,7 @@ function convertTo24Hour(time12h) {
     return `${hours.toString().padStart(2, '0')}:${minutes}`;
 }
 
+// Determines from which direction the event filter submenu pops out from
 function positionFlyout(triggerEl) {
     const flyout = triggerEl.querySelector('.filter-box-flyout');
     if (!flyout) return;
@@ -2706,9 +2024,9 @@ function positionFlyout(triggerEl) {
     flyout.style.display = '';
 }
 
-/* ========================================
-   HELPERS
-   ======================================== */
+// ===================================
+// HELPERS
+// ===================================
 
 // Check if current user can delete an event
 function canUserDeleteEvent(event) {
@@ -2790,10 +2108,6 @@ window.initializeEventsModule = initializeEventsModule;
 window.loadEvents = loadEvents;
 window.filterEvents = filterEvents;
 
-// Event Modal Functions
-window.openEventModal = openEventModal;
-window.closeEventModal = closeEventModal;
-
 // Day Modal Functions (Calendar)
 window.openDayModal = openDayModal;
 window.closeDayModal = closeDayModal;
@@ -2803,10 +2117,6 @@ window.openCreateEventModal = openCreateEventModal;
 window.closeCreateEventModal = closeCreateEventModal;
 window.handleEventTypeChange = handleEventTypeChange;
 window.toggleAllDayEvent = toggleAllDayEvent;
-
-// Edit Event Functions
-window.toggleEditMode = toggleEditMode;
-window.handleEditEventTypeChange = handleEditEventTypeChange;
 
 // Delete Event Functions
 window.deleteEvent = deleteEvent;
