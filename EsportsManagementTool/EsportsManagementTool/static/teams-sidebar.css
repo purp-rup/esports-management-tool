@@ -203,7 +203,7 @@
     top: calc(0.5rem + 38px);    /* row padding-top + full icon height */
     bottom: 0;
     width: 1px;
-    background: var(--border-color);
+    background:  rgba(121, 189, 233, 0.45);
     pointer-events: none;
 }
 
