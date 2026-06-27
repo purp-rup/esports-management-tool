@@ -8,7 +8,7 @@
  * - View switching (All Teams, Teams I Manage, Teams I Play On)
  * - Division filtering
  * - Team list rendering and filtering
- * - Game grouping with collapsible folders
+ * - Game grouping with collapsible tree folders
  * - Team selection from sidebar
  * - Sidebar state management
  * ============================================================================
@@ -72,7 +72,6 @@ const PastSeasonTeamsFilterState = {
 
 /**
  * Available views for current user based on permissions
- * Structure: [{ value: 'all', label: 'All Teams' }, ...]
  * @type {Array<Object>}
  */
 window.availableViews = [];
@@ -85,25 +84,21 @@ window.currentView = null;
 
 /**
  * Session storage key for view persistence
- * @type {string}
  */
 const VIEW_STORAGE_KEY = 'teams_selected_view';
 
 /**
- * Storage key for collapsed games
- * @type {string}
+ * Storage key for expanded games
  */
 const COLLAPSED_GAMES_KEY = 'teams_expanded_games';
 
 /**
  * Division filter storage key
- * @type {string}
  */
 const DIVISION_FILTER_KEY = 'teams_selected_division';
 
 /**
  * Division order configuration
- * @type {Array<string>}
  */
 const DIVISION_ORDER = ['Strategy', 'Shooter', 'Sports', 'Other'];
 
@@ -111,10 +106,6 @@ const DIVISION_ORDER = ['Strategy', 'Shooter', 'Sports', 'Other'];
 // VIEW SWITCHER INITIALIZATION
 // ============================================
 
-/**
- * Initialize view switcher on page load
- * Fetches available views based on user permissions and sets up UI
- */
 async function initializeViewSwitcher() {
     try {
         const response = await fetch('/api/teams/sidebar-filters');
@@ -127,9 +118,7 @@ async function initializeViewSwitcher() {
             const validStoredView = window.availableViews.find(v => v.value === storedView);
             window.currentView = validStoredView ? storedView : window.availableViews[0].value;
 
-            // Always render — any user associated with teams sees the dropdown
             renderViewSwitcher();
-
             initializeDivisionFilter();
             initializePastSeasonFilter();
         } else {
@@ -141,9 +130,6 @@ async function initializeViewSwitcher() {
     }
 }
 
-/**
- * Render the view switcher dropdown
- */
 function renderViewSwitcher() {
     const viewSwitcher = document.getElementById('teamViewSwitcher');
     const viewSelect = document.getElementById('teamViewSelect');
@@ -160,9 +146,7 @@ function renderViewSwitcher() {
         option.value = view.value;
         option.textContent = view.label;
         option.setAttribute('data-base-label', view.label);
-        if (view.value === window.currentView) {
-            option.selected = true;
-        }
+        if (view.value === window.currentView) option.selected = true;
         viewSelect.appendChild(option);
     });
 
@@ -188,19 +172,11 @@ function renderViewSwitcher() {
     viewSelect.onchange = handleViewChange;
 }
 
-/**
- * Hide the view switcher
- */
 function hideViewSwitcher() {
     const viewSwitcher = document.getElementById('teamViewSwitcher');
-    if (viewSwitcher) {
-        viewSwitcher.classList.add('hidden');
-    }
+    if (viewSwitcher) viewSwitcher.classList.add('hidden');
 }
 
-/**
- * Handle view change from dropdown
- */
 function handleViewChange(event) {
     const newView = event.target.value;
 
@@ -208,39 +184,30 @@ function handleViewChange(event) {
         window.currentView = newView;
         sessionStorage.setItem(VIEW_STORAGE_KEY, newView);
 
-        // Hide all secondary filters first
         hideDivisionFilterDropdown();
         hidePastSeasonFilterDropdown();
 
-        // Reset filter states
         setSelectedDivisionFilter(null);
 
-        // IMPORTANT: Reset past season filter completely
         PastSeasonTeamsFilterState.selectedSeasonId = null;
         PastSeasonTeamsFilterState.selectedSeasonName = '';
         PastSeasonTeamsFilterState.isFilteringPastSeason = false;
-        setSelectedPastSeasonFilter(null); // Clear from session storage
+        setSelectedPastSeasonFilter(null);
 
-        // Reset the dropdown value if it exists
         const seasonSelect = document.getElementById('pastSeasonFilterSelect');
-        if (seasonSelect) {
-            seasonSelect.value = '';
-        }
+        if (seasonSelect) seasonSelect.value = '';
 
-        // CRITICAL: Invalidate all cache when switching views to force fresh data load
         invalidateTeamsCache();
 
-        // Show appropriate filter
         if (newView === 'division') {
             showDivisionFilterDropdown();
         } else if (newView === 'past_seasons') {
             PastSeasonTeamsFilterState.isFilteringPastSeason = true;
             showPastSeasonFilterDropdown();
             loadPastSeasonsForTeamsFilter();
-            return; // Don't load teams yet, wait for season selection
+            return;
         }
 
-        // Reset team selection and show welcome state
         window.currentSelectedTeamId = null;
         document.getElementById('teamsWelcomeState').style.display = 'flex';
         document.getElementById('teamsDetailContent').style.display = 'none';
@@ -253,9 +220,6 @@ function handleViewChange(event) {
 // TEAM LOADING & SIDEBAR
 // ============================================
 
-/**
- * Load teams based on user role and selected view
- */
 async function loadTeams() {
     const sidebarLoading = document.getElementById('teamsSidebarLoading');
     const sidebarList = document.getElementById('teamsSidebarList');
@@ -265,7 +229,6 @@ async function loadTeams() {
         await initializeViewSwitcher();
     }
 
-    // Generate cache key
     const selectedDivision = window.currentView === 'division' ? getSelectedDivisionFilter() : null;
     const selectedSeasonId = window.currentView === 'past_seasons' ? PastSeasonTeamsFilterState.selectedSeasonId : null;
 
@@ -276,37 +239,29 @@ async function loadTeams() {
         cacheKey = `past_season-${selectedSeasonId}`;
     }
 
-    // IMPORTANT: If in past_seasons view but no season selected, show empty state immediately
     if (window.currentView === 'past_seasons' && !selectedSeasonId) {
         sidebarLoading.style.display = 'none';
         sidebarList.style.display = 'none';
         sidebarEmpty.style.display = 'block';
-
         updateDropdownCount(0);
-
         if (sidebarEmpty) {
             sidebarEmpty.innerHTML = `<i class="fas fa-calendar"></i><p>Select a past season to view teams</p>`;
         }
         return;
     }
 
-    // Check cache first
     if (teamsCache[cacheKey] && isCacheFresh(cacheKey)) {
         console.log('Using cached teams data');
         renderFromCache(teamsCache[cacheKey], sidebarLoading, sidebarList, sidebarEmpty);
         return;
     }
 
-    // Show loading state
     sidebarLoading.style.display = 'block';
     sidebarList.style.display = 'none';
     sidebarEmpty.style.display = 'none';
 
     try {
-        // Build URL with parameters
         let url = `/api/teams/sidebar?view=${window.currentView}`;
-
-        // Add season parameter if filtering past seasons
         if (selectedSeasonId) url += `&season_id=${selectedSeasonId}`;
 
         const response = await fetch(url);
@@ -315,7 +270,6 @@ async function loadTeams() {
         if (data.success && data.teams && data.teams.length > 0) {
             let teamsToDisplay = data.teams;
 
-            // Apply division filter if active
             if (window.currentView === 'division') {
                 const selectedDivision = getSelectedDivisionFilter();
                 if (selectedDivision) {
@@ -325,13 +279,12 @@ async function loadTeams() {
                 }
             }
 
-            // Cache the data
             teamsCache[cacheKey] = teamsToDisplay;
             teamsCache.timestamps[cacheKey] = Date.now();
-
             window.allTeamsData = teamsToDisplay;
 
             updateDropdownCount(teamsToDisplay.length);
+            updateSidebarSubtitle(teamsToDisplay.length);
 
             if (teamsToDisplay.length > 0) {
                 renderTeamsSidebar(teamsToDisplay);
@@ -347,6 +300,7 @@ async function loadTeams() {
             }
         } else {
             updateDropdownCount(0);
+            updateSidebarSubtitle(0);
             if (sidebarEmpty) {
                 sidebarEmpty.innerHTML = `<i class="fas fa-users"></i><p>${getEmptyMessageForView(window.currentView)}</p>`;
             }
@@ -360,13 +314,10 @@ async function loadTeams() {
     }
 }
 
-/**
- * Helper function to render from cached data
- */
 function renderFromCache(cachedTeams, sidebarLoading, sidebarList, sidebarEmpty) {
     window.allTeamsData = cachedTeams;
-
     updateDropdownCount(cachedTeams.length);
+    updateSidebarSubtitle(cachedTeams.length);
 
     if (cachedTeams.length > 0) {
         renderTeamsSidebar(cachedTeams);
@@ -382,9 +333,6 @@ function renderFromCache(cachedTeams, sidebarLoading, sidebarList, sidebarEmpty)
     }
 }
 
-/**
- * Function to invalidate cache when teams are modified
- */
 function invalidateTeamsCache() {
     teamsCache.all = null;
     teamsCache.manage = null;
@@ -398,50 +346,51 @@ function invalidateTeamsCache() {
 }
 
 /**
- * Get subtitle text based on current view
+ * Update the "All Games · N" subtitle in the sidebar header
  */
+function updateSidebarSubtitle(count) {
+    const subtitle = document.querySelector('.teams-subtitle');
+    if (!subtitle) return;
+
+    const view = window.currentView;
+    let label = 'All Games';
+
+    if (view === 'manage' || view === 'past_managed') {
+        label = 'Managed Games';
+    } else if (view === 'play' || view === 'my_past_teams') {
+        label = 'My Games';
+    } else if (view === 'division') {
+        const d = getSelectedDivisionFilter();
+        label = d ? `${d} Division` : 'All Divisions';
+    } else if (view === 'past_seasons') {
+        const name = PastSeasonTeamsFilterState.selectedSeasonName;
+        label = name ? name : 'Past Seasons';
+    }
+
+    subtitle.textContent = `${label} · ${count}`;
+}
+
 function getSubtitleForView(view, count = 0) {
     let label = '';
-
     if (view === 'division') {
         const selectedDivision = getSelectedDivisionFilter();
-        if (selectedDivision) {
-            label = `${selectedDivision} Teams`;
-        } else {
-            label = 'All Teams';
-        }
+        label = selectedDivision ? `${selectedDivision} Teams` : 'All Teams';
     } else if (view === 'past_seasons') {
         const seasonName = PastSeasonTeamsFilterState.selectedSeasonName;
-        if (seasonName) {
-            label = `${seasonName} Teams`;
-        } else {
-            label = 'Past Seasons';
-        }
+        label = seasonName ? `${seasonName} Teams` : 'Past Seasons';
     } else {
         const viewObj = window.availableViews.find(v => v.value === view);
-
         if (viewObj) {
             label = viewObj.label;
         } else {
-            const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
+            const isAdmin = window.userPermissions?.is_admin || window.userPermissions?.is_developer || false;
             const isGM = window.userPermissions?.is_gm || false;
-
-            if (isAdmin) {
-                label = 'All Teams';
-            } else if (isGM) {
-                label = 'Teams I Manage';
-            } else {
-                label = 'Your Teams';
-            }
+            label = isAdmin ? 'All Teams' : isGM ? 'Teams I Manage' : 'Your Teams';
         }
     }
-
     return `${label} (${count})`;
 }
 
-/**
- * Get empty state message based on current view
- */
 function getEmptyMessageForView(view) {
     const messages = {
         all: 'No teams have been created yet.',
@@ -451,59 +400,312 @@ function getEmptyMessageForView(view) {
         past_managed: 'You have not managed any past teams.',
         past_seasons: 'No teams found for the selected season.'
     };
-
     return messages[view] || 'No teams available.';
 }
 
+// ============================================
+// TREE-STYLE SIDEBAR RENDERING
+// ============================================
+
 /**
- * Render teams in sidebar (basic version)
+ * Main render entry point — delegates to tree or flat based on view
  */
 function renderTeamsSidebar(teams) {
+    if (
+        window.currentView === 'all' ||
+        window.currentView === 'division' ||
+        window.currentView === 'past_seasons'
+    ) {
+        renderTeamsSidebarWithGroups(teams);
+    } else {
+        renderTeamsSidebarFlat(teams);
+    }
+}
+
+/**
+ * Render teams in a flat list (for manage / play / my_past_teams / past_managed views)
+ */
+function renderTeamsSidebarFlat(teams) {
     const sidebarList = document.getElementById('teamsSidebarList');
     sidebarList.innerHTML = '';
 
-    teams.forEach(team => {
-        const teamItem = document.createElement('div');
-        teamItem.className = 'team-sidebar-item';
-        teamItem.setAttribute('data-team-id', team.TeamID);
-        teamItem.setAttribute('data-gm-id', team.gm_id || '');
+    const sidebar = document.querySelector('.teams-sidebar');
+    if (sidebar) sidebar.setAttribute('data-view', window.currentView || 'all');
 
-        const isGameManager = team.gm_id && team.gm_id === window.currentUserId;
+    const sorted = sortTeamsByDivision(teams);
 
-        // Season indicator - ONLY show for PAST teams (season_is_active = 0)
-        const seasonIndicator = (team.season_name && team.season_is_active === 0) ? `
-            <div class="team-sidebar-season" title="Past Season">
-                <span style="color: #94a3b8;">●</span>
-                ${team.season_name}
-            </div>
-        ` : '';
-
-        teamItem.innerHTML = `
-            <div class="team-sidebar-content" onclick="selectTeam('${team.TeamID}')">
-                <div class="team-sidebar-name">${team.teamName}</div>
-                ${seasonIndicator}
-                <div class="team-sidebar-game">${team.GameTitle || 'Unknown Game'}</div>
-                <div class="team-sidebar-meta">
-                    <span><i class="fas fa-users"></i> ${team.member_count || 0}</span>
-                    <span><i class="fas fa-trophy"></i> ${team.teamMaxSize}</span>
-                </div>
-            </div>
-            ${isGameManager && team.season_is_active !== 0 ? `
-                <button class="team-edit-btn"
-                        onclick="event.stopPropagation(); openEditTeamModal('${team.TeamID}', '${team.teamName.replace(/'/g, "\\'")}', ${team.teamMaxSize}, '${team.TeamSizes || ''}')"
-                        title="Edit team">
-                    <i class="fas fa-edit"></i>
-                </button>
-            ` : ''}
-        `;
-
-        sidebarList.appendChild(teamItem);
+    sorted.forEach(team => {
+        const item = createTeamTreeItem(team);
+        sidebarList.appendChild(item);
     });
 }
 
 /**
- * Update the currently selected dropdown option to show the team count.
+ * Render teams grouped by game in tree/folder style
  */
+function renderTeamsSidebarWithGroups(teams) {
+    const sidebarList = document.getElementById('teamsSidebarList');
+    sidebarList.innerHTML = '';
+
+    const sidebar = document.querySelector('.teams-sidebar');
+    if (sidebar) sidebar.setAttribute('data-view', window.currentView || 'all');
+
+    const sorted = sortTeamsByDivision(teams);
+
+    // Build game groups
+    const gameGroups = {};
+    sorted.forEach(team => {
+        const gameId = team.gameID;
+        if (!gameGroups[gameId]) {
+            gameGroups[gameId] = {
+                gameId,
+                gameTitle:    team.GameTitle || 'Unknown Game',
+                division:     team.division || 'Other',
+                hasGameImage: team.has_game_image,
+                teams:        []
+            };
+        }
+        gameGroups[gameId].teams.push(team);
+    });
+
+    // Sort groups by division then name
+    const sortedGroups = Object.values(gameGroups).sort((a, b) => {
+        const pa = getDivisionSortPriority(a.division);
+        const pb = getDivisionSortPriority(b.division);
+        if (pa !== pb) return pa - pb;
+        return a.gameTitle.localeCompare(b.gameTitle);
+    });
+
+    const expandedGames = getCollapsedGames(); // set of expanded game IDs
+
+    sortedGroups.forEach(group => {
+        const isExpanded = expandedGames.has(group.gameId.toString());
+        const groupEl = renderGameGroup(group, isExpanded);
+        sidebarList.appendChild(groupEl);
+    });
+}
+
+/**
+ * Build a full game group element (folder row + team list)
+ */
+function renderGameGroup(group, isExpanded) {
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'game-group' + (isExpanded ? ' expanded' : '');
+    groupDiv.setAttribute('data-game-id', group.gameId);
+
+    // ---- Game folder row ----
+    const folderRow = document.createElement('div');
+    folderRow.className = 'game-folder-row';
+
+    // Icon
+    const iconEl = document.createElement('div');
+    iconEl.className = 'game-folder-icon';
+
+    if (group.gameId && group.hasGameImage) {
+        const img = document.createElement('img');
+        img.src = `/game-image/${group.gameId}`;
+        img.alt = group.gameTitle;
+        img.loading = 'lazy';
+
+        const fallback = document.createElement('div');
+        fallback.className = 'icon-fallback';
+        fallback.innerHTML = '<i class="fas fa-gamepad"></i>';
+        fallback.style.display = 'none';
+
+        img.onerror = function () {
+            this.style.display = 'none';
+            fallback.style.display = 'flex';
+        };
+
+        iconEl.appendChild(img);
+        iconEl.appendChild(fallback);
+    } else {
+        const fallback = document.createElement('div');
+        fallback.className = 'icon-fallback';
+        fallback.innerHTML = '<i class="fas fa-gamepad"></i>';
+        iconEl.appendChild(fallback);
+    }
+
+    // Game name
+    const nameEl = document.createElement('span');
+    nameEl.className = 'game-folder-name';
+    nameEl.textContent = group.gameTitle;
+
+    // Badge (team count)
+    const badgeEl = document.createElement('span');
+    badgeEl.className = 'game-folder-badge';
+    badgeEl.textContent = group.teams.length;
+
+    // Chevron
+    const chevronEl = document.createElement('i');
+    chevronEl.className = 'game-folder-chevron fas fa-chevron-down';
+
+    folderRow.appendChild(iconEl);
+    folderRow.appendChild(nameEl);
+    folderRow.appendChild(badgeEl);
+    folderRow.appendChild(chevronEl);
+
+    // Click toggles expand/collapse
+    folderRow.addEventListener('click', () => toggleGameCollapse(group.gameId));
+
+    // ---- Teams list ----
+    const teamsList = document.createElement('div');
+    teamsList.className = 'game-teams-list';
+
+    group.teams.forEach(team => {
+        const item = createTeamTreeItem(team);
+        teamsList.appendChild(item);
+    });
+
+    groupDiv.appendChild(folderRow);
+    groupDiv.appendChild(teamsList);
+
+    return groupDiv;
+}
+
+/**
+ * Create a single team tree item.
+ * Carries .team-sidebar-item so teams.js querySelector calls still work.
+ */
+function createTeamTreeItem(team) {
+    const item = document.createElement('div');
+    // Keep legacy class so teams.js selectTeam/querySelector still finds items
+    item.className = 'team-tree-item team-sidebar-item';
+    item.setAttribute('data-team-id', team.TeamID);
+    item.setAttribute('data-gm-id', team.gm_id || '');
+
+    if (String(team.TeamID) === String(window.currentSelectedTeamId)) {
+        item.classList.add('active');
+    }
+
+    const isGameManager = team.gm_id && String(team.gm_id) === String(window.currentUserId);
+
+    // Season indicator for past teams
+    const seasonText = (team.season_name && team.season_is_active === 0)
+        ? ' · ' + team.season_name
+        : '';
+
+    // Wrap in .team-sidebar-content so any teams.js inner queries work
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = 'team-sidebar-content team-tree-content';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'team-tree-name';
+    nameEl.textContent = team.teamName + seasonText;
+
+    contentWrapper.appendChild(nameEl);
+    item.appendChild(contentWrapper);
+
+    // Edit button — only for GMs on active seasons
+    if (isGameManager && team.season_is_active !== 0) {
+        const editBtn = document.createElement('button');
+        editBtn.className = 'team-tree-edit-btn';
+        editBtn.title = 'Edit team';
+        editBtn.innerHTML = '<i class="fas fa-pencil-alt"></i>';
+        editBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            openEditTeamModal(
+                team.TeamID,
+                team.teamName,
+                team.teamMaxSize,
+                team.TeamSizes || ''
+            );
+        });
+        item.appendChild(editBtn);
+    }
+
+    // Select team on click (on item or content wrapper)
+    item.addEventListener('click', () => selectTeam(team.TeamID));
+
+    return item;
+}
+
+// ============================================
+// COLLAPSE / EXPAND STATE
+// ============================================
+
+/**
+ * Get set of expanded game IDs from sessionStorage
+ */
+function getCollapsedGames() {
+    const storageKey = `${COLLAPSED_GAMES_KEY}_${window.currentView || 'all'}`;
+    const stored = sessionStorage.getItem(storageKey);
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+}
+
+function saveCollapsedGames(expandedGames) {
+    const storageKey = `${COLLAPSED_GAMES_KEY}_${window.currentView || 'all'}`;
+    sessionStorage.setItem(storageKey, JSON.stringify([...expandedGames]));
+}
+
+/**
+ * Toggle collapse/expand for a game group in the DOM (no full re-render)
+ */
+function toggleGameCollapse(gameId) {
+    const expandedGames = getCollapsedGames();
+    const key = gameId.toString();
+
+    if (expandedGames.has(key)) {
+        expandedGames.delete(key);
+    } else {
+        expandedGames.add(key);
+    }
+
+    saveCollapsedGames(expandedGames);
+
+    // Toggle the .expanded class directly on the DOM element
+    const groupEl = document.querySelector(`.game-group[data-game-id="${gameId}"]`);
+    if (groupEl) {
+        groupEl.classList.toggle('expanded', expandedGames.has(key));
+    }
+}
+
+// ============================================
+// ACTIVE TEAM HIGHLIGHT
+// ============================================
+
+/**
+ * Update active state on sidebar items without re-rendering.
+ * Covers both new tree items and any legacy .team-sidebar-item elements
+ * that teams.js may also query.
+ */
+function updateSidebarActiveState(teamId) {
+    const id = String(teamId);
+    document.querySelectorAll(
+        '.team-tree-item, .team-sidebar-item'
+    ).forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-team-id') === id);
+    });
+}
+
+// ============================================
+// DIVISION & SORT HELPERS
+// ============================================
+
+function getDivisionSortPriority(division) {
+    const index = DIVISION_ORDER.indexOf(division);
+    return index !== -1 ? index : 999;
+}
+
+function sortTeamsByDivision(teams) {
+    return [...teams].sort((a, b) => {
+        const divA = getDivisionSortPriority(a.division || 'Other');
+        const divB = getDivisionSortPriority(b.division || 'Other');
+        if (divA !== divB) return divA - divB;
+
+        const gameA = (a.GameTitle || '').toLowerCase();
+        const gameB = (b.GameTitle || '').toLowerCase();
+        if (gameA !== gameB) return gameA.localeCompare(gameB);
+
+        if (a.created_at && b.created_at) return new Date(a.created_at) - new Date(b.created_at);
+        return 0;
+    });
+}
+
+// ============================================
+// DROPDOWN COUNT
+// ============================================
+
 function updateDropdownCount(count) {
     const viewSelect = document.getElementById('teamViewSelect');
     if (!viewSelect) return;
@@ -519,98 +721,13 @@ function updateDropdownCount(count) {
 }
 
 // ============================================
-// GAME GROUPING & COLLAPSIBLE FOLDERS
-// ============================================
-
-/**
- * Get set of expanded game IDs from sessionStorage. Not renaming because gross.
- */
-function getCollapsedGames() {
-    const storageKey = `${COLLAPSED_GAMES_KEY}_${window.currentView || 'all'}`;
-    const stored = sessionStorage.getItem(storageKey);
-    return stored ? new Set(JSON.parse(stored)) : new Set();
-}
-
-/**
- * Save collapsed games to sessionStorage
- */
-function saveCollapsedGames(collapsedGames) {
-    const storageKey = `${COLLAPSED_GAMES_KEY}_${window.currentView || 'all'}`;
-    sessionStorage.setItem(storageKey, JSON.stringify([...collapsedGames]));
-}
-
-/**
- * Toggle collapse state for a game
- */
-function toggleGameCollapse(gameId) {
-    const collapsedGames = getCollapsedGames();
-
-    if (collapsedGames.has(gameId)) {
-        collapsedGames.delete(gameId);
-    } else {
-        collapsedGames.add(gameId);
-    }
-
-    saveCollapsedGames(collapsedGames);
-
-    const sidebarList = document.getElementById('teamsSidebarList');
-    if (sidebarList && window.allTeamsData.length > 0) {
-        renderTeamsSidebarWithGroups(window.allTeamsData);
-    }
-}
-
-/**
- * Get sort priority for a division
- */
-function getDivisionSortPriority(division) {
-    const index = DIVISION_ORDER.indexOf(division);
-    return index !== -1 ? index : 999;
-}
-
-/**
- * Sort teams by division order, then alphabetically by game title
- */
-function sortTeamsByDivision(teams) {
-    return teams.sort((a, b) => {
-        const divisionA = a.division || 'Other';
-        const divisionB = b.division || 'Other';
-
-        const priorityA = getDivisionSortPriority(divisionA);
-        const priorityB = getDivisionSortPriority(divisionB);
-
-        if (priorityA !== priorityB) {
-            return priorityA - priorityB;
-        }
-
-        const gameA = (a.GameTitle || '').toLowerCase();
-        const gameB = (b.GameTitle || '').toLowerCase();
-
-        if (gameA !== gameB) {
-            return gameA.localeCompare(gameB);
-        }
-
-        if (a.created_at && b.created_at) {
-            return new Date(a.created_at) - new Date(b.created_at);
-        }
-
-        return 0;
-    });
-}
-
-// ============================================
 // PAST SEASON FILTER
 // ============================================
 
-/**
- * Get currently selected past season filter
- */
 function getSelectedPastSeasonFilter() {
     return sessionStorage.getItem(PAST_SEASON_FILTER_KEY);
 }
 
-/**
- * Set past season filter
- */
 function setSelectedPastSeasonFilter(seasonId) {
     if (seasonId) {
         sessionStorage.setItem(PAST_SEASON_FILTER_KEY, seasonId);
@@ -619,11 +736,8 @@ function setSelectedPastSeasonFilter(seasonId) {
     }
 }
 
-/**
- * Initialize past season filter dropdown
- */
 function initializePastSeasonFilter() {
-    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
+    const isAdmin = window.userPermissions?.is_admin || window.userPermissions?.is_developer || false;
     if (!isAdmin) return;
 
     const divisionFilterContainer = document.getElementById('divisionFilterContainer');
@@ -637,9 +751,7 @@ function initializePastSeasonFilter() {
         pastSeasonFilterContainer.className = 'past-season-filter-container hidden';
 
         pastSeasonFilterContainer.innerHTML = `
-            <label for="pastSeasonFilterSelect" class="past-season-filter-label">
-                Season:
-            </label>
+            <label for="pastSeasonFilterSelect" class="past-season-filter-label">Season:</label>
             <select id="pastSeasonFilterSelect" class="past-season-filter-select">
                 <option value="">Select Past Season</option>
             </select>
@@ -666,43 +778,26 @@ function initializePastSeasonFilter() {
         if (savedSeasonId) {
             PastSeasonTeamsFilterState.selectedSeasonId = savedSeasonId;
             const seasonSelect = document.getElementById('pastSeasonFilterSelect');
-            if (seasonSelect) {
-                seasonSelect.value = savedSeasonId;
-            }
+            if (seasonSelect) seasonSelect.value = savedSeasonId;
         }
     }
 }
 
-/**
- * Show past season filter dropdown
- */
 function showPastSeasonFilterDropdown() {
     const container = document.getElementById('pastSeasonFilterContainer');
-    if (container) {
-        container.classList.remove('hidden');
-    }
+    if (container) container.classList.remove('hidden');
 }
 
-/**
- * Hide past season filter dropdown
- */
 function hidePastSeasonFilterDropdown() {
     const container = document.getElementById('pastSeasonFilterContainer');
-    if (container) {
-        container.classList.add('hidden');
-    }
+    if (container) container.classList.add('hidden');
 }
 
-/**
- * Load past seasons for teams filter
- */
 async function loadPastSeasonsForTeamsFilter() {
     const seasonSelect = document.getElementById('pastSeasonFilterSelect');
     const loadingIndicator = document.getElementById('pastSeasonFilterLoadingIndicator');
-
     if (!seasonSelect) return;
 
-    // Show loading
     if (loadingIndicator) loadingIndicator.style.display = 'inline-block';
     seasonSelect.disabled = true;
 
@@ -712,8 +807,6 @@ async function loadPastSeasonsForTeamsFilter() {
 
         if (data.success && data.seasons) {
             PastSeasonTeamsFilterState.availablePastSeasons = data.seasons;
-
-            // Clear and populate dropdown
             seasonSelect.innerHTML = '<option value="">Select Past Season</option>';
 
             if (data.seasons.length === 0) {
@@ -727,7 +820,6 @@ async function loadPastSeasonsForTeamsFilter() {
                 });
             }
         } else {
-            console.error('Failed to load past seasons:', data.message);
             seasonSelect.innerHTML = '<option value="">Error loading past seasons</option>';
         }
     } catch (error) {
@@ -739,9 +831,6 @@ async function loadPastSeasonsForTeamsFilter() {
     }
 }
 
-/**
- * Handle past season filter change
- */
 function handlePastSeasonFilterChange(event) {
     const selectedSeasonId = event.target.value;
 
@@ -752,226 +841,28 @@ function handlePastSeasonFilterChange(event) {
         return;
     }
 
-    // Store selected past season
     PastSeasonTeamsFilterState.selectedSeasonId = selectedSeasonId;
     const seasonSelect = event.target;
     PastSeasonTeamsFilterState.selectedSeasonName = seasonSelect.options[seasonSelect.selectedIndex].text;
     setSelectedPastSeasonFilter(selectedSeasonId);
 
-    // Invalidate cache to ensure fresh data for the selected season
     invalidateTeamsCache();
 
-    // Reset team selection
     window.currentSelectedTeamId = null;
     document.getElementById('teamsWelcomeState').style.display = 'flex';
     document.getElementById('teamsDetailContent').style.display = 'none';
 
-    // Load teams for this past season
     loadTeams();
 }
-
-/**
- * Render teams sidebar with game grouping
- */
-function renderTeamsSidebarWithGroups(teams) {
-    const sidebarList = document.getElementById('teamsSidebarList');
-    sidebarList.innerHTML = '';
-
-    const sidebar = document.querySelector('.teams-sidebar');
-    if (sidebar) {
-        sidebar.setAttribute('data-view', window.currentView || 'all');
-    }
-
-    // Use game grouping
-    if (window.currentView !== 'all' && window.currentView !== 'division' && window.currentView !== 'past_seasons') {
-        const sortedTeams = sortTeamsByDivision(teams);
-        originalRenderTeamsSidebar(sortedTeams);
-        return;
-    }
-
-    const sortedTeams = sortTeamsByDivision(teams);
-
-    const gameGroups = {};
-    sortedTeams.forEach(team => {
-        const gameId = team.gameID;
-        const gameTitle = team.GameTitle || 'Unknown Game';
-
-        if (!gameGroups[gameId]) {
-            gameGroups[gameId] = {
-                gameId: gameId,
-                gameTitle: gameTitle,
-                division: team.division || 'Other',
-                hasGameImage: team.has_game_image,
-                teams: []
-            };
-        }
-        gameGroups[gameId].teams.push(team);
-    });
-
-    const sortedGroups = Object.values(gameGroups).sort((a, b) => {
-        const priorityA = getDivisionSortPriority(a.division);
-        const priorityB = getDivisionSortPriority(b.division);
-
-        if (priorityA !== priorityB) {
-            return priorityA - priorityB;
-        }
-
-        return a.gameTitle.localeCompare(b.gameTitle);
-    });
-
-    const collapsedGames = getCollapsedGames();
-
-    sortedGroups.forEach(group => {
-        const isCollapsed = !collapsedGames.has(group.gameId.toString());
-
-        if (isCollapsed) {
-            renderCollapsedGameFolder(group, sidebarList);
-        } else {
-            renderExpandedGameGroup(group, sidebarList);
-        }
-    });
-}
-
-/**
- * Render a collapsed game folder
- */
-function renderCollapsedGameFolder(group, container) {
-    const folderDiv = document.createElement('div');
-    folderDiv.className = 'game-folder-collapsed';
-    folderDiv.setAttribute('data-game-id', group.gameId);
-
-    const hasSelectedTeam = group.teams.some(t => t.TeamID === window.currentSelectedTeamId);
-    if (hasSelectedTeam) {
-        folderDiv.classList.add('active');
-    }
-
-    const teamCount = group.teams.length;
-    const teamWord = teamCount === 1 ? 'team' : 'teams';
-
-    let gameIconHTML;
-    if (group.gameId && group.hasGameImage) {
-        gameIconHTML = `
-            <img src="/game-image/${group.gameId}"
-                 alt="${group.gameTitle}"
-                 loading="lazy"
-                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
-                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-            <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">
-                <i class="fas fa-gamepad"></i>
-            </div>
-        `;
-    } else {
-        gameIconHTML = '<i class="fas fa-gamepad"></i>';
-    }
-
-    folderDiv.innerHTML = `
-        <div class="game-folder-info" onclick="event.stopPropagation(); toggleGameCollapse('${group.gameId}')">
-            <div class="game-folder-icon">
-                ${gameIconHTML}
-            </div>
-            <div class="game-folder-details">
-                <div class="game-folder-name">${group.gameTitle}</div>
-                <div class="game-folder-count">${teamCount} ${teamWord}</div>
-            </div>
-        </div>
-        <button class="game-folder-expand-btn"
-                onclick="event.stopPropagation(); toggleGameCollapse('${group.gameId}')"
-                title="Expand ${group.gameTitle} teams">
-            <i class="fas fa-chevron-down"></i>
-        </button>
-    `;
-
-    container.appendChild(folderDiv);
-}
-
-/**
- * Render an expanded game group with all teams
- */
-function renderExpandedGameGroup(group, container) {
-    const groupDiv = document.createElement('div');
-    groupDiv.className = 'game-group';
-    groupDiv.setAttribute('data-game-id', group.gameId);
-
-    group.teams.forEach((team, index) => {
-        const teamItem = document.createElement('div');
-        teamItem.className = 'team-sidebar-item';
-        teamItem.setAttribute('data-team-id', team.TeamID);
-        teamItem.setAttribute('data-gm-id', team.gm_id || '');
-
-        if (team.TeamID === window.currentSelectedTeamId) {
-            teamItem.classList.add('active');
-        }
-
-        const isGameManager = team.gm_id && team.gm_id === window.currentUserId;
-
-        const collapseBtn = index === 0 ? `
-            <button class="team-collapse-btn"
-                    onclick="event.stopPropagation(); toggleGameCollapse('${group.gameId}')"
-                    title="Collapse ${group.gameTitle} teams">
-                <i class="fas fa-chevron-up"></i>
-            </button>
-        ` : '';
-
-        // Season indicator - ONLY show for PAST teams (season_is_active = 0)
-        const seasonIndicator = (team.season_name && team.season_is_active === 0) ? `
-            <div class="team-sidebar-season" title="Past Season">
-                <span style="color: #94a3b8;">●</span>
-                ${team.season_name}
-            </div>
-        ` : '';
-
-        teamItem.innerHTML = `
-            ${collapseBtn}
-            <div class="team-sidebar-content" onclick="selectTeam('${team.TeamID}')">
-                <div class="team-sidebar-name">${team.teamName}</div>
-                ${seasonIndicator}
-                <div class="team-sidebar-game">${team.GameTitle || 'Unknown Game'}</div>
-                <div class="team-sidebar-meta">
-                    <span><i class="fas fa-users"></i> ${team.member_count || 0}</span>
-                    <span><i class="fas fa-trophy"></i> ${team.teamMaxSize}</span>
-                </div>
-            </div>
-            ${isGameManager && team.season_is_active !== 0 ? `
-                <button class="team-edit-btn"
-                        onclick="event.stopPropagation(); openEditTeamModal('${team.TeamID}', '${team.teamName.replace(/'/g, "\\'")}', ${team.teamMaxSize}, '${team.TeamSizes || ''}')"
-                        title="Edit team">
-                    <i class="fas fa-edit"></i>
-                </button>
-            ` : ''}
-        `;
-
-        groupDiv.appendChild(teamItem);
-    });
-
-    container.appendChild(groupDiv);
-}
-
-/**
- * Override renderTeamsSidebar to use grouping when appropriate
- */
-const originalRenderTeamsSidebar = renderTeamsSidebar;
-renderTeamsSidebar = function(teams) {
-    if (window.currentView === 'all' || window.currentView === 'division' || window.currentView === 'past_seasons') {
-        renderTeamsSidebarWithGroups(teams);
-    } else {
-        originalRenderTeamsSidebar(teams);
-    }
-};
 
 // ============================================
 // DIVISION FILTER
 // ============================================
 
-/**
- * Get currently selected division filter
- */
 function getSelectedDivisionFilter() {
     return sessionStorage.getItem(DIVISION_FILTER_KEY);
 }
 
-/**
- * Set division filter
- */
 function setSelectedDivisionFilter(division) {
     if (division) {
         sessionStorage.setItem(DIVISION_FILTER_KEY, division);
@@ -980,11 +871,8 @@ function setSelectedDivisionFilter(division) {
     }
 }
 
-/**
- * Initialize division filter dropdown
- */
 function initializeDivisionFilter() {
-    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
+    const isAdmin = window.userPermissions?.is_admin || window.userPermissions?.is_developer || false;
     if (!isAdmin) return;
 
     const sidebarHeaderTop = document.querySelector('.sidebar-header-top');
@@ -998,9 +886,7 @@ function initializeDivisionFilter() {
         divisionFilterContainer.className = 'division-filter-container hidden';
 
         divisionFilterContainer.innerHTML = `
-            <label for="divisionFilterSelect" class="division-filter-label">
-                Division:
-            </label>
+            <label for="divisionFilterSelect" class="division-filter-label">Division:</label>
             <select id="divisionFilterSelect" class="division-filter-select">
                 <option value="">All Divisions</option>
                 <option value="Strategy">Strategy</option>
@@ -1022,43 +908,26 @@ function initializeDivisionFilter() {
 
     if (window.currentView === 'division') {
         showDivisionFilterDropdown();
-
         const savedDivision = getSelectedDivisionFilter();
         if (savedDivision) {
             const divisionSelect = document.getElementById('divisionFilterSelect');
-            if (divisionSelect) {
-                divisionSelect.value = savedDivision;
-            }
+            if (divisionSelect) divisionSelect.value = savedDivision;
         }
     }
 }
 
-/**
- * Show division filter dropdown
- */
 function showDivisionFilterDropdown() {
     const container = document.getElementById('divisionFilterContainer');
-    if (container) {
-        container.classList.remove('hidden');
-    }
+    if (container) container.classList.remove('hidden');
 }
 
-/**
- * Hide division filter dropdown
- */
 function hideDivisionFilterDropdown() {
     const container = document.getElementById('divisionFilterContainer');
-    if (container) {
-        container.classList.add('hidden');
-    }
+    if (container) container.classList.add('hidden');
 }
 
-/**
- * Handle division filter change
- */
 function handleDivisionFilterChange(event) {
     const selectedDivision = event.target.value;
-
     setSelectedDivisionFilter(selectedDivision || null);
 
     window.currentSelectedTeamId = null;
@@ -1069,22 +938,14 @@ function handleDivisionFilterChange(event) {
 }
 
 // ============================================
-// CREATE TEAM FROM TEAMS TAB
+// CREATE TEAM FLOW
 // ============================================
 
-/**
- * Open create team flow from the Teams sidebar.
- * If the GM manages exactly one game, goes straight to team creation.
- * If they manage multiple, shows a game-picker first.
- * Admins/developers see all games.
- */
 async function openCreateTeam() {
     try {
-        // Check for active season first
         const seasonResponse = await fetch('/api/seasons/current');
         const seasonData = await seasonResponse.json();
 
-        // Fetch games this user manages
         const gamesResponse = await fetch('/api/teams/managed-games');
         const gamesData = await gamesResponse.json();
 
@@ -1094,11 +955,9 @@ async function openCreateTeam() {
         }
 
         if (gamesData.games.length === 1) {
-            // Only one game — go straight to team creation
             const game = gamesData.games[0];
             openCreateTeamModal(game.GameID, game.GameTitle, game.TeamSizes);
         } else {
-            // Multiple games — show picker modal
             openGamePickerModal(gamesData.games);
         }
     } catch (error) {
@@ -1107,11 +966,7 @@ async function openCreateTeam() {
     }
 }
 
-/**
- * Open game picker modal so a GM can choose which game to create a team for.
- */
 function openGamePickerModal(games) {
-    // Remove any existing picker
     const existingModal = document.getElementById('gamePickerModal');
     if (existingModal) existingModal.remove();
 
@@ -1150,9 +1005,7 @@ function openGamePickerModal(games) {
             </div>
             <div class="modal-body">
                 <p class="modal-subtitle">Choose which game to create a team for</p>
-                <div class="game-picker-list">
-                    ${gameListHTML}
-                </div>
+                <div class="game-picker-list">${gameListHTML}</div>
             </div>
         </div>
     `;
@@ -1161,9 +1014,6 @@ function openGamePickerModal(games) {
     document.body.style.overflow = 'hidden';
 }
 
-/**
- * Close the game picker modal
- */
 function closeGamePickerModal() {
     const modal = document.getElementById('gamePickerModal');
     if (modal) {
@@ -1172,34 +1022,51 @@ function closeGamePickerModal() {
     }
 }
 
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait one tick to ensure teams.js has already defined selectTeam
+    setTimeout(() => {
+        const _originalSelectTeam = window.selectTeam;
+        if (typeof _originalSelectTeam === 'function') {
+            window.selectTeam = function (teamId) {
+                window.currentSelectedTeamId = teamId;
+                updateSidebarActiveState(teamId);
+                return _originalSelectTeam.apply(this, arguments);
+            };
+        }
+    }, 0);
+});
+
 // ============================================
-// EXPORT FUNCTIONS TO GLOBAL SCOPE
+// EXPORT TO GLOBAL SCOPE
 // ============================================
 
-window.loadTeams = loadTeams;
-window.toggleGameCollapse = toggleGameCollapse;
-window.sortTeamsByDivision = sortTeamsByDivision;
-window.getDivisionSortPriority = getDivisionSortPriority;
-window.renderTeamsSidebarWithGroups = renderTeamsSidebarWithGroups;
-window.initializeViewSwitcher = initializeViewSwitcher;
-window.renderViewSwitcher = renderViewSwitcher;
-window.handleViewChange = handleViewChange;
-window.getSubtitleForView = getSubtitleForView;
-window.initializeDivisionFilter = initializeDivisionFilter;
-window.showDivisionFilterDropdown = showDivisionFilterDropdown;
-window.hideDivisionFilterDropdown = hideDivisionFilterDropdown;
-window.handleDivisionFilterChange = handleDivisionFilterChange;
-window.invalidateTeamsCache = invalidateTeamsCache;
-window.isCacheFresh = isCacheFresh;
-window.openCreateTeam = openCreateTeam;
-window.closeGamePickerModal = closeGamePickerModal;
-window.updateDropdownCount = updateDropdownCount;
+window.loadTeams                        = loadTeams;
+window.toggleGameCollapse               = toggleGameCollapse;
+window.sortTeamsByDivision              = sortTeamsByDivision;
+window.getDivisionSortPriority          = getDivisionSortPriority;
+window.renderTeamsSidebarWithGroups     = renderTeamsSidebarWithGroups;
+window.renderTeamsSidebar               = renderTeamsSidebar;
+window.updateSidebarActiveState         = updateSidebarActiveState;
+window.initializeViewSwitcher           = initializeViewSwitcher;
+window.renderViewSwitcher               = renderViewSwitcher;
+window.handleViewChange                 = handleViewChange;
+window.getSubtitleForView               = getSubtitleForView;
+window.initializeDivisionFilter         = initializeDivisionFilter;
+window.showDivisionFilterDropdown       = showDivisionFilterDropdown;
+window.hideDivisionFilterDropdown       = hideDivisionFilterDropdown;
+window.handleDivisionFilterChange       = handleDivisionFilterChange;
+window.invalidateTeamsCache             = invalidateTeamsCache;
+window.isCacheFresh                     = isCacheFresh;
+window.openCreateTeam                   = openCreateTeam;
+window.closeGamePickerModal             = closeGamePickerModal;
+window.updateDropdownCount              = updateDropdownCount;
 
-//Past Season Exports
-window.initializePastSeasonFilter = initializePastSeasonFilter;
-window.showPastSeasonFilterDropdown = showPastSeasonFilterDropdown;
-window.hidePastSeasonFilterDropdown = hidePastSeasonFilterDropdown;
-window.loadPastSeasonsForTeamsFilter = loadPastSeasonsForTeamsFilter;
-window.handlePastSeasonFilterChange = handlePastSeasonFilterChange;
-window.getSelectedPastSeasonFilter = getSelectedPastSeasonFilter;
-window.setSelectedPastSeasonFilter = setSelectedPastSeasonFilter;
+// Past Season exports
+window.initializePastSeasonFilter       = initializePastSeasonFilter;
+window.showPastSeasonFilterDropdown     = showPastSeasonFilterDropdown;
+window.hidePastSeasonFilterDropdown     = hidePastSeasonFilterDropdown;
+window.loadPastSeasonsForTeamsFilter    = loadPastSeasonsForTeamsFilter;
+window.handlePastSeasonFilterChange     = handlePastSeasonFilterChange;
+window.getSelectedPastSeasonFilter      = getSelectedPastSeasonFilter;
+window.setSelectedPastSeasonFilter      = setSelectedPastSeasonFilter;
