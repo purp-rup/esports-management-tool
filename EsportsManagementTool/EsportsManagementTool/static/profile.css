@@ -233,66 +233,6 @@
 /* ============================================
    DISCORD PROFILE CONTAINER
    ============================================ */
-.discord-profile-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.discord-profile-header {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    padding: 1.5rem;
-    background: rgba(88, 101, 242, 0.08);
-    border-radius: 8px;
-    border: 1px solid rgba(88, 101, 242, 0.2);
-}
-
-.discord-avatar-large {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(88, 101, 242, 0.2);
-    overflow: hidden;
-    flex-shrink: 0;
-}
-
-.discord-avatar-large img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.discord-avatar-large i {
-    font-size: 2.5rem;
-    color: #5865F2;
-}
-
-.discord-profile-info {
-    flex: 1;
-}
-
-.discord-profile-info h3 {
-    margin: 0 0 0.25rem 0;
-    font-size: 1rem;
-    color: var(--text-primary);
-}
-
-.discord-profile-info p {
-    margin: 0;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-}
-
-.discord-actions {
-    display: flex;
-    gap: 0.75rem;
-}
-
 .discord-actions .btn {
     flex: 1;
     font-size: 0.8125rem;
@@ -323,9 +263,10 @@
     font-size: 0.875rem;
 }
 
-/* ============================================
+/* --------------------------------------------
    RESPONSIVE DESIGN
-   ============================================ */
+   Mobile and tablet adaptations
+   -------------------------------------------- */
 @media (max-width: 1200px) {
     .profile-main-layout {
         grid-template-columns: 1fr 1fr;
@@ -364,18 +305,5 @@
 
     #myCommunitiesGrid {
         grid-template-columns: repeat(3, 1fr);
-    }
-
-    .discord-profile-header {
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .discord-actions {
-        flex-direction: column;
-    }
-
-    .discord-actions .btn {
-        width: 100%;
     }
 }
