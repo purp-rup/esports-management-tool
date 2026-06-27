@@ -831,32 +831,29 @@ async function loadMyCommunities() {
     }
 }
 
-// Build a community card for the user's profile tab
+// Build a community card for the user's profile tab - UPDATED FOR NEW LAYOUT
 function createCommunityCard(community) {
     const card = document.createElement('div');
-    card.className = 'community-card-small';
+    card.className = 'community-card';
+    card.onclick = () => {
+        // Navigate to community page or open modal
+        window.location.href = `/community/${community.id}`;
+    };
 
-    // Community icon
-    let iconHTML;
+    // Community icon - just the image
     if (community.image_url) {
-        iconHTML = `<img src="${community.image_url}" alt="${community.title}" class="community-icon-small">`;
+        card.innerHTML = `
+            <div class="community-card-icon">
+                <img src="${community.image_url}" alt="${community.title}">
+            </div>
+        `;
     } else {
-        iconHTML = '<i class="fas fa-gamepad"></i>';
+        card.innerHTML = `
+            <div class="community-card-icon" style="background: var(--stockton-blue); display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-gamepad" style="font-size: 2rem; color: white;"></i>
+            </div>
+        `;
     }
-
-    card.innerHTML = `
-        <div class="community-icon-container">${iconHTML}</div>
-        <div class="community-info-small">
-            <h4>${community.title}</h4>
-            <p class="community-meta">
-                <i class="fas fa-users"></i> ${community.member_count} members
-            </p>
-            <p class="community-joined">Joined ${community.joined_at}</p>
-        </div>
-        <a class="btn btn-sm btn-primary" href="/community/${community.id}">
-            <i class="fas fa-eye"></i> View
-        </a>
-    `;
 
     return card;
 }
@@ -899,7 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // EXPORT FUNCTIONS
 // ============================================
 
-//Folder system
+// Folder system
 window.displayGamesWithDivisions = displayGamesWithDivisions;
 
 // Photo Carousel
@@ -908,6 +905,6 @@ window.carouselPrev        = carouselPrev;
 window.openPhotoManager    = openPhotoManager;
 window.closePhotoManager   = closePhotoManager;
 
-//Member list popup
+// Member list popup
 window.toggleMemberListPopup = toggleMemberListPopup;
 window.filterMemberListPopup = filterMemberListPopup;
