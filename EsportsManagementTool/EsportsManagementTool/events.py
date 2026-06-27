@@ -2,16 +2,16 @@
 Event Management Routes
 Module for all event-related functionality
 """
-from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr
+from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_raw, format_time_to_12hr
 from flask import request, jsonify, session, render_template
 from datetime import datetime, timedelta
 import MySQLdb.cursors
 import json
 from EsportsManagementTool import localize_datetime, EST
 
-
+# Primary routes for event CRUD operations
 def register_event_routes(app, mysql, login_required, roles_required):
-    """Register all event-related routes with the Flask app"""
+    """Register all event-related routes"""
 
     @app.route('/event-register', methods=['GET', 'POST'])
     @roles_required('admin', 'gm', 'developer')
@@ -36,13 +36,7 @@ def register_event_routes(app, mysql, login_required, roles_required):
                     game_display = ', '.join(selected_games) if selected_games else None
 
                     # Get primary game_id
-                    primary_game_id = None
-                    if selected_games:
-                        first_game_title = selected_games[0]
-                        cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (first_game_title,))
-                        game_result = cursor.fetchone()
-                        if game_result:
-                            primary_game_id = game_result['gameID']
+                    primary_game_id = get_primary_game_id(cursor, selected_games)
 
                     # Determine season
                     season_id = get_season_for_event_date(cursor, eventDate)
@@ -61,15 +55,7 @@ def register_event_routes(app, mysql, login_required, roles_required):
 
                     # Insert games into event_games table
                     if selected_games:
-                        for game_title in selected_games:
-                            cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (game_title,))
-                            game_result = cursor.fetchone()
-                            if game_result:
-                                game_id = game_result['gameID']
-                                cursor.execute(
-                                    'INSERT IGNORE INTO event_games (event_id, game_id) VALUES (%s, %s)',
-                                    (event_id, game_id)
-                                )
+                        sync_event_games(cursor, event_id, selected_games)
 
                     mysql.connection.commit()
                     msg = 'Event Registered!\nYou have 24 hours to delete this event.'
@@ -100,9 +86,9 @@ def register_event_routes(app, mysql, login_required, roles_required):
     @login_required
     def get_events():
         """Get events based on user role and filters"""
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
             user_id = session['id']
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             # Get user permissions
             permissions = get_user_permissions(user_id)
@@ -132,7 +118,6 @@ def register_event_routes(app, mysql, login_required, roles_required):
                 active_season = cursor.fetchone()
                 if active_season:
                     season_id = active_season['season_id']
-                    print(f"   📅 No season specified, defaulting to active season: {season_id}")
 
             # Build base conditions
             conditions = []
@@ -186,7 +171,7 @@ def register_event_routes(app, mysql, login_required, roles_required):
             # Determine sort order (upcoming filters should sort ascending, others descending)
             is_upcoming_filter = event_filter in ['upcoming', 'upcoming14']
 
-            # Add visibility filtering - UPDATED TO INCLUDE GM CREATOR ACCESS
+            # Add visibility filtering
             visibility_clause = """
                 (
                     ge.schedule_id IS NULL
@@ -208,92 +193,35 @@ def register_event_routes(app, mysql, login_required, roles_required):
                 )
             """
 
-            # Handle "subscribed" filter - applies to all users
+            # Handle subscribed filter's extra join and condition
+            sort = 'ASC' if is_upcoming_filter else 'DESC'
+            subscription_join = ""
+            subscription_condition = ""
             if event_filter == 'subscribed':
-                query = f"""
-                    SELECT 
-                        ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
-                        ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
-                        ge.is_scheduled, ge.schedule_id, ge.created_at,
-                        s.season_name, s.is_active as season_is_active,
-                        t.teamName as team_name
-                    FROM generalevents ge
-                    LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
-                    LEFT JOIN seasons s ON ge.season_id = s.season_id
-                    LEFT JOIN teams t ON se.team_id = t.TeamID
-                    INNER JOIN event_subscriptions es ON ge.EventID = es.event_id
-                    WHERE {where_clause} AND es.user_id = %s
-                    AND {visibility_clause}
-                    ORDER BY ge.Date DESC, ge.StartTime DESC
-                """
+                subscription_join = "INNER JOIN event_subscriptions es ON ge.EventID = es.event_id"
+                subscription_condition = "AND es.user_id = %s"
                 params.append(user_id)
-                params.extend([user_id, user_id, user_id, user_id])  # For visibility clause
-                cursor.execute(query, tuple(params))
 
-            # Build query based on user role
-            elif is_admin or is_developer:
-                query = f"""
-                    SELECT 
-                        ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
-                        ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
-                        ge.is_scheduled, ge.schedule_id, ge.created_at,
-                        s.season_name, s.is_active as season_is_active,
-                        t.teamName as team_name
-                    FROM generalevents ge
-                    LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
-                    LEFT JOIN seasons s ON ge.season_id = s.season_id
-                    LEFT JOIN teams t ON se.team_id = t.TeamID
-                    WHERE {where_clause}
-                    AND {visibility_clause}
-                    ORDER BY ge.Date {'ASC' if is_upcoming_filter else 'DESC'}, 
-                             ge.StartTime {'ASC' if is_upcoming_filter else 'DESC'}
-                """
-                params.extend([user_id, user_id, user_id, user_id])  # For visibility clause
-                cursor.execute(query, tuple(params))
-
-            elif is_gm:
-                query = f"""
-                    SELECT 
-                        ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
-                        ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
-                        ge.is_scheduled, ge.schedule_id, ge.created_at,
-                        s.season_name, s.is_active as season_is_active,
-                        t.teamName as team_name
-                    FROM generalevents ge
-                    LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
-                    LEFT JOIN seasons s ON ge.season_id = s.season_id
-                    LEFT JOIN teams t ON se.team_id = t.TeamID
-                    WHERE {where_clause}
-                    AND {visibility_clause}
-                    ORDER BY ge.Date {'ASC' if is_upcoming_filter else 'DESC'}, 
-                             ge.StartTime {'ASC' if is_upcoming_filter else 'DESC'}
-                """
-                params.extend([user_id, user_id, user_id, user_id])  # For visibility clause
-                cursor.execute(query, tuple(params))
-
-            else:
-                # Regular users see ALL events (with visibility filtering)
-                query = f"""
-                    SELECT 
-                        ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
-                        ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
-                        ge.is_scheduled, ge.schedule_id, ge.created_at,
-                        s.season_name, s.is_active as season_is_active,
-                        t.teamName as team_name
-                    FROM generalevents ge
-                    LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
-                    LEFT JOIN seasons s ON ge.season_id = s.season_id
-                    LEFT JOIN teams t ON se.team_id = t.TeamID
-                    WHERE {where_clause}
-                    AND {visibility_clause}
-                    ORDER BY ge.Date {'ASC' if is_upcoming_filter else 'DESC'}, 
-                             ge.StartTime {'ASC' if is_upcoming_filter else 'DESC'}
-                """
-                params.extend([user_id, user_id, user_id, user_id])  # For visibility clause
-                cursor.execute(query, tuple(params))
-
+            query = f"""
+                SELECT 
+                    ge.EventID, ge.EventName, ge.Date, ge.StartTime, ge.EndTime,
+                    ge.EventType, ge.Game, ge.Location, ge.Description, ge.created_by,
+                    ge.is_scheduled, ge.schedule_id, ge.created_at,
+                    s.season_name, s.is_active as season_is_active,
+                    t.teamName as team_name
+                FROM generalevents ge
+                LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+                LEFT JOIN seasons s ON ge.season_id = s.season_id
+                LEFT JOIN teams t ON se.team_id = t.TeamID
+                {subscription_join}
+                WHERE {where_clause}
+                {subscription_condition}
+                AND {visibility_clause}
+                ORDER BY ge.Date {sort}, ge.StartTime {sort}
+            """
+            params.extend([user_id, user_id, user_id, user_id])  # For visibility clause
+            cursor.execute(query, tuple(params))
             events = cursor.fetchall()
-            cursor.close()
 
             # Process events
             events_list = []
@@ -309,6 +237,8 @@ def register_event_routes(app, mysql, login_required, roles_required):
                     'date_raw': event['Date'].strftime('%Y-%m-%d'),
                     'start_time': start_time_str,
                     'end_time': end_time_str,
+                    'start_time_raw': format_time_raw(event['StartTime']),
+                    'end_time_raw': format_time_raw(event['EndTime']),
                     'event_type': event['EventType'] or 'Event',
                     'game': event['Game'] or 'N/A',
                     'location': event['Location'] or 'TBD',
@@ -337,6 +267,8 @@ def register_event_routes(app, mysql, login_required, roles_required):
         except Exception as e:
             print(f"Error fetching events: {str(e)}")
             return jsonify({'success': False, 'message': 'Failed to fetch events'}), 500
+        finally:
+            cursor.close()
 
 
     @app.route('/api/event/<int:event_id>')
@@ -460,15 +392,7 @@ def register_event_routes(app, mysql, login_required, roles_required):
                 return jsonify({'success': False, 'message': 'Event not found'}), 404
 
             # Check permissions
-            if is_admin:
-                can_edit = True
-            elif is_developer:
-                can_edit = True
-            elif is_gm and event['created_by'] == user_id:
-                can_edit = True
-            else:
-                can_edit = False
-
+            can_edit = is_admin or is_developer or (is_gm and event['created_by'] == user_id)
             if not can_edit:
                 cursor.close()
                 return jsonify({'success': False, 'message': 'You do not have permission to edit this event'}), 403
@@ -481,25 +405,14 @@ def register_event_routes(app, mysql, login_required, roles_required):
             game_display = ', '.join(selected_games) if selected_games else None
 
             # Get primary game_id (first selected game)
-            primary_game_id = None
-            if selected_games:
-                first_game_title = selected_games[0]
-                cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (first_game_title,))
-                game_result = cursor.fetchone()
-                if game_result:
-                    primary_game_id = game_result['gameID']
-            league_id = data.get('league_id')
+            primary_game_id = get_primary_game_id(cursor, selected_games)
 
             # ============================================
             # RECALCULATE SEASON BASED ON NEW DATE
             # ============================================
             new_event_date = data['event_date']
+            league_id = data.get('league_id')
             season_id = get_season_for_event_date(cursor, new_event_date)
-
-            if season_id:
-                print(f"   Updated event date {new_event_date} assigned to season_id: {season_id}")
-            else:
-                print(f"   Updated event date {new_event_date} has no season assignment")
 
             # Update the event
             cursor.execute("""
@@ -528,15 +441,7 @@ def register_event_routes(app, mysql, login_required, roles_required):
 
             # Insert new game associations
             if selected_games:
-                for game_title in selected_games:
-                    cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (game_title,))
-                    game_result = cursor.fetchone()
-                    if game_result:
-                        game_id = game_result['gameID']
-                        cursor.execute(
-                            'INSERT IGNORE INTO event_games (event_id, game_id) VALUES (%s, %s)',
-                            (event_id, game_id)
-                        )
+                sync_event_games(cursor, event_id, selected_games)
 
             mysql.connection.commit()
             cursor.close()
@@ -551,7 +456,7 @@ def register_event_routes(app, mysql, login_required, roles_required):
 
     @app.route('/api/events/<int:event_id>', methods=['DELETE'])
     @login_required
-    def delete_event_from_tab(event_id):
+    def delete_event(event_id):
         """Delete an event with time-based permissions"""
         try:
             user_id = session['id']
@@ -637,100 +542,6 @@ def register_event_routes(app, mysql, login_required, roles_required):
             return jsonify({'success': False, 'message': 'Failed to delete event'}), 500
 
 
-    @app.route('/delete-event', methods=['POST'])
-    @login_required
-    def delete_event_modal():
-        """Delete an event from the modal view with time-based permissions"""
-        try:
-            user_id = session['id']
-            data = request.get_json()
-            event_id = data.get('event_id')
-
-            if not event_id:
-                return jsonify({'success': False, 'message': 'Event ID is required'}), 400
-
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-            permissions = get_user_permissions(user_id)
-            is_developer = permissions['is_developer']
-            is_admin = permissions['is_admin']
-
-            # Check deletion permissions
-            can_delete, reason = can_delete_event(cursor, event_id, user_id, is_developer, is_admin)
-
-            if not can_delete:
-                cursor.close()
-                return jsonify({'success': False, 'message': reason}), 403
-
-            # Get event details (including schedule_id)
-            cursor.execute("""
-                SELECT EventName, schedule_id 
-                FROM generalevents 
-                WHERE EventID = %s
-            """, (event_id,))
-            event = cursor.fetchone()
-
-            if not event:
-                cursor.close()
-                return jsonify({'success': False, 'message': 'Event not found'}), 404
-
-            event_name = event['EventName']
-            schedule_id = event.get('schedule_id')
-
-            # Delete the event
-            cursor.execute("DELETE FROM generalevents WHERE EventID = %s", (event_id,))
-            mysql.connection.commit()
-
-            # If event was from a schedule, check if schedule should be cleaned up
-            if schedule_id:
-                cursor.execute("""
-                    SELECT COUNT(*) as event_count
-                    FROM generalevents
-                    WHERE schedule_id = %s
-                """, (schedule_id,))
-
-                result = cursor.fetchone()
-                event_count = result['event_count'] if result else 0
-
-                # If no events remain, delete the schedule
-                if event_count == 0:
-                    cursor.execute("""
-                        SELECT event_name
-                        FROM scheduled_events
-                        WHERE schedule_id = %s
-                    """, (schedule_id,))
-
-                    schedule = cursor.fetchone()
-                    schedule_name = schedule['event_name'] if schedule else 'Unknown'
-
-                    cursor.execute("""
-                        DELETE FROM scheduled_events
-                        WHERE schedule_id = %s
-                    """, (schedule_id,))
-
-                    mysql.connection.commit()
-                    cursor.close()
-
-                    return jsonify({
-                        'success': True,
-                        'message': f'Event "{event_name}" deleted successfully.',
-                        'schedule_deleted': True,
-                        'schedule_name': schedule_name
-                    }), 200
-
-            cursor.close()
-            return jsonify({
-                'success': True,
-                'message': f'Event "{event_name}" deleted successfully',
-                'schedule_deleted': False
-            }), 200
-
-        except Exception as e:
-            print(f"Error deleting event from modal: {str(e)}")
-            mysql.connection.rollback()
-            return jsonify({'success': False, 'message': 'Failed to delete event'}), 500
-
-
     @app.route('/api/event/<int:event_id>/subscription-status')
     @login_required
     def subscription_status(event_id):
@@ -738,25 +549,28 @@ def register_event_routes(app, mysql, login_required, roles_required):
         user_id = session['id']
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # Check if user subscribed to this event
-        cursor.execute("""
-            SELECT * FROM event_subscriptions
-            WHERE user_id=%s AND event_id=%s
-        """, (user_id, event_id))
-        subscription = cursor.fetchone()
+        try:
+            # Check if user subscribed to this event
+            cursor.execute("""
+                SELECT * FROM event_subscriptions
+                WHERE user_id=%s AND event_id=%s
+            """, (user_id, event_id))
+            subscription = cursor.fetchone()
 
-        # Check global notification preference
-        cursor.execute("""
-            SELECT enable_notifications FROM notification_preferences
-            WHERE user_id=%s
-        """, (user_id,))
-        pref = cursor.fetchone()
-        cursor.close()
+            # Check global notification preference
+            cursor.execute("""
+                SELECT enable_notifications FROM notification_preferences
+                WHERE user_id=%s
+            """, (user_id,))
+            pref = cursor.fetchone()
 
-        return jsonify({
-            'subscribed': bool(subscription),
-            'notifications_enabled': pref['enable_notifications'] if pref else False
-        })
+            return jsonify({
+                'subscribed': bool(subscription),
+                'notifications_enabled': pref['enable_notifications'] if pref else False
+            })
+        finally:
+            cursor.close()
+
 
     @app.route('/api/event/<int:event_id>/toggle-subscription', methods=['POST'])
     @login_required
@@ -943,6 +757,25 @@ def get_season_for_event_date(cursor, event_date):
         print(f"  Error determining season for event date {event_date}: {str(e)}")
         return None
 
+def get_primary_game_id(cursor, selected_games):
+    """Return the gameID of the first game in the list, or None."""
+    if not selected_games:
+        return None
+    cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (selected_games[0],))
+    result = cursor.fetchone()
+    return result['gameID'] if result else None
+
+
+def sync_event_games(cursor, event_id, selected_games):
+    """Insert game associations for an event, looking up IDs by title."""
+    for game_title in selected_games:
+        cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (game_title,))
+        result = cursor.fetchone()
+        if result:
+            cursor.execute(
+                'INSERT IGNORE INTO event_games (event_id, game_id) VALUES (%s, %s)',
+                (event_id, result['gameID'])
+            )
 
 def can_delete_event(cursor, event_id, user_id, is_developer, is_admin):
     """

@@ -786,6 +786,63 @@ function capitalizeFirst(str) {
 }
 
 // ============================================
+// DAY MODAL (CALENDAR VIEW)
+// ============================================
+function openDayModal(date, dateTitle) {
+    const modal = document.getElementById('dayEventsModal');
+    const modalTitle = document.getElementById('modalDayTitle');
+    const modalBody = document.getElementById('modalEventsList');
+
+    modalTitle.textContent = dateTitle;
+    const events = EventState.eventsData[date] || [];
+
+    // Clear and populate modal body
+    modalBody.innerHTML = '';
+
+    if (events.length > 0) {
+        events.forEach(event => {
+            const eventItem = createDayModalEventItem(event);
+            modalBody.appendChild(eventItem);
+        });
+    } else {
+        modalBody.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No events scheduled for this day.</p>';
+    }
+
+    setElementDisplay(modal, 'block');
+    document.body.style.overflow = 'hidden';
+}
+
+// Create event item for day modal
+function createDayModalEventItem(event) {
+    const eventItem = document.createElement('div');
+    eventItem.className = 'modal-event-item';
+    eventItem.onclick = (e) => {
+        e.stopPropagation();
+        closeDayModal();
+        openEventModal(event.id);
+    };
+
+    let eventHTML = '';
+    if (event.time) {
+        eventHTML += `<div class="modal-event-time"><i class="fas fa-clock"></i> ${event.time}</div>`;
+    }
+    eventHTML += `<div class="modal-event-title">${event.title}</div>`;
+    if (event.description) {
+        eventHTML += `<div class="modal-event-description">${event.description}</div>`;
+    }
+
+    eventItem.innerHTML = eventHTML;
+    return eventItem;
+}
+
+// Close day modal
+function closeDayModal() {
+    const modal = document.getElementById('dayEventsModal');
+    setElementDisplay(modal, 'none');
+    document.body.style.overflow = 'auto';
+}
+
+// ============================================
 // EVENT SUBSCRIPTION FUNCTIONS
 // ============================================
 
@@ -869,6 +926,8 @@ function closeDayModal() { window.closeDayModal(); }
 function closeEventPopup() { window.closeEventPopup(); }
 
 window.openCalendarEventModal = openCalendarEventModal;
+window.openDayModal = openDayModal;
+window.closeDayModal = closeDayModal;
 
 if (typeof window.openEventModal !== 'function') {
     window.openEventModal = openCalendarEventModal;
