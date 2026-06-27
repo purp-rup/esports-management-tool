@@ -831,7 +831,7 @@ async function loadMyCommunities() {
     }
 }
 
-// Build a community card for the user's profile tab - UPDATED FOR NEW LAYOUT
+// Build a community card for the user's profile tab
 function createCommunityCard(community) {
     const card = document.createElement('div');
     card.className = 'community-card';
@@ -840,7 +840,7 @@ function createCommunityCard(community) {
         window.location.href = `/community/${community.id}`;
     };
 
-    // Community icon - just the image
+    // Community icon
     if (community.image_url) {
         card.innerHTML = `
             <div class="community-card-icon">
