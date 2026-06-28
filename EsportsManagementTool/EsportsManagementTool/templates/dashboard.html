@@ -470,7 +470,6 @@
         </div>
     </div>
 </div>
-<!--DISCLAIMER: BELOW CODE WAS GENERATED USING CLAUDE AI-->
 <!-- Edit Profile Modal -->
 <div id="editProfileModal" class="modal">
     <div class="modal-content">
@@ -585,7 +584,6 @@
         </form>
     </div>
 </div>
-<!--DISCLAIMER: ABOVE CODE WAS GENERATED USING CLAUDE AI-->
         </div>
 
     <!-- Communities Tab -->
@@ -1447,8 +1445,12 @@
                            placeholder="Search users..."
                            class="search-input"
                            oninput="filterUsers()">
-
-                    <ul class="user-items" id="userItems">
+                    <!-- User List Loading Spinner -->
+                    <div id="userListLoadingSpinner" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                        <p style="margin-top: 0.75rem; font-size: 0.9rem;">Loading users...</p>
+                    </div>
+                    <ul class="user-items" id="userItems" style="display: none;">
                         {% if user_list %}
                             {% for u in user_list %}
                                 <li class="user-item"
@@ -1474,7 +1476,10 @@
                                             {% endif %}
                                         </div>
                                         <div class="user-item-text">
-                                            <strong>{{ u.firstname }} {{ u.lastname }}</strong>
+                                            <strong>
+                                                {{ u.firstname }} {{ u.lastname }}
+                                                <span class="user-status-dot {{ 'online' if u.is_active else 'offline' }}"></span>
+                                            </strong>
                                             <p>@{{ u.username }} — {{ u.email }}</p>
                                             <div class="user-item-badges">
                                                 <!-- Role Badges -->
@@ -1482,7 +1487,7 @@
                                                 <span class="role-badge admin">Admin</span>
                                                 {% endif %}
                                                 {% if u.is_developer %}
-                                                <span class="role-badge developer">Dev</span>
+                                                <span class="role-badge dev">Dev</span>
                                                 {% endif %}
                                                 {% if u.is_gm %}
                                                 <span class="role-badge gm">GM</span>
@@ -1502,7 +1507,7 @@
                 <!-- Right column: user details (initially empty) -->
                 <div class="user-details" id="userDetailsPanel">
                     <h3>User Details</h3>
-                    <p>Select a user from the list to view details.</p>
+                    <p style="margin-top: 0.75rem;">Select a user from the list to view details.</p>
                 </div>
                 </div>
             </div>

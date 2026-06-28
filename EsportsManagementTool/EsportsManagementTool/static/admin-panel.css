@@ -217,6 +217,29 @@
 }
 
 /* --------------------------------------------
+   USER STATUS DOT
+   Inline dot indicator next to username in user list
+   -------------------------------------------- */
+.user-status-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-left: 4px;
+    vertical-align: middle;
+    position: relative;
+    top: -2px;
+}
+
+.user-status-dot.online {
+    background-color: #4CAF50;
+}
+
+.user-status-dot.offline {
+    background-color: #9e9e9e;
+}
+
+/* --------------------------------------------
    ROLE BADGES
    User role indicators (Admin, GM, Player)
    -------------------------------------------- */
@@ -264,39 +287,6 @@
 }
 
 /* --------------------------------------------
-   STATUS BADGES
-   User status indicators with animations
-   -------------------------------------------- */
-.status-badge {
-  display: inline-block;
-  align-items: center;
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.status-badge.active {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.status-badge.inactive {
-  background-color: #9e9e9e;
-  color: white;
-}
-
-.status-badge.suspended {
-  background: #ff4d4d20;
-  color: #ff4d4d;
-}
-
-/* Online indicator animation */
-.status-badge.active .fa-circle {
-  animation: blink 2s ease-in-out infinite;
-}
-
-/* --------------------------------------------
    USER DETAILS PANEL
    Right panel showing selected user info
    -------------------------------------------- */
@@ -306,13 +296,15 @@
   border-radius: 12px;
   padding: 1.5rem;
   width: 100%;
+  height: 640px;
+  overflow-y: auto;
 }
 
 /* Role action controls */
 .role-action-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   margin: 0.75rem 0 1rem 0;
 }
 
@@ -331,6 +323,30 @@
   border-color: var(--stockton-blue);
   background: var(--hover-bg);
   outline: none;
+}
+
+/* --------------------------------------------
+   USER DETAIL INFO GRID
+   Responsive label/value rows in details panel
+   -------------------------------------------- */
+.user-detail-info {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.6rem 1rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+    font-size: clamp(0.8rem, 1.1vw, 1rem);
+}
+
+.user-detail-label {
+    font-weight: 800;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.user-detail-value {
+    color: var(--text-primary);
+    word-break: break-word;
 }
 
 /* --------------------------------------------
@@ -394,6 +410,11 @@
   padding: 0.55rem 0.55rem;
   cursor: pointer;
   transition: background 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 0.75rem;
+  padding-top: 0.75rem;
 }
 
 .btn-go:hover {
@@ -606,15 +627,6 @@
   }
   50% {
     opacity: 0.8;
-  }
-}
-
-@keyframes blink {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
   }
 }
 

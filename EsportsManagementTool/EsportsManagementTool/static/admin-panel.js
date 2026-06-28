@@ -19,14 +19,17 @@ let selectedUserId = null;
  * Initialize the admin panel module
  * Sets up event listeners and refreshes user list badges
  */
-function initializeAdminPanel() {
+async function initializeAdminPanel() {
     console.log('Admin panel module initialized');
 
     // Attach all event listeners for admin functionality
     attachAdminEventListeners();
 
     // Refresh user list badges after GM mappings load
-    refreshUserListBadges();
+    await refreshUserListBadges();
+
+    // Shows all users once they are loaded into User Management
+    revealUserList();
 }
 
 /**
@@ -70,6 +73,7 @@ const debouncedUserSearch = debounce(async (searchQuery, userItemsContainer) => 
                 userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: var(--text-secondary);">No users found</li>';
             } else {
                 renderUserItems(data.users);
+                revealUserList();
             }
         } else {
             throw new Error(data.message);
@@ -77,6 +81,7 @@ const debouncedUserSearch = debounce(async (searchQuery, userItemsContainer) => 
     } catch (error) {
         console.error('Error searching users:', error);
         userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: #f44336;">Error loading users. Please try again.</li>';
+        revealUserList();
     }
 }, 300);
 
@@ -130,7 +135,10 @@ function renderUserItems(users) {
             <div class="user-item-inner">
                 <div class="user-item-avatar">${avatarHTML}</div>
                 <div class="user-item-text">
-                    <strong>${user.firstname} ${user.lastname}</strong>
+                    <strong>
+                        ${user.firstname} ${user.lastname}
+                        <span class="user-status-dot ${user.is_active ? 'online' : 'offline'}"></span>
+                    </strong>
                     <p>@${user.username} — ${user.email}</p>
                     <div class="user-item-badges">
                         ${badgesHTML}
@@ -146,6 +154,13 @@ function renderUserItems(users) {
 
         userItemsContainer.appendChild(li);
     });
+}
+
+function revealUserList() {
+    const spinner = document.getElementById('userListLoadingSpinner');
+    const userItems = document.getElementById('userItems');
+    if (spinner) spinner.style.display = 'none';
+    if (userItems) userItems.style.display = 'block';
 }
 
 // ============================================
@@ -219,7 +234,6 @@ async function handleUserItemClick(item) {
     const lastname = item.dataset.lastname;
     const email = item.dataset.email;
     const date = item.dataset.date;
-    const isActive = item.dataset.active === 'true';
     const lastSeen = item.dataset.lastSeen;
     const profilePicture = item.dataset.profilePicture || '';
 
@@ -243,8 +257,8 @@ async function handleUserItemClick(item) {
 
     const detailsPanel = document.getElementById('userDetailsPanel');
     detailsPanel.innerHTML = `
-        <h3>User Details</h3>
-        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;">
+        <h3><strong>User Details</strong></h3>
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;margin-top:1.25rem;">
             <div class="user-details-avatar">${detailsAvatarHTML}</div>
             <div>
                 <strong style="font-size:1.1rem;">${firstname} ${lastname}</strong>
@@ -252,19 +266,14 @@ async function handleUserItemClick(item) {
             </div>
         </div>
         <div class="user-detail-info">
-            <p><strong>Full Name:</strong> ${firstname} ${lastname}</p>
-            <p><strong>Username:</strong> @${username}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Date Registered:</strong> ${date}</p>
-            <p><strong>Status:</strong>
-                ${isActive ?
-                    '<span class="status-badge active"><i class="fas fa-circle" style="font-size: 0.5rem; margin-right: 0.25rem;"></i> Online</span>' :
-                    '<span class="status-badge inactive">Offline</span>'}
-            </p>
-            <p><strong>Active:</strong> ${lastSeen}</p>
-            <p><strong>Current Roles:</strong> ${roleBadges || '<span style="color: var(--text-secondary);">No roles assigned</span>'}</p>
+            <span class="user-detail-label">Full Name</span><span class="user-detail-value">${firstname} ${lastname}</span>
+            <span class="user-detail-label">Username</span><span class="user-detail-value">@${username}</span>
+            <span class="user-detail-label">Email</span><span class="user-detail-value">${email}</span>
+            <span class="user-detail-label">Date Registered</span><span class="user-detail-value">${date}</span>
+            <span class="user-detail-label">Last Active</span><span class="user-detail-value">${lastSeen}</span>
+            <span class="user-detail-label">Current Roles</span><span class="user-detail-value">${roleBadges || '<span style="color: var(--text-secondary);">No roles assigned</span>'}</span>
         </div>
-
+        <br>
         <div class="admin-actions">
             <label><strong>Role Management:</strong></label>
             <div class="role-action-row">
