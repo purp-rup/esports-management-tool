@@ -356,12 +356,13 @@
 .role-toggle::before {
     content: '';
     display: inline-block;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background: #9e9e9e;
     transition: background 0.2s;
     flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.75);
 }
 
 .role-toggle.active::before {
