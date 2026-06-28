@@ -702,10 +702,14 @@ def get_team_sidebar_filters():
 
         views.sort(key=lambda x: x['priority'])
 
+        # Always guarantee at least one view so the sidebar never infinite-loads
+        if not views:
+            views.append({'value': 'all', 'label': 'All Teams', 'priority': 1})
+
         return jsonify({
             'success': True,
             'views': views,
-            'has_multiple': len(views) > 0
+            'has_multiple': len(views) > 1
         })
 
     except Exception as e:

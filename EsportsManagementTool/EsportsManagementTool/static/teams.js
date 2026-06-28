@@ -85,55 +85,35 @@ async function loadTeamDetails(teamId) {
             }
 
             document.getElementById('teamDetailTitle').textContent = team.title;
-            document.getElementById('teamDetailGame').textContent = `Game: ${team.game_title || 'Unknown'}`;
+
+            // Keep hidden elements populated so existing JS that reads them still works
+            const gameEl = document.getElementById('teamDetailGame');
+            if (gameEl) gameEl.textContent = `Game: ${team.game_title || 'Unknown'}`;
 
             const divisionElement = document.getElementById('teamDetailDivision');
             if (divisionElement) {
                 if (team.division) {
                     divisionElement.textContent = `Division: ${team.division}`;
-                    divisionElement.style.display = 'block';
                 } else {
-                    divisionElement.style.display = 'none';
+                    divisionElement.textContent = '';
                 }
             }
 
-            // Display team leagues
-            await displayTeamLeaguesInSubheader(teamId);
-
-            // Display season information
+            // Display season information (hidden element kept for compat)
             const seasonElement = document.getElementById('teamDetailSeason');
             if (seasonElement) {
                 if (team.season_name) {
-                    const seasonStatus = team.season_is_active ?
-                        '<span style="color: #22c55e;">●</span>' :
-                        '<span style="color: #94a3b8;">●</span>';
-                    seasonElement.innerHTML = `${seasonStatus} Season: ${team.season_name}`;
-                    seasonElement.style.display = 'block';
+                    seasonElement.textContent = `Season: ${team.season_name}`;
                 } else {
                     seasonElement.textContent = 'Season: Not assigned';
-                    seasonElement.style.display = 'block';
                 }
             }
 
-            //Applies a collapsed team details state
-            const isCollapsed = getCollapsedTeamDetailsState();
-            const subheadersContainer = document.getElementById('teamDetailSubheaders');
-            const collapseBtn = document.getElementById('teamDetailCollapseBtn');
-            const icon = collapseBtn?.querySelector('i');
+            // Populate the info tooltip
+            populateTeamInfoTooltip(team);
 
-            if (subheadersContainer && isCollapsed) {
-                subheadersContainer.classList.add('collapsed');
-                if (icon) {
-                    icon.classList.remove('fa-chevron-up');
-                    icon.classList.add('fa-chevron-down');
-                }
-            } else if (subheadersContainer) {
-                subheadersContainer.classList.remove('collapsed');
-                if (icon) {
-                    icon.classList.remove('fa-chevron-down');
-                    icon.classList.add('fa-chevron-up');
-                }
-            }
+            // Display team leagues (also updates tooltip leagues row)
+            await displayTeamLeaguesInSubheader(teamId);
 
             const teamIconLarge = document.querySelector('.team-icon-large');
             if (teamIconLarge) {
@@ -210,7 +190,51 @@ async function loadTeamDetails(teamId) {
     }
 }
 
-// Display leagues in team details
+// ============================================
+// TEAM INFO TOOLTIP
+// ============================================
+
+function populateTeamInfoTooltip(team) {
+    // Game row — always shown
+    const tooltipGameValue = document.getElementById('tooltipGameValue');
+    if (tooltipGameValue) {
+        tooltipGameValue.textContent = team.game_title || '—';
+    }
+
+    // Division row — only shown when present
+    const tooltipDivision = document.getElementById('tooltipDivision');
+    const tooltipDivisionValue = document.getElementById('tooltipDivisionValue');
+    if (tooltipDivision && tooltipDivisionValue) {
+        if (team.division) {
+            tooltipDivisionValue.textContent = team.division;
+            tooltipDivision.style.display = 'flex';
+        } else {
+            tooltipDivision.style.display = 'none';
+        }
+    }
+
+    // Season row — only shown when present
+    const tooltipSeason = document.getElementById('tooltipSeason');
+    const tooltipSeasonValue = document.getElementById('tooltipSeasonValue');
+    if (tooltipSeason && tooltipSeasonValue) {
+        if (team.season_name) {
+            const isActive = team.season_is_active === 1;
+            tooltipSeasonValue.innerHTML =
+                `<span class="tooltip-season-dot ${isActive ? 'active' : 'inactive'}"></span>${team.season_name}`;
+            tooltipSeason.style.display = 'flex';
+        } else {
+            tooltipSeason.style.display = 'none';
+        }
+    }
+
+    // Reset leagues row until the async fetch completes
+    const tooltipLeagues = document.getElementById('tooltipLeagues');
+    if (tooltipLeagues) {
+        tooltipLeagues.style.display = 'none';
+    }
+}
+
+// Display leagues — updates both the hidden compat element and the tooltip
 async function displayTeamLeaguesInSubheader(teamId) {
     try {
         const response = await fetch(`/api/teams/${teamId}/leagues`);
@@ -223,8 +247,12 @@ async function displayTeamLeaguesInSubheader(teamId) {
             return;
         }
 
+        // Tooltip league row elements
+        const tooltipLeagues = document.getElementById('tooltipLeagues');
+        const tooltipLeaguesValue = document.getElementById('tooltipLeaguesValue');
+
         if (data.success && data.leagues && data.leagues.length > 0) {
-            // Build leagues HTML with logos and links
+            // Build leagues HTML for the hidden compat element
             const leaguesHTML = data.leagues.map(league => {
                 const logoHTML = league.logo
                     ? `<img src="${league.logo}" alt="${league.name}" class="team-league-logo">`
@@ -232,7 +260,6 @@ async function displayTeamLeaguesInSubheader(teamId) {
 
                 const content = `${logoHTML}<span class="team-league-name">${league.name}</span>`;
 
-                // If there's a website URL, make it a link
                 if (league.website_url) {
                     return `
                         <a href="${league.website_url}"
@@ -250,55 +277,22 @@ async function displayTeamLeaguesInSubheader(teamId) {
             }).join('');
 
             leaguesElement.innerHTML = `League(s): ${leaguesHTML}`;
-            leaguesElement.style.display = 'block';
+
+            // Populate tooltip with plain league names (comma-separated)
+            if (tooltipLeagues && tooltipLeaguesValue) {
+                tooltipLeaguesValue.textContent = data.leagues.map(l => l.name).join(', ');
+                tooltipLeagues.style.display = 'flex';
+            }
         } else {
             leaguesElement.style.display = 'none';
+            if (tooltipLeagues) tooltipLeagues.style.display = 'none';
         }
     } catch (error) {
         console.error('Error loading team leagues:', error);
         const leaguesElement = document.getElementById('teamDetailLeagues');
-        if (leaguesElement) {
-            leaguesElement.style.display = 'none';
-        }
-    }
-}
-
-// Storage key for collapsed team details
-const COLLAPSED_TEAM_DETAILS_KEY = 'teams_collapsed_details';
-
-// Get collapsed team details state
-function getCollapsedTeamDetailsState() {
-    const stored = sessionStorage.getItem(COLLAPSED_TEAM_DETAILS_KEY);
-    return stored === 'true';
-}
-
-// Save collapsed team details state
-function saveCollapsedTeamDetailsState(isCollapsed) {
-    sessionStorage.setItem(COLLAPSED_TEAM_DETAILS_KEY, isCollapsed.toString());
-}
-
-// Toggle team detail collapse
-function toggleTeamDetailCollapse() {
-    const detailsContainer = document.getElementById('teamDetailSubheaders');
-    const toggleBtn = document.getElementById('teamDetailCollapseBtn');
-    const icon = toggleBtn?.querySelector('i');
-
-    if (!detailsContainer || !toggleBtn || !icon) return;
-
-    const isCollapsed = detailsContainer.classList.contains('collapsed');
-
-    if (isCollapsed) {
-        // Expand
-        detailsContainer.classList.remove('collapsed');
-        icon.classList.remove('fa-chevron-down');
-        icon.classList.add('fa-chevron-up');
-        saveCollapsedTeamDetailsState(false);
-    } else {
-        // Collapse
-        detailsContainer.classList.add('collapsed');
-        icon.classList.remove('fa-chevron-up');
-        icon.classList.add('fa-chevron-down');
-        saveCollapsedTeamDetailsState(true);
+        if (leaguesElement) leaguesElement.style.display = 'none';
+        const tooltipLeagues = document.getElementById('tooltipLeagues');
+        if (tooltipLeagues) tooltipLeagues.style.display = 'none';
     }
 }
 
@@ -353,16 +347,18 @@ async function loadNextScheduledEvent(teamId, gameId) {
                         <h4>Next Scheduled Event</h4>
                     </div>
                     <div class="next-event-content">
-                        <div class="next-event-time">
-                            ${event.is_all_day ?
-                                '<i class="fas fa-calendar"></i> All Day' :
-                                `<i class="fas fa-clock"></i> ${event.start_time}`
-                            }
+                        <div class="next-event-meta">
+                            <span class="next-event-time">
+                                ${event.is_all_day ?
+                                    '<i class="fas fa-calendar"></i> All Day' :
+                                    `<i class="fas fa-clock"></i> ${event.start_time}`
+                                }
+                            </span>
+                            <span class="next-event-date">
+                                <i class="fas fa-calendar-day"></i> ${event.date}
+                            </span>
                         </div>
                         <div class="next-event-title">${event.name}</div>
-                        <div class="next-event-date">
-                            <i class="fas fa-calendar-day"></i> ${event.date}
-                        </div>
                         <span class="next-event-type ${event.event_type.toLowerCase()}">${event.event_type}</span>
                     </div>
                 </div>
@@ -1174,7 +1170,7 @@ function formatTimeRemaining(days, hours) {
 // ============================================
 window.selectTeam = selectTeam;
 window.confirmDeleteSelectedTeam = confirmDeleteSelectedTeam;
-window.toggleTeamDetailCollapse = toggleTeamDetailCollapse;
+window.populateTeamInfoTooltip = populateTeamInfoTooltip;
 
 //Modals
 window.openAddTeamMembersModal = openAddTeamMembersModal;

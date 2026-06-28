@@ -914,7 +914,7 @@
                         <button id="createTeamSidebarBtn"
                                 class="btn btn-primary btn-create-team-sidebar"
                                 onclick="openCreateTeam()">
-                            <i class="fas fa-plus"></i> Create Team
+                            <i class="fas fa-plus"></i>
                         </button>
                         {% endif %}
                     </div>
@@ -965,25 +965,41 @@
                                 <i class="fas fa-shield-alt"></i>
                             </div>
                             <div class="team-header-info">
-                                <h1 id="teamDetailTitle">Team Name</h1>
-
-                                <!-- Button outside the collapsible container -->
-                                <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
-                                    <button id="teamDetailCollapseBtn"
-                                            class="team-detail-collapse-btn"
-                                            onclick="toggleTeamDetailCollapse()"
-                                            title="Toggle details">
-                                        <i class="fas fa-chevron-up"></i>
-                                    </button>
-
-                                    <!-- Wrap subheaders in collapsible container -->
-                                    <div id="teamDetailSubheaders" class="team-detail-subheaders">
-                                        <p id="teamDetailGame" style="margin: 0;">Game: Mario Kart</p>
-                                        <p id="teamDetailDivision" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
-                                        <p id="teamDetailLeagues" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
-                                         <p id="teamDetailSeason" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
+                                <!-- Title row: team name (left) + info icon (right) -->
+                                <div class="team-title-row">
+                                    <h1 id="teamDetailTitle">Team Name</h1>
+                                    <!-- Info icon with hover tooltip -->
+                                    <div class="team-info-icon-wrapper">
+                                        <i class="fas fa-info-circle team-info-icon" id="teamInfoIcon"></i>
+                                        <div class="team-info-tooltip" id="teamInfoTooltip">
+                                            <!-- Game — always shown -->
+                                            <div class="team-info-tooltip-row" id="tooltipGame">
+                                                <span class="team-info-tooltip-label">Game</span>
+                                                <span class="team-info-tooltip-value" id="tooltipGameValue">—</span>
+                                            </div>
+                                            <!-- Division — shown only when present -->
+                                            <div class="team-info-tooltip-row" id="tooltipDivision" style="display: none;">
+                                                <span class="team-info-tooltip-label">Division</span>
+                                                <span class="team-info-tooltip-value" id="tooltipDivisionValue">—</span>
+                                            </div>
+                                            <!-- League(s) — shown only when present -->
+                                            <div class="team-info-tooltip-row" id="tooltipLeagues" style="display: none;">
+                                                <span class="team-info-tooltip-label">League(s)</span>
+                                                <span class="team-info-tooltip-value" id="tooltipLeaguesValue">—</span>
+                                            </div>
+                                            <!-- Season — shown only when present -->
+                                            <div class="team-info-tooltip-row" id="tooltipSeason" style="display: none;">
+                                                <span class="team-info-tooltip-label">Season</span>
+                                                <span class="team-info-tooltip-value" id="tooltipSeasonValue">—</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
+                                <!-- Hidden compat elements — JS still writes to these; they stay hidden -->
+                                <p id="teamDetailGame" style="display: none;"></p>
+                                <p id="teamDetailDivision" style="display: none;"></p>
+                                <p id="teamDetailLeagues" style="display: none;"></p>
+                                <p id="teamDetailSeason" style="display: none;"></p>
                             </div>
                         </div>
 
