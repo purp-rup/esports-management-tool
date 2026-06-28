@@ -277,10 +277,10 @@ async function handleUserItemClick(item) {
         <div class="admin-actions">
             <label><strong>Role Management:</strong></label>
             <div class="role-action-row">
-                <select id="roleActionSelect" class="styled-dropdown">
-                    <option value="assign">Assign</option>
-                    <option value="remove">Remove</option>
-                </select>
+                <div class="role-toggle-group">
+                    <button id="roleToggleAssign" class="role-toggle active" data-action="assign" title="Assign">Assign</button>
+                    <button id="roleToggleRemove" class="role-toggle" data-action="remove" title="Unassign">Unassign</button>
+                </div>
 
                 <select id="roleTypeSelect" class="styled-dropdown">
                     <option value="Game Manager">Game Manager</option>
@@ -318,6 +318,15 @@ async function handleUserItemClick(item) {
         });
     }
 
+    // Toggle button logic for Assign/Unassign
+    const toggleBtns = detailsPanel.querySelectorAll('.role-toggle');
+    toggleBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            toggleBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
     // Update with suspension info if suspensions module is loaded
     if (typeof updateUserDetailsWithSuspension === 'function') {
         await updateUserDetailsWithSuspension(userid);
@@ -331,16 +340,16 @@ async function handleUserItemClick(item) {
 // Add or remove a role from a user (Admin or GM)
 async function handleRoleChange(username) {
     // Get form elements
-    const actionSelect = document.getElementById('roleActionSelect');
+    const activeToggle = document.querySelector('.role-toggle.active');
     const roleSelect = document.getElementById('roleTypeSelect');
     const goBtn = document.getElementById('roleGoBtn');
     const statusMessage = document.getElementById('roleStatusMessage');
 
     // Validate elements exist
-    if (!actionSelect || !roleSelect) return;
+    if (!activeToggle || !roleSelect) return;
 
     // Get selected action and role
-    const action = actionSelect.value;  // 'assign' or 'remove'
+    const action = activeToggle.dataset.action;  // 'assign' or 'remove'
     const role = roleSelect.value;      // 'Admin' or 'Game Manager'
 
     // Disable button during request to prevent duplicate submissions

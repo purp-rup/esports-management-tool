@@ -326,6 +326,49 @@
 }
 
 /* --------------------------------------------
+   ROLE ACTION TOGGLE BUTTONS
+   Assign / Unassign toggle in user details panel
+   -------------------------------------------- */
+.role-toggle-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.role-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    padding: 0.25rem 0.1rem;
+    transition: opacity 0.2s;
+}
+
+.role-toggle:hover {
+    opacity: 0.8;
+}
+
+/* The colored dot */
+.role-toggle::before {
+    content: '';
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #9e9e9e;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.role-toggle.active::before {
+    background: #4CAF50;
+}
+
+/* --------------------------------------------
    USER DETAIL INFO GRID
    Responsive label/value rows in details panel
    -------------------------------------------- */
