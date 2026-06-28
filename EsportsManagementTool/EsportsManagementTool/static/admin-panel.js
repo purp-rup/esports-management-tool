@@ -105,6 +105,7 @@ function renderUserItems(users) {
         li.setAttribute('data-is-gm', user.is_gm ? '1' : '0');
         li.setAttribute('data-is-player', user.is_player ? '1' : '0');
         li.setAttribute('data-is-developer', user.is_developer ? '1' : '0');
+        li.setAttribute('data-profile-picture', user.profile_picture || '');
 
         // Build role badges
         const roles = [];
@@ -120,12 +121,20 @@ function renderUserItems(users) {
         });
 
         // Build user item HTML
+        const initials = `${user.firstname[0]|upper}${user.lastname[0]|upper}`;
+        const avatarHTML = user.profile_picture
+            ? `<img src="${user.profile_picture}" alt="${initials}">`
+            : initials;
+
         li.innerHTML = `
-            <div>
-                <strong>${user.firstname} ${user.lastname}</strong>
-                <p>@${user.username} — ${user.email}</p>
-                <div style="margin-top: 0.25rem; display: flex; gap: 0.5rem; align-items: center;">
-                    ${badgesHTML}
+            <div class="user-item-inner">
+                <div class="user-item-avatar">${avatarHTML}</div>
+                <div class="user-item-text">
+                    <strong>${user.firstname} ${user.lastname}</strong>
+                    <p>@${user.username} — ${user.email}</p>
+                    <div class="user-item-badges">
+                        ${badgesHTML}
+                    </div>
                 </div>
             </div>
         `;
@@ -186,7 +195,7 @@ async function refreshUserListBadges() {
         const badgesHTML = buildBadgesFromUserItem(item);
 
         // Find the badge container in this user item (identified by inline style)
-        const badgeContainer = item.querySelector('[style*="margin-top: 0.25rem"]');
+        const badgeContainer = item.querySelector('.user-item-badges');
         if (badgeContainer) {
             badgeContainer.innerHTML = badgesHTML;
         }
@@ -212,6 +221,7 @@ async function handleUserItemClick(item) {
     const date = item.dataset.date;
     const isActive = item.dataset.active === 'true';
     const lastSeen = item.dataset.lastSeen;
+    const profilePicture = item.dataset.profilePicture || '';
 
     // Store selected user ID for reference by other functions
     selectedUserId = userid;
@@ -225,9 +235,22 @@ async function handleUserItemClick(item) {
     const roleBadges = buildBadgesFromUserItem(item);
 
     // Build and inject the user details panel HTML
+    const detailsInitials = `${firstname[0].toUpperCase()}${lastname[0].toUpperCase()}`;
+    const detailsAvatarHTML = profilePicture
+        ? `<img src="${profilePicture}" alt="${detailsInitials}"
+           style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+        : detailsInitials;
+
     const detailsPanel = document.getElementById('userDetailsPanel');
     detailsPanel.innerHTML = `
         <h3>User Details</h3>
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;">
+            <div class="user-details-avatar">${detailsAvatarHTML}</div>
+            <div>
+                <strong style="font-size:1.1rem;">${firstname} ${lastname}</strong>
+                <p style="margin:0;color:var(--text-secondary);">@${username}</p>
+            </div>
+        </div>
         <div class="user-detail-info">
             <p><strong>Full Name:</strong> ${firstname} ${lastname}</p>
             <p><strong>Username:</strong> @${username}</p>
