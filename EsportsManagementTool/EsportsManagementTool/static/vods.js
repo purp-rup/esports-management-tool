@@ -515,7 +515,7 @@ function displayVodComments(comments) {
         }
 
         const profilePic = comment.profile_picture
-            ? `<img src="/static/uploads/avatars/${comment.profile_picture}" alt="${comment.firstname}">`
+            ? `<img src="${comment.profile_picture}" alt="${comment.firstname}">`
             : `<div class="comment-avatar-initials">${comment.firstname[0]}${comment.lastname[0]}</div>`;
 
         commentDiv.innerHTML = `
