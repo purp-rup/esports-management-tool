@@ -162,8 +162,8 @@
 <!-- PROFILE TAB  -->
 
 <div id="profile" class="tab-content {% if preferred_tab == 'profile' %}active{% endif %}">
-    <!-- Main Profile Layout: 50/50 Split -->
     <div class="profile-main-layout">
+
         <!-- LEFT: Profile Card -->
         <div class="profile-card-column">
             <div class="content-card">
@@ -179,50 +179,71 @@
                 </div>
 
                 <div class="profile-card-content">
-            <div class="profile-header-row">
-                <!-- Avatar small, left side -->
-                <div class="avatar-container" onclick="openAvatarModal()" style="cursor: pointer; position: relative; flex-shrink: 0;">
-                    {% if user.profile_picture %}
-                        <img src="{{ user.profile_picture }}" alt="Profile Picture" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
-                    {% else %}
-                        {{ user.firstname[0] }}{{ user.lastname[0] }}
-                    {% endif %}
-                    <div class="avatar-edit-overlay">
-                        <i class="fas fa-edit"></i>
+                    <div class="profile-header-row">
+                        <div class="avatar-container" onclick="openAvatarModal()" style="cursor: pointer; position: relative; flex-shrink: 0;">
+                            {% if user.profile_picture %}
+                                <img src="{{ user.profile_picture }}" alt="Profile Picture" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                            {% else %}
+                                {{ user.firstname[0] }}{{ user.lastname[0] }}
+                            {% endif %}
+                            <div class="avatar-edit-overlay">
+                                <i class="fas fa-edit"></i>
+                            </div>
+                        </div>
+
+                        <div class="profile-info-section">
+                            <div class="info-item">
+                                <div class="info-label">Full Name</div>
+                                <div class="info-value">{{ user.firstname }} {{ user.lastname }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Username</div>
+                                <div class="info-value">{{ user.username }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Email</div>
+                                <div class="info-value">{{ user.email }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Account Status</div>
+                                <div class="info-value">
+                                    {% if is_verified %}
+                                        <span style="color: var(--stockton-blue);">✓ Verified</span>
+                                    {% else %}
+                                        <span style="color: var(--stockton-yellow);">⚠ Pending Verification</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Member Since</div>
+                                <div class="info-value">{{ user.date.strftime('%B %d, %Y') }}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Info beside avatar -->
-                <div class="profile-info-section">
-                    <div class="info-item">
-                        <div class="info-label">Full Name</div>
-                        <div class="info-value">{{ user.firstname }} {{ user.lastname }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Username</div>
-                        <div class="info-value">{{ user.username }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Email</div>
-                        <div class="info-value">{{ user.email }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Account Status</div>
-                        <div class="info-value">
-                            {% if is_verified %}
-                                <span style="color: var(--stockton-blue);">✓ Verified</span>
-                            {% else %}
-                                <span style="color: var(--stockton-yellow);">⚠ Pending Verification</span>
+                <div style="padding-top: 2rem; border-top: 1px solid var(--border-color); margin-top: 2rem;">
+                    <h3 style="font-size: 1.5rem; font-weight: 600; margin: 0 0 0.75rem 0;">Preferred Tab</h3>
+                    <div class="event-filter-dropdown">
+                        <label for="preferredTabSelect">Default Tab:</label>
+                        <select id="preferredTabSelect" name="preferred_tab">
+                            <option value="calendar" {% if preferred_tab == 'calendar' %}selected{% endif %}>Calendar</option>
+                            <option value="profile" {% if preferred_tab == 'profile' %}selected{% endif %}>Profile</option>
+                            <option value="rosters" {% if preferred_tab == 'rosters' %}selected{% endif %}>Communities</option>
+                            <option value="events" {% if preferred_tab == 'events' %}selected{% endif %}>Events</option>
+                            <option value="teams" {% if preferred_tab == 'teams' %}selected{% endif %}>Teams</option>
+                            {% if user.is_admin or user.is_developer %}
+                            <option value="admin" {% if preferred_tab == 'admin' %}selected{% endif %}>Admin</option>
                             {% endif %}
-                        </div>
+                        </select>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Member Since</div>
-                        <div class="info-value">{{ user.date.strftime('%B %d, %Y') }}</div>
+                    <div style="margin-top: 2.1rem;">
+                        <button type="button" id="savePreferredTabBtn" class="btn btn-primary btn-sm">
+                            <span id="savePreferredTabBtnText">Save</span>
+                            <i id="savePreferredTabBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                        </button>
                     </div>
                 </div>
-            </div>
-        </div>
             </div>
         </div>
 
@@ -405,34 +426,6 @@
                 </button>
             </div>
         </form>
-    </div>
-
-    <!-- Preferred Tab Setting -->
-    <div class="content-card" style="margin-top: 2rem;">
-        <div class="card-header">
-            <h2>Preferred Tab</h2>
-            <p>Choose which tab opens first</p>
-        </div>
-
-        <div class="event-filter-dropdown">
-            <label for="preferredTabSelect">Default Tab:</label>
-            <select id="preferredTabSelect" name="preferred_tab">
-                <option value="calendar" {% if preferred_tab == 'calendar' %}selected{% endif %}>Calendar</option>
-                <option value="profile" {% if preferred_tab == 'profile' %}selected{% endif %}>Profile</option>
-                <option value="rosters" {% if preferred_tab == 'rosters' %}selected{% endif %}>Communities</option>
-                <option value="events" {% if preferred_tab == 'events' %}selected{% endif %}>Events</option>
-                <option value="teams" {% if preferred_tab == 'teams' %}selected{% endif %}>Teams</option>
-                {% if user.is_admin or user.is_developer %}
-                <option value="admin" {% if preferred_tab == 'admin' %}selected{% endif %}>Admin</option>
-                {% endif %}
-            </select>
-        </div>
-        <div class="profile-actions" style="margin-top: 1rem;">
-            <button type="button" id="savePreferredTabBtn" class="btn btn-primary">
-                <span id="savePreferredTabBtnText">Save Preferred Tab</span>
-                <i id="savePreferredTabBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
-            </button>
-        </div>
     </div>
 </div>
 
