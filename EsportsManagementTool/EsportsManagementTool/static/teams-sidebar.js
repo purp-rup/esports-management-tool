@@ -122,10 +122,16 @@ async function initializeViewSwitcher() {
             initializeDivisionFilter();
             initializePastSeasonFilter();
         } else {
+            // Mark as initialised (even if empty) so loadTeams does not loop
+            window.availableViews = ['__none__'];
+            window.currentView = window.currentView || 'all';
             hideViewSwitcher();
         }
     } catch (error) {
         console.error('Error initializing view switcher:', error);
+        // Mark as initialised so loadTeams does not loop on repeated calls
+        window.availableViews = ['__none__'];
+        window.currentView = window.currentView || 'all';
         hideViewSwitcher();
     }
 }
@@ -225,8 +231,20 @@ async function loadTeams() {
     const sidebarList = document.getElementById('teamsSidebarList');
     const sidebarEmpty = document.getElementById('teamsSidebarEmpty');
 
+    // Initialise view switcher if not yet done (sentinel '__none__' means already tried)
     if (window.availableViews.length === 0) {
         await initializeViewSwitcher();
+    }
+
+    // Bail out if currentView is still null (init failed and no fallback possible)
+    if (!window.currentView) {
+        console.error('loadTeams: currentView is null after initializeViewSwitcher, aborting');
+        if (sidebarLoading) sidebarLoading.style.display = 'none';
+        if (sidebarEmpty) {
+            sidebarEmpty.innerHTML = '<i class="fas fa-exclamation-triangle"></i><p>Could not load teams. Please refresh.</p>';
+            sidebarEmpty.style.display = 'block';
+        }
+        return;
     }
 
     const selectedDivision = window.currentView === 'division' ? getSelectedDivisionFilter() : null;
@@ -601,7 +619,7 @@ function createTeamTreeItem(team) {
         const editBtn = document.createElement('button');
         editBtn.className = 'team-tree-edit-btn';
         editBtn.title = 'Edit team';
-        editBtn.innerHTML = '<i class="fas fa-pencil-alt"></i>';
+        editBtn.innerHTML = '<i class="fas fa-edit"></i>';
         editBtn.addEventListener('click', e => {
             e.stopPropagation();
             openEditTeamModal(
@@ -1022,6 +1040,10 @@ function closeGamePickerModal() {
     }
 }
 
+// ============================================
+// Wraps the global selectTeam (defined in teams.js) so the sidebar
+// active highlight always reflects the currently selected team.
+// ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
     // Wait one tick to ensure teams.js has already defined selectTeam
