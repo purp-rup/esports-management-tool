@@ -1,185 +1,11 @@
 /* ============================================
-   EVENTS RELATED STYLES
+   EVENTS TAB STYLES
    - Event cards
-   - Event pills and colors
+   - Event Type Colors
    - Event tab structure
-   - Calendar pills
+   - Filter structure
+   - Mobile View
    ============================================ */
-
-/* ============================================
-   FILTER BOXES
-   ============================================ */
-.event-header-controls {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.75rem;
-    flex-shrink: 0;
-    justify-content: flex-end;
-}
-
-.event-filters-container {
-    display: flex;
-    flex-shrink: 0;
-    gap: 0.2rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.filter-box {
-    position: relative;
-}
-
-.filter-box-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.45rem 0.875rem;
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-}
-
-.filter-box-btn:hover,
-.filter-box-btn.active {
-    border-color: var(--stockton-blue);
-    background: var(--hover-bg);
-}
-
-.filter-box-btn i {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-    transition: transform 0.2s;
-}
-
-.filter-box-btn.active i {
-    transform: rotate(180deg);
-}
-
-.filter-box-panel {
-    display: none;
-    position: absolute;
-    top: calc(100% + 0.4rem);
-    left: 0;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 0.375rem;
-    min-width: 180px;
-    z-index: 200;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-}
-
-.filter-box-panel.open {
-    display: block;
-}
-
-.filter-box-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    color: var(--text-primary);
-    cursor: pointer;
-    position: relative;
-    transition: background 0.15s;
-    white-space: nowrap;
-}
-
-.filter-box-item:hover {
-    background: var(--hover-bg);
-}
-
-.filter-box-item i {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-}
-
-/* Flyout submenu */
-.filter-box-item--flyout .filter-box-flyout {
-    display: none;
-    position: absolute;
-    top: -0.375rem;
-    left: calc(100% + 0.375rem);
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 0.375rem;
-    min-width: 160px;
-    z-index: 201;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-    max-height: 210px;
-    overflow-y: auto;
-}
-
-/* Transparent bridge fills the gap between item and flyout so
-   the mouse doesn't leave the hover zone while crossing */
-.filter-box-item--flyout::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 100%;
-    width: 0.75rem;
-    height: 100%;
-    background: transparent;
-}
-
-/* Bridge for left side popout */
-.filter-box-item--flyout::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 100%;
-    width: 0.75rem;
-    height: 100%;
-    background: transparent;
-}
-
-.filter-box-item--flyout:hover .filter-box-flyout {
-    display: block;
-}
-
-.filter-box-item--flyout .filter-box-flyout.flyout-left {
-    left: auto;
-    right: calc(100% + 0.375rem);
-}
-
-.filter-box-flyout-item {
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: background 0.15s;
-    white-space: nowrap;
-}
-
-.filter-box-flyout-item:hover {
-    background: var(--hover-bg);
-}
-
-.filter-box-flyout-loading {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-}
-
-/* Create Event Button */
-.event-header-controls > .btn-primary {
-    flex-shrink: 0;
-    white-space: nowrap;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    position: static;
-}
 
 /* ==============================
    Events Tab Layout
@@ -204,6 +30,15 @@
     min-height: 480px;
     border-left: 1px solid var(--border-color);
     padding-left: 2rem;
+}
+
+/* Create Event Button */
+.event-header-controls > .btn-primary {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    position: static;
 }
 
 /* ===================================
@@ -517,87 +352,10 @@ textarea.panel-edit-input {
     z-index: 10;
 }
 
-/* Delete button - icon only, revealed on card hover */
-.event-card-delete-btn {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: #ef4444;
-    font-size: 0.6875rem;
-    opacity: 0;
-    transition: opacity 0.2s, background 0.2s, border-color 0.2s;
-    cursor: pointer;
-}
-
-.event-card:hover .event-card-delete-btn {
-    opacity: 1;
-}
-
-.event-card-delete-btn:hover {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: #ef4444;
-}
-
 /* ============================================
-   DELETION TIME INDICATORS
+   Event Type Colors
    ============================================ */
-.deletion-time-remaining {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.75rem;
-    color: #fbbf24;
-    margin-left: 0.25rem;
-    padding: 0.125rem 0.375rem;
-    background: rgba(251, 191, 36, 0.1);
-    border-radius: 4px;
-    white-space: nowrap;
-}
-
-.deletion-time-remaining i {
-    font-size: 0.625rem;
-}
-
-.btn-delete span {
-    font-size: 0.75rem;
-    opacity: 0.9;
-}
-
-.delete-confirmation-time-warning {
-    margin-top: 1rem;
-    padding: 0.75rem;
-    background: rgba(251, 191, 36, 0.1);
-    border: 1px solid #fbbf24;
-    border-radius: 6px;
-    font-size: 0.875rem;
-}
-
-.delete-confirmation-time-warning i {
-    color: #fbbf24;
-    margin-right: 0.5rem;
-}
-
-.delete-confirmation-time-warning strong {
-    color: #fbbf24;
-}
-
-/* Icon button adjustments for time display */
-.btn-icon-delete span {
-    font-size: 0.7rem;
-    margin-left: 0.25rem;
-}
-
-/* ============================================
-   Event Card Type Color Accent
-   ============================================ */
+/* Event card accent */
 .event-card[data-event-type="tournament"],
 .event-card.tournament {
     border-left-color: var(--event-tournament);
@@ -623,9 +381,7 @@ textarea.panel-edit-input {
     border-left-color: var(--event-misc);
 }
 
-/* ===============================================
-   Event Card Hover Borders
-   =============================================== */
+/* Event Card Hover Border */
 .event-card[data-event-type="tournament"]:hover,
 .event-card.tournament:hover {
     border-color: var(--event-tournament);
@@ -662,43 +418,27 @@ textarea.panel-edit-input {
     box-shadow: 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
-/* ==============================================
-   Event Details Modal Colors
-   ============================================== */
-#eventDetailsModal {
-    z-index: 10002;
-}
-
-.modal-content[data-event-type="tournament"] .event-detail-icon,
-#eventDetailsModal[data-event-type="tournament"] .event-detail-icon,
+/* Event Detail Panel Icons */
 .events-detail-panel[data-event-type="tournament"] .event-detail-icon {
     background: var(--event-tournament-light);
     color: var(--event-tournament);
 }
 
-.modal-content[data-event-type="match"] .event-detail-icon,
-#eventDetailsModal[data-event-type="match"] .event-detail-icon,
 .events-detail-panel[data-event-type="match"] .event-detail-icon {
     background: var(--event-match-light);
     color: var(--event-match);
 }
 
-.modal-content[data-event-type="practice"] .event-detail-icon,
-#eventDetailsModal[data-event-type="practice"] .event-detail-icon,
 .events-detail-panel[data-event-type="practice"] .event-detail-icon {
     background: var(--event-practice-light);
     color: var(--event-practice);
 }
 
-.modal-content[data-event-type="event"] .event-detail-icon,
-#eventDetailsModal[data-event-type="event"] .event-detail-icon,
 .events-detail-panel[data-event-type="event"] .event-detail-icon {
     background: var(--event-event-light);
     color: var(--event-event);
 }
 
-.modal-content[data-event-type="misc"] .event-detail-icon,
-#eventDetailsModal[data-event-type="misc"] .event-detail-icon,
 .events-detail-panel[data-event-type="misc"] .event-detail-icon {
     background: var(--event-misc-light);
     color: var(--event-misc);
@@ -915,6 +655,172 @@ select[multiple]:focus {
     font-size: 1rem;
 }
 
+/* ============================================
+   FILTER BOXES
+   ============================================ */
+.event-header-controls {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+    justify-content: flex-end;
+}
+
+.event-filters-container {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.2rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-box {
+    position: relative;
+}
+
+.filter-box-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.875rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.filter-box-btn:hover,
+.filter-box-btn.active {
+    border-color: var(--stockton-blue);
+    background: var(--hover-bg);
+}
+
+.filter-box-btn i {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    transition: transform 0.2s;
+}
+
+.filter-box-btn.active i {
+    transform: rotate(180deg);
+}
+
+.filter-box-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    left: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.375rem;
+    min-width: 180px;
+    z-index: 200;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.filter-box-panel.open {
+    display: block;
+}
+
+.filter-box-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.filter-box-item:hover {
+    background: var(--hover-bg);
+}
+
+.filter-box-item i {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+/* Flyout submenu */
+.filter-box-item--flyout .filter-box-flyout {
+    display: none;
+    position: absolute;
+    top: -0.375rem;
+    left: calc(100% + 0.375rem);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.375rem;
+    min-width: 160px;
+    z-index: 201;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    max-height: 210px;
+    overflow-y: auto;
+}
+
+/* Transparent bridge fills the gap between item and flyout so
+   the mouse doesn't leave the hover zone while crossing */
+.filter-box-item--flyout::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 100%;
+    width: 0.75rem;
+    height: 100%;
+    background: transparent;
+}
+
+/* Bridge for left side popout */
+.filter-box-item--flyout::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 100%;
+    width: 0.75rem;
+    height: 100%;
+    background: transparent;
+}
+
+.filter-box-item--flyout:hover .filter-box-flyout {
+    display: block;
+}
+
+.filter-box-item--flyout .filter-box-flyout.flyout-left {
+    left: auto;
+    right: calc(100% + 0.375rem);
+}
+
+.filter-box-flyout-item {
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.filter-box-flyout-item:hover {
+    background: var(--hover-bg);
+}
+
+.filter-box-flyout-loading {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
 /* ===============================
    Animations
    =============================== */
@@ -932,8 +838,6 @@ select[multiple]:focus {
 /* ================================
    Mobile Friendliness
    ================================ */
-
-
 @media (max-width: 1200px) {
     #events .card-header > div:first-child p {
         grid-template-columns: 1fr;

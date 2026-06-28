@@ -149,7 +149,7 @@ function loadEvents() {
     ])
         .then(([data]) => {
             if (data.success) {
-                EventState.setPermissions(data.is_admin, data.is_developer, data.is_gm);
+                EventState.setPermissions(data.is_admin, data.is_gm, data.is_developer);
                 renderEvents(data.events, data.is_admin, data.is_developer, data.is_gm);
             } else {
                 console.error('Failed to load events:', data.message);
@@ -239,7 +239,7 @@ function loadEventsForPastSeason() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                EventState.setPermissions(data.is_admin, data.is_developer, data.is_gm);
+                EventState.setPermissions(data.is_admin, data.is_gm, data.is_developer);
                 renderEvents(data.events, data.is_admin, data.is_developer, data.is_gm);
 
                 // Update empty state message for season filtering
@@ -1182,6 +1182,7 @@ function toggleFilterBox(panelId) {
     }
 }
 
+// Sets active filter using only a primary option from the first box
 function applyPrimaryFilter(value, label) {
     document.getElementById('filterBox1Label').textContent = label;
     document.getElementById('eventFilter').value = value;
@@ -1196,6 +1197,7 @@ function applyPrimaryFilter(value, label) {
     filterEvents();
 }
 
+// Sets active filter using submenu flyout in first box
 function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, subLabel) {
     document.getElementById('filterBox1Label').textContent = `${filterLabel}: ${subLabel}`;
     document.getElementById('eventFilter').value = filterVal;
@@ -1214,6 +1216,7 @@ function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, 
     }
 }
 
+// Sets active filter using the selected past season
 function applyPastSeasonFilter(seasonId, seasonName) {
     document.getElementById('filterBox1Label').textContent = seasonName;
     document.getElementById('eventFilter').value = 'past_season';
@@ -1232,6 +1235,7 @@ function applyPastSeasonFilter(seasonId, seasonName) {
     loadEventsForPastSeason();
 }
 
+// Sets active filter using past season and the primary selection from second filter box
 function applySecondaryFilter(value, label) {
     document.getElementById('filterBox2Label').textContent = label;
     document.getElementById('pastSeasonSecondaryFilter').value = value;
@@ -1241,6 +1245,7 @@ function applySecondaryFilter(value, label) {
     loadEventsForPastSeason();
 }
 
+// Sets active filter using past season and the submenu flyout option selected in the second box
 function applySecondaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, subLabel) {
     document.getElementById('filterBox2Label').textContent = `${filterLabel}: ${subLabel}`;
     document.getElementById('pastSeasonSecondaryFilter').value = filterVal;
@@ -1251,13 +1256,20 @@ function applySecondaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal
     loadEventsForPastSeason();
 }
 
+// Closes all filters when options are selected
 function closeAllFilterPanels() {
     document.querySelectorAll('.filter-box-panel.open').forEach(p => {
         p.classList.remove('open');
         p.previousElementSibling?.classList.remove('active');
     });
     document.getElementById('filterBackdrop')?.classList.remove('open');
-    document.body.style.overflow = '';
+
+    // Only restore scroll if no modal or sheet is currently open
+    const anyModalOpen = document.querySelector('.modal[style*="display: block"], .modal[style*="display: flex"]');
+    const sheetOpen = document.getElementById('eventsDetailPane')?.classList.contains('sheet-open');
+    if (!anyModalOpen && !sheetOpen) {
+        document.body.style.overflow = '';
+    }
 }
 
 // Populate past seasons flyout on hover
@@ -1818,7 +1830,7 @@ function canUserDeleteEvent(event) {
             return false;
         }
 
-        return within24Hours; // FIXED: Use within24Hours instead of canDelete
+        return within24Hours;
     }
 
     // Non-GM, non-admin, non-developer users cannot delete

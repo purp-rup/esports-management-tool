@@ -54,6 +54,12 @@ function attachCharacterCounter(textareaId, maxLength) {
 
     textarea.setAttribute('maxlength', maxLength);
 
+    // Remove any existing counter to avoid duplicates on re-open
+    const existing = textarea.nextElementSibling;
+    if (existing?.classList.contains('char-counter')) {
+        existing.remove();
+    }
+
     const counter = document.createElement('div');
     counter.className = 'char-counter';
     counter.textContent = `${textarea.value.length} / ${maxLength}`;
