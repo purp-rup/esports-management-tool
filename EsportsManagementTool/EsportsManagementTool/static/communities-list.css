@@ -1,0 +1,409 @@
+/* ============================================
+   COMMUNITIES LIST
+   Community list rows for the Communities tab.
+   ============================================ */
+
+/* -----------------------------------------------
+   LOADING STATE
+   ----------------------------------------------- */
+.communities-loading-state {
+    text-align: center;
+    padding: 2rem;
+}
+
+.communities-loading-state i {
+    font-size: 2rem;
+    color: var(--stockton-blue);
+}
+
+.communities-loading-state p {
+    color: var(--text-secondary);
+    margin-top: 1rem;
+}
+
+/* -----------------------------------------------
+   COMMUNITIES TAB HEADER
+   ----------------------------------------------- */
+#rosters .card-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.communities-filter-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.community-filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.375rem 0.75rem;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.community-filter-btn:hover {
+    border-color: var(--stockton-blue);
+    color: var(--stockton-blue);
+}
+
+.filter-check {
+    width: 13px;
+    height: 13px;
+    border: 2px solid currentColor;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.filter-check i {
+    font-size: 0.45rem;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+/* Active state */
+.community-filter-btn.active {
+    border-color: var(--stockton-blue);
+    background: rgba(121, 189, 233, 0.12);
+    color: var(--stockton-blue);
+}
+
+.community-filter-btn.active .filter-check {
+    background: var(--stockton-blue);
+    border-color: var(--stockton-blue);
+}
+
+.community-filter-btn.active .filter-check i {
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    #rosters .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* -----------------------------------------------
+   LIST CONTAINER
+   ----------------------------------------------- */
+.community-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin-top: 1.5rem;
+}
+
+.community-list span {
+    text-shadow: 0 0 5px #000000;
+    overflow: visible;
+}
+
+/* -----------------------------------------------
+   BANNER ROW
+   ----------------------------------------------- */
+.community-list-row {
+    position: relative;
+    height: 80px;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg); /* fallback for no banner image or icon */
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.community-list-row:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(121, 189, 233, 0.2);
+    border-color: var(--stockton-blue);
+}
+
+/* -----------------------------------------------
+   BANNER BACKGROUND
+   background-image is set inline in game.js
+   ----------------------------------------------- */
+.community-list-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    filter: brightness(0.7);
+}
+
+/* -----------------------------------------------
+   LEFT SIDE — icon + title + joined badge
+   ----------------------------------------------- */
+.community-list-left {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: linear-gradient(
+        to right,
+        rgba(10, 10, 10, 0.92) 0%,
+        rgba(10, 10, 10, 0.80) 55%,
+        transparent 100%
+    );
+    min-width: 260px;
+    max-width: 55%;
+    flex-shrink: 0;
+    padding: 0 2.5rem 0 12px;
+}
+
+.community-list-icon {
+    width: 55px;
+    height: 55px;
+    min-width: 50px;
+    border-radius: 10px;
+    background: rgba(121, 189, 233, 0.15);
+    box-shadow: rgba(0, 0, 0, 0.8) 0 3px 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--stockton-blue);
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.community-list-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.community-list-title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    flex-wrap: nowrap;
+}
+
+.community-list-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Member badge to show joined communities */
+.member-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    /*color: #4CAF50;*/
+    color: #6bff6b;
+    margin-left: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background: rgba(76, 175, 80, 0.5);
+    border-radius: 4px;
+}
+
+.member-badge i {
+    font-size: 0.875rem;
+}
+
+
+
+/* -----------------------------------------------
+   RIGHT SIDE — stats + action button
+   ----------------------------------------------- */
+.community-list-right {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: linear-gradient(
+        to left,
+        rgba(10, 10, 10, 0.92) 0%,
+        rgba(10, 10, 10, 0.80) 55%,
+        transparent 100%
+    );
+    flex-shrink: 0;
+    padding: 0 1.25rem 0 2.5rem;
+}
+
+.community-list-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 44px;
+}
+
+.community-list-stat-number {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+}
+
+.community-list-stat-label {
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.15rem;
+}
+
+/* -----------------------------------------------
+   JOIN / LEAVE BUTTON
+   ----------------------------------------------- */
+.community-list-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 8px;
+    border: 2px solid;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.9375rem;
+    transition: background 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
+}
+
+.community-list-btn.join-btn {
+    border-color: #4CAF50;
+    color: #4CAF50;
+}
+
+.community-list-btn.join-btn:hover {
+    background: rgba(76, 175, 80, 0.2);
+    transform: scale(1.08);
+}
+
+.community-list-btn.leave-btn {
+    border-color: rgba(255, 255, 255, 0.35);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.community-list-btn.leave-btn:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+    transform: scale(1.08);
+}
+
+/* -----------------------------------------------
+   MOBILE FRIENDLINESS
+   ----------------------------------------------- */
+@media (max-width: 768px) {
+    .community-list-row {
+        height: 70px;
+    }
+
+    .community-list-left {
+        min-width: 0;
+        padding: 0 2rem 0 0.875rem;
+        gap: 0.625rem;
+        max-width: 60%;
+    }
+
+    .community-list-icon {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+    }
+
+    .community-list-title {
+        font-size: 0.9375rem;
+    }
+
+    .community-list-right {
+        gap: 0.625rem;
+        padding: 0 0.875rem 0 2rem;
+    }
+
+    .community-list-stat-number {
+        font-size: 0.9375rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .community-list-row {
+        height: 110px;
+        flex-direction: column;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .community-list-bg::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient( to right, rgba(10, 10, 10, 0.92) 0%, rgba(10, 10, 10, 0.4) 30%, transparent 100% );
+        z-index: 1;
+    }
+
+    .community-list-left {
+        padding: 0 1.5rem 0 0.75rem;
+        gap: 0.5rem;
+        background: none;
+    }
+
+    .community-list-icon {
+        width: 40px;
+        height: 40px;
+        min-width: 36px;
+        border-radius: 8px;
+        font-size: 1.125rem;
+    }
+
+    .community-list-title {
+        font-size: 0.875rem;
+    }
+
+    .community-list-right {
+        gap: 0.5rem;
+        padding: 0 .75rem 0 .75rem;
+        background: none;
+    }
+
+    .community-list-stat-number {
+        font-size: 0.875rem;
+    }
+
+    .community-list-btn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        font-size: 0.875rem;
+        margin-left: auto;
+        box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
+    }
+}

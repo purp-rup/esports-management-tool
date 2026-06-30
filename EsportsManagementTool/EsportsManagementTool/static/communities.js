@@ -170,209 +170,6 @@ async function updateGameMembership(gameId, action) {
     }
 }
 
-/**
- * Update join/leave action buttons based on membership status
- * If a user is currently in community, show leave action. If not a member, show join action.
- */
-function updateActionButtons(game, gameId) {
-    const joinBtn = document.getElementById('gameDetailsJoinBtn');
-    const leaveBtn = document.getElementById('gameDetailsLeaveBtn');
-
-    if (game.is_member) {
-        // User is a member, show leave button
-        if (joinBtn) joinBtn.style.display = 'none';
-        if (leaveBtn) {
-            leaveBtn.style.display = 'inline-flex';
-            leaveBtn.onclick = () => confirmLeaveGame(gameId, game.title);
-        }
-    } else {
-        // User is not a member, show join button
-        if (leaveBtn) leaveBtn.style.display = 'none';
-        if (joinBtn) {
-            joinBtn.style.display = 'inline-flex';
-            joinBtn.onclick = () => confirmJoinGame(gameId, game.title);
-        }
-    }
-}
-
-// ============================================
-// COMMUNITY DIVISION FOLDER SYSTEM
-// ============================================
-const COLLAPSED_DIVISIONS_KEY = 'communities_collapsed_divisions';
-
-// Get set of collapsed division names from sessionStorage
-function getCollapsedDivisions() {
-    const stored = sessionStorage.getItem(COLLAPSED_DIVISIONS_KEY);
-    return stored ? new Set(JSON.parse(stored)) : new Set();
-}
-
-// Toggle collapse state for a division
-function toggleDivisionCollapse(division) {
-    const collapsedDivisions = getCollapsedDivisions();
-
-    if (collapsedDivisions.has(division)) {
-        collapsedDivisions.delete(division);
-    } else {
-        collapsedDivisions.add(division);
-    }
-
-    saveCollapsedDivisions(collapsedDivisions);
-
-    // Re-render communities with updated collapse state
-    const currentGames = window.currentGamesData || [];
-    if (currentGames.length > 0) {
-        displayGamesWithDivisions(currentGames);
-    }
-}
-
-// Save collapsed divisions to sessionStorage
-function saveCollapsedDivisions(collapsedDivisions) {
-    sessionStorage.setItem(COLLAPSED_DIVISIONS_KEY, JSON.stringify([...collapsedDivisions]));
-}
-
-/**
- * Display games grouped by division with collapsible folders
- */
-function displayGamesWithDivisions(games) {
-    const gridDiv = document.getElementById('rostersGrid');
-    gridDiv.className = 'rosters-grid-divisions';
-    gridDiv.innerHTML = '';
-
-    // Store games data globally for re-rendering
-    window.currentGamesData = games;
-
-    // Check if current user is admin or developer for delete permissions
-    const isAdmin = window.userPermissions?.is_admin || window.userPermissions.is_developer || false;
-
-    // Group games by division
-    const divisionGroups = {};
-    games.forEach(game => {
-        const division = game.Division || 'Other';
-
-        if (!divisionGroups[division]) {
-            divisionGroups[division] = [];
-        }
-        divisionGroups[division].push(game);
-    });
-
-    // Define division order
-    const divisionOrder = ['Strategy', 'Shooter', 'Sports', 'Other'];
-
-    // Sort divisions by defined order
-    const sortedDivisions = Object.keys(divisionGroups).sort((a, b) => {
-        const indexA = divisionOrder.indexOf(a);
-        const indexB = divisionOrder.indexOf(b);
-
-        // If both are in the order array, sort by index
-        if (indexA !== -1 && indexB !== -1) {
-            return indexA - indexB;
-        }
-        // If only one is in the order array, it comes first
-        if (indexA !== -1) return -1;
-        if (indexB !== -1) return 1;
-        // If neither is in the order array, sort alphabetically
-        return a.localeCompare(b);
-    });
-
-    // Get collapsed state
-    const collapsedDivisions = getCollapsedDivisions();
-
-    // Render each division group
-    sortedDivisions.forEach(division => {
-        const gamesInDivision = divisionGroups[division];
-        const isCollapsed = collapsedDivisions.has(division);
-
-        if (isCollapsed) {
-            // Render collapsed folder
-            renderCollapsedDivision(division, gamesInDivision.length, gridDiv);
-        } else {
-            // Render expanded division with games
-            renderExpandedDivision(division, gamesInDivision, isAdmin, gridDiv);
-        }
-    });
-}
-
-// Render a collapsed division folder
-function renderCollapsedDivision(division, gameCount, container) {
-    const folderDiv = document.createElement('div');
-    folderDiv.className = 'division-folder-collapsed';
-    folderDiv.setAttribute('data-division', division);
-
-    const gameWord = gameCount === 1 ? 'game' : 'games';
-
-    // Get division icon
-    const divisionIcon = getDivisionIcon(division);
-
-    folderDiv.innerHTML = `
-        <div class="division-folder-header">
-            <button class="division-collapse-btn"
-                    onclick="toggleDivisionCollapse('${division}')"
-                    title="Expand ${division}">
-                <i class="fas fa-chevron-down"></i>
-            </button>
-            <div class="division-folder-info">
-                <div class="division-icon">${divisionIcon}</div>
-                <div class="division-details">
-                    <h3 class="division-name">${division}</h3>
-                    <p class="division-count">${gameCount} ${gameWord}</p>
-                </div>
-            </div>
-        </div>
-    `;
-
-    container.appendChild(folderDiv);
-}
-
-// Render an expanded division with all game cards separate
-function renderExpandedDivision(division, games, isAdmin, container) {
-    const divisionBox = document.createElement('div');
-    divisionBox.className = 'division-box-expanded';
-    divisionBox.setAttribute('data-division', division);
-
-    // Get division icon
-    const divisionIcon = getDivisionIcon(division);
-
-    // Build division header
-    const headerHTML = `
-        <div class="division-box-header">
-            <button class="division-collapse-btn"
-                    onclick="toggleDivisionCollapse('${division}')"
-                    title="Collapse ${division}">
-                <i class="fas fa-chevron-up"></i>
-            </button>
-            <div class="division-icon">${divisionIcon}</div>
-            <h3 class="division-name">${division}</h3>
-        </div>
-    `;
-
-    // Build games grid
-    const gamesGrid = document.createElement('div');
-    gamesGrid.className = 'division-games-grid';
-
-    games.forEach(game => {
-        const card = createGameCard(game, isAdmin);
-        gamesGrid.appendChild(card);
-    });
-
-    // Assemble division box
-    divisionBox.innerHTML = headerHTML;
-    divisionBox.appendChild(gamesGrid);
-
-    container.appendChild(divisionBox);
-}
-
-// Get division icon
-function getDivisionIcon(division) {
-    const icons = {
-        'Strategy': '<i class="fas fa-chess"></i>',
-        'Shooter': '<i class="fas fa-crosshairs"></i>',
-        'Sports': '<i class="fas fa-football-ball"></i>',
-        'Other': '<i class="fas fa-star"></i>'
-    };
-
-    return icons[division] || '<i class="fas fa-gamepad"></i>';
-}
-
 // ============================================
 // COMMUNITY PAGE
 // ============================================
@@ -743,7 +540,7 @@ async function loadNextCommunityEvent(gameId) {
 
             // Format event card
             container.innerHTML = `
-                <div class="game-next-event-card" onclick="openEventModal(${event.id})">
+                <div class="game-next-event-card" onclick="navigateToEvent(${event.id})">
                     <div class="game-next-event-header">
                         <i class="fas fa-calendar-plus"></i>
                         <h4>Next Community Event</h4>
@@ -834,29 +631,26 @@ async function loadMyCommunities() {
 // Build a community card for the user's profile tab
 function createCommunityCard(community) {
     const card = document.createElement('div');
-    card.className = 'community-card-small';
+    card.className = 'community-card';
+    card.onclick = () => {
+        // Navigate to community page or open modal
+        window.location.href = `/community/${community.id}`;
+    };
 
     // Community icon
-    let iconHTML;
     if (community.image_url) {
-        iconHTML = `<img src="${community.image_url}" alt="${community.title}" class="community-icon-small">`;
+        card.innerHTML = `
+            <div class="community-card-icon">
+                <img src="${community.image_url}" alt="${community.title}">
+            </div>
+        `;
     } else {
-        iconHTML = '<i class="fas fa-gamepad"></i>';
+        card.innerHTML = `
+            <div class="community-card-icon" style="background: var(--stockton-blue); display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-gamepad" style="font-size: 2rem; color: white;"></i>
+            </div>
+        `;
     }
-
-    card.innerHTML = `
-        <div class="community-icon-container">${iconHTML}</div>
-        <div class="community-info-small">
-            <h4>${community.title}</h4>
-            <p class="community-meta">
-                <i class="fas fa-users"></i> ${community.member_count} members
-            </p>
-            <p class="community-joined">Joined ${community.joined_at}</p>
-        </div>
-        <a class="btn btn-sm btn-primary" href="/community/${community.id}">
-            <i class="fas fa-eye"></i> View
-        </a>
-    `;
 
     return card;
 }
@@ -899,15 +693,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // EXPORT FUNCTIONS
 // ============================================
 
-//Folder system
-window.displayGamesWithDivisions = displayGamesWithDivisions;
-
 // Photo Carousel
 window.carouselNext        = carouselNext;
 window.carouselPrev        = carouselPrev;
 window.openPhotoManager    = openPhotoManager;
 window.closePhotoManager   = closePhotoManager;
 
-//Member list popup
+// Member list popup
 window.toggleMemberListPopup = toggleMemberListPopup;
 window.filterMemberListPopup = filterMemberListPopup;

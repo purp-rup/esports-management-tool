@@ -1,174 +1,350 @@
 /* ============================================
    EVENTS TAB STYLES
-   Event management and display interface
-   ORGANIZED BY CLAUDEAI
+   - Event cards
+   - Event Type Colors
+   - Event tab structure
+   - Filter structure
+   - Mobile View
    ============================================ */
 
-/* --------------------------------------------
-   CARD HEADER LAYOUT
-   Header section with filters and actions
-   -------------------------------------------- */
-#events .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 2rem;
-}
-
-#events .card-header > div:first-child {
-    flex: 0 1 auto;
-}
-
-/* --------------------------------------------
-   EVENT FILTER DROPDOWN
-   Dropdown for filtering events by type
-   -------------------------------------------- */
-/* Main header controls wrapper - keeps filters and button together */
-.event-header-controls {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 1rem;
-    flex: 0 1 auto;
-    position: relative;
-    padding-right: 140px;
-}
-
-/* Filters container - stacks filter rows vertically */
-.event-filters-container {
+/* ==============================
+   Events Tab Layout
+   ============================== */
+.events-layout {
     display: grid;
-    grid-template-columns: auto auto ;
-    gap: 0.75rem;
-    align-items: end;
+    grid-template-columns: 1fr 420px;
+    align-items: start;
 }
 
-/* Only add padding when second column has content */
-.event-filters-container[data-columns="2"] {
-    padding-right: 1rem;
+.events-list-pane {
+    min-width: 0;
+    padding-right: 1.25rem;
+    padding-top: 0.15rem;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    max-height: calc(100vh - 260px);
 }
 
-/* Individual filter dropdown */
-.event-filter-dropdown {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.events-detail-pane {
+    align-self: stretch;
+    min-height: 480px;
+    border-left: 1px solid var(--border-color);
+    padding-left: 2rem;
 }
 
-#pastSeasonSelectContainer {
-    grid-column: 1;
-    grid-row: 2;
-}
-
-.event-filter-dropdown label {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    margin: 0;
-    min-width: 60px;
-    text-align: right;
-}
-
-.event-filter-dropdown select {
-    padding: 0.5rem 1rem;
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    min-width: 180px;
-}
-
-.event-filter-dropdown select:hover {
-    border-color: var(--stockton-blue);
-    background: var(--hover-bg);
-}
-
-.event-filter-dropdown select:focus {
-    outline: none;
-    border-color: var(--stockton-blue);
-    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
-}
-
-/* Loading indicators */
-.event-filter-dropdown > div[id$="LoadingIndicator"] {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    margin-left: 0.5rem;
-}
-
-.event-filter-dropdown > div[id$="LoadingIndicator"] i {
-    font-size: 0.75rem;
-}
-
-/* Create Event Button - smaller, on first row */
+/* Create Event Button */
 .event-header-controls > .btn-primary {
     flex-shrink: 0;
     white-space: nowrap;
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
-    position: absolute;
-    right: 0;
-    top: 1px;
+    position: static;
 }
 
-/* --------------------------------------------
-   EVENTS GRID LAYOUT
-   Grid container for event cards
-   -------------------------------------------- */
+/* ===================================
+   Event Details Sidebar
+   =================================== */
+.events-detail-placeholder {
+    height: 100%;
+    min-height: 460px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.events-detail-placeholder i {
+    font-size: 2.25rem;
+    opacity: 0.35;
+}
+
+.events-detail-placeholder p {
+    font-size: 0.9375rem;
+    max-width: 220px;
+    margin: 0;
+}
+
+/* Panel shown when an event is selected */
+.events-detail-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.events-detail-banner-wrapper {
+    position: relative;
+    margin-bottom: 1.25rem;
+    min-height: 0;
+}
+
+.events-detail-banner {
+    width: 100%;
+    height: 70px;
+    background: var(--hover-bg);
+    border: 1px dashed var(--border-color);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.event-detail-banner-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+    opacity: 0.8;
+}
+
+.event-detail-banner-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 1s ease-in-out;
+}
+
+.event-detail-banner-slide.active {
+    opacity: 0.8;
+}
+
+.events-detail-banner-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0;
+    display: flex;
+    gap: 0.4rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.events-detail-panel:hover .events-detail-banner-actions {
+    opacity: 1;
+}
+
+.events-detail-banner-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--stockton-blue);
+    border-radius: 6px;
+    font-size: 0.6875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.events-detail-banner-btn:hover {
+    background: var(--dark-bg);;
+    border-color: #1fc1f2;
+}
+
+.events-detail-banner-btn:active {
+    transform: scale(0.95);
+}
+
+.events-detail-banner-btn.delete {
+    color: #ef4444;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.events-detail-banner-btn.delete:hover {
+    background: var(--dark-bg);;
+    border-color: #ef4444;
+}
+
+.events-detail-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+}
+
+.events-detail-type-badge {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.events-detail-pane .notification-opt-in .subtitle {
+    font-size: 0.7rem;
+}
+
+.events-detail-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    margin-bottom: 1.5rem;
+}
+
+.events-detail-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+}
+
+.events-detail-row .event-detail-icon {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+}
+
+.events-detail-row-text h4 {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin: 0 0 0.1rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.events-detail-row-text p {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* Edit Mode */
+.panel-edit-input {
+    background: var(--hover-bg);
+    border: 1px solid var(--stockton-blue);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    padding: 0.3rem 0.5rem;
+    width: 100%;
+    outline: none;
+    font-family: inherit;
+}
+
+.panel-edit-input:focus {
+    box-shadow: 0 0 0 2px rgba(121, 189, 233, 0.2);
+}
+
+textarea.panel-edit-input {
+    resize: vertical;
+    min-height: 64px;
+}
+
+.panel-edit-time-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.panel-edit-time-row .panel-edit-input {
+    width: auto;
+    flex: 1;
+}
+
+.events-detail-title.panel-edit-input {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    width: 100%;
+}
+
+.panel-save-btn {
+    color: var(--event-practice) !important;
+}
+
+.panel-edit-input-error {
+    border-color: var(--event-match) !important;
+    box-shadow: 0 0 0 2px var(--event-match-light);
+}
+
+/* ===============================
+   Event Cards
+   =============================== */
 .events-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 1.5rem;
-    margin-top: 2rem;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.25rem;
+    align-items: start;
+    min-height: 100%;
 }
 
-/* --------------------------------------------
-   EVENT CARDS
-   Individual event display cards
-   -------------------------------------------- */
 .event-card {
     background: var(--dark-bg);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1.5rem;
-    transition: all 0.3s;
-    position: relative;
-    overflow: hidden;
+    border-left: 3px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.875rem 1rem;
+    transition: all 0.2s ease;
     cursor: pointer;
 }
 
 .event-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-3px);
     border-color: var(--stockton-blue);
     box-shadow: 0 8px 16px rgba(121, 189, 233, 0.1);
 }
 
-/* Event card header */
-.event-card-header {
+.event-card-top {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+}
+
+.event-card-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.event-card-game {
+    flex: 0 0 auto;
+    max-width: 45%;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.event-card-bottom {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    align-items: center;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
 }
 
-.event-card-title {
-    flex: 1;
-    margin: 0;
+.event-card-date i {
+    margin-right: 0.35rem;
+    opacity: 0.7;
+    width: 12px;
 }
 
-/* Ongoing event indicator */
+.event-card-time {
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+}
+
+/* Ongoing event indicator - top-left corner dot */
 .event-ongoing-indicator {
     position: absolute;
-    top: -0.5rem;
-    right: -0.5rem;
-    width: 12px;
-    height: 12px;
+    top: -4px;
+    left: -4px;
+    width: 10px;
+    height: 10px;
     background: #4ade80;
     border-radius: 50%;
     border: 2px solid var(--dark-bg);
@@ -176,196 +352,36 @@
     z-index: 10;
 }
 
-/* --------------------------------------------
-   EVENT CARD DETAILS
-   Date, time, and game information display
-   -------------------------------------------- */
-.event-card-details {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
-}
-
-.event-detail-row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.875rem;
-}
-
-.event-detail-icon {
-    width: 40px;
-    height: 40px;
-    background: rgba(121, 189, 233, 0.1);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--stockton-blue);
-    flex-shrink: 0;
-    font-size: 1.125rem;
-}
-
-.event-detail-label {
-    font-weight: 500;
-    color: var(--text-secondary);
-    min-width: 80px;
-}
-
-.event-detail-value {
-    color: var(--text-primary);
-    flex: 1;
-}
-
 /* ============================================
-   DELETION TIME INDICATORS
-   NEW: Shows time remaining for deletion window
-   Add these styles to events.css
+   Event Type Colors
    ============================================ */
-
-/* Deletion time remaining badge */
-.deletion-time-remaining {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.75rem;
-    color: #fbbf24;
-    margin-left: 0.25rem;
-    padding: 0.125rem 0.375rem;
-    background: rgba(251, 191, 36, 0.1);
-    border-radius: 4px;
-    white-space: nowrap;
+/* Event card accent */
+.event-card[data-event-type="tournament"],
+.event-card.tournament {
+    border-left-color: var(--event-tournament);
 }
 
-.deletion-time-remaining i {
-    font-size: 0.625rem;
+.event-card[data-event-type="match"],
+.event-card.match {
+    border-left-color: var(--event-match);
 }
 
-/* When inside a delete button, use transparent background */
-.btn-delete .deletion-time-remaining {
-    background: transparent;
+.event-card[data-event-type="practice"],
+.event-card.practice {
+    border-left-color: var(--event-practice);
 }
 
-/* Time remaining in delete button (inline style) */
-.btn-delete span {
-    font-size: 0.75rem;
-    opacity: 0.9;
+.event-card[data-event-type="event"],
+.event-card.event {
+    border-left-color: var(--event-event);
 }
 
-/* Delete confirmation modal - time warning box */
-.delete-confirmation-time-warning {
-    margin-top: 1rem;
-    padding: 0.75rem;
-    background: rgba(251, 191, 36, 0.1);
-    border: 1px solid #fbbf24;
-    border-radius: 6px;
-    font-size: 0.875rem;
+.event-card[data-event-type="misc"],
+.event-card.misc {
+    border-left-color: var(--event-misc);
 }
 
-.delete-confirmation-time-warning i {
-    color: #fbbf24;
-    margin-right: 0.5rem;
-}
-
-.delete-confirmation-time-warning strong {
-    color: #fbbf24;
-}
-
-/* Icon button adjustments for time display */
-.btn-icon-delete span {
-    font-size: 0.7rem;
-    margin-left: 0.25rem;
-}
-
-/* --------------------------------------------
-   EVENT TYPE BADGES
-   Color-coded type indicators
-   -------------------------------------------- */
-.event-type-badge {
-    display: inline-block;
-    padding: 0.35rem 0.85rem;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    background: transparent !important;
-}
-
-/* Tournament - Purple Border */
-.event-type-badge[data-type="tournament"],
-.event-type-badge.tournament {
-    border: 1px solid rgba(167, 139, 250, 1) !important;
-    color: rgba(167, 139, 250, 1) !important;
-}
-
-/* Match - Red Border */
-.event-type-badge[data-type="match"],
-.event-type-badge.match {
-    border: 1px solid rgba(255, 28, 47, 1) !important;
-    color: rgba(255, 28, 47, 1) !important;
-}
-
-/* Practice - Green Border */
-.event-type-badge[data-type="practice"],
-.event-type-badge.practice {
-    border: 1px solid rgba(134, 239, 172, 1) !important;
-    color: rgba(134, 239, 172, 1) !important;
-}
-
-/* Event - Blue Border */
-.event-type-badge[data-type="event"],
-.event-type-badge.event {
-    border: 1px solid rgba(147, 197, 253, 1) !important;
-    color: rgba(147, 197, 253, 1) !important;
-}
-
-/* Misc - Yellow Border */
-.event-type-badge[data-type="misc"],
-.event-type-badge.misc {
-    border: 1px solid rgba(250, 204, 21, 1) !important;
-    color: rgba(250, 204, 21, 1) !important;
-}
-
-/* --------------------------------------------
-   EVENT TYPE COLORS - CARD ICONS
-   Icon background colors by event type
-   -------------------------------------------- */
-.event-card[data-event-type="tournament"] .event-detail-icon,
-.event-card.tournament .event-detail-icon {
-    background: var(--event-tournament-light);
-    color: var(--event-tournament);
-}
-
-.event-card[data-event-type="match"] .event-detail-icon,
-.event-card.match .event-detail-icon {
-    background: var(--event-match-light);
-    color: var(--event-match);
-}
-
-.event-card[data-event-type="practice"] .event-detail-icon,
-.event-card.practice .event-detail-icon {
-    background: var(--event-practice-light);
-    color: var(--event-practice);
-}
-
-.event-card[data-event-type="event"] .event-detail-icon,
-.event-card.event .event-detail-icon {
-    background: var(--event-event-light);
-    color: var(--event-event);
-}
-
-.event-card[data-event-type="misc"] .event-detail-icon,
-.event-card.misc .event-detail-icon {
-    background: var(--event-misc-light);
-    color: var(--event-misc);
-}
-
-/* --------------------------------------------
-   EVENT TYPE COLORS - CARD BORDERS
-   Border colors on hover by event type
-   -------------------------------------------- */
+/* Event Card Hover Border */
 .event-card[data-event-type="tournament"]:hover,
 .event-card.tournament:hover {
     border-color: var(--event-tournament);
@@ -391,154 +407,47 @@
     border-color: var(--event-misc);
 }
 
-/* --------------------------------------------
-   SCHEDULED EVENT STYLING
-   Special styling for scheduled events
-   -------------------------------------------- */
+/* Scheduled event specific colors */
 .event-card.scheduled-event:hover {
-    border: 2px solid white !important;
+    border: 2px solid white;
     box-shadow: 0 8px 16px rgba(255, 255, 255, 0.3);
 }
 
 .event-card.scheduled-event .event-type-badge {
-    border: 2px solid white !important;
+    border: 2px solid white;
     box-shadow: 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
-/* --------------------------------------------
-   EVENT CARD ACTIONS
-   Action buttons at bottom of cards
-   -------------------------------------------- */
-.event-card-actions {
-    display: flex;
-    gap: 0.75rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-color);
-}
-
-.event-card-actions .btn {
-    flex: 0.5;
-    font-size: 0.875rem;
-    padding: 0.625rem 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    border-radius: 6px;
-    font-weight: 500;
-    transition: all 0.2s;
-    cursor: pointer;
-}
-
-.event-card-actions .btn-primary {
-    background: var(--stockton-blue);
-    color: var(--stockton-black);
-    border: none;
-}
-
-.event-card-actions .btn-primary:hover {
-    background: #5aabdd;
-    transform: translateY(-1px);
-}
-
-.event-card-actions .btn-secondary {
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-}
-
-.event-card-actions .btn-secondary:hover {
-    background: var(--hover-bg);
-    color: var(--text-primary);
-    border-color: var(--stockton-blue);
-}
-
-.event-card-actions .btn-delete {
-    background: transparent;
-    color: #ef4444;
-    border: 1px solid #ef4444;
-}
-
-.event-card-actions .btn-delete:hover {
-    background: rgba(239, 68, 68, 0.1);
-    transform: translateY(-1px);
-}
-
-/* --------------------------------------------
-   MODAL - EVENT DETAILS
-   Event detail modal icon colors
-   -------------------------------------------- */
-#eventDetailsModal {
-    z-index: 10002;
-}
-.modal-content[data-event-type="tournament"] .event-detail-icon,
-#eventDetailsModal[data-event-type="tournament"] .event-detail-icon {
+/* Event Detail Panel Icons */
+.events-detail-panel[data-event-type="tournament"] .event-detail-icon {
     background: var(--event-tournament-light);
     color: var(--event-tournament);
 }
 
-.modal-content[data-event-type="match"] .event-detail-icon,
-#eventDetailsModal[data-event-type="match"] .event-detail-icon {
+.events-detail-panel[data-event-type="match"] .event-detail-icon {
     background: var(--event-match-light);
     color: var(--event-match);
 }
 
-.modal-content[data-event-type="practice"] .event-detail-icon,
-#eventDetailsModal[data-event-type="practice"] .event-detail-icon {
+.events-detail-panel[data-event-type="practice"] .event-detail-icon {
     background: var(--event-practice-light);
     color: var(--event-practice);
 }
 
-.modal-content[data-event-type="event"] .event-detail-icon,
-#eventDetailsModal[data-event-type="event"] .event-detail-icon {
+.events-detail-panel[data-event-type="event"] .event-detail-icon {
     background: var(--event-event-light);
     color: var(--event-event);
 }
 
-.modal-content[data-event-type="misc"] .event-detail-icon,
-#eventDetailsModal[data-event-type="misc"] .event-detail-icon {
+.events-detail-panel[data-event-type="misc"] .event-detail-icon {
     background: var(--event-misc-light);
     color: var(--event-misc);
 }
 
-/* --------------------------------------------
-   FILTER BUTTONS
-   Alternative filter button style
-   -------------------------------------------- */
-.events-filter {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-}
-
-.filter-button {
-    padding: 0.5rem 1rem;
-    background: transparent;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.filter-button:hover {
-    background: var(--hover-bg);
-    color: var(--text-primary);
-}
-
-.filter-button.active {
-    background: var(--stockton-blue);
-    color: var(--stockton-black);
-    border-color: var(--stockton-blue);
-}
-
-/* -------------------------------------------
-    MULTI-GAME SELECTION
-    Select Multiple games from a dropdown
-    ------------------------------------------ */
-/* Multi-select game dropdown */
+/* ===========================================
+    Create Event Modal
+   =========================================== */
+/* Select multiple games from dropdown */
 select[multiple] {
     padding: 0.5rem;
     background: var(--dark-bg);
@@ -655,10 +564,7 @@ select[multiple]:focus {
     pointer-events: auto !important;
 }
 
-/* --------------------------------------------
-   ALL DAY EVENT TOGGLE
-   Toggle button for all-day events
-   -------------------------------------------- */
+/* All day event toggle */
 .all-day-toggle-btn {
     padding: 0.5rem 1rem;
     background-color: var(--stockton-blue);
@@ -686,10 +592,7 @@ select[multiple]:focus {
     box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
 }
 
-/* --------------------------------------------
-   INFO MESSAGES
-   Informational message banners
-   -------------------------------------------- */
+/* Submission information messages */
 .events-info-message {
     background: rgba(121, 189, 233, 0.1);
     border: 1px solid var(--stockton-blue);
@@ -712,10 +615,7 @@ select[multiple]:focus {
     font-size: 0.875rem;
 }
 
-/* --------------------------------------------
-   EMPTY STATE
-   Display when no events exist
-   -------------------------------------------- */
+/* Events empty state */
 .events-empty-state {
     text-align: center;
     padding: 4rem 2rem;
@@ -738,10 +638,7 @@ select[multiple]:focus {
     font-size: 1rem;
 }
 
-/* --------------------------------------------
-   LOADING STATE
-   Display while fetching events
-   -------------------------------------------- */
+/* Events loading state */
 .events-loading {
     text-align: center;
     padding: 4rem 2rem;
@@ -758,10 +655,175 @@ select[multiple]:focus {
     font-size: 1rem;
 }
 
-/* --------------------------------------------
-   ANIMATIONS
-   Keyframe animations
-   -------------------------------------------- */
+/* ============================================
+   FILTER BOXES
+   ============================================ */
+.event-header-controls {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+    justify-content: flex-end;
+}
+
+.event-filters-container {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.2rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-box {
+    position: relative;
+}
+
+.filter-box-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.875rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.filter-box-btn:hover,
+.filter-box-btn.active {
+    border-color: var(--stockton-blue);
+    background: var(--hover-bg);
+}
+
+.filter-box-btn i {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    transition: transform 0.2s;
+}
+
+.filter-box-btn.active i {
+    transform: rotate(180deg);
+}
+
+.filter-box-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    left: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.375rem;
+    min-width: 180px;
+    z-index: 200;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.filter-box-panel.open {
+    display: block;
+}
+
+.filter-box-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.filter-box-item:hover {
+    background: var(--hover-bg);
+}
+
+.filter-box-item i {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+/* Flyout submenu */
+.filter-box-item--flyout .filter-box-flyout {
+    display: none;
+    position: absolute;
+    top: -0.375rem;
+    left: calc(100% + 0.375rem);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.375rem;
+    min-width: 160px;
+    z-index: 201;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    max-height: 210px;
+    overflow-y: auto;
+}
+
+/* Transparent bridge fills the gap between item and flyout so
+   the mouse doesn't leave the hover zone while crossing */
+.filter-box-item--flyout::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 100%;
+    width: 0.75rem;
+    height: 100%;
+    background: transparent;
+}
+
+/* Bridge for left side popout */
+.filter-box-item--flyout::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 100%;
+    width: 0.75rem;
+    height: 100%;
+    background: transparent;
+}
+
+.filter-box-item--flyout:hover .filter-box-flyout {
+    display: block;
+}
+
+.filter-box-item--flyout .filter-box-flyout.flyout-left {
+    left: auto;
+    right: calc(100% + 0.375rem);
+}
+
+.filter-box-flyout-item {
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.filter-box-flyout-item:hover {
+    background: var(--hover-bg);
+}
+
+.filter-box-flyout-loading {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+/* ===============================
+   Animations
+   =============================== */
 @keyframes pulse {
     0%, 100% {
         opacity: 1;
@@ -773,84 +835,251 @@ select[multiple]:focus {
     }
 }
 
-/* --------------------------------------------
-   RESPONSIVE DESIGN
-   Mobile and tablet adaptations
-   -------------------------------------------- */
-@media (max-width: 1400px) {
-    .event-filter-row {
-        flex-wrap: wrap;
-    }
-}
-
+/* ================================
+   Mobile Friendliness
+   ================================ */
 @media (max-width: 1200px) {
-    #events .card-header {
-        flex-direction: column;
-        align-items: flex-start;
+    #events .card-header > div:first-child p {
+        grid-template-columns: 1fr;
     }
 
     .event-header-controls {
         width: 100%;
-        padding-right: 0;
-        position: static;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
     }
 
     .event-header-controls > .btn-primary {
-        position: static;
-        width: 100%;
-        margin-top: 0.75rem;
+        white-space: nowrap;
+        width: auto;
+        padding: 0.45rem 0.75rem;
     }
 }
 
 /* Tablet: Stack to single column */
 @media (max-width: 1024px) {
-    #events .card-header > div:last-child {
+    #events .card-header > div:first-child p {
         grid-template-columns: 1fr;
+    }
+
+    .event-header-controls {
+        width: 100%;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+    }
+
+    .event-header-controls > .btn-primary {
+        white-space: nowrap;
+        width: auto;
+        padding: 0.45rem 0.75rem;
+    }
+
+    .events-layout {
+        grid-template-columns: 1fr 340px;
+    }
+
+    .events-list-pane {
+        padding-right: 1.5rem;
+    }
+
+    .events-detail-pane {
+        padding-left: 1.5rem;
     }
 }
 
 @media (max-width: 768px) {
-    .events-grid {
+    /* --- Header --- */
+    #events .card-header {
         grid-template-columns: 1fr;
+        gap: 0.75rem;
     }
 
-    .event-card-actions {
-        flex-direction: column;
+    #events .card-header > div:first-child p {
+        display: none;
     }
 
     .event-header-controls {
-        flex-direction: column;
         width: 100%;
-        align-items: stretch;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        gap: 0.5rem;
     }
 
-    .event-filter-row {
-        flex-direction: column;
-        align-items: flex-start;
-        width: 100%;
+    .event-filters-container {
+        flex: 0 0 auto;
     }
 
-    .event-filter-dropdown {
-        width: 100%;
-        flex-direction: column;
-        align-items: flex-start;
+    .event-header-controls > .btn-primary {
+        white-space: nowrap;
+        flex: 0 0 auto;
+        width: auto;
+        padding: 0.45rem 0.75rem;
     }
 
-    .event-filter-dropdown select {
+    /* --- Cards --- */
+    .events-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .events-list-pane {
+        padding-right: 0;
+        max-height: none;
+        overflow-x: hidden;
         width: 100%;
         min-width: 0;
     }
 
-    .event-header-controls > .btn-primary {
+    .events-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        min-width: 0;
         width: 100%;
     }
 
+    .event-card {
+        min-width: 0;
+        height: 90px;
+        width: 100%;
+        padding: 0.5rem 0.6rem;
+    }
+
+    .event-card-top {
+        min-width: 0;
+        height: 35px;
+        overflow: hidden;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.15rem;
+    }
+
+    .event-card-name {
+        font-size: 0.75rem;
+        max-width: 100%;
+    }
+
+    .event-card-game {
+        font-size: 0.65rem;
+        margin-left: 0;
+        text-align: left;
+        color: var(--text-secondary);
+    }
+
+    .event-card-bottom {
+        font-size: 0.7rem;
+        overflow: hidden;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.1rem;
+    }
+
+    .event-card-time {
+        font-size: 0.7rem;
+    }
+
+    /* --- Detail panel becomes a bottom sheet --- */
+    .events-detail-pane {
+        display: none; /* hidden by default, JS toggles open */
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 78vh;
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        border-radius: 16px 16px 0 0;
+        background: var(--card-bg);
+        padding: 1rem 1.25rem 1.5rem;
+        z-index: 500;
+        overflow-y: auto;
+        box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+        transform: translateY(100%);
+        transition: transform 0.3s ease;
+    }
+
+    .events-detail-pane.sheet-open {
+        display: block;
+        transform: translateY(0);
+    }
+
+    /* Drag handle */
+    .events-detail-pane::before {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: var(--border-color);
+        border-radius: 2px;
+        margin: 0 auto 1rem;
+    }
+
+    /* Backdrop */
+    .sheet-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 499;
+    }
+
+    .sheet-backdrop.open {
+        display: block;
+    }
+
+    /* --- Filter flyouts become stacked within the panel on mobile --- */
+    .filter-box-item--flyout .filter-box-flyout {
+        position: static;
+        display: none;
+        box-shadow: none;
+        border: none;
+        border-radius: 10px;
+        padding: 0 0 0 1rem;
+        max-height: none;
+    }
+
+    .filter-box-item--flyout:hover .filter-box-flyout {
+        display: none;
+    }
+
+    .filter-box-item--flyout.flyout-expanded .filter-box-flyout {
+        display: block;
+    }
+
+    .filter-box-item--flyout::after,
+    .filter-box-item--flyout::before {
+        display: none;
+    }
+
+    .filter-box-item--flyout > i.fa-chevron-right {
+        transition: transform 0.2s;
+    }
+
+    .filter-box-item--flyout.flyout-expanded > i.fa-chevron-right {
+        transform: rotate(90deg);
+    }
+
+    .filter-box-panel {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        border-radius: 16px 16px 0 0;
+        padding: 1rem 0.5rem 2rem;
+        max-height: 60vh;
+        overflow-y: auto;
+        z-index: 600;
+        box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+    }
+
+    /* Misc */
     .deletion-time-remaining {
         font-size: 0.7rem;
         padding: 0.1rem 0.3rem;
     }
 
     .btn-delete span {
-        display: none; /* Hide time on mobile, show icon only */
+        display: none;
     }
 }

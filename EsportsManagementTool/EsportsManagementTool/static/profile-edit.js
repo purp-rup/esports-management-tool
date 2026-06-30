@@ -225,24 +225,9 @@ async function syncAvatarFromModal() {
  * Pre-populates form with current profile information
  */
 function openEditProfileModal() {
-    // Extract current profile data from displayed information
-    const fullName = document.querySelector('.profile-info .info-row:nth-child(1) .info-value').textContent.trim();
-
-    // Split full name into first and last name
-    const nameParts = fullName.split(' ');
-    const firstname = nameParts.slice(0, -1).join(' ') || nameParts[0];
-    const lastname = nameParts[nameParts.length - 1];
-
-    // Populate form fields with current values
-    document.getElementById('editFirstName').value = firstname;
-    document.getElementById('editLastName').value = lastname;
-    document.getElementById('editUsername').value = document.querySelector('.profile-info .info-row:nth-child(2) .info-value').textContent.trim();
-
-    // Display email but don't allow editing (for reference only)
-    document.getElementById('editEmail').value = document.querySelector('.profile-info .info-row:nth-child(3) .info-value').textContent.trim();
-
-    // Show modal
+    // Show modal - fields are already pre-populated by Flask template
     document.getElementById('editProfileModal').style.display = 'flex';
+    hideMessage('editProfileMessage');
 }
 
 /**
@@ -363,9 +348,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     showMessage('editProfileMessage', result.message || 'Profile updated successfully!', false);
 
                     // Update profile display with new information
-                    document.querySelector('.profile-info .info-row:nth-child(1) .info-value').textContent =
+                    // Update the profile info section with new values
+                    document.querySelector('.profile-info-section .info-item:nth-child(1) .info-value').textContent =
                         `${data.firstname} ${data.lastname}`;
-                    document.querySelector('.profile-info .info-row:nth-child(2) .info-value').textContent =
+                    document.querySelector('.profile-info-section .info-item:nth-child(2) .info-value').textContent =
                         data.username;
 
                     // Update username in navigation if present
@@ -373,10 +359,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (navUsername) {
                         navUsername.textContent = `Welcome back, ${data.username}`;
                     }
-
-                    // Email remains displayed but unchanged (read-only)
-                    document.getElementById('editEmail').value =
-                        document.querySelector('.profile-info .info-row:nth-child(3) .info-value').textContent.trim();
 
                     // Update avatar initials if no profile picture exists
                     const avatarContainer = document.querySelector('.avatar-container');

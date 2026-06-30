@@ -13,6 +13,26 @@
     gap: 2rem;
 }
 
+.form-section {
+    margin-bottom: 1.5rem;
+}
+
+.form-section:last-child {
+    margin-bottom: 0;
+}
+
+.form-section h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.section-description {
+    margin: 0 0 1rem 0;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+}
+
 /* --------------------------------------------
    TOGGLE CARDS
    Card containers for settings sections

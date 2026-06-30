@@ -984,7 +984,8 @@ def view_communities():
                 TeamSizes,
                 Division,
                 gm_id,
-                CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image
+                CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image,
+                GameBanner
             FROM games
             WHERE hidden = 0
             ORDER BY GameTitle ASC
@@ -1021,6 +1022,7 @@ def view_communities():
                 'TeamSizes': game['TeamSizes'],
                 'Division': game['Division'],
                 'ImageURL': f'/game-image/{game_id}' if game['has_image'] else None,
+                'GameBanner': game['GameBanner'],
                 'member_count': member_counts.get(game_id, 0),
                 'team_count': team_counts.get(game_id, 0),  # Will be 0 if no active season teams
                 'is_member': game_id in user_memberships,
@@ -1196,7 +1198,7 @@ def get_game_list():
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         try:
-            cursor.execute("SELECT GameID, GameTitle FROM games ORDER BY GameTitle ASC")
+            cursor.execute("SELECT GameID, GameTitle, Abbreviation FROM games ORDER BY GameTitle ASC")
             games = cursor.fetchall()
 
             return jsonify({'success': True, 'games': games}), 200
