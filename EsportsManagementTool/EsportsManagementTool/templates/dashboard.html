@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='teams-sidebar.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='discord.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='communities-list.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='updateProfile.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='scheduled-events.css') }}">
@@ -567,12 +568,34 @@
                     <h2>Game Communities</h2>
                     <p>Browse games and join communities</p>
                 </div>
+                <div class="communities-filter-container">
+                    <button class="community-filter-btn filter-all active" data-division="all">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        All
+                    </button>
+                    <button class="community-filter-btn" data-division="Strategy">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Strategy
+                    </button>
+                    <button class="community-filter-btn" data-division="Shooter">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Shooter
+                    </button>
+                    <button class="community-filter-btn" data-division="Sports">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Sports
+                    </button>
+                    <button class="community-filter-btn" data-division="Other">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Other
+                    </button>
+                </div>
             </div>
 
             <!-- Loading State -->
-            <div id="rostersLoading" style="text-align: center; padding: 2rem;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
-                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading games...</p>
+            <div id="rostersLoading" class="communities-loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading games...</p>
             </div>
 
             <!-- Games Grid -->
