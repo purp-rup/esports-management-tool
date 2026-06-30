@@ -107,6 +107,7 @@ async function loadGames() {
 
         if (data.success && data.games && data.games.length > 0) {
             window.currentGamesData = data.games;
+            resetCommunityFilters();
             displayGamesList(data.games);
             loadingDiv.style.display = 'none';
             gridDiv.style.display = 'flex';
@@ -267,6 +268,19 @@ function applyDivisionFilter() {
     );
 
     displayGamesList(filtered);
+}
+
+/**
+ * Reset all division filter buttons back to the "All" state
+ */
+function resetCommunityFilters() {
+    const buttons = document.querySelectorAll('.community-filter-btn');
+    if (!buttons.length) return;
+
+    buttons.forEach(b => b.classList.remove('active'));
+
+    const allBtn = document.querySelector('.community-filter-btn[data-division="all"]');
+    if (allBtn) allBtn.classList.add('active');
 }
 
 /**
@@ -693,6 +707,7 @@ window.loadGamesForDropdown = loadGamesForDropdown;
 window.refreshAllGameDropdowns = refreshAllGameDropdowns;
 window.initializeCommunityFilters = initializeCommunityFilters;
 window.applyDivisionFilter = applyDivisionFilter;
+window.resetCommunityFilters = resetCommunityFilters;
 
 // Team creation
 window.openCreateTeamModal = openCreateTeamModal;
