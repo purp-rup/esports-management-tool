@@ -341,7 +341,7 @@ async function loadNextScheduledEvent(teamId, gameId) {
             const event = data.event;
 
             container.innerHTML = `
-                <div class="next-scheduled-event-card" onclick="openEventModal(${event.id})">
+                <div class="next-scheduled-event-card" onclick="navigateToEvent(${event.id})">
                     <div class="next-event-header">
                         <i class="fas fa-calendar-plus"></i>
                         <h4>Next Scheduled Event</h4>

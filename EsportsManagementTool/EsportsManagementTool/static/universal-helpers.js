@@ -46,6 +46,7 @@ function enableDropdown(dropdown) {
 
 /**
  * Attach a live character counter to a text area.
+ * Used by events.js, scheduled-events.js, manage-communities.js, dashboard.js, & tournament-results.js
  */
 function attachCharacterCounter(textareaId, maxLength) {
     const textarea = document.getElementById(textareaId);
@@ -53,15 +54,48 @@ function attachCharacterCounter(textareaId, maxLength) {
 
     textarea.setAttribute('maxlength', maxLength);
 
+    // Remove any existing counter to avoid duplicates on re-open
+    const existing = textarea.nextElementSibling;
+    if (existing?.classList.contains('char-counter')) {
+        existing.remove();
+    }
+
     const counter = document.createElement('div');
     counter.className = 'char-counter';
-    counter.textContent = `0 / ${maxLength}`;
+    counter.textContent = `${textarea.value.length} / ${maxLength}`;
 
     textarea.parentNode.insertBefore(counter, textarea.nextSibling);
 
     textarea.addEventListener('input', function() {
         counter.textContent = `${textarea.value.length} / ${maxLength}`;
     });
+}
+
+/**
+ * Navigates from an event card to the corresponding event on the Event tab.
+ * Used by communities.js & team.js
+ **/
+function navigateToEvent(eventId) {
+    const eventsTab = document.querySelector('[data-tab="events"]');
+    if (eventsTab) {
+        // Same-page: switch to events tab and open the detail panel
+        eventsTab.click();
+        let opened = false;
+        const tryOpen = (attempts = 0) => {
+            if (opened) return;
+            const container = document.getElementById('eventsContainer');
+            if (container && container.style.display !== 'none') {
+                opened = true;
+                openEventDetailPanel(eventId);
+            } else if (attempts < 30) {
+                setTimeout(() => tryOpen(attempts + 1), 150);
+            }
+        };
+        setTimeout(() => tryOpen(), 200);
+    } else {
+        // Cross-page: redirect to dashboard with event param
+        window.location.href = `/dashboard?openEvent=${eventId}`;
+    }
 }
 
 // ========================================
@@ -83,4 +117,6 @@ function debounce(func, wait) {
 //Global Exports
 window.filterListItems = filterListItems;
 window.enableDropdown = enableDropdown;
+window.attachCharacterCounter = attachCharacterCounter;
+window.navigateToEvent = navigateToEvent;
 window.debounce = debounce;

@@ -1,11 +1,9 @@
 /**
  * ============================================
  * SCHEDULED-EVENTS.JS
- * ORGANIZED BY CLAUDEAI
  * ============================================
  *
  * Manages recurring scheduled events for teams
- * Features:
  * - Create recurring events (Weekly, Biweekly, Monthly, Once)
  * - View and manage team schedules
  * - Edit existing schedules
@@ -22,21 +20,12 @@
  * Tracks current context and loaded data
  */
 const ScheduleState = {
-    /** Currently selected team ID */
     currentTeamId: null,
-
-    /** Currently selected game ID */
     currentGameId: null,
-
-    /** Loaded schedules for current team */
     currentSchedules: [],
+    pendingDeleteScheduleId: null,
 
-    /** Pending schedule deletion ID */
-    pendingDeleteScheduleId: null,  // ADD THIS LINE
-
-    /**
-     * Reset state to defaults
-     */
+    // Reset state to defaults
     reset() {
         this.currentTeamId = null;
         this.currentGameId = null;
@@ -44,21 +33,13 @@ const ScheduleState = {
         this.pendingDeleteScheduleId = null;
     },
 
-    /**
-     * Set current context
-     * @param {number} teamId - Team ID
-     * @param {number} gameId - Game ID
-     */
+    // Set current context
     setContext(teamId, gameId) {
         this.currentTeamId = teamId;
         this.currentGameId = gameId;
     },
 
-    /**
-     * Find schedule by ID
-     * @param {number} scheduleId - Schedule ID to find
-     * @returns {Object|null} Schedule object or null if not found
-     */
+    // Find schedule by ID
     findSchedule(scheduleId) {
         return this.currentSchedules.find(s => s.schedule_id === scheduleId) || null;
     }
@@ -81,7 +62,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Create scheduled event form submission
     const createForm = document.getElementById('createScheduledEventForm');
     if (createForm) {
-        createForm.addEventListener('submit', handleScheduledEventSubmit);
+        createForm.addEventListener('submit', handleScheduleSubmit);
     }
 
     // Location dropdown for create form
@@ -106,9 +87,6 @@ document.addEventListener('DOMContentLoaded', function() {
 /**
  * Initialize schedule button visibility based on team selection
  * Shows "Schedule Event" button only if user is GM for the team's game
- *
- * @param {number} teamId - ID of the selected team
- * @param {number} gameId - ID of the team's game
  */
 async function initScheduleButton(teamId, gameId) {
     // Update state
@@ -162,12 +140,7 @@ async function initScheduleButton(teamId, gameId) {
 // DATA LOADING & API CALLS
 // ============================================
 
-/**
- * Load all scheduled events for a specific team
- * Fetches schedule data and renders it in the schedule tab
- *
- * @param {number} teamId - ID of the team to load schedules for
- */
+// Load all schedules for a specific team
 async function loadScheduleTab(teamId) {
     const schedulePanel = document.getElementById('scheduleTabContent');
 
@@ -214,13 +187,7 @@ async function loadScheduleTab(teamId) {
     }
 }
 
-/**
- * Update visibility dropdown labels with team and game names
- * Makes visibility options more user-friendly by showing actual names
- *
- * @param {number} teamId - Team ID
- * @param {number} gameId - Game ID
- */
+// Update visibility dropdown labels with team and game names
 async function updateVisibilityLabels(teamId, gameId) {
     try {
         const response = await fetch(`/api/teams/${teamId}/details`);
@@ -254,12 +221,7 @@ async function updateVisibilityLabels(teamId, gameId) {
 // RENDERING FUNCTIONS
 // ============================================
 
-/**
- * Render schedule cards in a two-column grid layout
- * Displays all schedules for the current team
- *
- * @param {Array} schedules - Array of schedule objects to render
- */
+// Render schedule cards
 function renderScheduleCards(schedules) {
     const schedulePanel = document.getElementById('scheduleTabContent');
 
@@ -318,101 +280,11 @@ function renderScheduleCards(schedules) {
 }
 
 // ============================================
-// UTILITY & HELPER FUNCTIONS
-// ============================================
-
-/**
- * Build dynamic frequency text based on schedule settings
- * Formats schedule frequency in a human-readable way
- *
- * @param {Object} schedule - Schedule object
- * @returns {string} Formatted frequency text
- *
- * @example
- * // Returns: "Weekly / Monday / 3:00 PM - 5:00 PM until 2025-12-31"
- * buildFrequencyText({ frequency: 'Weekly', day_of_week_name: 'Monday', ... })
- */
-function buildFrequencyText(schedule) {
-    const startTime = schedule.start_time;
-    const endTime = schedule.end_time;
-    const timeRange = `${startTime} - ${endTime}`;
-
-    if (schedule.frequency === 'Once') {
-        // Format: "2025-12-25 from 3:00 PM - 5:00 PM"
-        return `${schedule.specific_date} from ${timeRange}`;
-    } else if (schedule.frequency === 'Monthly') {
-        // Format: "Monthly / Monday / 3:00 PM - 5:00 PM until 2025-12-31"
-        return `Monthly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
-    } else if (schedule.frequency === 'Biweekly') {
-        // Format: "Biweekly / Monday / 3:00 PM - 5:00 PM until 2025-12-31"
-        return `Biweekly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
-    } else if (schedule.frequency === 'Weekly') {
-        // Format: "Weekly / Monday / 3:00 PM - 5:00 PM until 2025-12-31"
-        return `Weekly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
-    } else {
-        // Fallback for unknown frequencies
-        return `${schedule.frequency} - ${schedule.day_of_week_name || 'N/A'}`;
-    }
-}
-
-/**
- * Build dynamic visibility text with game/team context
- * Converts visibility setting to user-friendly text with context
- *
- * @param {Object} schedule - Schedule object with visibility and game info
- * @returns {string} Formatted visibility text
- *
- * @example
- * // Returns: "League of Legends Community"
- * buildVisibilityText({ visibility: 'game_community', game_title: 'League of Legends' })
- */
-function buildVisibilityText(schedule) {
-    const gameName = schedule.game_title;
-
-    switch (schedule.visibility) {
-        case 'game_community':
-            return `${gameName} Community`;
-
-        case 'game_players':
-            return `${gameName} Players`;
-
-        case 'team':
-            // Use team name if available, otherwise show generic message
-            if (schedule.team_name) {
-                return `${schedule.team_name} for ${gameName}`;
-            }
-            return `Team-specific for ${gameName}`;
-
-        default:
-            return formatVisibility(schedule.visibility);
-    }
-}
-
-/**
- * Format visibility setting for display (fallback)
- * Converts internal visibility codes to readable text
- *
- * @param {string} visibility - Visibility setting code
- * @returns {string} Formatted visibility text
- */
-function formatVisibility(visibility) {
-    const visibilityMap = {
-        'team': 'Team Only',
-        'game_players': 'Game Players',
-        'game_community': 'Game Community',
-    };
-    return visibilityMap[visibility] || visibility;
-}
-
-// ============================================
 // CREATE SCHEDULE MODAL
 // ============================================
 
-/**
- * Open the create scheduled event modal
- * Resets form and prepares modal for new schedule creation
- */
-function openCreateScheduledEventModal() {
+// Open the create schedule modal
+function openCreateScheduleModal() {
     if (!ScheduleState.currentTeamId && !currentScheduleTeamId) {
         alert('Please select a team first');
         return;
@@ -475,37 +347,14 @@ function openCreateScheduledEventModal() {
     document.body.style.overflow = 'hidden';
 }
 
-/**
- * Close create scheduled event modal
- */
-function closeCreateScheduledEventModal() {
+// Close create schedule modal
+function closeCreateScheduleModal() {
     const modal = document.getElementById('createScheduledEventModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-
-    const form = document.getElementById('createScheduledEventForm');
-        if (form) {
-            form.reset();
-        }    
-        const leagueGroup = document.getElementById('scheduledLeagueGroup');
-        const dayOfWeekGroup = document.getElementById('scheduledDayOfWeekGroup');
-        const specificDateGroup = document.getElementById('scheduledSpecificDateGroup');
-        const endDateGroup = document.querySelector('label[for="scheduledEndDate"]')?.parentElement;
-
-        if (leagueGroup) leagueGroup.style.display = 'none';
-        if (dayOfWeekGroup) dayOfWeekGroup.style.display = 'block';
-        if (specificDateGroup) specificDateGroup.style.display = 'none';
-        if (endDateGroup) endDateGroup.style.display = 'block';
+    setElementDisplay(modal, 'none');
+    document.body.style.overflow = 'auto';
 }
 
-/**
- * Handle frequency dropdown change
- * Shows/hides appropriate date fields based on frequency selection
- * - Once: Shows specific date, hides day of week and end date
- * - Recurring: Shows day of week and end date, hides specific date
- */
+// Handle frequency dropdown change
 function handleFrequencyChange() {
     const frequency = document.getElementById('scheduledFrequency').value;
     const dayOfWeekGroup = document.getElementById('scheduledDayOfWeekGroup');
@@ -538,13 +387,65 @@ function handleFrequencyChange() {
     }
 }
 
-/**
- * Handle create scheduled event form submission
- * Validates and submits new schedule to server
- *
- * @param {Event} event - Form submit event
- */
-async function handleScheduledEventSubmit(event) {
+// Build dynamic frequency text based on schedule settings
+function buildFrequencyText(schedule) {
+    const startTime = schedule.start_time;
+    const endTime = schedule.end_time;
+    const timeRange = `${startTime} - ${endTime}`;
+
+    if (schedule.frequency === 'Once') {
+        // Format: "2025-12-25 from 3:00 PM - 5:00 PM"
+        return `${schedule.specific_date} from ${timeRange}`;
+    } else if (schedule.frequency === 'Monthly') {
+        // Format: "Monthly / Monday / 3:00 PM - 5:00 PM until 2025-12-31"
+        return `Monthly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
+    } else if (schedule.frequency === 'Biweekly') {
+        // Format: "Biweekly / Monday / 3:00 PM - 5:00 PM until 2025-12-31"
+        return `Biweekly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
+    } else if (schedule.frequency === 'Weekly') {
+        // Format: "Weekly / Monday / 3:00 PM - 5:00 PM until 2025-12-31"
+        return `Weekly / ${schedule.day_of_week_name} / ${timeRange} until ${schedule.schedule_end_date}`;
+    } else {
+        // Fallback for unknown frequencies
+        return `${schedule.frequency} - ${schedule.day_of_week_name || 'N/A'}`;
+    }
+}
+
+// Build dynamic visibility text with game/team context
+function buildVisibilityText(schedule) {
+    const gameName = schedule.game_title;
+
+    switch (schedule.visibility) {
+        case 'game_community':
+            return `${gameName} Community`;
+
+        case 'game_players':
+            return `${gameName} Players`;
+
+        case 'team':
+            // Use team name if available, otherwise show generic message
+            if (schedule.team_name) {
+                return `${schedule.team_name} for ${gameName}`;
+            }
+            return `Team-specific for ${gameName}`;
+
+        default:
+            return formatVisibility(schedule.visibility);
+    }
+}
+
+// Format visibility setting for display (fallback)
+function formatVisibility(visibility) {
+    const visibilityMap = {
+        'team': 'Team Only',
+        'game_players': 'Game Players',
+        'game_community': 'Game Community',
+    };
+    return visibilityMap[visibility] || visibility;
+}
+
+// Handle create schedule form submission
+async function handleScheduleSubmit(event) {
     event.preventDefault();
 
     const submitBtn = event.target.querySelector('button[type="submit"]');
@@ -563,7 +464,6 @@ async function handleScheduledEventSubmit(event) {
         leagueSelect?.focus();
         return;
     }
-
 
     // Handle location (custom or preset)
     const locationSelect = document.getElementById('scheduledLocation');
@@ -631,7 +531,7 @@ async function handleScheduledEventSubmit(event) {
             btnSpinner.style.display = 'none';
 
             setTimeout(() => {
-                closeCreateScheduledEventModal();
+                closeCreateScheduleModal();
 
                 // Reload team details if function exists
                 if (typeof selectTeam === 'function') {
@@ -657,13 +557,6 @@ async function handleScheduledEventSubmit(event) {
 // ============================================
 // VIEW SCHEDULE MODAL
 // ============================================
-
-/**
- * Open schedule details modal in view mode
- * Displays full information about a specific schedule
- *
- * @param {number} scheduleId - ID of the schedule to display
- */
 async function openScheduleModal(scheduleId) {
     const schedule = ScheduleState.findSchedule(scheduleId) ||
                      currentSchedules.find(s => s.schedule_id === scheduleId);
@@ -696,11 +589,7 @@ async function openScheduleModal(scheduleId) {
     document.body.style.overflow = 'hidden';
 }
 
-/**
- * Render game icon in modal header WITH event count
- * FIXED: Now properly removes event count when viewing one-time schedules
- * @param {Object} schedule - Schedule object with game info
- */
+// Render game icon in modal header WITH event count
 async function renderGameIcon(schedule) {
     const gameIconContainer = document.getElementById('scheduleModalGameIcon');
     const titleElement = document.getElementById('scheduleModalTitle');
@@ -750,11 +639,7 @@ async function renderGameIcon(schedule) {
     }
 }
 
-/**
- * Fetch the count of events associated with a schedule
- * @param {number} scheduleId - Schedule ID
- * @returns {number} Count of associated events
- */
+// Fetch the count of events associated with a schedule
 async function fetchScheduleEventCount(scheduleId) {
     try {
         const response = await fetch(`/api/schedule/${scheduleId}/event-count`);
@@ -770,10 +655,7 @@ async function fetchScheduleEventCount(scheduleId) {
     }
 }
 
-/**
- * Render schedule details in modal body
- * @param {Object} schedule - Schedule object
- */
+// Render schedule details in modal body
 function renderScheduleDetails(schedule) {
     const modalBody = document.getElementById('scheduleModalBody');
     const eventTypeClass = schedule.event_type.toLowerCase();
@@ -862,10 +744,7 @@ if (leagueSelectInit) {
     }
 }
 
-/**
- * Configure edit and delete buttons based on user permissions
- * @param {number} scheduleId - Schedule ID for button actions
- */
+// Configure edit and delete buttons based on user permissions
 async function configureScheduleButtons(scheduleId) {
     const editBtn = document.getElementById('editScheduleBtn');
     const deleteBtn = document.getElementById('deleteScheduleBtn');
@@ -919,9 +798,7 @@ async function configureScheduleButtons(scheduleId) {
     }
 }
 
-/**
- * Close schedule details modal
- */
+// Close schedule details modal
 function closeScheduleModal() {
     const modal = document.getElementById('scheduleDetailsModal');
     if (modal) {
@@ -933,13 +810,6 @@ function closeScheduleModal() {
 // ============================================
 // EDIT SCHEDULE MODAL
 // ============================================
-
-/**
- * Switch schedule modal to edit mode
- * Replaces view content with editable form
- *
- * @param {number} scheduleId - ID of schedule to edit
- */
 function openEditScheduleMode(scheduleId) {
     const schedule = ScheduleState.findSchedule(scheduleId) ||
                      currentSchedules.find(s => s.schedule_id === scheduleId);
@@ -1085,61 +955,7 @@ function openEditScheduleMode(scheduleId) {
     document.getElementById('deleteScheduleBtn').style.display = 'none';
 }
 
-function handleEditEventTypeChange() {
-    const eventType = document.getElementById('editScheduleType');
-    const leagueGroup = document.getElementById('editScheduleLeagueGroup');
-    const leagueSelect = document.getElementById('editScheduleLeagueSelect');
-    const leagueLabel = document.getElementById('editScheduleLeagueLabel');
-    
-    // Add null checks to prevent errors
-    if (!eventType || !leagueGroup || !leagueSelect) {
-        console.warn('Required elements not found in handleEditEventTypeChange');
-        return;
-    }
-    
-    const eventTypeValue = eventType.value;
-    
-    if (eventTypeValue === 'Match') {
-        leagueGroup.style.display = 'block';
-        leagueSelect.setAttribute('required', 'required');
-        
-        if (leagueLabel) {
-            leagueLabel.innerHTML = 'League <span style="color: #ff5252;">*</span>';
-        }
-        
-        // Get team_id from schedule or context - with proper null check
-        const scheduleIdInput = document.getElementById('editScheduleId');
-        if (!scheduleIdInput) {
-            console.warn('Schedule ID input not found');
-            return;
-        }
-        
-        const scheduleId = parseInt(scheduleIdInput.value);
-        const schedule = ScheduleState.findSchedule(scheduleId) ||
-                        currentSchedules.find(s => s.schedule_id === scheduleId);
-        
-        const teamId = schedule?.team_id || ScheduleState.currentTeamId || currentScheduleTeamId;
-        
-        if (teamId && leagueSelect.options.length <= 1) {
-            console.log('Loading leagues for team_id:', teamId);
-            loadEditScheduleLeagues(teamId, schedule?.league_id || null);
-        }
-    } else {
-        leagueGroup.style.display = 'none';
-        leagueSelect.removeAttribute('required');
-        leagueSelect.value = '';
-        
-        if (leagueLabel) {
-            leagueLabel.innerHTML = 'League (Optional)';
-        }
-    }
-}
-
-/**
- * Load leagues for edit modal
- * @param {number} gameId - Game ID to load leagues for
- * @param {number} currentLeagueId - Currently selected league ID (if any)
- */
+// Load leagues for edit modal
 async function loadEditScheduleLeagues(teamId, currentLeagueId) {
     const leagueSelect = document.getElementById('editScheduleLeagueSelect');
     
@@ -1197,10 +1013,7 @@ async function loadEditScheduleLeagues(teamId, currentLeagueId) {
         leagueSelect.disabled = false;
     }
 }
-/**
- * Setup location dropdown handler for edit form
- * Shows/hides custom location input based on selection
- */
+// Setup location dropdown handler for edit form
 function setupEditLocationHandler() {
     const locationSelect = document.getElementById('editScheduleLocation');
     const customLocationGroup = document.getElementById('editCustomLocationGroup');
@@ -1218,20 +1031,12 @@ function setupEditLocationHandler() {
     });
 }
 
-/**
- * Cancel edit mode and return to view mode
- * @param {number} scheduleId - Schedule ID to reload in view mode
- */
+// Cancel edit mode and return to view mode
 function cancelEditSchedule(scheduleId) {
     openScheduleModal(scheduleId);
 }
 
-/**
- * Handle edit schedule form submission
- * Updates schedule with new values
- *
- * @param {Event} event - Form submit event
- */
+// Handle edit schedule form submission
 async function handleEditScheduleSubmit(event) {
     event.preventDefault();
 
@@ -1320,11 +1125,7 @@ async function handleEditScheduleSubmit(event) {
 // DELETE SCHEDULE
 // ============================================
 
-/**
- * Check if current user can delete a schedule
- * @param {Object} schedule - Schedule object with game_id and created_at
- * @returns {boolean} True if user can delete
- */
+// Check if current user can delete a schedule
 async function canUserDeleteSchedule(schedule) {
     const is_developer = window.userPermissions?.is_developer || false;
     const sessionUserId = window.currentUserId || 0;
@@ -1364,11 +1165,7 @@ async function canUserDeleteSchedule(schedule) {
     return false;
 }
 
-/**
- * Get time remaining for deletion window
- * @param {string} createdAt - ISO timestamp of creation
- * @returns {string|null} Human-readable time remaining or null if expired
- */
+// Get time remaining for deletion window
 function getScheduleDeletionTimeRemaining(createdAt) {
     if (!createdAt) return null;
 
@@ -1391,10 +1188,7 @@ function getScheduleDeletionTimeRemaining(createdAt) {
     }
 }
 
-/**
- * Confirm schedule deletion with user
- * Uses universal delete modal system
- */
+// Confirm schedule deletion with user
 function confirmDeleteSchedule(scheduleId) {
     const schedule = ScheduleState.findSchedule(scheduleId) ||
                      currentSchedules.find(s => s.schedule_id === scheduleId);
@@ -1433,47 +1227,9 @@ function confirmDeleteSchedule(scheduleId) {
     });
 }
 
-/**
- * Check if a schedule has any events left and auto-delete if empty
- * Called after deleting individual scheduled events
- * @param {number} scheduleId - Schedule ID to check
- * @returns {Promise<Object>} Cleanup result
- */
-async function checkAndCleanupSchedule(scheduleId) {
-    try {
-        const response = await fetch(`/api/schedule/${scheduleId}/check-and-cleanup`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
 
-        const data = await response.json();
 
-        if (data.success && data.deleted) {
-            console.log(`✓ Auto-deleted empty schedule: ${data.schedule_name}`);
-
-            // Show notification to user
-            showScheduleCleanupNotification(data.schedule_name);
-
-            // Reload schedule tab if currently viewing it
-            if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
-                loadScheduleTab(currentSelectedTeamId);
-            }
-        }
-
-        return data;
-    } catch (error) {
-        console.error('Error checking schedule cleanup:', error);
-        return { success: false, deleted: false };
-    }
-}
-
-/**
- * Show notification when a schedule is auto-deleted
- * Uses existing notification system with INFO variant
- * @param {string} scheduleName - Name of deleted schedule
- */
+// Show notification when a schedule is auto-deleted
 function showScheduleCleanupNotification(scheduleName) {
     if (typeof window.showInfoMessage === 'function') {
         window.showInfoMessage(
@@ -1487,11 +1243,7 @@ function showScheduleCleanupNotification(scheduleName) {
 // LEAGUE SELECTION FOR MATCHES
 // ============================================
 
-
-/**
- * Show/hide league dropdown based on event type
- * Makes league REQUIRED for Match events
- */
+// Show/hide league dropdown based on event type
 function handleEventTypeChangeForLeague() {
     const eventType = document.getElementById('scheduledEventType').value;
     const leagueGroup = document.getElementById('scheduledLeagueGroup');
@@ -1535,9 +1287,7 @@ function handleEventTypeChangeForLeague() {
     }
 }
 
-/**
- * Load team leagues into the schedule modal dropdown
- */
+// Load team leagues into the schedule modal dropdown
 async function loadTeamLeaguesForSchedule(teamId) {
     const leagueSelect = document.getElementById('scheduledLeagueSelect');
     
@@ -1580,9 +1330,7 @@ async function loadTeamLeaguesForSchedule(teamId) {
     }
 }
 
-/**
- * Execute the schedule deletion (called by universal modal)
- */
+// Execute the schedule deletion (called by universal modal)
 async function confirmDeleteScheduleAction(scheduleId) {
     try {
         const response = await fetch(`/api/schedule/${scheduleId}`, {
@@ -1622,14 +1370,12 @@ async function confirmDeleteScheduleAction(scheduleId) {
     }
 }
 
-/**
- * Handle schedule delete errors
- */
+// Handle schedule delete errors
 function handleScheduleDeleteError(message) {
     if (message.includes('expired') || message.includes('24')) {
-        alert(`⏰ ${message}\n\nOnly developers can delete schedules after 24 hours.`);
+        alert(`${message}\n\nOnly developers can delete schedules after 24 hours.`);
     } else if (message.includes('creator') || message.includes('Manager')) {
-        alert(`🚫 ${message}`);
+        alert(`${message}`);
     } else {
         alert('Error: ' + message);
     }
@@ -1637,41 +1383,21 @@ function handleScheduleDeleteError(message) {
 }
 
 // ============================================
-// MODAL CLICK-OUTSIDE-TO-CLOSE HANDLER (handles scheduledevents modal bugs)
-// ============================================
-window.addEventListener('click', function(event) {
-    const modal = document.getElementById('createScheduledEventModal');
-    if (event.target === modal) {
-        closeCreateScheduledEventModal();
-    }
-});
-
-// ============================================
 // GLOBAL EXPORTS
 // ============================================
-// Export functions to window object for HTML onclick handlers
-
-window.openCreateScheduledEventModal = openCreateScheduledEventModal;
-window.closeCreateScheduledEventModal = closeCreateScheduledEventModal;
-window.initScheduleButton = initScheduleButton;
-window.fetchScheduleEventCount = fetchScheduleEventCount;
-window.handleFrequencyChange = handleFrequencyChange;
+window.openCreateScheduleModal = openCreateScheduleModal;
+window.closeCreateScheduleModal = closeCreateScheduleModal;
 window.openScheduleModal = openScheduleModal;
 window.closeScheduleModal = closeScheduleModal;
+
+//Team tab schedules
+window.initScheduleButton = initScheduleButton;
 window.loadScheduleTab = loadScheduleTab;
+
+//Editing
 window.openEditScheduleMode = openEditScheduleMode;
-window.cancelEditSchedule = cancelEditSchedule;
-window.updateVisibilityLabels = updateVisibilityLabels;
-//Deletion
-window.canUserDeleteSchedule = canUserDeleteSchedule;
-window.getScheduleDeletionTimeRemaining = getScheduleDeletionTimeRemaining;
-window.confirmDeleteSchedule = confirmDeleteSchedule;
-window.confirmDeleteScheduleAction = confirmDeleteScheduleAction;
-window.checkAndCleanupSchedule = checkAndCleanupSchedule;
+window.handleFrequencyChange = handleFrequencyChange;
+
+//Deletion cleanup
 window.showScheduleCleanupNotification = showScheduleCleanupNotification;
-//League Scheduling
-window.handleEventTypeChangeForLeague = handleEventTypeChangeForLeague;
-window.loadTeamLeaguesForSchedule = loadTeamLeaguesForSchedule;
-//Match handling
-window.handleEditEventTypeChange = handleEditEventTypeChange;
-window.loadEditScheduleLeagues = loadEditScheduleLeagues;
+

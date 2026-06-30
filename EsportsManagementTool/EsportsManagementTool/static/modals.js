@@ -38,7 +38,6 @@ const MODAL_CLOSE_HANDLERS = {
 
     // Event-related modals
     'dayEventsModal': () => closeDayModal(),
-    'eventDetailsModal': () => closeEventModal(),
     'createEventModal': () => closeCreateEventModal(),
 
     // Game/Community-related modals
@@ -57,7 +56,7 @@ const MODAL_CLOSE_HANDLERS = {
 
     // Scheduled events
     'scheduleDetailsModal': () => closeScheduleModal(),
-    'createScheduledEventModal': () => closeCreateScheduledEventModal(),
+    'createScheduledEventModal': () => closeCreateScheduleModal(),
 
     // Stats modal
     'recordMatchResultModal': () => closeRecordResultModal(),

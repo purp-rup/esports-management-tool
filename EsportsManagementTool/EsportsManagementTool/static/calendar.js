@@ -79,7 +79,7 @@ function handleDynamicReposition() {
     'closeChangePasswordModal',
     'closeDeleteConfirmModal',
     'closeAddTeamMembersModal',
-    'closeCreateScheduledEventModal',
+    'closeCreateScheduleModal',
     'closeAddVodModal'
 ].forEach(function(name) {
     if (typeof window[name] !== 'function') {
@@ -409,7 +409,6 @@ function displayEventDetails(event) {
     html += `
         <div class="event-detail-row">
             <div class="event-detail-icon"><i class="fas fa-calendar"></i></div>
-            <span class="event-detail-label">Date:</span>
             <span class="event-detail-value">${formatEventDate(event.date)}</span>
         </div>
     `;
@@ -419,7 +418,6 @@ function displayEventDetails(event) {
         html += `
             <div class="event-detail-row">
                 <div class="event-detail-icon"><i class="fas fa-clock"></i></div>
-                <span class="event-detail-label">Time:</span>
                 <span class="event-detail-value">${formatTime(event.start_time)} - ${formatTime(event.end_time)}</span>
             </div>
         `;
@@ -427,7 +425,6 @@ function displayEventDetails(event) {
         html += `
             <div class="event-detail-row">
                 <div class="event-detail-icon"><i class="fas fa-clock"></i></div>
-                <span class="event-detail-label">Time:</span>
                 <span class="event-detail-value">All day</span>
             </div>
         `;
@@ -437,7 +434,6 @@ function displayEventDetails(event) {
     html += `
         <div class="event-detail-row">
             <div class="event-detail-icon"><i class="fas fa-tag"></i></div>
-            <span class="event-detail-label">Type:</span>
             <span class="event-detail-value">
                 <span class="event-type-badge" data-type="${eventType}">${capitalizeFirst(event.event_type || 'Event')}</span>
             </span>
@@ -448,7 +444,6 @@ function displayEventDetails(event) {
     html += `
         <div class="event-detail-row">
             <div class="event-detail-icon"><i class="fas fa-gamepad"></i></div>
-            <span class="event-detail-label">Game:</span>
             <span class="event-detail-value">${event.game_name || 'General'}</span>
         </div>
     `;
@@ -458,7 +453,6 @@ function displayEventDetails(event) {
         html += `
             <div class="event-detail-row">
                 <div class="event-detail-icon"><i class="fas fa-map-marker-alt"></i></div>
-                <span class="event-detail-label">Location:</span>
                 <span class="event-detail-value">${event.location}</span>
             </div>
         `;
@@ -469,7 +463,6 @@ function displayEventDetails(event) {
         html += `
             <div class="event-detail-row">
                 <div class="event-detail-icon"><i class="fas fa-info-circle"></i></div>
-                <span class="event-detail-label">Description:</span>
                 <span class="event-detail-value">${event.description}</span>
             </div>
         `;
@@ -642,17 +635,17 @@ function displayEventPopupDetails(data, popup, clickedElement){
 
                 <div class="popup-row">
                     <span class="popup-icon"><i class="fas fa-tag"></i></span>
-                    <span class="popup-text" style="text-transform: capitalize;">Event Type: ${data.event_type}</span>
+                    <span class="popup-text" style="text-transform: capitalize;">${data.event_type}</span>
                 </div>
 
                 <div class="popup-games-box">
                     <span class="popup-icon"><i class="fas fa-gamepad"></i></span>
-                    <span class="popup-text">Game: ${data.game_name || 'N/A'}</span>
+                    <span class="popup-text">${data.game_name || 'N/A'}</span>
                 </div>
 
                 <div class="popup-row full-width">
                     <span class="popup-icon"><i class="fas fa-map-marker-alt"></i></span>
-                    <span class="popup-text">Location: ${data.location || 'Online'}</span>
+                    <span class="popup-text">${data.location || 'Online'}</span>
                 </div>
             </div>
 
@@ -793,68 +786,119 @@ function capitalizeFirst(str) {
 }
 
 // ============================================
+// DAY MODAL (CALENDAR VIEW)
+// ============================================
+function openDayModal(date, dateTitle) {
+    const modal = document.getElementById('dayEventsModal');
+    const modalTitle = document.getElementById('modalDayTitle');
+    const modalBody = document.getElementById('modalEventsList');
+
+    modalTitle.textContent = dateTitle;
+    const events = EventState.eventsData[date] || [];
+
+    // Clear and populate modal body
+    modalBody.innerHTML = '';
+
+    if (events.length > 0) {
+        events.forEach(event => {
+            const eventItem = createDayModalEventItem(event);
+            modalBody.appendChild(eventItem);
+        });
+    } else {
+        modalBody.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No events scheduled for this day.</p>';
+    }
+
+    setElementDisplay(modal, 'block');
+    document.body.style.overflow = 'hidden';
+}
+
+// Create event item for day modal
+function createDayModalEventItem(event) {
+    const eventItem = document.createElement('div');
+    eventItem.className = 'modal-event-item';
+    eventItem.onclick = (e) => {
+        e.stopPropagation();
+        closeDayModal();
+        openEventModal(event.id);
+    };
+
+    let eventHTML = '';
+    if (event.time) {
+        eventHTML += `<div class="modal-event-time"><i class="fas fa-clock"></i> ${event.time}</div>`;
+    }
+    eventHTML += `<div class="modal-event-title">${event.title}</div>`;
+    if (event.description) {
+        eventHTML += `<div class="modal-event-description">${event.description}</div>`;
+    }
+
+    eventItem.innerHTML = eventHTML;
+    return eventItem;
+}
+
+// Close day modal
+function closeDayModal() {
+    const modal = document.getElementById('dayEventsModal');
+    setElementDisplay(modal, 'none');
+    document.body.style.overflow = 'auto';
+}
+
+// ============================================
 // EVENT SUBSCRIPTION FUNCTIONS
 // ============================================
 
 async function loadNotificationSection(eventId) {
     const btn = document.getElementById('notificationBtn');
     const btnText = document.getElementById('notificationBtnText');
+    const panelBtn = document.getElementById('detailSubscribeBtn');
+    const panelBtnText = document.getElementById('detailSubscribeBtnText');
 
-    if (!btn || !btnText) return;
+    // At least one must exist to be worth fetching
+    if (!btn && !panelBtn) return;
 
     try {
         const response = await fetch(`/api/event/${eventId}/subscription-status`);
         const data = await response.json();
 
         if (!data.notifications_enabled) {
-            btn.disabled = true;
-            btn.classList.add('disabled');
-            btnText.textContent = 'Enable notifications in Profile';
+            [btn, panelBtn].forEach(b => { if (b) { b.disabled = true; b.classList.add('disabled'); } });
+            [btnText, panelBtnText].forEach(t => { if (t) t.textContent = 'Enable notifications in Profile'; });
             return;
         }
 
-        btn.disabled = false;
-        btn.classList.remove('disabled');
-
-        if (data.subscribed) {
-            btnText.textContent = 'Subscribed';
-            btn.classList.add('subscribed');
-        } else {
-            btnText.textContent = 'Subscribe';
-            btn.classList.remove('subscribed');
-        }
+        const isSubscribed = data.subscribed;
+        [btn, panelBtn].forEach(b => {
+            if (!b) return;
+            b.disabled = false;
+            b.classList.remove('disabled');
+            b.classList.toggle('subscribed', isSubscribed);
+        });
+        [btnText, panelBtnText].forEach(t => { if (t) t.textContent = isSubscribed ? 'Subscribed' : 'Subscribe'; });
 
     } catch (err) {
         console.error('Error fetching subscription status:', err);
-        btn.disabled = true;
-        btnText.textContent = 'Error';
+        [btn, panelBtn].forEach(b => { if (b) b.disabled = true; });
+        [btnText, panelBtnText].forEach(t => { if (t) t.textContent = 'Error'; });
     }
 }
 
 async function toggleEventSubscription() {
     const btn = document.getElementById('notificationBtn');
     const btnText = document.getElementById('notificationBtnText');
+    const panelBtn = document.getElementById('detailSubscribeBtn');
+    const panelBtnText = document.getElementById('detailSubscribeBtnText');
 
-    if (!window.currentEventId) return;
+    if (!window.currentEventId && !EventState.currentEventId) return;
+    const eventId = window.currentEventId || EventState.currentEventId;
 
     try {
-        const response = await fetch(`/api/event/${window.currentEventId}/toggle-subscription`, {
-            method: 'POST'
-        });
+        const response = await fetch(`/api/event/${eventId}/toggle-subscription`, { method: 'POST' });
         const data = await response.json();
 
-        if (data.error) {
-            alert(data.error);
-            return;
-        }
+        if (data.error) { alert(data.error); return; }
 
-        if (data.status === 'subscribed') {
-            btnText.textContent = 'Subscribed';
-            btn.classList.add('subscribed');
-        } else {
-            btnText.textContent = 'Subscribe';
-            btn.classList.remove('subscribed');
-        }
+        const isSubscribed = data.status === 'subscribed';
+        [btn, panelBtn].forEach(b => { if (b) b.classList.toggle('subscribed', isSubscribed); });
+        [btnText, panelBtnText].forEach(t => { if (t) t.textContent = isSubscribed ? 'Subscribed' : 'Subscribe'; });
 
     } catch (err) {
         console.error('Error toggling subscription:', err);
@@ -882,6 +926,8 @@ function closeDayModal() { window.closeDayModal(); }
 function closeEventPopup() { window.closeEventPopup(); }
 
 window.openCalendarEventModal = openCalendarEventModal;
+window.openDayModal = openDayModal;
+window.closeDayModal = closeDayModal;
 
 if (typeof window.openEventModal !== 'function') {
     window.openEventModal = openCalendarEventModal;

@@ -44,31 +44,39 @@ def get_team_game_id(cursor, team_id: int) -> int | None:
     result = cursor.fetchone()
     return result['gameID'] if result else None
 
-def format_time_to_12hr(time_value) -> str | None:
+
+def format_time_raw(time_value) -> str:
     """
-    Convert time object or timedelta to 12-hour format string
-    Used in communities.py, schedules.py, & teams.py
+    Convert time object or timedelta to HH:MM string for use in HTML time inputs.
+    Used in events.py
     """
     if not time_value:
-        return None
-
-    # Handle timedelta (from MySQL TIME type)
+        return ''
     if isinstance(time_value, timedelta):
         total_seconds = int(time_value.total_seconds())
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
     else:
-        # Handle time object
         hours = time_value.hour
         minutes = time_value.minute
+    return f"{hours:02d}:{minutes:02d}"
+
+
+def format_time_to_12hr(time_value) -> str | None:
+    """
+    Convert time object or timedelta to 12-hour format string.
+    Used in communities.py, events.py, schedules.py, & teams.py
+    """
+    if not time_value:
+        return None
+    raw = format_time_raw(time_value)
+    hours, minutes = map(int, raw.split(':'))
 
     # Convert to 12-hour format
     period = "AM" if hours < 12 else "PM"
-    display_hour = hours % 12
-    if display_hour == 0:
-        display_hour = 12
-
+    display_hour = hours % 12 or 12
     return f"{display_hour}:{minutes:02d} {period}"
+
 
 def is_all_day_event(start_time: str, end_time: str) -> bool:
     """

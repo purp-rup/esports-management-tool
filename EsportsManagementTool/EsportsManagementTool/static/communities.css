@@ -564,6 +564,7 @@
     align-items: center;
     gap: 0.4rem;
     transition: all 0.2s;
+    cursor: pointer;
 }
 
 .member-list-popup {
