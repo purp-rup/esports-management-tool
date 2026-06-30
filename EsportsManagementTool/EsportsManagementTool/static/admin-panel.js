@@ -19,14 +19,17 @@ let selectedUserId = null;
  * Initialize the admin panel module
  * Sets up event listeners and refreshes user list badges
  */
-function initializeAdminPanel() {
+async function initializeAdminPanel() {
     console.log('Admin panel module initialized');
 
     // Attach all event listeners for admin functionality
     attachAdminEventListeners();
 
     // Refresh user list badges after GM mappings load
-    refreshUserListBadges();
+    await refreshUserListBadges();
+
+    // Shows all users once they are loaded into User Management
+    revealUserList();
 }
 
 /**
@@ -70,6 +73,7 @@ const debouncedUserSearch = debounce(async (searchQuery, userItemsContainer) => 
                 userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: var(--text-secondary);">No users found</li>';
             } else {
                 renderUserItems(data.users);
+                revealUserList();
             }
         } else {
             throw new Error(data.message);
@@ -77,6 +81,7 @@ const debouncedUserSearch = debounce(async (searchQuery, userItemsContainer) => 
     } catch (error) {
         console.error('Error searching users:', error);
         userItemsContainer.innerHTML = '<li style="padding: 1rem; text-align: center; color: #f44336;">Error loading users. Please try again.</li>';
+        revealUserList();
     }
 }, 300);
 
@@ -105,6 +110,7 @@ function renderUserItems(users) {
         li.setAttribute('data-is-gm', user.is_gm ? '1' : '0');
         li.setAttribute('data-is-player', user.is_player ? '1' : '0');
         li.setAttribute('data-is-developer', user.is_developer ? '1' : '0');
+        li.setAttribute('data-profile-picture', user.profile_picture || '');
 
         // Build role badges
         const roles = [];
@@ -120,12 +126,23 @@ function renderUserItems(users) {
         });
 
         // Build user item HTML
+        const initials = `${user.firstname[0]|upper}${user.lastname[0]|upper}`;
+        const avatarHTML = user.profile_picture
+            ? `<img src="${user.profile_picture}" alt="${initials}">`
+            : initials;
+
         li.innerHTML = `
-            <div>
-                <strong>${user.firstname} ${user.lastname}</strong>
-                <p>@${user.username} — ${user.email}</p>
-                <div style="margin-top: 0.25rem; display: flex; gap: 0.5rem; align-items: center;">
-                    ${badgesHTML}
+            <div class="user-item-inner">
+                <div class="user-item-avatar">${avatarHTML}</div>
+                <div class="user-item-text">
+                    <strong>
+                        ${user.firstname} ${user.lastname}
+                        <span class="user-status-dot ${user.is_active ? 'online' : 'offline'}"></span>
+                    </strong>
+                    <p>@${user.username} — ${user.email}</p>
+                    <div class="user-item-badges">
+                        ${badgesHTML}
+                    </div>
                 </div>
             </div>
         `;
@@ -137,6 +154,13 @@ function renderUserItems(users) {
 
         userItemsContainer.appendChild(li);
     });
+}
+
+function revealUserList() {
+    const spinner = document.getElementById('userListLoadingSpinner');
+    const userItems = document.getElementById('userItems');
+    if (spinner) spinner.style.display = 'none';
+    if (userItems) userItems.style.display = 'block';
 }
 
 // ============================================
@@ -186,7 +210,7 @@ async function refreshUserListBadges() {
         const badgesHTML = buildBadgesFromUserItem(item);
 
         // Find the badge container in this user item (identified by inline style)
-        const badgeContainer = item.querySelector('[style*="margin-top: 0.25rem"]');
+        const badgeContainer = item.querySelector('.user-item-badges');
         if (badgeContainer) {
             badgeContainer.innerHTML = badgesHTML;
         }
@@ -210,8 +234,8 @@ async function handleUserItemClick(item) {
     const lastname = item.dataset.lastname;
     const email = item.dataset.email;
     const date = item.dataset.date;
-    const isActive = item.dataset.active === 'true';
     const lastSeen = item.dataset.lastSeen;
+    const profilePicture = item.dataset.profilePicture || '';
 
     // Store selected user ID for reference by other functions
     selectedUserId = userid;
@@ -225,30 +249,38 @@ async function handleUserItemClick(item) {
     const roleBadges = buildBadgesFromUserItem(item);
 
     // Build and inject the user details panel HTML
+    const detailsInitials = `${firstname[0].toUpperCase()}${lastname[0].toUpperCase()}`;
+    const detailsAvatarHTML = profilePicture
+        ? `<img src="${profilePicture}" alt="${detailsInitials}"
+           style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+        : detailsInitials;
+
     const detailsPanel = document.getElementById('userDetailsPanel');
     detailsPanel.innerHTML = `
-        <h3>User Details</h3>
-        <div class="user-detail-info">
-            <p><strong>Full Name:</strong> ${firstname} ${lastname}</p>
-            <p><strong>Username:</strong> @${username}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Date Registered:</strong> ${date}</p>
-            <p><strong>Status:</strong>
-                ${isActive ?
-                    '<span class="status-badge active"><i class="fas fa-circle" style="font-size: 0.5rem; margin-right: 0.25rem;"></i> Online</span>' :
-                    '<span class="status-badge inactive">Offline</span>'}
-            </p>
-            <p><strong>Active:</strong> ${lastSeen}</p>
-            <p><strong>Current Roles:</strong> ${roleBadges || '<span style="color: var(--text-secondary);">No roles assigned</span>'}</p>
+        <h3><strong>User Details</strong></h3>
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;margin-top:1.25rem;">
+            <div class="user-details-avatar">${detailsAvatarHTML}</div>
+            <div>
+                <strong style="font-size:1.1rem;">${firstname} ${lastname}</strong>
+                <p style="margin:0;color:var(--text-secondary);">@${username}</p>
+            </div>
         </div>
-
+        <div class="user-detail-info">
+            <span class="user-detail-label">Full Name</span><span class="user-detail-value">${firstname} ${lastname}</span>
+            <span class="user-detail-label">Username</span><span class="user-detail-value">@${username}</span>
+            <span class="user-detail-label">Email</span><span class="user-detail-value">${email}</span>
+            <span class="user-detail-label">Date Registered</span><span class="user-detail-value">${date}</span>
+            <span class="user-detail-label">Last Active</span><span class="user-detail-value">${lastSeen}</span>
+            <span class="user-detail-label">Current Roles</span><span class="user-detail-value">${roleBadges || '<span style="color: var(--text-secondary);">No roles assigned</span>'}</span>
+        </div>
+        <br>
         <div class="admin-actions">
             <label><strong>Role Management:</strong></label>
             <div class="role-action-row">
-                <select id="roleActionSelect" class="styled-dropdown">
-                    <option value="assign">Assign</option>
-                    <option value="remove">Remove</option>
-                </select>
+                <div class="role-toggle-group">
+                    <button id="roleToggleAssign" class="role-toggle active" data-action="assign" title="Assign">Assign</button>
+                    <button id="roleToggleRemove" class="role-toggle" data-action="remove" title="Unassign">Unassign</button>
+                </div>
 
                 <select id="roleTypeSelect" class="styled-dropdown">
                     <option value="Game Manager">Game Manager</option>
@@ -286,6 +318,15 @@ async function handleUserItemClick(item) {
         });
     }
 
+    // Toggle button logic for Assign/Unassign
+    const toggleBtns = detailsPanel.querySelectorAll('.role-toggle');
+    toggleBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            toggleBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
     // Update with suspension info if suspensions module is loaded
     if (typeof updateUserDetailsWithSuspension === 'function') {
         await updateUserDetailsWithSuspension(userid);
@@ -299,16 +340,16 @@ async function handleUserItemClick(item) {
 // Add or remove a role from a user (Admin or GM)
 async function handleRoleChange(username) {
     // Get form elements
-    const actionSelect = document.getElementById('roleActionSelect');
+    const activeToggle = document.querySelector('.role-toggle.active');
     const roleSelect = document.getElementById('roleTypeSelect');
     const goBtn = document.getElementById('roleGoBtn');
     const statusMessage = document.getElementById('roleStatusMessage');
 
     // Validate elements exist
-    if (!actionSelect || !roleSelect) return;
+    if (!activeToggle || !roleSelect) return;
 
     // Get selected action and role
-    const action = actionSelect.value;  // 'assign' or 'remove'
+    const action = activeToggle.dataset.action;  // 'assign' or 'remove'
     const role = roleSelect.value;      // 'Admin' or 'Game Manager'
 
     // Disable button during request to prevent duplicate submissions

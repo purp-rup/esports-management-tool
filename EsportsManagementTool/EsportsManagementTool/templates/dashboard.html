@@ -1364,10 +1364,10 @@
     {% if user.is_admin or user.is_developer %}
     <div id="admin" class="tab-content {% if preferred_tab == 'admin' %}active{% endif %}">
         <div class="content-card">
-            <div class="card-header">
+            <div class="card header card-header--row">
                 <div>
                     <h2>Admin Panel</h2>
-                    <p>Manage users, roles, and permissions</p>
+                    <p style="font-size: 88%; color: var(--text-secondary)">Manage users, roles, and permissions</p>
                 </div>
                 <div class="admin-btn-list">
                     <button class="btn btn-primary" onclick="openManageLeaguesModal()">
@@ -1403,10 +1403,10 @@
                     </div>
                 </div>
                 <div class="summary-card">
-                    <div class="summary-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="summary-icon"><i class="fa-solid fa-gamepad"></i></div>
                     <div>
-                        <h3>Admins</h3>
-                        <p>{{ admins }}</p>
+                        <h3>Players</h3>
+                        <p>{{ players }}</p>
                     </div>
                 </div>
                 <div class="summary-card">
@@ -1417,10 +1417,10 @@
                     </div>
                 </div>
                 <div class="summary-card">
-                    <div class="summary-icon"><i class="fa-solid fa-gamepad"></i></div>
+                    <div class="summary-icon"><i class="fa-solid fa-shield-halved"></i></div>
                     <div>
-                        <h3>Players</h3>
-                        <p>{{ players }}</p>
+                        <h3>Admins</h3>
+                        <p>{{ admins }}</p>
                     </div>
                 </div>
             </div>
@@ -1434,8 +1434,12 @@
                            placeholder="Search users..."
                            class="search-input"
                            oninput="filterUsers()">
-
-                    <ul class="user-items" id="userItems">
+                    <!-- User List Loading Spinner -->
+                    <div id="userListLoadingSpinner" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                        <p style="margin-top: 0.75rem; font-size: 0.9rem;">Loading users...</p>
+                    </div>
+                    <ul class="user-items" id="userItems" style="display: none;">
                         {% if user_list %}
                             {% for u in user_list %}
                                 <li class="user-item"
@@ -1450,25 +1454,37 @@
                                     data-is-admin="{{ u.is_admin }}"
                                     data-is-gm="{{ u.is_gm }}"
                                     data-is-player="{{ u.is_player }}"
-                                    data-is-developer="{{ u.is_developer }}">
-                                    <div>
-                                        <strong>{{ u.firstname }} {{ u.lastname }}</strong>
-                                        <p>@{{ u.username }} — {{ u.email }}</p>
-                                        <div style="margin-top: 0.25rem; display: flex; gap: 0.5rem; align-items: center;">
-
-                                            <!-- Role Badges -->
-                                            {% if u.is_admin %}
-                                            <span class="role-badge admin">Admin</span>
+                                    data-is-developer="{{ u.is_developer }}"
+                                    data-profile-picture="{{ u.profile_picture or '' }}">
+                                    <div class="user-item-inner">
+                                        <div class="user-item-avatar">
+                                            {% if u.profile_picture %}
+                                                <img src="{{ u.profile_picture }}" alt="{{u.firstname[0]|upper}}{{u.lastname[0]|upper}}">
+                                            {% else %}
+                                                {{ u.firstname[0] }}{{ u.lastname[0] }}
                                             {% endif %}
-                                            {% if u.is_developer %}
-                                            <span class="role-badge developer">Dev</span>
-                                            {% endif %}
-                                            {% if u.is_gm %}
-                                            <span class="role-badge gm">GM</span>
-                                            {% endif %}
-                                            {% if u.is_player %}
-                                            <span class="role-badge player">Player</span>
-                                            {% endif %}
+                                        </div>
+                                        <div class="user-item-text">
+                                            <strong>
+                                                {{ u.firstname }} {{ u.lastname }}
+                                                <span class="user-status-dot {{ 'online' if u.is_active else 'offline' }}"></span>
+                                            </strong>
+                                            <p>@{{ u.username }} — {{ u.email }}</p>
+                                            <div class="user-item-badges">
+                                                <!-- Role Badges -->
+                                                {% if u.is_admin %}
+                                                <span class="role-badge admin">Admin</span>
+                                                {% endif %}
+                                                {% if u.is_developer %}
+                                                <span class="role-badge dev">Dev</span>
+                                                {% endif %}
+                                                {% if u.is_gm %}
+                                                <span class="role-badge gm">GM</span>
+                                                {% endif %}
+                                                {% if u.is_player %}
+                                                <span class="role-badge player">Player</span>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
                                 </li>
@@ -1480,7 +1496,7 @@
                 <!-- Right column: user details (initially empty) -->
                 <div class="user-details" id="userDetailsPanel">
                     <h3>User Details</h3>
-                    <p>Select a user from the list to view details.</p>
+                    <p style="margin-top: 0.75rem;">Select a user from the list to view details.</p>
                 </div>
                 </div>
             </div>

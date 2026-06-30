@@ -19,6 +19,15 @@
   gap: 1rem;
 }
 
+.card-header--row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    white-space: nowrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
 @media (max-width: 910px) {
   .admin-content {
     flex-direction: column;
@@ -122,13 +131,80 @@
 .user-item {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding: 1rem;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   margin-bottom: 0.5rem;
   cursor: pointer;
   transition: background 0.2s;
+}
+
+.user-item-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.user-item-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--stockton-blue);
+  color: var(--stockton-black, #000);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 2px solid var(--border-color);
+}
+
+.user-item-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.user-details-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--stockton-blue);
+  color: var(--stockton-black, #000);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 2px solid var(--border-color);
+}
+
+.user-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.user-item-text p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.user-item-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin-top: 0.3rem;
 }
 
 .user-item:hover {
@@ -138,6 +214,29 @@
 .user-item.active {
   background: rgba(121, 189, 233, 0.1);
   border-color: var(--stockton-blue);
+}
+
+/* --------------------------------------------
+   USER STATUS DOT
+   Inline dot indicator next to username in user list
+   -------------------------------------------- */
+.user-status-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-left: 4px;
+    vertical-align: middle;
+    position: relative;
+    top: -2px;
+}
+
+.user-status-dot.online {
+    background-color: #4CAF50;
+}
+
+.user-status-dot.offline {
+    background-color: #9e9e9e;
 }
 
 /* --------------------------------------------
@@ -188,39 +287,6 @@
 }
 
 /* --------------------------------------------
-   STATUS BADGES
-   User status indicators with animations
-   -------------------------------------------- */
-.status-badge {
-  display: inline-block;
-  align-items: center;
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.status-badge.active {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.status-badge.inactive {
-  background-color: #9e9e9e;
-  color: white;
-}
-
-.status-badge.suspended {
-  background: #ff4d4d20;
-  color: #ff4d4d;
-}
-
-/* Online indicator animation */
-.status-badge.active .fa-circle {
-  animation: blink 2s ease-in-out infinite;
-}
-
-/* --------------------------------------------
    USER DETAILS PANEL
    Right panel showing selected user info
    -------------------------------------------- */
@@ -230,13 +296,15 @@
   border-radius: 12px;
   padding: 1.5rem;
   width: 100%;
+  height: 640px;
+  overflow-y: auto;
 }
 
 /* Role action controls */
 .role-action-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   margin: 0.75rem 0 1rem 0;
 }
 
@@ -255,6 +323,74 @@
   border-color: var(--stockton-blue);
   background: var(--hover-bg);
   outline: none;
+}
+
+/* --------------------------------------------
+   ROLE ACTION TOGGLE BUTTONS
+   Assign / Unassign toggle in user details panel
+   -------------------------------------------- */
+.role-toggle-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.role-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    padding: 0.25rem 0.1rem;
+    transition: opacity 0.2s;
+}
+
+.role-toggle:hover {
+    opacity: 0.8;
+}
+
+/* The colored dot */
+.role-toggle::before {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #9e9e9e;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.75);
+}
+
+.role-toggle.active::before {
+    background: #4CAF50;
+}
+
+/* --------------------------------------------
+   USER DETAIL INFO GRID
+   Responsive label/value rows in details panel
+   -------------------------------------------- */
+.user-detail-info {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.6rem 1rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+    font-size: clamp(0.8rem, 1.1vw, 1rem);
+}
+
+.user-detail-label {
+    font-weight: 800;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.user-detail-value {
+    color: var(--text-primary);
+    word-break: break-word;
 }
 
 /* --------------------------------------------
@@ -284,11 +420,13 @@
   gap: 1rem;
   /*overflow: auto;*/
   width: 100%;
+  align-items: center;
   justify-content: right;
 }
 
 .admin-btn-list button {
-    max-height: 3rem;
+    min-height: 2.75rem;
+    padding: 0.65rem 1rem;
 }
 
 @media (max-width: 1038px) {
@@ -316,6 +454,11 @@
   padding: 0.55rem 0.55rem;
   cursor: pointer;
   transition: background 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 0.75rem;
+  padding-top: 0.75rem;
 }
 
 .btn-go:hover {
@@ -528,15 +671,6 @@
   }
   50% {
     opacity: 0.8;
-  }
-}
-
-@keyframes blink {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
   }
 }
 

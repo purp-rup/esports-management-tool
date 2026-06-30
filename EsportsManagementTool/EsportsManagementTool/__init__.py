@@ -786,7 +786,8 @@ def get_calendar_events() -> tuple[Response, int] | Response:
                 'date': date_str,
                 'start_time': str(event['StartTime']) if event.get('StartTime') else '',
                 'end_time': str(event['EndTime']) if event.get('EndTime') else '',
-                'game_name': None
+                'game_name': None,
+                'is_scheduled': bool(event.get('is_scheduled', False))
             }
 
             # Group by date
