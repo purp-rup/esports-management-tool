@@ -25,6 +25,7 @@
    COMMUNITIES TAB HEADER
    ----------------------------------------------- */
 #rosters .card-header {
+    display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
