@@ -120,7 +120,7 @@ function createVodElement(vod, canDelete) {
         <div class="vod-info">
             <h4>${vod.title}</h4>
             <p>${vod.opponent ? 'vs ' + vod.opponent : ' '}</p>
-            <small>Match Date - ${new Date(vod.match_date).toLocaleDateString()}</small>
+            <small>Match Date - ${new Date(vod.match_date || vod.published_at).toLocaleDateString()}</small>
         </div>
         ${canDelete ? `
             <button onclick="deleteVod(${vod.id}, event)" class="btn-delete-vod">
@@ -515,7 +515,7 @@ function displayVodComments(comments) {
         }
 
         const profilePic = comment.profile_picture
-            ? `<img src="/static/uploads/avatars/${comment.profile_picture}" alt="${comment.firstname}">`
+            ? `<img src="${comment.profile_picture}" alt="${comment.firstname}">`
             : `<div class="comment-avatar-initials">${comment.firstname[0]}${comment.lastname[0]}</div>`;
 
         commentDiv.innerHTML = `
@@ -523,9 +523,9 @@ function displayVodComments(comments) {
                 ${profilePic}
                 <div>
                     <strong>${comment.firstname} ${comment.lastname}</strong>
-                    <small>${new Date(comment.created_at).toLocaleDateString()}</small>
+                    <small>${new Date(comment.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</small>
                 </div>
-            </div>
+            </div>  
             ${timestampHTML}
             <p>${comment.comment_text}</p>
         `;

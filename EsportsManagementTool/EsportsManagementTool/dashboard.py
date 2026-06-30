@@ -131,6 +131,7 @@ def dashboard():
                         u.username, 
                         u.email, 
                         u.date,
+                        u.profile_picture,
                         COALESCE(ua.is_active, 0) as is_active,
                         ua.last_seen,
                         p.is_admin,

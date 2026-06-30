@@ -160,319 +160,277 @@
         </div>
     </div>
 
-    <!-- Profile Tab -->
-    <div id="profile" class="tab-content {% if preferred_tab == 'profile' %}active{% endif %}">
-        <div class="content-card">
-            <div class="card-header">
-                <h2>Profile</h2>
-                <p>View and manage your account information</p>
-            </div>
+<!-- PROFILE TAB  -->
 
-            <div class="profile-grid">
-                <div class="profile-avatar">
-                    <div class="avatar-container">
-                        {% if user.profile_picture %}
-                            <img src="{{ user.profile_picture }}"
-                                alt="Profile Picture"
-                                style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
-                        {% else %}
-                            {{ user.firstname[0] }}{{ user.lastname[0] }}
-                        {% endif %}
-                    </div>
-                    <button class="btn btn-secondary" onclick="openAvatarModal()">Change Avatar</button>
-                </div>
+<div id="profile" class="tab-content {% if preferred_tab == 'profile' %}active{% endif %}">
+    <div class="profile-main-layout">
 
-                <div class="profile-info">
-                    <div class="info-row">
-                        <div class="info-label">Full Name</div>
-                        <div class="info-value">{{ user.firstname }} {{ user.lastname }}</div>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">Username</div>
-                        <div class="info-value">{{ user.username }}</div>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">Email</div>
-                        <div class="info-value">{{ user.email }}</div>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">Account Status</div>
-                        <div class="info-value">
-                            {% if is_verified %}
-                                <span style="color: var(--stockton-blue);">✓ Verified</span>
-                            {% else %}
-                                <span style="color: var(--stockton-yellow);">⚠ Pending Verification</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">Member Since</div>
-                        <div class="info-value">{{ user.date.strftime('%B %d, %Y') }}</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="profile-actions">
-                <button class="btn btn-primary">Edit Profile</button>
-                <button class="btn btn-secondary">Change Password</button>
-            </div>
-        </div>
-
-            <!-- Notification Settings Card -->
-            <div class="content-card" style="margin-top: 1rem;">
+        <!-- LEFT: Profile Card -->
+        <div class="profile-card-column">
+            <div class="content-card">
                 <div class="card-header">
-                    <h2>Notification Settings</h2>
-                    <p>Configure how you receive event reminders</p>
+                    <div>
+                        <h2>Profile</h2>
+                        <p>View and manage your account information</p>
+                    </div>
+                    <div class="profile-actions">
+                        <button class="btn btn-primary btn-sm" type="button" onclick="openEditProfileModal()">Edit Profile</button>
+                        <button class="btn btn-secondary btn-sm" type="button" onclick="openChangePasswordModal()">Change Password</button>
+                    </div>
                 </div>
 
-                <form id="notificationSettingsForm" class="notification-form">
-                    <div class="notification-toggle">
-                        <div class="toggle-info">
-                            <h3>Enable Event Notifications</h3>
-                            <p>Receive email reminders for upcoming events</p>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox"
-                                   name="enable_notifications"
-                                   id="enableNotifications"
-                                   {% if preferences and preferences.enable_notifications %}checked{% endif %}>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-
-                    <div id="notificationOptions"
-                         class="notification-options"
-                         style="{% if not preferences or not preferences.enable_notifications %}display: none;{% endif %}">
-
-                        <!-- Event Type Filters -->
-                        <div class="form-section">
-                            <h3>Event Types to Notify</h3>
-                            <p class="section-description">Choose which types of events you want to be notified about</p>
-
-                            <div class="event-type-checkboxes">
-                                <label class="checkbox-label">
-                                    <input type="checkbox"
-                                           name="notify_practices"
-                                           id="notifyPractices"
-                                           {% if not preferences or preferences.notify_practices %}checked{% endif %}>
-                                    <span class="checkbox-text">
-                                        <i class="fas fa-dumbbell"></i>
-                                        <strong>Practices</strong>
-                                        <small>Team practice sessions and training</small>
-                                    </span>
-                                </label>
-
-                                <label class="checkbox-label">
-                                    <input type="checkbox"
-                                           name="notify_matches"
-                                           id="notifyMatches"
-                                           {% if not preferences or preferences.notify_matches %}checked{% endif %}>
-                                    <span class="checkbox-text">
-                                        <i class="fas fa-gamepad"></i>
-                                        <strong>Matches</strong>
-                                        <small>Regular competitive matches</small>
-                                    </span>
-                                </label>
-
-                                <label class="checkbox-label">
-                                    <input type="checkbox"
-                                           name="notify_tournaments"
-                                           id="notifyTournaments"
-                                           {% if not preferences or preferences.notify_tournaments %}checked{% endif %}>
-                                    <span class="checkbox-text">
-                                        <i class="fas fa-trophy"></i>
-                                        <strong>Tournaments</strong>
-                                        <small>Tournament events and competitions</small>
-                                    </span>
-                                </label>
-
-                                <label class="checkbox-label">
-                                    <input type="checkbox"
-                                           name="notify_events"
-                                           id="notifyEvents"
-                                           {% if not preferences or preferences.notify_events %}checked{% endif %}>
-                                    <span class="checkbox-text">
-                                        <i class="fas fa-calendar-alt"></i>
-                                        <strong>General Events</strong>
-                                        <small>Team meetings, socials, and other events</small>
-                                    </span>
-                                </label>
-
-                                <label class="checkbox-label">
-                                    <input type="checkbox"
-                                           name="notify_misc"
-                                           id="notifyMisc"
-                                           {% if not preferences or preferences.notify_misc %}checked{% endif %}>
-                                    <span class="checkbox-text">
-                                        <i class="fas fa-star"></i>
-                                        <strong>Miscellaneous</strong>
-                                        <small>Team photoshoots, outings, and other activities</small>
-                                    </span>
-                                </label>
+                <div class="profile-card-content">
+                    <div class="profile-header-row">
+                        <div class="avatar-container" onclick="openAvatarModal()" style="cursor: pointer; position: relative; flex-shrink: 0;">
+                            {% if user.profile_picture %}
+                                <img src="{{ user.profile_picture }}" alt="Profile Picture" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                            {% else %}
+                                {{ user.firstname[0] }}{{ user.lastname[0] }}
+                            {% endif %}
+                            <div class="avatar-edit-overlay">
+                                <i class="fas fa-edit"></i>
                             </div>
                         </div>
 
-                        <div class="form-section">
-                            <h3>Advance Notice</h3>
-                            <p class="section-description">How far in advance should we notify you?</p>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="adviceNoticeDays">Days Before</label>
-                                    <input type="number"
-                                           id="adviceNoticeDays"
-                                           name="advance_notice_days"
-                                           min="0"
-                                           max="30"
-                                           value="{% if preferences %}{{ preferences.advance_notice_days }}{% else %}1{% endif %}">
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="adviceNoticeHours">Hours Before</label>
-                                    <input type="number"
-                                           id="adviceNoticeHours"
-                                           name="advance_notice_hours"
-                                           min="0"
-                                           max="23"
-                                           value="{% if preferences %}{{ preferences.advance_notice_hours }}{% else %}0{% endif %}">
+                        <div class="profile-info-section">
+                            <div class="info-item">
+                                <div class="info-label">Full Name</div>
+                                <div class="info-value">{{ user.firstname }} {{ user.lastname }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Username</div>
+                                <div class="info-value">{{ user.username }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Email</div>
+                                <div class="info-value">{{ user.email }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Account Status</div>
+                                <div class="info-value">
+                                    {% if is_verified %}
+                                        <span style="color: var(--stockton-blue);">✓ Verified</span>
+                                    {% else %}
+                                        <span style="color: var(--stockton-yellow);">⚠ Pending Verification</span>
+                                    {% endif %}
                                 </div>
                             </div>
-
-                            <div class="notification-preview">
-                                <i class="fas fa-info-circle"></i>
-                                <span id="notificationPreview">
-                                    You'll be notified
-                                    <strong id="previewTime">1 day</strong>
-                                    before each event
-                                </span>
+                            <div class="info-item">
+                                <div class="info-label">Member Since</div>
+                                <div class="info-value">{{ user.date.strftime('%B %d, %Y') }}</div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div id="notificationMessage" class="form-message" style="display: none;"></div>
-
-                    <div class="profile-actions">
-                        <button type="submit" class="btn btn-primary">
-                            <span id="saveNotifBtnText">Save Notification Settings</span>
-                            <i id="saveNotifBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                <div style="padding-top: 2rem; border-top: 1px solid var(--border-color); margin-top: 2rem;">
+                    <h3 style="font-size: 1.5rem; font-weight: 600; margin: 0 0 0.75rem 0;">Preferred Tab</h3>
+                    <div class="event-filter-dropdown">
+                        <label for="preferredTabSelect">Default Tab:</label>
+                        <select id="preferredTabSelect" name="preferred_tab">
+                            <option value="calendar" {% if preferred_tab == 'calendar' %}selected{% endif %}>Calendar</option>
+                            <option value="profile" {% if preferred_tab == 'profile' %}selected{% endif %}>Profile</option>
+                            <option value="rosters" {% if preferred_tab == 'rosters' %}selected{% endif %}>Communities</option>
+                            <option value="events" {% if preferred_tab == 'events' %}selected{% endif %}>Events</option>
+                            <option value="teams" {% if preferred_tab == 'teams' %}selected{% endif %}>Teams</option>
+                            {% if user.is_admin or user.is_developer %}
+                            <option value="admin" {% if preferred_tab == 'admin' %}selected{% endif %}>Admin</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div style="margin-top: 2.1rem;">
+                        <button type="button" id="savePreferredTabBtn" class="btn btn-primary btn-sm">
+                            <span id="savePreferredTabBtnText">Save</span>
+                            <i id="savePreferredTabBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
                         </button>
                     </div>
-                </form>
-            </div>
-
-        <!-- Preferred Tab Settings -->
-        <div class="content-card" style="margin-top: 1rem;">
-              <div class="card-header">
-                  <h2>Preferred Tab</h2>
-                  <p>Choose which tab opens first when you visit the dashboard</p>
-              </div>
-
-              <div class="event-filter-dropdown">
-                  <label for="preferredTabSelect">Default Tab:</label>
-                  <select id="preferredTabSelect" name="preferred_tab">
-                      <option value="calendar" {% if preferred_tab == 'calendar' %}selected{% endif %}>Calendar</option>
-                      <option value="profile" {% if preferred_tab == 'profile' %}selected{% endif %}>Profile</option>
-                      <option value="rosters" {% if preferred_tab == 'rosters' %}selected{% endif %}>Communities</option>
-                      <option value="events" {% if preferred_tab == 'events' %}selected{% endif %}>Events</option>
-                      <option value="teams" {% if preferred_tab == 'teams' %}selected{% endif %}>Teams</option>
-                      {% if user.is_admin or user.is_developer %}
-                      <option value="admin" {% if preferred_tab == 'admin' %}selected{% endif %}>Admin</option>
-                      {% endif %}
-                  </select>
-              </div>
-              <div class="profile-actions" style="vertical-align: center; margin-top: 1rem;">
-                  <button type="button" id="savePreferredTabBtn" class="btn btn-primary">
-                      <span id="savePreferredTabBtnText">Save Preferred Tab</span>
-                      <i id="savePreferredTabBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
-                  </button>
-                  <div id="preferredTabMessage" class="form-message" style="display: none; margin-bottom: 0; padding: 0;"></div>
-              </div>
-        </div>
-
-        <!-- My Communities Section -->
-        <div class="content-card" style="margin-top: 1rem;">
-            <div class="card-header">
-                <h2>My Communities</h2>
-                <p>Game communities you've joined</p>
-            </div>
-
-            <!-- Loading State -->
-            <div id="myCommunitiesLoading" style="text-align: center; padding: 2rem;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
-                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading communities...</p>
-            </div>
-
-            <!-- Communities Grid -->
-            <div id="myCommunitiesGrid" class="my-communities-grid" style="display: none;"></div>
-
-            <!-- Empty State -->
-            <div id="myCommunitiesEmpty" class="empty-state" style="display: none;">
-                <div class="empty-state-icon">🎮</div>
-                <h3>No Communities Yet</h3>
-                <p>Join game communities from the Communities tab to see them here</p>
-            </div>
-        </div>
-
-    <!-- ========================================
-     DISCORD INTEGRATION CARD
-     ======================================== -->
-
-<div class="content-card" style="margin-top: 1rem;">
-    <div class="card-header">
-        <h2>Discord Integration</h2>
-        <p>Connect your Discord account to enhance your profile</p>
-    </div>
-
-    <!-- Loading State -->
-    <div id="discordLoading" style="text-align: center; padding: 2rem;">
-        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
-        <p style="color: var(--text-secondary); margin-top: 1rem;">Loading Discord connection...</p>
-    </div>
-
-    <!-- Not Connected State -->
-    <div id="discordNotConnected" style="display: none;">
-        <div class="empty-state" style="padding: 2rem;">
-            <div style="font-size: 4rem; margin-bottom: 1rem;">
-                <i class="fab fa-discord" style="color: #5865F2;"></i>
-            </div>
-            <h3>Connect Your Discord Account</h3>
-            <p style="max-width: 500px; margin: 1rem auto;">
-                Link your Discord account to display your Discord username and profile picture on your esports profile.
-            </p>
-            <button onclick="connectDiscord()" class="btn btn-primary discord-connect-btn">
-                Connect Discord
-            </button>
-        </div>
-    </div>
-
-    <!-- Connected State -->
-    <div id="discordConnected" style="display: none;">
-        <div class="discord-profile-container">
-            <div class="discord-profile-header">
-                <div id="discordAvatarContainer" class="discord-avatar-large">
-                    <!-- Avatar will be inserted here -->
                 </div>
-                <div class="discord-profile-info">
-                    <h3 id="discordUsername"></h3>
+            </div>
+        </div>
 
-                    <p id="discordConnectedDate">
-                        <i class="fas fa-link"></i> Connected on <span id="connectedDateText"></span>
-                    </p>
+        <!-- RIGHT: Communities + Discord Stacked -->
+        <div class="profile-right-column">
+            <!-- My Communities -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>My Communities</h2>
+                    <p>Game communities you've joined</p>
+                </div>
+
+                <div id="myCommunitiesLoading" style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">Loading communities...</p>
+                </div>
+
+                <div id="myCommunitiesGrid" class="my-communities-grid" style="display: none;"></div>
+
+                <div id="myCommunitiesEmpty" class="empty-state" style="display: none;">
+                    <div class="empty-state-icon">🎮</div>
+                    <h3>No Communities Yet</h3>
+                    <p>Join game communities from the Communities tab</p>
                 </div>
             </div>
 
-            <div class="profile-actions discord-actions">
-                <button onclick="disconnectDiscord()" class="btn btn-secondary">
-                    <i class="fas fa-unlink"></i> Disconnect Discord
+            <!-- Discord Integration -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>Discord Integration</h2>
+                    <p>Connect your Discord account</p>
+                </div>
+
+                <div id="discordLoading" style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">Loading...</p>
+                </div>
+
+                <div id="discordNotConnected" style="display: none;">
+                    <div class="empty-state" style="padding: 2rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">
+                            <i class="fab fa-discord" style="color: #5865F2;"></i>
+                        </div>
+                        <h3>Connect Your Discord</h3>
+                        <p>Link your Discord account to display your profile</p>
+                        <button onclick="connectDiscord()" class="btn btn-primary discord-connect-btn">
+                            Connect Discord
+                        </button>
+                    </div>
+                </div>
+
+                <div id="discordConnected" style="display: none;">
+                    <div class="discord-profile-container">
+                        <div class="discord-profile-header">
+                            <div id="discordAvatarContainer" class="discord-avatar-large"></div>
+                            <div class="discord-profile-info">
+                                <h3 id="discordUsername"></h3>
+                                <p id="discordConnectedDate">
+                                    <i class="fas fa-link"></i> <span id="connectedDateText"></span>
+                                </p>
+                            </div>
+                        <div class="discord-actions">
+                            <button onclick="syncDiscordAvatar()" class="btn btn-primary btn-sm">
+                                <i class="fas fa-sync"></i> Sync Avatar
+                            </button>
+                            <button onclick="disconnectDiscord()" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-unlink"></i> Disconnect
+                            </button>
+                        </div>
+                        </div>
+
+                        <div id="discordActionMessage" class="form-message" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Settings (Full Width) -->
+    <div class="content-card" style="margin-top: 2rem;">
+        <div class="card-header">
+            <h2>Notification Settings</h2>
+            <p>Configure how you receive event reminders</p>
+        </div>
+
+        <form id="notificationSettingsForm" class="notification-form">
+            <div class="notification-toggle">
+                <div class="toggle-info">
+                    <h3>Enable Event Notifications</h3>
+                    <p>Receive email reminders for upcoming events</p>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" name="enable_notifications" id="enableNotifications" {% if preferences and preferences.enable_notifications %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div id="notificationOptions" class="notification-options" style="{% if not preferences or not preferences.enable_notifications %}display: none;{% endif %}">
+                <div class="form-section">
+                    <h3>Event Types to Notify</h3>
+                    <p class="section-description">Choose which types of events you want to be notified about</p>
+
+                    <div class="event-type-checkboxes">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="notify_practices" {% if not preferences or preferences.notify_practices %}checked{% endif %}>
+                            <span class="checkbox-text">
+                                <i class="fas fa-dumbbell"></i>
+                                <strong>Practices</strong>
+                                <small>Team practice sessions</small>
+                            </span>
+                        </label>
+
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="notify_matches" {% if not preferences or preferences.notify_matches %}checked{% endif %}>
+                            <span class="checkbox-text">
+                                <i class="fas fa-gamepad"></i>
+                                <strong>Matches</strong>
+                                <small>Competitive matches</small>
+                            </span>
+                        </label>
+
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="notify_tournaments" {% if not preferences or preferences.notify_tournaments %}checked{% endif %}>
+                            <span class="checkbox-text">
+                                <i class="fas fa-trophy"></i>
+                                <strong>Tournaments</strong>
+                                <small>Tournament events</small>
+                            </span>
+                        </label>
+
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="notify_events" {% if not preferences or preferences.notify_events %}checked{% endif %}>
+                            <span class="checkbox-text">
+                                <i class="fas fa-calendar-alt"></i>
+                                <strong>General Events</strong>
+                                <small>Meetings and socials</small>
+                            </span>
+                        </label>
+
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="notify_misc" {% if not preferences or preferences.notify_misc %}checked{% endif %}>
+                            <span class="checkbox-text">
+                                <i class="fas fa-star"></i>
+                                <strong>Miscellaneous</strong>
+                                <small>Photoshoots and outings</small>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Advance Notice</h3>
+                    <p class="section-description">How far in advance should we notify you?</p>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="adviceNoticeDays">Days Before</label>
+                            <input type="number" id="adviceNoticeDays" name="advance_notice_days" min="0" max="30" value="{% if preferences %}{{ preferences.advance_notice_days }}{% else %}1{% endif %}">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="adviceNoticeHours">Hours Before</label>
+                            <input type="number" id="adviceNoticeHours" name="advance_notice_hours" min="0" max="23" value="{% if preferences %}{{ preferences.advance_notice_hours }}{% else %}0{% endif %}">
+                        </div>
+                    </div>
+
+                    <div class="notification-preview">
+                        <i class="fas fa-info-circle"></i>
+                        <span id="notificationPreview">You'll be notified <strong id="previewTime">1 day</strong> before each event</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="notificationMessage" class="form-message" style="display: none;"></div>
+
+            <div class="profile-actions">
+                <button type="submit" class="btn btn-primary">
+                    <span id="saveNotifBtnText">Save Notification Settings</span>
+                    <i id="saveNotifBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
                 </button>
             </div>
-
-
-        </div>
+        </form>
     </div>
 </div>
-<!--DISCLAIMER: BELOW CODE WAS GENERATED USING CLAUDE AI-->
-<!-- Edit Profile Modal -->
+
+<!-- MODALS - Edit Profile, Change Password, Change Avatar -->
 <div id="editProfileModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -484,50 +442,31 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="editFirstName">First Name *</label>
-                    <input type="text"
-                           id="editFirstName"
-                           name="firstname"
-                           required
-                           value="{{ user.firstname }}">
+                    <input type="text" id="editFirstName" name="firstname" required value="{{ user.firstname }}">
                 </div>
 
                 <div class="form-group">
                     <label for="editLastName">Last Name *</label>
-                    <input type="text"
-                           id="editLastName"
-                           name="lastname"
-                           required
-                           value="{{ user.lastname }}">
+                    <input type="text" id="editLastName" name="lastname" required value="{{ user.lastname }}">
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="editUsername">Username *</label>
-                <input type="text"
-                       id="editUsername"
-                       name="username"
-                       required
-                       value="{{ user.username }}">
+                <input type="text" id="editUsername" name="username" required value="{{ user.username }}">
                 <small>This will be your unique identifier</small>
             </div>
 
-            <!-- Removed editable email field -->
             <div class="form-group">
                 <label>Email</label>
-                <input type="email"
-                       id="editEmail"
-                       name="email"
-                       value="{{ user.email }}"
-                       readonly>
+                <input type="email" id="editEmail" name="email" value="{{ user.email }}" readonly>
                 <small>You cannot change your email address</small>
             </div>
 
             <div id="editProfileMessage" class="form-message" style="display: none;"></div>
 
             <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeEditProfileModal()">
-                    Cancel
-                </button>
+                <button type="button" class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary">
                     <span id="saveProfileBtnText">Save Changes</span>
                     <i id="saveProfileBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
@@ -537,7 +476,6 @@
     </div>
 </div>
 
-<!-- Change Password Modal -->
 <div id="changePasswordModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -548,36 +486,24 @@
         <form id="changePasswordForm" class="modal-form">
             <div class="form-group">
                 <label for="currentPassword">Current Password *</label>
-                <input type="password"
-                       id="currentPassword"
-                       name="current_password"
-                       required>
+                <input type="password" id="currentPassword" name="current_password" required>
             </div>
 
             <div class="form-group">
                 <label for="newPassword">New Password *</label>
-                <input type="password"
-                       id="newPassword"
-                       name="new_password"
-                       required
-                       minlength="8">
+                <input type="password" id="newPassword" name="new_password" required minlength="8">
                 <small>Must be at least 8 characters</small>
             </div>
 
             <div class="form-group">
                 <label for="confirmPassword">Confirm New Password *</label>
-                <input type="password"
-                       id="confirmPassword"
-                       name="confirm_password"
-                       required>
+                <input type="password" id="confirmPassword" name="confirm_password" required>
             </div>
 
             <div id="changePasswordMessage" class="form-message" style="display: none;"></div>
 
             <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">
-                    Cancel
-                </button>
+                <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary">
                     <span id="changePasswordBtnText">Change Password</span>
                     <i id="changePasswordBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
@@ -586,9 +512,54 @@
         </form>
     </div>
 </div>
-<!--DISCLAIMER: ABOVE CODE WAS GENERATED USING CLAUDE AI-->
-        </div>
 
+<div id="changeAvatarModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Change Profile Picture</h2>
+            <button class="modal-close" onclick="closeAvatarModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Upload a custom avatar or sync from Discord</p>
+
+            <form id="uploadAvatarForm" enctype="multipart/form-data" style="margin-bottom: 2rem;">
+                <div class="form-group">
+                    <label for="avatarFile">Choose Image</label>
+                    <input type="file" id="avatarFile" name="avatar" accept="image/png, image/jpeg, image/jpg, image/gif, image/webp" required>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                        Accepted: PNG, JPG, GIF, WEBP (Max 5MB)
+                    </p>
+                </div>
+
+                <div id="avatarPreview" style="display: none; text-align: center; margin: 1rem 0;">
+                    <img id="avatarPreviewImg" style="max-width: 200px; max-height: 200px; border-radius: 50%; border: 4px solid var(--stockton-blue);">
+                </div>
+
+                <div id="avatarUploadMessage" class="form-message" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeAvatarModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="uploadBtnText">Upload Avatar</span>
+                        <i id="uploadBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                    </button>
+                </div>
+            </form>
+
+            <div style="text-align: center; margin: 2rem 0; color: var(--text-secondary); position: relative;">
+                <span style="background: var(--background-secondary); padding: 0 1rem; position: relative; z-index: 1;">OR</span>
+                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--border-color); z-index: 0;"></div>
+            </div>
+
+            <div style="text-align: center;">
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Use your Discord profile picture</p>
+                <button type="button" onclick="syncAvatarFromModal()" class="btn btn-primary" style="background-color: #5865F2 !important;">
+                    Sync from Discord
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
     <!-- Communities Tab -->
     <div id="rosters" class="tab-content {% if preferred_tab == 'rosters' %}active{% endif %}">
         <div class="content-card">
@@ -937,7 +908,7 @@
                         <button id="createTeamSidebarBtn"
                                 class="btn btn-primary btn-create-team-sidebar"
                                 onclick="openCreateTeam()">
-                            <i class="fas fa-plus"></i> Create Team
+                            <i class="fas fa-plus"></i>
                         </button>
                         {% endif %}
                     </div>
@@ -988,25 +959,41 @@
                                 <i class="fas fa-shield-alt"></i>
                             </div>
                             <div class="team-header-info">
-                                <h1 id="teamDetailTitle">Team Name</h1>
-
-                                <!-- Button outside the collapsible container -->
-                                <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
-                                    <button id="teamDetailCollapseBtn"
-                                            class="team-detail-collapse-btn"
-                                            onclick="toggleTeamDetailCollapse()"
-                                            title="Toggle details">
-                                        <i class="fas fa-chevron-up"></i>
-                                    </button>
-
-                                    <!-- Wrap subheaders in collapsible container -->
-                                    <div id="teamDetailSubheaders" class="team-detail-subheaders">
-                                        <p id="teamDetailGame" style="margin: 0;">Game: Mario Kart</p>
-                                        <p id="teamDetailDivision" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
-                                        <p id="teamDetailLeagues" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
-                                         <p id="teamDetailSeason" style="display: none; margin: 0.25rem 0 0 0; font-size: 0.8125rem; color: var(--text-secondary); font-style: italic;"></p>
+                                <!-- Title row: team name (left) + info icon (right) -->
+                                <div class="team-title-row">
+                                    <h1 id="teamDetailTitle">Team Name</h1>
+                                    <!-- Info icon with hover tooltip -->
+                                    <div class="team-info-icon-wrapper">
+                                        <i class="fas fa-info-circle team-info-icon" id="teamInfoIcon"></i>
+                                        <div class="team-info-tooltip" id="teamInfoTooltip">
+                                            <!-- Game — always shown -->
+                                            <div class="team-info-tooltip-row" id="tooltipGame">
+                                                <span class="team-info-tooltip-label">Game</span>
+                                                <span class="team-info-tooltip-value" id="tooltipGameValue">—</span>
+                                            </div>
+                                            <!-- Division — shown only when present -->
+                                            <div class="team-info-tooltip-row" id="tooltipDivision" style="display: none;">
+                                                <span class="team-info-tooltip-label">Division</span>
+                                                <span class="team-info-tooltip-value" id="tooltipDivisionValue">—</span>
+                                            </div>
+                                            <!-- League(s) — shown only when present -->
+                                            <div class="team-info-tooltip-row" id="tooltipLeagues" style="display: none;">
+                                                <span class="team-info-tooltip-label">League(s)</span>
+                                                <span class="team-info-tooltip-value" id="tooltipLeaguesValue">—</span>
+                                            </div>
+                                            <!-- Season — shown only when present -->
+                                            <div class="team-info-tooltip-row" id="tooltipSeason" style="display: none;">
+                                                <span class="team-info-tooltip-label">Season</span>
+                                                <span class="team-info-tooltip-value" id="tooltipSeasonValue">—</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
+                                <!-- Hidden compat elements — JS still writes to these; they stay hidden -->
+                                <p id="teamDetailGame" style="display: none;"></p>
+                                <p id="teamDetailDivision" style="display: none;"></p>
+                                <p id="teamDetailLeagues" style="display: none;"></p>
+                                <p id="teamDetailSeason" style="display: none;"></p>
                             </div>
                         </div>
 
@@ -1400,10 +1387,10 @@
     {% if user.is_admin or user.is_developer %}
     <div id="admin" class="tab-content {% if preferred_tab == 'admin' %}active{% endif %}">
         <div class="content-card">
-            <div class="card-header">
+            <div class="card header card-header--row">
                 <div>
                     <h2>Admin Panel</h2>
-                    <p>Manage users, roles, and permissions</p>
+                    <p style="font-size: 88%; color: var(--text-secondary)">Manage users, roles, and permissions</p>
                 </div>
                 <div class="admin-btn-list">
                     <button class="btn btn-primary" onclick="openManageLeaguesModal()">
@@ -1439,10 +1426,10 @@
                     </div>
                 </div>
                 <div class="summary-card">
-                    <div class="summary-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="summary-icon"><i class="fa-solid fa-gamepad"></i></div>
                     <div>
-                        <h3>Admins</h3>
-                        <p>{{ admins }}</p>
+                        <h3>Players</h3>
+                        <p>{{ players }}</p>
                     </div>
                 </div>
                 <div class="summary-card">
@@ -1453,10 +1440,10 @@
                     </div>
                 </div>
                 <div class="summary-card">
-                    <div class="summary-icon"><i class="fa-solid fa-gamepad"></i></div>
+                    <div class="summary-icon"><i class="fa-solid fa-shield-halved"></i></div>
                     <div>
-                        <h3>Players</h3>
-                        <p>{{ players }}</p>
+                        <h3>Admins</h3>
+                        <p>{{ admins }}</p>
                     </div>
                 </div>
             </div>
@@ -1470,8 +1457,12 @@
                            placeholder="Search users..."
                            class="search-input"
                            oninput="filterUsers()">
-
-                    <ul class="user-items" id="userItems">
+                    <!-- User List Loading Spinner -->
+                    <div id="userListLoadingSpinner" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                        <p style="margin-top: 0.75rem; font-size: 0.9rem;">Loading users...</p>
+                    </div>
+                    <ul class="user-items" id="userItems" style="display: none;">
                         {% if user_list %}
                             {% for u in user_list %}
                                 <li class="user-item"
@@ -1486,25 +1477,37 @@
                                     data-is-admin="{{ u.is_admin }}"
                                     data-is-gm="{{ u.is_gm }}"
                                     data-is-player="{{ u.is_player }}"
-                                    data-is-developer="{{ u.is_developer }}">
-                                    <div>
-                                        <strong>{{ u.firstname }} {{ u.lastname }}</strong>
-                                        <p>@{{ u.username }} — {{ u.email }}</p>
-                                        <div style="margin-top: 0.25rem; display: flex; gap: 0.5rem; align-items: center;">
-
-                                            <!-- Role Badges -->
-                                            {% if u.is_admin %}
-                                            <span class="role-badge admin">Admin</span>
+                                    data-is-developer="{{ u.is_developer }}"
+                                    data-profile-picture="{{ u.profile_picture or '' }}">
+                                    <div class="user-item-inner">
+                                        <div class="user-item-avatar">
+                                            {% if u.profile_picture %}
+                                                <img src="{{ u.profile_picture }}" alt="{{u.firstname[0]|upper}}{{u.lastname[0]|upper}}">
+                                            {% else %}
+                                                {{ u.firstname[0] }}{{ u.lastname[0] }}
                                             {% endif %}
-                                            {% if u.is_developer %}
-                                            <span class="role-badge developer">Dev</span>
-                                            {% endif %}
-                                            {% if u.is_gm %}
-                                            <span class="role-badge gm">GM</span>
-                                            {% endif %}
-                                            {% if u.is_player %}
-                                            <span class="role-badge player">Player</span>
-                                            {% endif %}
+                                        </div>
+                                        <div class="user-item-text">
+                                            <strong>
+                                                {{ u.firstname }} {{ u.lastname }}
+                                                <span class="user-status-dot {{ 'online' if u.is_active else 'offline' }}"></span>
+                                            </strong>
+                                            <p>@{{ u.username }} — {{ u.email }}</p>
+                                            <div class="user-item-badges">
+                                                <!-- Role Badges -->
+                                                {% if u.is_admin %}
+                                                <span class="role-badge admin">Admin</span>
+                                                {% endif %}
+                                                {% if u.is_developer %}
+                                                <span class="role-badge dev">Dev</span>
+                                                {% endif %}
+                                                {% if u.is_gm %}
+                                                <span class="role-badge gm">GM</span>
+                                                {% endif %}
+                                                {% if u.is_player %}
+                                                <span class="role-badge player">Player</span>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
                                 </li>
@@ -1516,7 +1519,7 @@
                 <!-- Right column: user details (initially empty) -->
                 <div class="user-details" id="userDetailsPanel">
                     <h3>User Details</h3>
-                    <p>Select a user from the list to view details.</p>
+                    <p style="margin-top: 0.75rem;">Select a user from the list to view details.</p>
                 </div>
                 </div>
             </div>
