@@ -423,36 +423,6 @@ async function loadRosterTab(members) {
     const fragment = document.createDocumentFragment();
 
     members.forEach(member => {
-        const memberCard = document.createElement('div');
-        memberCard.className = 'roster-member-card';
-
-        memberCard.setAttribute('data-member-name', member.name.toLowerCase());
-        memberCard.setAttribute('data-member-username', member.username.toLowerCase());
-
-        let avatarHTML;
-        if (member.profile_picture) {
-            avatarHTML = `<img src="${member.profile_picture}"
-                              alt="${member.name}"
-                              loading="lazy"
-                              class="roster-member-avatar">`;
-        } else {
-            const initials = member.name.split(' ').map(n => n[0]).join('');
-            avatarHTML = `<div class="roster-member-initials">${initials}</div>`;
-        }
-
-        // Generate badges with season context for historical accuracy
-        let badgesHTML = '';
-
-        if (typeof buildUniversalRoleBadges === 'function') {
-            badgesHTML = buildUniversalRoleBadges({
-                userId: member.id,
-                roles: member.roles || [],
-                contextGameId: null,
-                excludeRoles: ['Player'],
-                seasonId: isActiveSeason ? null : seasonId  // Pass seasonId for past seasons
-            });
-        }
-
         const removeBtn = canManage ? `
             <button class="btn-icon-danger"
                     onclick="event.stopPropagation(); confirmRemoveMember('${member.id}', '${member.name.replace(/'/g, "\\'")}')"
@@ -461,32 +431,14 @@ async function loadRosterTab(members) {
             </button>
         ` : '';
 
-        memberCard.innerHTML = `
-            ${avatarHTML}
-            <div class="roster-member-info">
-                <div class="roster-member-name">${member.name}</div>
-                <div class="roster-member-username">@${member.username}</div>
-                <div class="roster-member-badges">${badgesHTML}</div>
-            </div>
-            <div class="roster-member-actions">
-                ${removeBtn}
-            </div>
-        `;
-
-        fragment.appendChild(memberCard);
+        const pill = createMemberPill(member, { size: 'large', actionsHtml: removeBtn });
+        fragment.appendChild(pill);
     });
 
     // Single DOM update
     rosterList.innerHTML = '';
     rosterList.appendChild(fragment);
 }
-
-/**
- * Filter roster members by search input
- * Uses universal filterListItems function
- */
-const filterRosterMembers = () =>
-    filterListItems('rosterSearchInput', '.roster-member-card', ['member-name', 'member-username']);
 
 // ============================================
 // TEAM MEMBER MANAGEMENT
@@ -599,7 +551,7 @@ function displayAvailableMembersNew(members) {
             ${profilePicHTML}
             <div class="member-info">
                 <div class="member-name">${member.name}</div>
-                <div class="member-username">@${member.username}</div>
+                <div class="member-username">${member.username}</div>
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
                 ${badgesHTML}

@@ -87,16 +87,83 @@ def is_all_day_event(start_time: str, end_time: str) -> bool:
                 start_time == "12:00 AM" and end_time == "11:59 PM")
 
 
+def select_profile_communities(communities, current_game_id):
+    """
+    Given a member's full list of joined communities (each a dict with
+    'id', 'title', 'image_url', 'joined_at'), return up to 3 for display
+    on the user profile popup — oldest joined first — plus a count of how
+    many communities beyond those 3 aren't being shown.
+
+    The community matching current_game_id (the community page currently
+    being viewed) is excluded UNLESS the member has 3 or fewer communities
+    total, in which case everything is shown.
+
+    Used in communities.py
+    """
+    total = len(communities)
+    ordered = sorted(communities, key=lambda c: c['joined_at'])
+
+    if total > 3:
+        ordered = [c for c in ordered if c['id'] != current_game_id]
+
+    shown = [{'id': c['id'], 'title': c['title'], 'image_url': c['image_url']} for c in ordered[:3]]
+    remaining = max(total - len(shown), 0)
+
+    return shown, remaining
+
+def select_profile_teams(teams, current_game_id, viewer_team_ids):
+    """
+    Given a member's full list of teams (each a dict with 'id', 'name',
+    'game_id', 'game_icon_url', 'joined_at'), return up to 2 for display
+    on the user profile popup.
+
+    Ordering: oldest joined first, with any team belonging to the community
+    currently being viewed (current_game_id) bumped to the front.
+
+    Any team also shared with the current viewer (id present in
+    viewer_team_ids) is excluded — even if it belongs to the current
+    community — UNLESS the member has 2 or fewer teams total, in which
+    case nothing is excluded.
+
+    Used in communities.py
+    """
+    total = len(teams)
+    ordered = sorted(teams, key=lambda t: t['joined_at'])
+
+    if total > 2:
+        ordered = [t for t in ordered if t['id'] not in viewer_team_ids]
+
+    # Stable sort: teams from the current community move to the front,
+    # while preserving oldest-first order within each group
+    ordered.sort(key=lambda t: t['game_id'] != current_game_id)
+
+    return [
+        {'id': t['id'], 'name': t['name'], 'game_icon_url': t['game_icon_url']}
+        for t in ordered[:2]
+    ]
+
+
 def build_member_profile(user_row, include_gm_flag=False):
     """
     Construct a user role list for each user to display on the front-end.
     Used in teams.py and communities.py
     """
+    discord_username = None
+    if user_row.get('discord_username'):
+        if user_row.get('discord_discriminator') and user_row['discord_discriminator'] != '0':
+            discord_username = f"{user_row['discord_username']}#{user_row['discord_discriminator']}"
+        else:
+            discord_username = user_row['discord_username']
+
     profile = {
         'id': user_row['id'],
         'name': f"{user_row['firstname']} {user_row['lastname']}",
         'username': user_row['username'],
         'profile_picture': user_row['profile_picture'] or None,
+        'discord_username': discord_username,
+        'communities': user_row.get('communities', []),
+        'communities_remaining': user_row.get('communities_remaining', 0),
+        'teams': user_row.get('teams', []),
         'roles': (
                 [r for flag, r in [
                     (user_row.get('is_admin') == 1, 'Admin'),

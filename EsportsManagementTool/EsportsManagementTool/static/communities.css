@@ -320,8 +320,8 @@
 
 .member-list-popup {
     position: absolute;
-    width: 320px;
     background: #161616;
+    width: 200px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 0.75rem;
@@ -361,9 +361,9 @@
 
 .member-list-popup-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 0.5rem;
-    max-height: 98px;
+    max-height: 196px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) transparent;
@@ -374,35 +374,6 @@
 .member-list-popup-grid::-webkit-scrollbar-thumb {
     background: var(--border-color);
     border-radius: 2px;
-}
-
-.member-popup-item {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.5rem;
-    border-radius: 6px;
-    background: #00080F;
-    border: 1px solid var(--border-color);
-    cursor: default;
-}
-
-.member-popup-item .member-avatar,
-.member-popup-item .member-avatar-initials {
-    width: 28px;
-    height: 28px;
-    font-size: 0.7rem;
-    border-radius: 50%;
-}
-
-.member-popup-username {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
 }
 
 .member-list-loading {
@@ -418,19 +389,6 @@
     color: var(--text-secondary);
     font-size: 0.8rem;
     padding: 0.5rem 0;
-}
-
-/* -- Special member borders -- */
-.member-popup-item--gm {
-    border-color: var(--stockton-yellow);
-}
-
-.member-popup-item--self {
-    border-color: var(--stockton-blue);
-}
-
-.member-popup-item--gm.member-popup-item--self {
-    border-color: var(--stockton-yellow);
 }
 
 /* -- Forum Placeholder */

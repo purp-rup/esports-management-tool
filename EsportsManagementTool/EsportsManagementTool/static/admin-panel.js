@@ -267,11 +267,11 @@ async function handleUserItemClick(item) {
         </div>
         <div class="user-detail-info">
             <span class="user-detail-label">Full Name</span><span class="user-detail-value">${firstname} ${lastname}</span>
-            <span class="user-detail-label">Username</span><span class="user-detail-value">@${username}</span>
+            <span class="user-detail-label">Username</span><span class="user-detail-value">${username}</span>
             <span class="user-detail-label">Email</span><span class="user-detail-value">${email}</span>
             <span class="user-detail-label">Date Registered</span><span class="user-detail-value">${date}</span>
             <span class="user-detail-label">Last Active</span><span class="user-detail-value">${lastSeen}</span>
-            <span class="user-detail-label">Current Roles</span><span class="user-detail-value">${roleBadges || '<span style="color: var(--text-secondary);">No roles assigned</span>'}</span>
+            <span class="user-detail-label">Current Roles</span><span class="user-item-badges">${roleBadges || '<span style="color: var(--text-secondary);">No roles assigned</span>'}</span>
         </div>
         <br>
         <div class="admin-actions">

@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='discord.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='communities-list.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='user-profiles.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='updateProfile.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='scheduled-events.css') }}">
@@ -1130,12 +1131,6 @@
                     <div class="team-tab-content">
                         <!-- Roster Tab -->
                         <div id="rosterTabContent" class="team-tab-panel active">
-                            <div class="roster-search">
-                                <input type="text"
-                                       id="rosterSearchInput"
-                                       placeholder="Search members..."
-                                       onkeyup="filterRosterMembers()">
-                            </div>
                             <div id="rosterMembersList" class="roster-members-grid">
                                 <!-- Members will be populated here -->
                             </div>
@@ -1556,7 +1551,7 @@
                                                 {{ u.firstname }} {{ u.lastname }}
                                                 <span class="user-status-dot {{ 'online' if u.is_active else 'offline' }}"></span>
                                             </strong>
-                                            <p>@{{ u.username }} — {{ u.email }}</p>
+                                            <p>{{ u.username }} — {{ u.email }}</p>
                                             <div class="user-item-badges">
                                                 <!-- Role Badges -->
                                                 {% if u.is_admin %}
@@ -2146,6 +2141,7 @@
 <script src="{{ url_for('static', filename='notifications.js') }}"></script>
 <script src="{{ url_for('static', filename='game.js') }}"></script>
 <script src="{{ url_for('static', filename='communities.js') }}"></script>
+<script src="{{ url_for('static', filename='user-profiles.js') }}"></script>
 <script src="{{ url_for('static', filename='scheduled-events.js') }}"></script>
 <script src="{{ url_for('static', filename='teamstats.js') }}"></script>
 <script src="{{ url_for('static', filename='vods.js') }}"></script>

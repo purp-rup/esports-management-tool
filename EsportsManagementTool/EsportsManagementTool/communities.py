@@ -1,5 +1,5 @@
 from EsportsManagementTool import app, login_required, roles_required, mysql, EST
-from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr, is_all_day_event, build_member_profile
+from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr, is_all_day_event, build_member_profile, select_profile_communities, select_profile_teams
 from flask import request, render_template, redirect, url_for, session, flash, jsonify
 from datetime import datetime, timedelta
 import MySQLdb.cursors
@@ -719,15 +719,81 @@ def get_community_details(game_id):
                 cursor.execute("""
                                SELECT u.id, u.firstname, u.lastname, u.username,
                                       u.profile_picture, p.is_admin, p.is_developer, p.is_gm,
-                                      p.is_player, c.joined_at, (u.id = gm.gm_id) as is_game_manager
+                                      p.is_player, c.joined_at, (u.id = gm.gm_id) as is_game_manager,
+                                      d.discord_username, d.discord_discriminator
                                FROM in_communities c
                                JOIN games gm ON c.game_id = gm.GameID
                                JOIN users u ON c.user_id = u.id
                                LEFT JOIN permissions p ON u.id = p.userid
+                               LEFT JOIN discord d ON d.userid = u.id
                                WHERE c.game_id = %s
                                ORDER BY (u.id = gm.gm_id) DESC, p.is_developer DESC, p.is_admin DESC, p.is_gm DESC, c.joined_at ASC
                                """, (game_id,))
                 members = cursor.fetchall()
+
+                # Fetch every member's full community list in one query, then
+                # apply the oldest-first / current-community-exclusion rule per member
+                member_ids = [m['id'] for m in members]
+                communities_by_user = {}
+
+                if member_ids:
+                    placeholders = ','.join(['%s'] * len(member_ids))
+                    cursor.execute(f"""
+                                        SELECT c.user_id, c.game_id, c.joined_at, g.GameTitle, g.GameImage
+                                        FROM in_communities c
+                                        JOIN games g ON c.game_id = g.GameID
+                                        WHERE c.user_id IN ({placeholders})
+                                    """, tuple(member_ids))
+
+                    for row in cursor.fetchall():
+                        communities_by_user.setdefault(row['user_id'], []).append({
+                            'id': row['game_id'],
+                            'title': row['GameTitle'],
+                            'image_url': f"/game-image/{row['game_id']}" if row['GameImage'] else None,
+                            'joined_at': row['joined_at'],
+                        })
+
+                for m in members:
+                    m['communities'], m['communities_remaining'] = select_profile_communities(
+                        communities_by_user.get(m['id'], []), game_id
+                    )
+
+                    # Fetch every member's teams in one query, then apply ordering/exclusion rules per member
+                    teams_by_user = {}
+
+                    cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+                    active_season = cursor.fetchone()
+                    active_season_id = active_season['season_id'] if active_season else None
+
+                    if member_ids and active_season_id:
+                        placeholders = ','.join(['%s'] * len(member_ids))
+                        cursor.execute(f"""
+                                            SELECT tm.user_id, tm.team_id, tm.joined_at, t.teamName, t.gameID, g.GameImage
+                                            FROM team_members tm
+                                            JOIN teams t ON tm.team_id = t.TeamID
+                                            JOIN games g ON t.gameID = g.GameID
+                                            WHERE tm.user_id IN ({placeholders}) AND t.season_id = %s
+                                        """, tuple(member_ids) + (active_season_id,))
+
+                        for row in cursor.fetchall():
+                            teams_by_user.setdefault(row['user_id'], []).append({
+                                'id': row['team_id'],
+                                'name': row['teamName'],
+                                'game_id': row['gameID'],
+                                'game_icon_url': f"/game-image/{row['gameID']}" if row['GameImage'] else None,
+                                'joined_at': row['joined_at'],
+                            })
+
+                    cursor.execute("SELECT team_id FROM team_members WHERE user_id = %s", (session['id'],))
+                    viewer_team_ids = {row['team_id'] for row in cursor.fetchall()}
+
+                    for m in members:
+                        m['communities'], m['communities_remaining'] = select_profile_communities(
+                            communities_by_user.get(m['id'], []), game_id
+                        )
+                        m['teams'] = select_profile_teams(
+                            teams_by_user.get(m['id'], []), game_id, viewer_team_ids
+                        )
 
                 # Format response to build user profiles with GM assignment
                 formatted_members = [build_member_profile(m, include_gm_flag=True) for m in members]

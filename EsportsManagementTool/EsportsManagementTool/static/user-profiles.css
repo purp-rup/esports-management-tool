@@ -1,0 +1,329 @@
+/* ================================
+   USER PROFILE POPUP STYLING
+   - designed popups for communities page member list
+   - designed panel for Teams tab Roster section
+   ================================ */
+
+/* ================================
+   Universal Member pill
+   ================================ */
+.member-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 6px;
+    background: #00080F;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+}
+
+.member-pill:hover {
+    border-color: var(--stockton-blue);
+}
+
+.member-pill-avatar,
+.member-pill-initials {
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.member-pill-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--stockton-blue);
+    color: white;
+    font-weight: 600;
+}
+
+.member-pill-username {
+    font-size: 0.7rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.member-pill-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+/* -- Size variants -- */
+.member-pill--compact {
+    padding: 0.4rem 0.5rem;
+}
+
+.member-pill--compact .member-pill-avatar,
+.member-pill--compact .member-pill-initials {
+    width: 28px;
+    height: 28px;
+    font-size: 0.7rem;
+}
+
+.member-pill--large {
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+}
+
+.member-pill--large .member-pill-avatar,
+.member-pill--large .member-pill-initials {
+    width: 44px;
+    height: 44px;
+    font-size: 0.95rem;
+}
+
+.member-pill--large .member-pill-username {
+    font-size: 0.9rem;
+}
+
+/* -- Special member borders -- */
+.member-pill--gm {
+    border-color: var(--stockton-yellow);
+}
+
+.member-pill--self {
+    border-color: var(--stockton-blue);
+}
+
+.member-pill--gm.member-pill--self {
+    border-color: var(--stockton-yellow);
+}
+
+/* ================================
+   Communities page popup styles
+   ================================ */
+.user-profile-popup {
+    position: absolute;
+    width: 260px;
+    background: #161616;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0;
+    z-index: 51;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+}
+
+/* Header */
+.profile-header {
+    position: relative;
+    height: 76px;
+}
+
+.profile-banner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: var(--stockton-blue);
+    border-radius: 8px 8px 0 0;
+}
+
+.profile-avatar-wrap {
+    position: absolute;
+    top: 40px;
+    left: 1rem;
+    transform: translateY(-50%);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 3px solid #161616;
+    background: #00080F;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.profile-avatar-wrap .profile-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profile-avatar-wrap .profile-avatar-initials-lg {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.profile-first-name {
+    position: absolute;
+    left: calc(1rem + 56px + 0.6rem);
+    top: 0.8rem;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.profile-username {
+    position: absolute;
+    left: calc(1rem + 56px + 0.6rem);
+    top: 44px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.profile-body {
+    padding: 0.75rem 0.9rem 0.9rem;
+}
+
+/* Discord section */
+.profile-discord-section {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+}
+
+.profile-discord-icon-box {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #5865F2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.profile-discord-icon-box i {
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.profile-discord-handle {
+    font-size: 0.8rem;
+    color: var(--text-primary);
+}
+
+/* Communities section */
+.profile-communities-section {
+    margin-bottom: 0.9rem;
+}
+
+.profile-communities-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-secondary);
+    margin-bottom: 0.4rem;
+}
+
+.profile-communities-badges {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.profile-community-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background: #00080F;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    text-decoration: none;
+    transition: border-color 0.15s ease;
+}
+
+.profile-community-badge:hover {
+    border-color: var(--stockton-blue);
+}
+
+.profile-community-badge img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profile-community-badge i {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.profile-community-more {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+/* Roles section */
+.profile-roles-section {
+    margin-bottom: 0.6rem;
+}
+
+.profile-roles-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+/* Community tab profile teams section */
+.profile-teams-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-secondary);
+    margin-bottom: 0.4rem;
+}
+
+.profile-team-badges {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+}
+
+.profile-team-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--stockton-red, #d32f2f);
+    border-radius: 999px;
+    background: var(--dark-bg);
+    min-width: 0;
+}
+
+.profile-team-badge img,
+.profile-team-badge .profile-team-icon-fallback {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    object-fit: cover;
+}
+
+.profile-team-icon-fallback {
+    background: #00080F;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profile-team-icon-fallback i {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+}
+
+.profile-team-name {
+    font-size: 0.55rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
