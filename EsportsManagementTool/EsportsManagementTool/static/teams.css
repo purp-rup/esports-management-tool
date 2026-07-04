@@ -433,11 +433,57 @@
 
 .roster-members-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
+    grid-template-columns: 1fr 1fr; gap: 1rem;
     max-height: 500px;
     overflow-y: auto;
     padding: 0 0.5rem 0.5rem 0.5rem;
+}
+
+/* ===================================
+   Roster Tab Layout
+   =================================== */
+.roster-layout {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    align-items: start;
+}
+
+.roster-list-pane {
+    min-width: 0;
+    padding-right: 1.25rem;
+}
+
+.roster-detail-pane {
+    align-self: stretch;
+    min-height: 480px;
+    border-left: 1px solid var(--border-color);
+    padding-left: 2rem;
+}
+
+.roster-detail-placeholder {
+    height: 100%;
+    min-height: 460px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.roster-detail-placeholder i {
+    font-size: 2.25rem;
+    opacity: 0.35;
+}
+
+.roster-detail-placeholder p {
+    font-size: 0.9375rem;
+    max-width: 220px;
+    margin: 0;
 }
 
 /* Remove player button */
@@ -895,119 +941,6 @@
 }
 
 /* --------------------------------------------
-   ANIMATIONS
-   Keyframe animations
-   -------------------------------------------- */
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-/* --------------------------------------------
-   RESPONSIVE DESIGN
-   Mobile and tablet adaptations
-   -------------------------------------------- */
-@media (max-width: 1024px) {
-    .teams-layout {
-        gap: 1rem !important;
-        flex-direction: column !important;
-        height: auto !important;
-    }
-
-    .teams-main-content {
-        /*width: 100%;*/
-    }
-
-    .team-stats-summary {
-        flex-direction: column;
-        /*grid-template-columns: repeat(2, 1fr);*/
-    }
-}
-
-@media (max-width: 768px) {
-    .team-detail-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-
-    .team-header-actions {
-        width: 100%;
-    }
-
-    .team-header-actions button {
-        flex: 1;
-        font-size: 0.75rem;
-    }
-
-    .team-tabs {
-        overflow-x: auto;
-    }
-
-    .roster-members-grid {
-        grid-template-columns: 1fr;
-    }
-
-    #addTeamMembersModal .modal-content {
-        width: 95%;
-        margin: 5% auto;
-    }
-
-    .members-list-container {
-        max-height: 300px;
-    }
-
-    .member-item {
-        gap: 0.75rem;
-        padding: 0.875rem;
-    }
-
-    .modal-footer {
-        padding: 1rem 1.5rem 1.5rem;
-    }
-
-    .team-size-option label {
-        padding: 0.875rem 1rem;
-        min-height: 60px;
-    }
-
-    .size-icon {
-        font-size: 1.25rem;
-    }
-
-    .size-number {
-        font-size: 0.9375rem;
-    }
-
-    .size-description {
-        font-size: 0.75rem;
-    }
-
-    /* On mobile, show tooltip below instead of to the right */
-    .team-info-tooltip {
-        left: 0;
-        top: calc(100% + 10px);
-        transform: translateX(0) translateY(4px);
-        white-space: normal;
-        min-width: 200px;
-    }
-
-    .team-info-icon-wrapper:hover .team-info-tooltip {
-        transform: translateX(0) translateY(0);
-    }
-
-    .team-info-tooltip::before,
-    .team-info-tooltip::after {
-        display: none;
-    }
-}
-
-@media (max-width: 640px) {
-    .teams-main-content {
-        padding: 1rem;
-    }
-}
-/* --------------------------------------------
    TEAM STATS SUMMARY BAR
    Compact three-column strip: Members | Max Size | Next Event
    -------------------------------------------- */
@@ -1021,30 +954,31 @@
 .stat-box {
     background: var(--dark-bg);
     border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 0.65rem 1rem;
+    border-radius: 8px;
+    padding: 0.75rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.2rem;
-    min-width: 90px;
-    flex-shrink: 0;
+    gap: 0.35rem;
+    min-height: 90px;
+    width: 100%;
+    flex: 1;
 }
 
 .stat-box i {
-    font-size: 1.1rem;
+    font-size: 1.25rem;
     color: var(--stockton-blue);
 }
 
-.stat-box .stat-value {
+.stat-value {
     font-size: 1.4rem;
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.1;
 }
 
-.stat-box .stat-label {
+.stat-label {
     font-size: 0.65rem;
     font-weight: 600;
     color: var(--text-secondary);
@@ -1181,4 +1115,182 @@
 
 .next-scheduled-event-empty p {
     margin: 0;
+}
+
+/* --------------------------------------------
+   ANIMATIONS
+   Keyframe animations
+   -------------------------------------------- */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* --------------------------------------------
+   RESPONSIVE DESIGN
+   Mobile and tablet adaptations
+   -------------------------------------------- */
+@media (max-width: 1280px) {
+    .roster-members-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 1024px) {
+    .teams-layout {
+        gap: 1rem !important;
+        flex-direction: column !important;
+        height: auto !important;
+    }
+
+    .teams-main-content {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .team-stats-summary {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 768px) {
+    .team-detail-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .team-header-left {
+        gap: 0.5rem;
+    }
+
+    .team-header-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .team-header-info h1 {
+        font-size: 1.5rem;
+    }
+
+    .team-header-actions button {
+        flex: 1;
+        font-size: 0.75rem;
+    }
+
+    .team-tabs {
+        overflow-x: auto;
+    }
+
+    #addTeamMembersModal .modal-content {
+        width: 95%;
+        margin: 5% auto;
+    }
+
+    .members-list-container {
+        max-height: 300px;
+    }
+
+    .member-item {
+        gap: 0.75rem;
+        padding: 0.875rem;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem 1.5rem;
+    }
+
+    .team-size-option label {
+        padding: 0.875rem 1rem;
+        min-height: 60px;
+    }
+
+    .size-icon {
+        font-size: 1.25rem;
+    }
+
+    .size-number {
+        font-size: 0.9375rem;
+    }
+
+    .size-description {
+        font-size: 0.75rem;
+    }
+
+    /* On mobile, show tooltip below instead of to the right */
+    .team-info-tooltip {
+        left: 0;
+        top: calc(100% + 10px);
+        transform: translateX(0) translateY(4px);
+        white-space: normal;
+        min-width: 200px;
+    }
+
+    .team-info-icon-wrapper:hover .team-info-tooltip {
+        transform: translateX(0) translateY(0);
+    }
+
+    .team-info-tooltip::before,
+    .team-info-tooltip::after {
+        display: none;
+    }
+
+    /* --- Cards --- */
+    .roster-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .roster-list-pane {
+        padding-right: 0;
+        max-height: none;
+        overflow-x: hidden;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .roster-members-grid {
+        max-height: none;
+        overflow-y: visible;
+    }
+
+     /* --- Roster detail panel becomes a bottom sheet --- */
+    .roster-detail-pane {
+        display: none;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        border-radius: 16px 16px 0 0;
+        background: var(--card-bg);
+        padding: 1rem 1.25rem 1.5rem;
+        z-index: 500;
+        overflow-y: auto;
+        box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+        transform: translateY(100%);
+        transition: transform 0.3s ease;
+    }
+
+    .roster-detail-pane.sheet-open {
+        display: block;
+        transform: translateY(0);
+    }
+
+    .roster-detail-pane::before {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: var(--border-color);
+        border-radius: 2px;
+        margin: 0 auto 1rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .teams-main-content {
+        padding: 1rem;
+    }
 }

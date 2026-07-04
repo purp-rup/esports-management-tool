@@ -1,5 +1,5 @@
 from EsportsManagementTool import app, mysql, EST, login_required, roles_required, localize_datetime, season_roles
-from EsportsManagementTool.universal_helpers import get_user_permissions, get_team_game_id, format_time_to_12hr, is_all_day_event, build_member_profile
+from EsportsManagementTool.universal_helpers import get_user_permissions, get_team_game_id, format_time_to_12hr, is_all_day_event, build_member_profile, select_profile_communities, attach_profile_extras
 from flask import Flask, render_template, request, session, jsonify
 from datetime import datetime, timedelta
 import MySQLdb.cursors
@@ -818,6 +818,9 @@ def team_details(team_id):
                     """, (team_id,))
 
                 members = cursor.fetchall()
+
+                # Finish building user profile on roster tab
+                attach_profile_extras(cursor, members, game_id)
 
                 # Format response to build accurate user profiles
                 formatted_members = [build_member_profile(m) for m in members]

@@ -446,10 +446,12 @@ async function toggleMemberListPopup() {
 
         if (data.success && data.game.members?.length) {
             const currentUsername = document.getElementById('currentUsername')?.value;
+            const gmId = data.game.assigned_gm_id;
             data.game.members.forEach(member => {
                 const pill = createMemberPill(member, { size: 'compact' });
                 if (member.id === gmId) pill.classList.add('member-pill--gm');
                 if (member.username.toLowerCase() === currentUsername?.toLowerCase()) pill.classList.add('member-pill--self');
+                grid.appendChild(pill);
             });
         } else {
             empty.style.display = 'block';
@@ -481,7 +483,7 @@ function outsideMemberListClick(e) {
 
 // Filter members in popup
 const filterMemberListPopup = () =>
-    filterListItems('memberListSearch', '#memberListGrid .member-popup-item', ['username', 'name'], 'flex');
+    filterListItems('memberListSearch', '#memberListGrid .member-pill', ['username', 'name'], 'flex');
 
 /**
  * Load next scheduled event for game community

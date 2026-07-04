@@ -139,7 +139,7 @@ function renderUserItems(users) {
                         ${user.firstname} ${user.lastname}
                         <span class="user-status-dot ${user.is_active ? 'online' : 'offline'}"></span>
                     </strong>
-                    <p>@${user.username} — ${user.email}</p>
+                    <p>${user.username} — ${user.email}</p>
                     <div class="user-item-badges">
                         ${badgesHTML}
                     </div>
@@ -262,7 +262,7 @@ async function handleUserItemClick(item) {
             <div class="user-details-avatar">${detailsAvatarHTML}</div>
             <div>
                 <strong style="font-size:1.1rem;">${firstname} ${lastname}</strong>
-                <p style="margin:0;color:var(--text-secondary);">@${username}</p>
+                <p style="margin:0;color:var(--text-secondary);">${username}</p>
             </div>
         </div>
         <div class="user-detail-info">
@@ -446,7 +446,7 @@ function confirmRemoveUser(userId, username, fullName) {
                 <!-- User Info Display -->
                 <div style="background-color: #000000; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
                     <p style="margin: 0.25rem 0;"><strong>Name:</strong> ${fullName}</p>
-                    <p style="margin: 0.25rem 0;"><strong>Username:</strong> @${username}</p>
+                    <p style="margin: 0.25rem 0;"><strong>Username:</strong> ${username}</p>
                 </div>
 
                 <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">

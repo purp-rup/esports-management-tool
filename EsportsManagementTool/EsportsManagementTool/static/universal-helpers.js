@@ -104,7 +104,7 @@ function navigateToEvent(eventId) {
  * Used by communities.js & teams.js
  */
 function createMemberPill(member, options = {}) {
-    const { size = 'compact', actionsHtml = '' } = options;
+    const { size = 'compact', actionsHtml = '', onSelect = null } = options;
 
     const pill = document.createElement('div');
     pill.className = `member-pill member-pill--${size}`;
@@ -117,13 +117,17 @@ function createMemberPill(member, options = {}) {
 
     pill.innerHTML = `
         ${avatarHtml}
-        <span class="member-pill-username">@${member.username}</span>
+        <span class="member-pill-username">${member.username}</span>
         ${actionsHtml ? `<div class="member-pill-actions">${actionsHtml}</div>` : ''}
     `;
 
     pill.addEventListener('click', (e) => {
         if (e.target.closest('.member-pill-actions')) return;
-        toggleUserProfilePopup(e, member);
+        if (onSelect) {
+            onSelect(member, e);
+        } else {
+            toggleUserProfilePopup(e, member);
+        }
     });
 
     return pill;

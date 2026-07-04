@@ -140,7 +140,7 @@ function renderCommunitiesGrid() {
                     <div class="gm-compact-label">Current GM:</div>
                     <div class="gm-compact-user">
                         ${gmProfilePic}
-                        <span>@${escapeHtml(community.current_gm.username)}</span>
+                        <span>${escapeHtml(community.current_gm.username)}</span>
                     </div>
                 </div>
             `;
@@ -735,7 +735,7 @@ function createGMSelectionItem(gm, gameId) {
         ${profilePicHTML}
         <div class="member-info">
             <div class="member-name">${gm.name}</div>
-            <div class="member-username">@${gm.username}</div>
+            <div class="member-username">${gm.username}</div>
         </div>
         <i class="fas fa-chevron-right" style="margin-left: auto; color: var(--text-secondary);"></i>
     `;

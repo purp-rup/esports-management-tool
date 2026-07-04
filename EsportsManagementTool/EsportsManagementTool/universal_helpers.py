@@ -5,6 +5,7 @@ Any helper that is only used in one file will remain in that file.
 from EsportsManagementTool import mysql
 from datetime import timedelta
 import MySQLdb.cursors
+from flask import session
 
 def get_user_permissions(user_id: int) -> dict[str, int]:
     """
@@ -182,3 +183,79 @@ def build_member_profile(user_row, include_gm_flag=False):
         profile['is_game_manager'] = bool(user_row.get('is_game_manager'))
 
     return profile
+
+def attach_profile_extras(cursor, members, current_game_id):
+    """
+    Bulk-fetch and attach each member's communities and teams (for display
+    on the user profile popup/panel), applying the same selection rules
+    on both the communities page and the Teams tab roster.
+
+    Mutates each dict in `members` in place, adding 'communities',
+    'communities_remaining', and 'teams' keys.
+
+    Does NOT handle Discord data — that must already be joined into the
+    caller's own member query (LEFT JOIN discord d ON d.userid = u.id),
+    since that query's column list differs slightly per caller (e.g.
+    season_roles vs permissions).
+
+    Used in communities.py (get_community_details) & teams.py (team_details).
+    """
+    member_ids = [m['id'] for m in members]
+    if not member_ids:
+        return members
+
+    placeholders = ','.join(['%s'] * len(member_ids))
+
+    # -- Communities --
+    communities_by_user = {}
+    cursor.execute(f"""
+        SELECT c.user_id, c.game_id, c.joined_at, g.GameTitle, g.GameImage
+        FROM in_communities c
+        JOIN games g ON c.game_id = g.GameID
+        WHERE c.user_id IN ({placeholders})
+    """, tuple(member_ids))
+
+    for row in cursor.fetchall():
+        communities_by_user.setdefault(row['user_id'], []).append({
+            'id': row['game_id'],
+            'title': row['GameTitle'],
+            'image_url': f"/game-image/{row['game_id']}" if row['GameImage'] else None,
+            'joined_at': row['joined_at'],
+        })
+
+    # -- Teams (current season only) --
+    teams_by_user = {}
+    cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+    active_season = cursor.fetchone()
+    active_season_id = active_season['season_id'] if active_season else None
+
+    if active_season_id:
+        cursor.execute(f"""
+            SELECT tm.user_id, tm.team_id, tm.joined_at, t.teamName, t.gameID, g.GameImage
+            FROM team_members tm
+            JOIN teams t ON tm.team_id = t.TeamID
+            JOIN games g ON t.gameID = g.GameID
+            WHERE tm.user_id IN ({placeholders}) AND t.season_id = %s
+        """, tuple(member_ids) + (active_season_id,))
+
+        for row in cursor.fetchall():
+            teams_by_user.setdefault(row['user_id'], []).append({
+                'id': row['team_id'],
+                'name': row['teamName'],
+                'game_id': row['gameID'],
+                'game_icon_url': f"/game-image/{row['gameID']}" if row['GameImage'] else None,
+                'joined_at': row['joined_at'],
+            })
+
+    cursor.execute("SELECT team_id FROM team_members WHERE user_id = %s", (session['id'],))
+    viewer_team_ids = {row['team_id'] for row in cursor.fetchall()}
+
+    for m in members:
+        m['communities'], m['communities_remaining'] = select_profile_communities(
+            communities_by_user.get(m['id'], []), current_game_id
+        )
+        m['teams'] = select_profile_teams(
+            teams_by_user.get(m['id'], []), current_game_id, viewer_team_ids
+        )
+
+    return members

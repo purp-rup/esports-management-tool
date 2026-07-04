@@ -82,7 +82,7 @@ function openSuspendModal(userId, username, fullName) {
                 <!-- User Information Display -->
                 <div style="background-color: var(--background-secondary); padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem;">
                     <p style="margin: 0.25rem 0;"><strong>Name:</strong> ${fullName}</p>
-                    <p style="margin: 0.25rem 0;"><strong>Username:</strong> @${username}</p>
+                    <p style="margin: 0.25rem 0;"><strong>Username:</strong> ${username}</p>
                 </div>
 
                 <!-- Suspension Form -->
@@ -460,7 +460,7 @@ async function updateUserDetailsWithSuspension(userId) {
  */
 async function liftSuspension(userId, username) {
     // Confirm action with admin
-    if (!confirm(`Are you sure you want to lift the suspension for @${username}?`)) {
+    if (!confirm(`Are you sure you want to lift the suspension for ${username}?`)) {
         return;
     }
 

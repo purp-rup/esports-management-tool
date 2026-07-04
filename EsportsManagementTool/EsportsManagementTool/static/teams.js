@@ -164,7 +164,7 @@ async function loadTeamDetails(teamId) {
             const deleteTeamBtn = document.getElementById('deleteTeamBtn');
             if (deleteTeamBtn) {
                 const showDelete = isDeveloper || ((isAdmin || isGM) && isActiveSeason);
-                deleteTeamBtn.style.display = showDelete ? 'inline-flex' : 'none';
+                deleteTeamBtn.style.display = showDelete ? 'grid' : 'none';
             }
 
             // Store season active status globally for other functions
@@ -431,13 +431,43 @@ async function loadRosterTab(members) {
             </button>
         ` : '';
 
-        const pill = createMemberPill(member, { size: 'large', actionsHtml: removeBtn });
+        const pill = createMemberPill(member, {
+            size: 'large',
+            actionsHtml: removeBtn,
+            onSelect: (m) => openRosterDetailPanel(m)
+        });
         fragment.appendChild(pill);
     });
 
     // Single DOM update
     rosterList.innerHTML = '';
     rosterList.appendChild(fragment);
+}
+
+// Opens the roster detail panel to view user profiles
+function openRosterDetailPanel(member) {
+    const pane = document.getElementById('rosterDetailPane');
+    if (!pane) return;
+
+    pane.innerHTML = `
+        <div class="user-profile-panel">
+            ${buildUserProfileHeader(member)}
+        </div>
+    `;
+
+    if (window.innerWidth <= 768) {
+        pane.classList.add('sheet-open');
+        document.getElementById('rosterSheetBackdrop')?.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+// Closes the roster detail pane in MOBILE VIEW
+function closeRosterDetailSheet() {
+    const pane = document.getElementById('rosterDetailPane');
+    pane?.classList.remove('sheet-open');
+    document.getElementById('rosterSheetBackdrop')?.classList.remove('open');
+    document.body.style.overflow = '';
 }
 
 // ============================================
@@ -1132,5 +1162,4 @@ window.openEditTeamModal = openEditTeamModal;
 window.closeEditTeamModal = closeEditTeamModal;
 
 //Filters
-window.filterRosterMembers = filterRosterMembers;
 window.filterAvailableMembers = filterAvailableMembers;
