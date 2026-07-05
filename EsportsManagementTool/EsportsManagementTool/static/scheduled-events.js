@@ -344,14 +344,14 @@ function openCreateScheduleModal() {
 
     // Show modal
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('createScheduledEventModal');
 }
 
 // Close create schedule modal
 function closeCreateScheduleModal() {
     const modal = document.getElementById('createScheduledEventModal');
     setElementDisplay(modal, 'none');
-    document.body.style.overflow = 'auto';
+    unlockBodyScroll('createScheduledEventModal');
 }
 
 // Handle frequency dropdown change
@@ -586,7 +586,7 @@ async function openScheduleModal(scheduleId) {
 
     // Show modal
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('scheduleDetailsModal');
 }
 
 // Render game icon in modal header WITH event count
@@ -803,7 +803,7 @@ function closeScheduleModal() {
     const modal = document.getElementById('scheduleDetailsModal');
     if (modal) {
         modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
+        unlockBodyScroll('scheduleDetailsModal');
     }
 }
 

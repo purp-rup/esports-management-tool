@@ -158,7 +158,7 @@ function openSuspendModal(userId, username, fullName) {
 
     // Add modal to page
     document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('suspendUserModal');
 
     // Setup event listeners
     setupSuspendModalListeners();
@@ -239,7 +239,7 @@ function closeSuspendModal() {
     const modal = document.getElementById('suspendUserModal');
     if (modal) {
         modal.remove();
-        document.body.style.overflow = 'auto';
+        unlockBodyScroll('suspendUserModal');
     }
 }
 

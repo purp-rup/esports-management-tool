@@ -458,7 +458,7 @@ function openRosterDetailPanel(member) {
     if (window.innerWidth <= 768) {
         pane.classList.add('sheet-open');
         document.getElementById('rosterSheetBackdrop')?.classList.add('open');
-        document.body.style.overflow = 'hidden';
+        lockBodyScroll('rosterSheet');
     }
 }
 
@@ -467,7 +467,7 @@ function closeRosterDetailSheet() {
     const pane = document.getElementById('rosterDetailPane');
     pane?.classList.remove('sheet-open');
     document.getElementById('rosterSheetBackdrop')?.classList.remove('open');
-    document.body.style.overflow = '';
+    unlockBodyScroll('rosterSheet');
 }
 
 // ============================================
@@ -498,7 +498,7 @@ function openAddTeamMembersModal() {
     }
 
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('addTeamMembersModal');
 
     if (loading) loading.style.display = 'block';
     if (list) list.style.display = 'none';
@@ -638,7 +638,7 @@ function closeAddTeamMembersModal() {
     const modal = document.getElementById('addTeamMembersModal');
     if (modal) {
         modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
+        unlockBodyScroll('addTeamMembersModal');
     }
 }
 
@@ -790,7 +790,7 @@ async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSize
     }
 
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('editTeamModal');
 }
 
 // Close edit team modal
@@ -818,7 +818,7 @@ function closeEditTeamModal() {
 
     if (modal) {
         modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
+        lockBodyScroll('editTeamModal');
     }
 }
 

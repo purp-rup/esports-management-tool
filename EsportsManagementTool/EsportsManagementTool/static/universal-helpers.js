@@ -149,6 +149,36 @@ function debounce(func, wait) {
     };
 }
 
+// Body scroll lock system
+const _scrollLockOwners = new Set();
+let _scrollLockY = 0;
+
+// Locks the body to prevent scrolling
+function lockBodyScroll(ownerId) {
+    if (_scrollLockOwners.size === 0) {
+        _scrollLockY = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${_scrollLockY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.overflow = 'hidden';
+    }
+    _scrollLockOwners.add(ownerId);
+}
+
+// Unlocks the body to allow scrolling.
+function unlockBodyScroll(ownerId) {
+    _scrollLockOwners.delete(ownerId);
+    if (_scrollLockOwners.size === 0) {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, _scrollLockY);
+    }
+}
+
 //Global Exports
 window.filterListItems = filterListItems;
 window.enableDropdown = enableDropdown;
@@ -156,3 +186,5 @@ window.attachCharacterCounter = attachCharacterCounter;
 window.navigateToEvent = navigateToEvent;
 window.createMemberPill = createMemberPill;
 window.debounce = debounce;
+window.lockBodyScroll = lockBodyScroll;
+window.unlockBodyScroll = unlockBodyScroll;

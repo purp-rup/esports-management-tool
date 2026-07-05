@@ -484,7 +484,7 @@ function confirmRemoveUser(userId, username, fullName) {
 
     // Add modal to DOM and prevent body scrolling
     document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('removeUserModal');
 
     // Enable delete button only when checkbox is checked
     const checkbox = document.getElementById('confirmDeleteCheckbox');
@@ -507,7 +507,7 @@ function closeRemoveUserModal() {
     const modal = document.getElementById('removeUserModal');
     if (modal) {
         modal.remove();
-        document.body.style.overflow = 'auto';
+        unlockBodyScroll('removeUserModal');
     }
 }
 

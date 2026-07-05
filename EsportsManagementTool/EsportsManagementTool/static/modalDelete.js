@@ -125,35 +125,18 @@ function openDeleteConfirmModal(config) {
 
     // Show modal
     modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('deleteConfirmModal');
 }
 
 /**
  * Close delete confirmation modal
- * Checks for parent modals to maintain proper scroll state
  */
 function closeDeleteConfirmModal() {
     const modal = document.getElementById('deleteConfirmModal');
     if (!modal) return;
 
     modal.classList.remove('active');
-
-    // Check if there are other modals still open
-    // Check for display: block, display: flex, or active class
-    const openModals = document.querySelectorAll('.modal');
-    const hasOpenModals = Array.from(openModals).some(m => {
-        if (m.id === 'deleteConfirmModal') return false; // Exclude the modal we're closing
-        const style = window.getComputedStyle(m);
-        return style.display === 'block' || style.display === 'flex' || m.classList.contains('active');
-    });
-
-    if (hasOpenModals) {
-        // Other modals are open, keep overflow hidden
-        document.body.style.overflow = 'hidden';
-    } else {
-        // No modals open, restore scrolling
-        document.body.style.overflow = 'auto';
-    }
+    unlockBodyScroll('deleteConfirmModal');
 
     // Reset state
     DeleteModalState.reset();
