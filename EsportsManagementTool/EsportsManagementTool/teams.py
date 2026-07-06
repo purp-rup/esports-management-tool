@@ -527,6 +527,95 @@ def remove_member_from_team(team_id):
         cursor.close()
 
 
+@app.route('/api/teams/<team_id>/captain', methods=['POST'])
+@login_required
+@roles_required('admin', 'gm', 'developer')
+def assign_team_captain(team_id):
+    """Assign a team captain. Strictly limited to the GM of this team's game."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+
+        if not user_id:
+            return jsonify({'success': False, 'message': 'No member specified'}), 400
+
+        cursor.execute('''
+            SELECT t.teamName, t.gameID, g.gm_id
+            FROM teams t
+            LEFT JOIN games g ON t.gameID = g.GameID
+            WHERE t.TeamID = %s
+        ''', (team_id,))
+        team = cursor.fetchone()
+
+        if not team:
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        # STRICT PERMISSION CHECK: only the GM of this specific game can assign captain
+        if team['gm_id'] != session['id']:
+            return jsonify({
+                'success': False,
+                'message': 'Only the Game Manager of this game can assign a team captain'
+            }), 403
+
+        cursor.execute('SELECT 1 FROM team_members WHERE team_id = %s AND user_id = %s', (team_id, user_id))
+        if not cursor.fetchone():
+            return jsonify({'success': False, 'message': 'Member not found on this team'}), 404
+
+        # One captain per team — clear any existing captain first
+        cursor.execute('UPDATE team_members SET is_captain = 0 WHERE team_id = %s', (team_id,))
+        cursor.execute('UPDATE team_members SET is_captain = 1 WHERE team_id = %s AND user_id = %s', (team_id, user_id))
+        mysql.connection.commit()
+
+        return jsonify({'success': True, 'message': 'Captain assigned successfully'})
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error assigning captain: {e}")
+        return jsonify({'success': False, 'message': 'Failed to assign captain'}), 500
+    finally:
+        cursor.close()
+
+
+@app.route('/api/teams/<team_id>/captain', methods=['DELETE'])
+@login_required
+@roles_required('admin', 'gm', 'developer')
+def remove_team_captain(team_id):
+    """Remove the current captain from a team. Strictly limited to the GM of this team's game."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        cursor.execute('''
+            SELECT t.teamName, t.gameID, g.gm_id
+            FROM teams t
+            LEFT JOIN games g ON t.gameID = g.GameID
+            WHERE t.TeamID = %s
+        ''', (team_id,))
+        team = cursor.fetchone()
+
+        if not team:
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        if team['gm_id'] != session['id']:
+            return jsonify({
+                'success': False,
+                'message': 'Only the Game Manager of this game can remove a team captain'
+            }), 403
+
+        cursor.execute('UPDATE team_members SET is_captain = 0 WHERE team_id = %s', (team_id,))
+        mysql.connection.commit()
+
+        return jsonify({'success': True, 'message': 'Captain removed successfully'})
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error removing captain: {e}")
+        return jsonify({'success': False, 'message': 'Failed to remove captain'}), 500
+    finally:
+        cursor.close()
+
+
 @app.route('/api/teams/sidebar')
 @login_required
 def get_teams_for_sidebar():
@@ -790,14 +879,16 @@ def team_details(team_id):
                     # Past season - use frozen season_roles data
                     cursor.execute("""
                         SELECT u.id, u.firstname, u.lastname, u.username,
-                               u.profile_picture, tm.joined_at,
+                               u.profile_picture, tm.joined_at, tm.is_captain,
                                COALESCE(sr.is_admin, 0) as is_admin,
                                COALESCE(sr.is_developer, 0) as is_developer,
                                COALESCE(sr.is_gm, 0) as is_gm,
-                               COALESCE(sr.is_player, 0) as is_player
+                               COALESCE(sr.is_player, 0) as is_player,
+                               d.discord_username, d.discord_discriminator
                         FROM team_members tm
                         JOIN users u ON tm.user_id = u.id
                         LEFT JOIN season_roles sr ON u.id = sr.userid AND sr.season_id = %s
+                        LEFT JOIN discord d ON d.userid = u.id
                         WHERE tm.team_id = %s
                         ORDER BY u.firstname, u.lastname
                     """, (season_id, team_id))
@@ -805,14 +896,16 @@ def team_details(team_id):
                     # Current season or no season - use live permissions data
                     cursor.execute("""
                         SELECT u.id, u.firstname, u.lastname, u.username,
-                               u.profile_picture, tm.joined_at,
+                               u.profile_picture, tm.joined_at, tm.is_captain,
                                COALESCE(p.is_admin, 0) as is_admin,
                                COALESCE(p.is_developer, 0) as is_developer,
                                COALESCE(p.is_gm, 0) as is_gm,
-                               COALESCE(p.is_player, 0) as is_player
+                               COALESCE(p.is_player, 0) as is_player,
+                               d.discord_username, d.discord_discriminator
                         FROM team_members tm
                         JOIN users u ON tm.user_id = u.id
                         LEFT JOIN permissions p ON u.id = p.userid
+                        LEFT JOIN discord d ON d.userid = u.id
                         WHERE tm.team_id = %s
                         ORDER BY u.firstname, u.lastname
                     """, (team_id,))
@@ -852,6 +945,7 @@ def team_details(team_id):
                     'game_icon_url': game_icon_url,
                     'division': game_division,
                     'can_manage': can_manage,
+                    'is_game_gm': is_game_gm,
                     'season_id': season_id,
                     'season_name': season_name,
                     'season_is_active': season_is_active,

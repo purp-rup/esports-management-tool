@@ -168,7 +168,9 @@ function lockBodyScroll(ownerId) {
 
 // Unlocks the body to allow scrolling.
 function unlockBodyScroll(ownerId) {
-    _scrollLockOwners.delete(ownerId);
+    const hadOwner = _scrollLockOwners.delete(ownerId);
+    if (!hadOwner) return; // this owner never held a lock — nothing to release
+
     if (_scrollLockOwners.size === 0) {
         document.body.style.position = '';
         document.body.style.top = '';

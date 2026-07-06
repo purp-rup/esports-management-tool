@@ -165,6 +165,7 @@ def build_member_profile(user_row, include_gm_flag=False):
         'communities': user_row.get('communities', []),
         'communities_remaining': user_row.get('communities_remaining', 0),
         'teams': user_row.get('teams', []),
+        'is_captain': bool(user_row.get('is_captain')),
         'roles': (
                 [r for flag, r in [
                     (user_row.get('is_admin') == 1, 'Admin'),

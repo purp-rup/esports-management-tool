@@ -36,7 +36,8 @@ function toggleUserProfilePopup(e, member) {
 }
 
 // Constructs the header for the user profile.
-function buildUserProfileHeader(member) {
+function buildUserProfileHeader(member, options = {}) {
+    const { showCaptainControl = false, teamId = null } = options;
     const firstName = member.name.split(' ')[0];
 
     const avatarHtml = member.profile_picture
@@ -53,21 +54,43 @@ function buildUserProfileHeader(member) {
     const communitiesHtml = buildCommunitiesSection(member, firstName);
     const rolesHtml = buildRolesSection(member);
     const teamsHtml = buildTeamsSection(member, firstName);
+    const captainHtml = showCaptainControl ? buildCaptainControl(member, teamId) : '';
 
     return `
         <div class="profile-header">
             <div class="profile-banner"></div>
+            ${captainHtml}
             <div class="profile-avatar-wrap">
                 ${avatarHtml}
             </div>
             <span class="profile-first-name">${firstName}</span>
-            <span class="profile-username">${member.username}</span>
+            <span class="profile-username">@${member.username}</span>
         </div>
         <div class="profile-body">
             ${discordHtml}
             ${communitiesHtml}
             ${rolesHtml}
             ${teamsHtml}
+        </div>
+    `;
+}
+
+// Constructs the assign captain button based on permissions
+function buildCaptainControl(member, teamId) {
+    const isCaptain = !!member.is_captain;
+    const promptText = isCaptain
+        ? `Click again to remove ${member.name.split(' ')[0]} as team captain.`
+        : `Click again to make ${member.name.split(' ')[0]} the team captain.`;
+
+    return `
+        <button class="profile-captain-btn ${isCaptain ? 'profile-captain-btn--active' : ''}"
+                id="captainBtn-${member.id}"
+                title="${isCaptain ? 'Team Captain' : 'Assign as Captain'}"
+                onclick="handleCaptainButtonClick(event, ${member.id}, '${teamId}', ${isCaptain})">
+            <i class="fas fa-star"></i>
+        </button>
+        <div class="captain-confirm-popup" id="captainConfirmPopup-${member.id}" style="display:none;">
+            <p style="margin:0;">${promptText}</p>
         </div>
     `;
 }

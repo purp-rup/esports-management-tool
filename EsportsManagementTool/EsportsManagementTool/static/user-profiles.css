@@ -92,6 +92,10 @@
     border-color: var(--stockton-yellow);
 }
 
+.member-pill--captain {
+    border-color: #f97316;
+}
+
 /* ================================
    Communities page popup styles
    ================================ */
@@ -327,7 +331,3 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
-/* ==========================
-   Roster Tab Profile Styling
-   ========================== */

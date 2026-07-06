@@ -169,6 +169,7 @@ async function loadTeamDetails(teamId) {
 
             // Store season active status globally for other functions
             window.currentTeamCanManage = canManage && isActiveSeason;
+            window.currentTeamIsGM = team.is_game_gm && isActiveSeason;
 
             // Schedule button - only for active seasons
             if (typeof initScheduleButton === 'function') {
@@ -436,6 +437,9 @@ async function loadRosterTab(members) {
             actionsHtml: removeBtn,
             onSelect: (m) => openRosterDetailPanel(m)
         });
+
+        if (member.is_captain) pill.classList.add('member-pill--captain');
+
         fragment.appendChild(pill);
     });
 
@@ -451,7 +455,10 @@ function openRosterDetailPanel(member) {
 
     pane.innerHTML = `
         <div class="user-profile-panel">
-            ${buildUserProfileHeader(member)}
+            ${buildUserProfileHeader(member, {
+                showCaptainControl: window.currentTeamIsGM,
+                teamId: window.currentSelectedTeamId
+            })}
         </div>
     `;
 
@@ -707,11 +714,107 @@ async function removeMember(memberId, memberName) {
     }
 }
 
+/* ================================
+   Team Captain Assignment
+   ================================ */
+let captainConfirmPending = null;
+
+// Build logic for clicking new captain assignment button
+function handleCaptainButtonClick(e, memberId, teamId, isCurrentlyCaptain) {
+    e.stopPropagation();
+    const popup = document.getElementById(`captainConfirmPopup-${memberId}`);
+    if (!popup) return;
+
+    const isPending = captainConfirmPending?.memberId === memberId;
+
+    if (isPending) {
+        // Second click — confirm the action
+        popup.style.display = 'none';
+        const pending = captainConfirmPending;
+        captainConfirmPending = null;
+        document.removeEventListener('click', closeCaptainConfirmOnOutsideClick);
+
+        if (pending.action === 'assign') {
+            assignTeamCaptain(pending.teamId, pending.memberId);
+        } else {
+            removeTeamCaptain(pending.teamId, pending.memberId);
+        }
+        return;
+    }
+
+    // First click — show the confirm popup
+    captainConfirmPending = { memberId, teamId, action: isCurrentlyCaptain ? 'remove' : 'assign' };
+    popup.style.display = 'block';
+    setTimeout(() => document.addEventListener('click', closeCaptainConfirmOnOutsideClick), 0);
+}
+
+// Closes the create captain warning when clicking outside
+function closeCaptainConfirmOnOutsideClick(e) {
+    if (!captainConfirmPending) return;
+    const popup = document.getElementById(`captainConfirmPopup-${captainConfirmPending.memberId}`);
+    const btn = document.getElementById(`captainBtn-${captainConfirmPending.memberId}`);
+    if (popup && !popup.contains(e.target) && !btn?.contains(e.target)) {
+        popup.style.display = 'none';
+        captainConfirmPending = null;
+        document.removeEventListener('click', closeCaptainConfirmOnOutsideClick);
+    }
+}
+
+// Assign the captain
+async function assignTeamCaptain(teamId, userId) {
+    try {
+        const response = await fetch(`/api/teams/${teamId}/captain`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showDeleteSuccessMessage('Captain assigned successfully!');
+            await reopenProfileAfterCaptainChange(teamId, userId);
+        } else {
+            showDeleteErrorMessage(data.message || 'Failed to assign captain');
+        }
+    } catch (err) {
+        console.error('Error assigning captain:', err);
+        showDeleteErrorMessage('Failed to assign captain');
+    }
+}
+
+// Action for removing a team captain
+async function removeTeamCaptain(teamId, userId) {
+    try {
+        const response = await fetch(`/api/teams/${teamId}/captain`, { method: 'DELETE' });
+        const data = await response.json();
+
+        if (data.success) {
+            showDeleteSuccessMessage('Captain removed successfully!');
+            await reopenProfileAfterCaptainChange(teamId, userId);
+        } else {
+            showDeleteErrorMessage(data.message || 'Failed to remove captain');
+        }
+    } catch (err) {
+        console.error('Error removing captain:', err);
+        showDeleteErrorMessage('Failed to remove captain');
+    }
+}
+
+/* Reloads the roster (so pills + orange borders refresh) and reopens the
+ * profile panel for the same member so it stays open instead of
+ * resetting to the placeholder.
+ */
+async function reopenProfileAfterCaptainChange(teamId, userId) {
+    await loadTeamDetails(teamId);
+    const updatedMember = currentTeamCache?.team?.members?.find(m => m.id === userId);
+    if (updatedMember) {
+        openRosterDetailPanel(updatedMember);
+    }
+}
+
 // ============================================
 // TEAM EDITING
 // ============================================
-
-// Open edit team modal
 async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSizes) {
     const modal = document.getElementById('editTeamModal');
     const modalTitle = document.getElementById('editTeamModalTitle');
