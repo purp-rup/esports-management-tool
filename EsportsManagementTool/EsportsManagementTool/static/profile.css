@@ -1,16 +1,15 @@
 /* ============================================
    PROFILE TAB STYLES
    User profile display and information
-   ORGANIZED BY CLAUDEAI
    ============================================ */
 
 /* Main Profile Layout: Two columns - 50/50 split */
 .profile-main-layout {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    margin-bottom: 2rem;
+    gap: 1rem;
     align-items: stretch;
+    margin-bottom: 1rem;
 }
 
 /* Left column: Profile card - stretches to match right column height */
@@ -39,6 +38,30 @@
     min-height: 0;
 }
 
+.profile-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.profile-card-header h2 {
+    margin-right: 2rem;
+}
+
+@media (max-width: 1038px) {
+    .profile-card-header {
+        flex-direction: row !important;
+        gap: 0 !important;
+    }
+}
+
+@media (max-width: 696px) {
+    .profile-card-header {
+        flex-direction: row !important;
+        gap: 0 !important;
+    }
+}
 /* ============================================
    PROFILE CARD CONTENT
    ============================================ */
@@ -161,51 +184,45 @@
    to avoid colliding with Communities tab cards
    ============================================ */
 #myCommunitiesGrid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 125px));
-    grid-auto-rows: 125px;
-    gap: 2.5rem;
-    padding: 1rem 0;
-    max-height: 200px;
-    overflow-y: auto;
+    display: flex;
+    gap: 1rem;
+
+    flex-wrap: wrap;
 }
 
 /* Force square cells using padding-bottom trick */
 #myCommunitiesGrid .community-card {
     position: relative;
     border-radius: 10px;
-    overflow: hidden;
     cursor: pointer;
-    width: 125px;
-    height: 125px;
+    width: 50px;
+    height: 50px;
 }
 
 #myCommunitiesGrid .community-card-icon {
     position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
     border-radius: 10px;
-    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
 }
 
 #myCommunitiesGrid .community-card-icon img {
     width: 100%;
     height: 100%;
+    border-radius: 10px;
     object-fit: cover;
     display: block;
-    transition: transform 0.2s ease;
+    transition: transform 0.1s ease-in-out;
 }
 
 #myCommunitiesGrid .community-card:hover .community-card-icon img {
-    transform: scale(1.05);
+    transform: scale(1.1);
 }
 
-/* Hover overlay with eye icon */
 #myCommunitiesGrid .community-card::after {
     content: '';
     position: absolute;
@@ -218,18 +235,8 @@
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.2s ease;
     border-radius: 10px;
     z-index: 1;
-}
-
-#myCommunitiesGrid .community-card:hover::after {
-    opacity: 1;
-    content: '\f06e';
-    font-family: 'Font Awesome 6 Free';
-    font-weight: 900;
-    color: white;
-    font-size: 1.5rem;
 }
 
 #myCommunitiesGrid .community-card-name {
@@ -276,11 +283,11 @@
 @media (max-width: 1200px) {
     .profile-main-layout {
         grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
     }
 
     #myCommunitiesGrid {
-        grid-template-columns: repeat(3, 1fr);
+        display: flex;
+        /*grid-template-columns: repeat(3, 1fr);*/
     }
 }
 
@@ -294,15 +301,11 @@
     }
 
     #myCommunitiesGrid {
-        grid-template-columns: repeat(4, 1fr);
+        /*grid-template-columns: repeat(4, 1fr);*/
     }
 }
 
 @media (max-width: 768px) {
-    .profile-main-layout {
-        gap: 1.5rem;
-    }
-
     .avatar-container {
         width: 120px;
         height: 120px;
@@ -310,6 +313,6 @@
     }
 
     #myCommunitiesGrid {
-        grid-template-columns: repeat(3, 1fr);
+        /*grid-template-columns: repeat(3, 1fr);*/
     }
 }

@@ -597,7 +597,7 @@ async function loadMyCommunities() {
             });
 
             loading.style.display = 'none';
-            grid.style.display = 'grid';
+            grid.style.display = 'flex';
         } else {
             // No communities, show empty state
             loading.style.display = 'none';
