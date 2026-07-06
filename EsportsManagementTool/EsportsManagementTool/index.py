@@ -1,4 +1,6 @@
-from EsportsManagementTool import mysql
+from EsportsManagementTool import mysql, app, roles_required
+from EsportsManagementTool.universal_helpers import format_time_raw
+from flask import jsonify, request, Response
 import MySQLdb.cursors
 
 
@@ -126,3 +128,147 @@ def get_season_stats(cursor, season_id: int) -> list[str]:
         reformat_stat(event_count),
         reformat_stat(community_count),
     ]
+
+
+# ============================================
+# STREAM SCHEDULE
+# ============================================
+@app.route('/api/streams/upcoming', methods=['GET'])
+def get_upcoming_streams() -> Response:
+    """Gets upcoming streams for the landing calendar sidebar."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT stream_id, stream_name, stream_date, stream_time, platform
+            FROM stream_schedule
+            WHERE stream_date >= CURDATE() AND hidden = 0
+            ORDER BY stream_date ASC, stream_time ASC
+        """)
+        rows = cursor.fetchall()
+        streams = [{
+            'stream_id':   r['stream_id'],
+            'stream_name': r['stream_name'],
+            'stream_date': r['stream_date'].strftime('%Y-%m-%d'),
+            'stream_time': format_time_raw(r['stream_time']),
+            'platform':    r['platform']
+        } for r in rows]
+        return jsonify({'success': True, 'streams': streams})
+    except Exception as e:
+        print(f"Error fetching streams: {e}")
+        return jsonify({'success': False, 'streams': []})
+    finally:
+        cursor.close()
+
+@app.route('/api/streams/past', methods=['GET'])
+@roles_required('admin', 'developer')
+def get_past_streams():
+    """Fetch past streams for the admin modal."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT stream_id, stream_name, stream_date, stream_time, platform
+            FROM stream_schedule
+            WHERE stream_date < CURDATE() AND hidden = 0
+            ORDER BY stream_date DESC, stream_time DESC
+        """)
+        rows = cursor.fetchall()
+        streams = [{
+            'stream_id':   r['stream_id'],
+            'stream_name': r['stream_name'],
+            'stream_date': r['stream_date'].strftime('%Y-%m-%d'),
+            'stream_time': format_time_raw(r['stream_time']),
+            'platform':    r['platform']
+        } for r in rows]
+        return jsonify({'success': True, 'streams': streams})
+    except Exception as e:
+        print(f"Error fetching past streams: {e}")
+        return jsonify({'success': False, 'streams': []})
+    finally:
+        cursor.close()
+
+
+@app.route('/api/streams', methods=['POST'])
+@roles_required('admin', 'developer')
+def create_stream():
+    """Schedules a new stream."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        data = request.get_json()
+        name: str = (data.get('stream_name') or '').strip()
+        date: str = (data.get('stream_date') or '').strip()
+        time: str = (data.get('stream_time') or '').strip()
+        platform: str = (data.get('platform') or '').strip()
+
+        if not all([name, date, time, platform]):
+            return jsonify({'success': False, 'message': 'All fields are required'}), 400
+        if platform not in ('twitch', 'youtube'):
+            return jsonify({'success': False, 'message': 'Invalid platform'}), 400
+
+        cursor.execute(
+            "INSERT INTO stream_schedule (stream_name, stream_date, stream_time, platform) VALUES (%s, %s, %s, %s)",
+            (name, date, time, platform)
+        )
+        mysql.connection.commit()
+        return jsonify({'success': True, 'message': 'Stream scheduled'})
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error creating stream: {e}")
+        return jsonify({'success': False, 'message': 'Failed to schedule stream'}), 500
+    finally:
+        cursor.close()
+
+
+@app.route('/api/streams/<int:stream_id>', methods=['DELETE'])
+@roles_required('admin', 'developer')
+def delete_stream(stream_id):
+    """Soft-delete a scheduled stream."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute(
+            "UPDATE stream_schedule SET hidden = 1 WHERE stream_id = %s",
+            (stream_id,)
+        )
+        mysql.connection.commit()
+        if cursor.rowcount == 0:
+            return jsonify({'success': False, 'message': 'Stream not found'}), 404
+        return jsonify({'success': True, 'message': 'Stream removed'})
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error hiding stream: {e}")
+        return jsonify({'success': False, 'message': 'Failed to remove stream'}), 500
+    finally:
+        cursor.close()
+
+
+@app.route('/api/streams/<int:stream_id>', methods=['PUT'])
+@roles_required('admin', 'developer')
+def update_stream(stream_id):
+    """Update a scheduled stream's details."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        data = request.get_json()
+        name: str = (data.get('stream_name') or '').strip()
+        date: str = (data.get('stream_date') or '').strip()
+        time: str = (data.get('stream_time') or '').strip()
+        platform = (data.get('platform')    or '').strip()
+
+        if not all([name, date, time, platform]):
+            return jsonify({'success': False, 'message': 'All fields are required'}), 400
+        if platform not in ('twitch', 'youtube'):
+            return jsonify({'success': False, 'message': 'Invalid platform'}), 400
+
+        cursor.execute("""
+            UPDATE stream_schedule
+            SET stream_name = %s, stream_date = %s, stream_time = %s, platform = %s
+            WHERE stream_id = %s AND hidden = 0
+        """, (name, date, time, platform, stream_id))
+        mysql.connection.commit()
+        if cursor.rowcount == 0:
+            return jsonify({'success': False, 'message': 'Stream not found'}), 404
+        return jsonify({'success': True, 'message': 'Stream updated'})
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error updating stream: {e}")
+        return jsonify({'success': False, 'message': 'Failed to update stream'}), 500
+    finally:
+        cursor.close()
