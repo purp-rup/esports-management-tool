@@ -1029,14 +1029,14 @@ function openGamePickerModal(games) {
     `;
 
     document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('gamePickerModal');
 }
 
 function closeGamePickerModal() {
     const modal = document.getElementById('gamePickerModal');
     if (modal) {
         modal.remove();
-        document.body.style.overflow = 'auto';
+        unlockBodyScroll('gamePickerModal');
     }
 }
 

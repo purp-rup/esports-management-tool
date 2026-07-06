@@ -441,7 +441,7 @@ function openRecordResultModal() {
     // SHOW MODAL
     // ========================================
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('recordMatchResultModal');
 }
 
 /**
@@ -452,7 +452,7 @@ function closeRecordResultModal() {
     const modal = document.getElementById('recordMatchResultModal');
     if (modal) {
         modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
+        unlockBodyScroll('recordMatchResultModal');
     }
     // Clear any pending details re-open (e.g. user cancelled the edit)
     pendingDetailsReopenEventId = null;
@@ -644,18 +644,14 @@ async function editMatchResult(eventId) {
         return;
     }
 
-    // ========================================
-    // OPEN MODAL
-    // ========================================
+    // Open Modal
     const modal = document.getElementById('recordMatchResultModal');
     if (!modal) {
         console.error('Record match result modal not found');
         return;
     }
 
-    // ========================================
-    // RESET FORM STATE
-    // ========================================
+    // Reset Form State
     const form = document.getElementById('recordMatchResultForm');
     if (form) {
         form.reset();
@@ -681,15 +677,10 @@ async function editMatchResult(eventId) {
     const resultOptions = document.querySelectorAll('.result-option');
     resultOptions.forEach(option => option.classList.remove('selected'));
 
-    // ========================================
-    // SHOW MODAL
-    // ========================================
+    // Show the modal
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('recordMatchResultModal');
 
-    // ========================================
-    // POPULATE FORM WITH EXISTING DATA
-    // ========================================
     // Populate dropdown with the event pre-selected, then set other fields
     await populateMatchEventsDropdown(eventId);
 
@@ -770,7 +761,7 @@ async function openMatchDetailsModal(eventId) {
     const editBtn = document.getElementById('editMatchDetailsBtn');
 
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('matchDetailsModal');
     loadingDiv.style.display = 'block';
     contentDiv.style.display = 'none';
 
@@ -1001,17 +992,14 @@ function closeMatchDetailsModal() {
     const modal = document.getElementById('matchDetailsModal');
     if (modal) {
         modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
+        unlockBodyScroll('matchDetailsModal');
     }
 }
 
 // ============================================
-// EXPORT FUNCTIONS TO GLOBAL SCOPE
+// EXPORT FUNCTIONS
 // ============================================
 
-/**
- * Export functions for use by other modules and HTML onclick handlers
- */
 window.loadStatsTab = loadStatsTab;
 window.openRecordResultModal = openRecordResultModal;
 window.closeRecordResultModal = closeRecordResultModal;

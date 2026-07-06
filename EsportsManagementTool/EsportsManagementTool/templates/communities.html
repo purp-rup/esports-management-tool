@@ -5,6 +5,8 @@
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='user-profiles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin-panel.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='modals.css') }}">
 {% endblock %}
  
@@ -94,11 +96,17 @@
                            id="memberListSearch"
                            class="member-list-search"
                            placeholder="Search members..."
-                           oninput="filterListItems('memberListSearch', '#memberListGrid .member-popup-item', ['username', 'name'], 'flex')">
+                           oninput="filterListItems('memberListSearch', '#memberListGrid .member-pill', ['username', 'name'], 'flex')">
                     <div class="member-list-popup-grid" id="memberListGrid"></div>
                     <div class="member-list-popup-empty" id="memberListEmpty" style="display:none;">
                         No members found.
                     </div>
+                </div>
+
+                <!-- User profile popup -->
+                <div class="user-profile-popup"
+                     id="userProfilePopup"
+                     style="display:none;">
                 </div>
 
                 <!-- Forum placeholder -->
@@ -170,7 +178,9 @@
 <script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
 <script src="{{ url_for('static', filename='modalDelete.js') }}"></script>
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
+<script src="{{ url_for('static', filename='badges.js') }}"></script>
 <script src="{{ url_for('static', filename='image-cropper.js') }}"></script>
 <script src="{{ url_for('static', filename='events.js') }}"></script>
 <script src="{{ url_for('static', filename='communities.js') }}"></script>
+<script src="{{ url_for('static', filename='user-profiles.js') }}"></script>
 {% endblock %}

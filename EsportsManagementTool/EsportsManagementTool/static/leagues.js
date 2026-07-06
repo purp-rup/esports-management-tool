@@ -14,7 +14,7 @@ async function openManageLeaguesModal() {
     if (!modal) return;
 
     modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('manageLeaguesModal');
 
     // Load leagues
     await loadLeagues();
@@ -28,7 +28,7 @@ function closeManageLeaguesModal() {
     if (!modal) return;
 
     modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
+    unlockBodyScroll('manageLeaguesModal');
 
     // Reset state
     currentEditingLeague = null;

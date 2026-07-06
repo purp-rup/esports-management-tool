@@ -30,11 +30,7 @@ let carouselCroppedImageBlob = null;  // Used by community photo carousel
 // CROPPER MODAL - OPEN/CLOSE
 // ============================================
 
-/**
- * Open image cropper modal with file
- * @param {File} file - Image file to crop
- * @param {string} context - Context identifier ('league', 'community', 'avatar')
- */
+// Open image cropper modal with file attached
 function openImageCropper(file, context = null) {
     const modal = document.getElementById('imageCropperModal');
     if (!modal) {
@@ -53,7 +49,7 @@ function openImageCropper(file, context = null) {
         imageElement.src = e.target.result;
 
         modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
+        lockBodyScroll('imageCropperModal');
 
         // Initialize Cropper.js after a short delay to ensure image is loaded
         setTimeout(() => {
@@ -80,26 +76,13 @@ function openImageCropper(file, context = null) {
     reader.readAsDataURL(file);
 }
 
-/**
- * Close image cropper modal
- */
+// Close the image cropper modal
 function closeImageCropper() {
     const modal = document.getElementById('imageCropperModal');
     if (!modal) return;
 
     modal.style.display = 'none';
-
-    // Check if there are other modals still open before restoring scroll
-    const openModals = document.querySelectorAll('.modal');
-    const hasOpenModals = Array.from(openModals).some(m => {
-        if (m.id === 'imageCropperModal') return false; // Exclude the modal we're closing
-        const style = window.getComputedStyle(m);
-        return style.display === 'block' || style.display === 'flex' || m.classList.contains('active');
-    });
-
-    if (!hasOpenModals) {
-        document.body.style.overflow = 'auto';
-    }
+    unlockBodyScroll('imageCropperModal');
 
     if (cropper) {
         cropper.destroy();

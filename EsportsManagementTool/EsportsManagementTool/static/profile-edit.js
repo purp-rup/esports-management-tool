@@ -27,7 +27,7 @@
 function openAvatarModal() {
     const modal = document.getElementById('changeAvatarModal');
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('changeAvatarModal');
 
     // Reset form state
     document.getElementById('uploadAvatarForm').reset();
@@ -42,7 +42,7 @@ function openAvatarModal() {
 function closeAvatarModal() {
     const modal = document.getElementById('changeAvatarModal');
     modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
+    unlockBodyScroll('changeAvatarModal');
 }
 
 /**
@@ -228,6 +228,7 @@ function openEditProfileModal() {
     // Show modal - fields are already pre-populated by Flask template
     document.getElementById('editProfileModal').style.display = 'flex';
     hideMessage('editProfileMessage');
+    lockBodyScroll('editProfileModal');
 }
 
 /**
@@ -238,6 +239,7 @@ function closeEditProfileModal() {
     document.getElementById('editProfileModal').style.display = 'none';
     document.getElementById('editProfileForm').reset();
     hideMessage('editProfileMessage');
+    unlockBodyScroll('editProfileModal');
 }
 
 /**
@@ -245,6 +247,7 @@ function closeEditProfileModal() {
  */
 function openChangePasswordModal() {
     document.getElementById('changePasswordModal').style.display = 'flex';
+    lockBodyScroll('changePasswordModal');
 }
 
 /**
@@ -255,6 +258,7 @@ function closeChangePasswordModal() {
     document.getElementById('changePasswordModal').style.display = 'none';
     document.getElementById('changePasswordForm').reset();
     hideMessage('changePasswordMessage');
+    unlockBodyScroll('changePasswordModal');
 }
 
 // ============================================
