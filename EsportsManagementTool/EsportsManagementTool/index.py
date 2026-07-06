@@ -159,6 +159,33 @@ def get_upcoming_streams() -> Response:
     finally:
         cursor.close()
 
+@app.route('/api/streams/past', methods=['GET'])
+@roles_required('admin', 'developer')
+def get_past_streams():
+    """Fetch past streams for the admin modal."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT stream_id, stream_name, stream_date, stream_time, platform
+            FROM stream_schedule
+            WHERE stream_date < CURDATE() AND hidden = 0
+            ORDER BY stream_date DESC, stream_time DESC
+        """)
+        rows = cursor.fetchall()
+        streams = [{
+            'stream_id':   r['stream_id'],
+            'stream_name': r['stream_name'],
+            'stream_date': r['stream_date'].strftime('%Y-%m-%d'),
+            'stream_time': format_time_raw(r['stream_time']),
+            'platform':    r['platform']
+        } for r in rows]
+        return jsonify({'success': True, 'streams': streams})
+    except Exception as e:
+        print(f"Error fetching past streams: {e}")
+        return jsonify({'success': False, 'streams': []})
+    finally:
+        cursor.close()
+
 
 @app.route('/api/streams', methods=['POST'])
 @roles_required('admin', 'developer')

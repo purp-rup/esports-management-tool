@@ -117,7 +117,7 @@ async function openManageStreamsModal() {
     if (!modal) return;
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
-    await _loadAdminStreams();
+    await Promise.all([_loadAdminStreams(), _loadAdminPastStreams()]);
 }
 
 /**
@@ -165,6 +165,40 @@ async function _loadAdminStreams() {
         console.error('Error loading admin streams:', err);
         loadingDiv.style.display = 'none';
         listDiv.innerHTML = '<p class="streams-empty-text">Failed to load streams.</p>';
+        listDiv.style.display = 'flex';
+    }
+}
+
+/**
+ * Fetch and render past streams in the admin modal
+ */
+async function _loadAdminPastStreams() {
+    const listDiv = document.getElementById('adminPastStreamList');
+    const loadingDiv = document.getElementById('adminPastStreamLoading');
+    if (!listDiv || !loadingDiv) return;
+
+    loadingDiv.style.display = 'block';
+    listDiv.style.display = 'none';
+
+    try {
+        const response = await fetch('/api/streams/past');
+        const data = await response.json();
+
+        loadingDiv.style.display = 'none';
+        listDiv.style.display = 'flex';
+
+        if (!data.success || !data.streams || data.streams.length === 0) {
+            listDiv.innerHTML = '<p class="streams-empty-text">No past streams on record.</p>';
+            return;
+        }
+
+        listDiv.innerHTML = '';
+        data.streams.forEach(s => listDiv.appendChild(_createAdminStreamRow(s)));
+
+    } catch (err) {
+        console.error('Error loading past streams:', err);
+        loadingDiv.style.display = 'none';
+        listDiv.innerHTML = '<p class="streams-empty-text">Failed to load past streams.</p>';
         listDiv.style.display = 'flex';
     }
 }
@@ -243,7 +277,7 @@ async function _submitAddStream(e) {
 
         if (data.success) {
             cancelEditStream();
-            await _loadAdminStreams();
+            await Promise.all([_loadAdminStreams(), _loadAdminPastStreams()]);
         } else {
             msgDiv.textContent = data.message || 'Failed to save stream.';
             msgDiv.className = 'form-message error';
@@ -306,7 +340,7 @@ async function deleteStream(streamId) {
         const data = await response.json();
 
         if (data.success) {
-            await _loadAdminStreams();
+            await Promise.all([_loadAdminStreams(), _loadAdminPastStreams()]);
         } else {
             alert(data.message || 'Failed to remove stream.');
         }

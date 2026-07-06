@@ -191,6 +191,14 @@
     overflow-y: auto;
 }
 
+#adminPastStreamList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
 .admin-stream-row {
     display: flex;
     align-items: center;
