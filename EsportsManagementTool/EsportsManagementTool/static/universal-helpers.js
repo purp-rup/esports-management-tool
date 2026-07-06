@@ -98,6 +98,41 @@ function navigateToEvent(eventId) {
     }
 }
 
+/**
+ * Build a clickable member pill to be shared across multiple files
+ *
+ * Used by communities.js & teams.js
+ */
+function createMemberPill(member, options = {}) {
+    const { size = 'compact', actionsHtml = '', onSelect = null } = options;
+
+    const pill = document.createElement('div');
+    pill.className = `member-pill member-pill--${size}`;
+    pill.setAttribute('data-username', member.username.toLowerCase());
+    pill.setAttribute('data-name', member.name.toLowerCase());
+
+    const avatarHtml = member.profile_picture
+        ? `<img src="${member.profile_picture}" alt="${member.username}" class="member-pill-avatar">`
+        : `<div class="member-pill-initials">${member.name.split(' ').map(n => n[0]).join('')}</div>`;
+
+    pill.innerHTML = `
+        ${avatarHtml}
+        <span class="member-pill-username">${member.username}</span>
+        ${actionsHtml ? `<div class="member-pill-actions">${actionsHtml}</div>` : ''}
+    `;
+
+    pill.addEventListener('click', (e) => {
+        if (e.target.closest('.member-pill-actions')) return;
+        if (onSelect) {
+            onSelect(member, e);
+        } else {
+            toggleUserProfilePopup(e, member);
+        }
+    });
+
+    return pill;
+}
+
 // ========================================
 // UTILITIES
 // =======================================
@@ -114,9 +149,44 @@ function debounce(func, wait) {
     };
 }
 
+// Body scroll lock system
+const _scrollLockOwners = new Set();
+let _scrollLockY = 0;
+
+// Locks the body to prevent scrolling
+function lockBodyScroll(ownerId) {
+    if (_scrollLockOwners.size === 0) {
+        _scrollLockY = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${_scrollLockY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.overflow = 'hidden';
+    }
+    _scrollLockOwners.add(ownerId);
+}
+
+// Unlocks the body to allow scrolling.
+function unlockBodyScroll(ownerId) {
+    const hadOwner = _scrollLockOwners.delete(ownerId);
+    if (!hadOwner) return; // this owner never held a lock — nothing to release
+
+    if (_scrollLockOwners.size === 0) {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, _scrollLockY);
+    }
+}
+
 //Global Exports
 window.filterListItems = filterListItems;
 window.enableDropdown = enableDropdown;
 window.attachCharacterCounter = attachCharacterCounter;
 window.navigateToEvent = navigateToEvent;
+window.createMemberPill = createMemberPill;
 window.debounce = debounce;
+window.lockBodyScroll = lockBodyScroll;
+window.unlockBodyScroll = unlockBodyScroll;

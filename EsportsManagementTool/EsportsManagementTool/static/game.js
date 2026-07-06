@@ -425,7 +425,7 @@ async function checkSeasonBeforeTeamCreation(gameId, gameTitle, teamSizes) {
 async function openCreateTeamModal(gameID, gameTitle, teamSizes) {
     const modal = document.getElementById('createTeamModal');
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('createTeamModal');
 
     // Reset the form
     const teamForm = document.getElementById('createTeamForm');
@@ -606,7 +606,7 @@ function closeCreateTeamModal() {
     }
 
     modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
+    unlockBodyScroll('createTeamModal');
 }
 
 /**

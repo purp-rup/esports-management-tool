@@ -12,35 +12,11 @@ let activeAnchorElement = null;
 window.currentEventId = null;
 window.currentEventData = null;
 
-// Scroll locking helper functions for event popups
-let scrollLockOffset = 0;
-
-function lockScroll() {
-    scrollLockOffset = window.scrollY;
-
-    Object.assign(document.body.style, {
-        top: `-${scrollLockOffset}px`,
-        position: 'fixed',
-        width: '100%',
-        overflowY: 'scroll'
-    });
-}
-
-function unlockScroll() {
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
-    document.body.style.overflowY = '';
-
-    window.scrollTo(0, scrollLockOffset);
-}
-
 // Popup close function
 window.closeEventPopup = function() {
     const existingPopup = document.getElementById('landingEventPopup');
     if (existingPopup) {
         existingPopup.remove();
-        unlockScroll();
     }
 
     if (clickOutsideHandler) {
@@ -358,7 +334,7 @@ function openCalendarEventModal(eventId) {
     const modalBody = document.getElementById('eventModalBody');
 
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('calendarEventModal');
     window.currentEventId = eventId;
 
     modalBody.innerHTML = `
@@ -536,7 +512,7 @@ function openDayModal(dateKey, dateDisplay) {
     }
 
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('dayEventsModal');
 }
 
 function openEventPopup(event_id, clickedElement) {
@@ -555,8 +531,6 @@ function openEventPopup(event_id, clickedElement) {
 
     const container = document.querySelector('.calendar-container') || document.body;
     container.appendChild(popup);
-
-    lockScroll();
 
     // Positions relative to the clicked event item
     if (clickedElement) {
@@ -788,29 +762,6 @@ function capitalizeFirst(str) {
 // ============================================
 // DAY MODAL (CALENDAR VIEW)
 // ============================================
-function openDayModal(date, dateTitle) {
-    const modal = document.getElementById('dayEventsModal');
-    const modalTitle = document.getElementById('modalDayTitle');
-    const modalBody = document.getElementById('modalEventsList');
-
-    modalTitle.textContent = dateTitle;
-    const events = EventState.eventsData[date] || [];
-
-    // Clear and populate modal body
-    modalBody.innerHTML = '';
-
-    if (events.length > 0) {
-        events.forEach(event => {
-            const eventItem = createDayModalEventItem(event);
-            modalBody.appendChild(eventItem);
-        });
-    } else {
-        modalBody.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No events scheduled for this day.</p>';
-    }
-
-    setElementDisplay(modal, 'block');
-    document.body.style.overflow = 'hidden';
-}
 
 // Create event item for day modal
 function createDayModalEventItem(event) {
@@ -833,13 +784,6 @@ function createDayModalEventItem(event) {
 
     eventItem.innerHTML = eventHTML;
     return eventItem;
-}
-
-// Close day modal
-function closeDayModal() {
-    const modal = document.getElementById('dayEventsModal');
-    setElementDisplay(modal, 'none');
-    document.body.style.overflow = 'auto';
 }
 
 // ============================================
@@ -906,19 +850,10 @@ async function toggleEventSubscription() {
     }
 }
 
-// These are defined at the END so they always win over anything modals.js set earlier
-window.closeEventModal = function() {
-    const modal = document.getElementById('eventDetailsModal');
-    if (modal) modal.style.display = 'none';
-    window.currentEventId = null;
-    window.currentEventData = null;
-    document.body.style.overflow = '';
-};
-
 window.closeDayModal = function() {
     const modal = document.getElementById('dayEventsModal');
     if (modal) modal.style.display = 'none';
-    document.body.style.overflow = '';
+    unlockBodyScroll('dayEventsModal');
 };
 
 function closeEventModal() { window.closeEventModal(); }

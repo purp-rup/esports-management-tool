@@ -446,9 +446,12 @@ async function toggleMemberListPopup() {
 
         if (data.success && data.game.members?.length) {
             const currentUsername = document.getElementById('currentUsername')?.value;
+            const gmId = data.game.assigned_gm_id;
             data.game.members.forEach(member => {
-                const item = createMemberPopupItem(member, data.game.assigned_gm_id, currentUsername);
-                grid.appendChild(item);
+                const pill = createMemberPill(member, { size: 'compact' });
+                if (member.id === gmId) pill.classList.add('member-pill--gm');
+                if (member.username.toLowerCase() === currentUsername?.toLowerCase()) pill.classList.add('member-pill--self');
+                grid.appendChild(pill);
             });
         } else {
             empty.style.display = 'block';
@@ -470,6 +473,7 @@ function closeMemberListPopup() {
 }
 
 function outsideMemberListClick(e) {
+    if (userProfileOpen) return;
     const popup = document.getElementById('memberListPopup');
     const btn   = document.getElementById('memberListBtn');
     if (popup && !popup.contains(e.target) && !btn?.contains(e.target)) {
@@ -477,30 +481,9 @@ function outsideMemberListClick(e) {
     }
 }
 
-// Builds a single user profile element in the member list popup
-function createMemberPopupItem(member, gmId, currentUsername) {
-    const item = document.createElement('div');
-    item.className = 'member-popup-item';
-    item.setAttribute('data-username', member.username.toLowerCase());
-    item.setAttribute('data-name', member.name.toLowerCase());
-
-    if (member.id === gmId)                                    item.classList.add('member-popup-item--gm');
-    if (member.username.toLowerCase() === currentUsername?.toLowerCase()) item.classList.add('member-popup-item--self');
-
-    const avatarHtml = member.profile_picture
-        ? `<img src="${member.profile_picture}" alt="${member.username}" class="member-avatar">`
-        : `<div class="member-avatar-initials">${member.name.split(' ').map(n => n[0]).join('')}</div>`;
-
-    item.innerHTML = `
-        ${avatarHtml}
-        <span class="member-popup-username">@${member.username}</span>
-    `;
-    return item;
-}
-
 // Filter members in popup
 const filterMemberListPopup = () =>
-    filterListItems('memberListSearch', '#memberListGrid .member-popup-item', ['username', 'name'], 'flex');
+    filterListItems('memberListSearch', '#memberListGrid .member-pill', ['username', 'name'], 'flex');
 
 /**
  * Load next scheduled event for game community

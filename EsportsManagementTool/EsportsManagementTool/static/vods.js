@@ -165,7 +165,7 @@ function playVideo(vod) {
     meta.textContent = `${vod.opponent ? 'vs ' + vod.opponent : ''} * ${new Date(vod.match_date || vod.published_at).toLocaleDateString()}`;
 
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('vodPlayerModal');
 
     const commentForm = document.getElementById('vodCommentForm');
     const isActiveSeason = window.currentTeamSeasonIsActive === 1;
@@ -198,7 +198,7 @@ function closeVodPlayerModal() {
     const player = document.getElementById('vodPlayerFrame');
 
     modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
+    unlockBodyScroll('vodPlayerModal');
 
     player.src ='';
 }
@@ -213,7 +213,7 @@ function closeVodPlayerModal() {
  */
 function showAddVodModal() {
     document.getElementById('addVodModal').style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('addVodModal');
 }
 
 /**
@@ -223,7 +223,7 @@ function showAddVodModal() {
 function closeAddVodModal() {
     const modal = document.getElementById('addVodModal');
     modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
+    lockBodyScroll('addVodModal');
 
     // Reset form to clear all inputs
     document.getElementById('addVodForm').reset();

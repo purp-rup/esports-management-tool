@@ -139,7 +139,7 @@ function renderUserItems(users) {
                         ${user.firstname} ${user.lastname}
                         <span class="user-status-dot ${user.is_active ? 'online' : 'offline'}"></span>
                     </strong>
-                    <p>@${user.username} — ${user.email}</p>
+                    <p>${user.username} — ${user.email}</p>
                     <div class="user-item-badges">
                         ${badgesHTML}
                     </div>
@@ -262,16 +262,16 @@ async function handleUserItemClick(item) {
             <div class="user-details-avatar">${detailsAvatarHTML}</div>
             <div>
                 <strong style="font-size:1.1rem;">${firstname} ${lastname}</strong>
-                <p style="margin:0;color:var(--text-secondary);">@${username}</p>
+                <p style="margin:0;color:var(--text-secondary);">${username}</p>
             </div>
         </div>
         <div class="user-detail-info">
             <span class="user-detail-label">Full Name</span><span class="user-detail-value">${firstname} ${lastname}</span>
-            <span class="user-detail-label">Username</span><span class="user-detail-value">@${username}</span>
+            <span class="user-detail-label">Username</span><span class="user-detail-value">${username}</span>
             <span class="user-detail-label">Email</span><span class="user-detail-value">${email}</span>
             <span class="user-detail-label">Date Registered</span><span class="user-detail-value">${date}</span>
             <span class="user-detail-label">Last Active</span><span class="user-detail-value">${lastSeen}</span>
-            <span class="user-detail-label">Current Roles</span><span class="user-detail-value">${roleBadges || '<span style="color: var(--text-secondary);">No roles assigned</span>'}</span>
+            <span class="user-detail-label">Current Roles</span><span class="user-item-badges">${roleBadges || '<span style="color: var(--text-secondary);">No roles assigned</span>'}</span>
         </div>
         <br>
         <div class="admin-actions">
@@ -446,7 +446,7 @@ function confirmRemoveUser(userId, username, fullName) {
                 <!-- User Info Display -->
                 <div style="background-color: #000000; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
                     <p style="margin: 0.25rem 0;"><strong>Name:</strong> ${fullName}</p>
-                    <p style="margin: 0.25rem 0;"><strong>Username:</strong> @${username}</p>
+                    <p style="margin: 0.25rem 0;"><strong>Username:</strong> ${username}</p>
                 </div>
 
                 <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
@@ -484,7 +484,7 @@ function confirmRemoveUser(userId, username, fullName) {
 
     // Add modal to DOM and prevent body scrolling
     document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('removeUserModal');
 
     // Enable delete button only when checkbox is checked
     const checkbox = document.getElementById('confirmDeleteCheckbox');
@@ -507,7 +507,7 @@ function closeRemoveUserModal() {
     const modal = document.getElementById('removeUserModal');
     if (modal) {
         modal.remove();
-        document.body.style.overflow = 'auto';
+        unlockBodyScroll('removeUserModal');
     }
 }
 

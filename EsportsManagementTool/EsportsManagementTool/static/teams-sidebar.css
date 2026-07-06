@@ -602,10 +602,13 @@
         align-items: center;
     }
 
-    .view-switcher,
-    .division-filter-container,
-    .past-season-filter-container {
-        padding: 0 1rem;
+    .view-switcher {
+        margin-bottom: 0rem;
+        padding: 0 0;
+    }
+
+    .view-switcher-select {
+        width: 55%;
     }
 
     .game-folder-row {
