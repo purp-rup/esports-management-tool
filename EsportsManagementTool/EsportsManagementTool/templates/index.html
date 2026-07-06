@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='scheduled-events.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='stream-schedule.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -54,73 +55,87 @@
             <p>Stay up to date with matches, practices, and community events</p>
         </div>
 
-        <div class="calendar-container" style="visibility: hidden;">
-            <!-- Calendar Navigation -->
-            <div class="calendar-navigation">
-                <a href="#" class="nav-button" id="prevMonth">
-                    <i class="fas fa-chevron-left"></i>
-                    <span>Previous</span>
-                </a>
-                <h2 class="calendar-month-year" id="currentMonthYear"></h2>
-                <a href="#" class="nav-button" id="nextMonth">
-                    <span>Next</span>
-                    <i class="fas fa-chevron-right"></i>
-                </a>
-            </div>
+        <div class="calendar-with-streams">
 
-            <!-- Calendar Main -->
-            <div class="calendar-main">
-                <div class="calendar-wrapper">
-                    <!-- Calendar Header -->
-                    <div class="calendar-header">
-                        <div class="calendar-day-name">SUN</div>
-                        <div class="calendar-day-name">MON</div>
-                        <div class="calendar-day-name">TUE</div>
-                        <div class="calendar-day-name">WED</div>
-                        <div class="calendar-day-name">THU</div>
-                        <div class="calendar-day-name">FRI</div>
-                        <div class="calendar-day-name">SAT</div>
-                    </div>
-
-                    <!-- Calendar Grid -->
-                    <div class="calendar-grid" id="calendarGrid">
-                        <!-- Populated by JavaScript -->
-                    </div>
+            <!-- Stream Schedule Sidebar -->
+            <div class="stream-schedule-sidebar" id="streamScheduleSidebar">
+                <div class="stream-sidebar-header">
+<!--                    <i class="fas fa-video"></i>-->
+                    <h3>Upcoming Streams</h3>
+                </div>
+                <div class="stream-list" id="streamList">
+                    <!-- Populated by stream-schedule.js -->
                 </div>
             </div>
 
-            <!-- Sidebar -->
-            <div class="calendar-sidebar">
-                <div class="sidebar-card">
-                    <h3><i class="fas fa-palette"></i> Event Types</h3>
-                    <div class="legend-items">
-                        <div class="legend-item">
-                            <div class="legend-color tournament"></div>
-                            <span class="legend-label">Tournament</span>
+            <div class="calendar-container" style="visibility: hidden;">
+                <!-- Calendar Navigation -->
+                <div class="calendar-navigation">
+                    <a href="#" class="nav-button" id="prevMonth">
+                        <i class="fas fa-chevron-left"></i>
+                        <span>Previous</span>
+                    </a>
+                    <h2 class="calendar-month-year" id="currentMonthYear"></h2>
+                    <a href="#" class="nav-button" id="nextMonth">
+                        <span>Next</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+
+                <!-- Calendar Main -->
+                <div class="calendar-main">
+                    <div class="calendar-wrapper">
+                        <!-- Calendar Header -->
+                        <div class="calendar-header">
+                            <div class="calendar-day-name">SUN</div>
+                            <div class="calendar-day-name">MON</div>
+                            <div class="calendar-day-name">TUE</div>
+                            <div class="calendar-day-name">WED</div>
+                            <div class="calendar-day-name">THU</div>
+                            <div class="calendar-day-name">FRI</div>
+                            <div class="calendar-day-name">SAT</div>
                         </div>
-                        <div class="legend-item">
-                            <div class="legend-color match"></div>
-                            <span class="legend-label">Match</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color practice"></div>
-                            <span class="legend-label">Practice</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color event"></div>
-                            <span class="legend-label">Event</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color misc"></div>
-                            <span class="legend-label">Miscellaneous</span>
+
+                        <!-- Calendar Grid -->
+                        <div class="calendar-grid" id="calendarGrid">
+                            <!-- Populated by JavaScript -->
                         </div>
                     </div>
                 </div>
 
-                <div class="sidebar-card">
-                    <h3><i class="fas fa-calendar-day"></i> Today's Events</h3>
-                    <div class="today-events-list" id="todayEventsList">
-                        <p style="color: var(--text-secondary); font-size: 0.875rem;">No events today</p>
+                <!-- Sidebar -->
+                <div class="calendar-sidebar">
+                    <div class="sidebar-card">
+                        <h3><i class="fas fa-palette"></i> Event Types</h3>
+                        <div class="legend-items">
+                            <div class="legend-item">
+                                <div class="legend-color tournament"></div>
+                                <span class="legend-label">Tournament</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color match"></div>
+                                <span class="legend-label">Match</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color practice"></div>
+                                <span class="legend-label">Practice</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color event"></div>
+                                <span class="legend-label">Event</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color misc"></div>
+                                <span class="legend-label">Miscellaneous</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-card">
+                        <h3><i class="fas fa-calendar-day"></i> Today's Events</h3>
+                        <div class="today-events-list" id="todayEventsList">
+                            <p style="color: var(--text-secondary); font-size: 0.875rem;">No events today</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -245,6 +260,7 @@
 <script src="{{ url_for('static', filename='calendar.js') }}"></script>
 <!-- Then load modals.js which references those handlers -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
+<script src="{{ url_for('static', filename='stream-schedule.js') }}"></script>
 <!-- DO NOT load events.js - it conflicts with landing calendar functions -->
 <script src="https://embed.twitch.tv/embed/v1.js"></script>
 <script>

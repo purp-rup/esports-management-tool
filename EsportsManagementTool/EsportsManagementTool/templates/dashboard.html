@@ -25,6 +25,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='manage-communities.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='tournament-banner.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='tournament-modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='stream-schedule.css') }}">
 
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
@@ -1466,6 +1467,9 @@
                     <button class="btn btn-primary" onclick="openManageCommunitiesModal()">
                         <i class="fas fa-cog"></i> Communities
                     </button>
+                    <button class="btn btn-primary" onclick="openManageStreamsModal()">
+                        <i class="fas fa-video"></i> Streams
+                    </button>
                     <button class="btn btn-primary" onclick="window.location.href='/admin/statistics'">
                         <i class="fas fa-chart-line"></i> View Statistics
                     </button>
@@ -1634,6 +1638,72 @@
             <!-- Content Area -->
             <div id="seasonsContent" style="display: none;">
                 <!-- Dynamic content will be loaded here by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Streams Modal -->
+<div id="manageStreamsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Stream Schedule</h2>
+            <button class="modal-close" onclick="closeManageStreamsModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Schedule upcoming Twitch and YouTube streams for the landing page</p>
+
+            <!-- Add Stream Form -->
+            <div class="add-stream-panel">
+                <h4><i class="fas fa-plus-circle"></i> <span id="addStreamPanelTitle">Add Stream</span></h4>
+                <form id="addStreamForm">
+                    <div class="form-group">
+                        <label for="streamName">Stream Name *</label>
+                        <input type="text" id="streamName" placeholder="e.g. Mario Kart Weekly" required>
+                    </div>
+                    <div class="stream-form-row">
+                        <div class="form-group">
+                            <label for="streamDate">Date *</label>
+                            <input type="date" id="streamDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="streamTime">Time *</label>
+                            <input type="time" id="streamTime" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="streamPlatform">Platform *</label>
+                        <select id="streamPlatform" required>
+                            <option value="">Select platform</option>
+                            <option value="twitch">Twitch</option>
+                            <option value="youtube">YouTube</option>
+                        </select>
+                    </div>
+                    <div id="streamFormMessage" class="form-message" style="display: none;"></div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelEditBtn"
+                                style="display: none;" onclick="cancelEditStream()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="addStreamSubmitBtn">
+                            <span id="addStreamBtnText">Add Stream</span>
+                            <i id="addStreamSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Upcoming Streams List -->
+            <div class="admin-stream-list-label">
+                <i class="fas fa-list"></i> Upcoming Streams
+            </div>
+            <div id="adminStreamLoading" style="display: none;">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            <div id="adminStreamList">
+                <!-- Populated by stream-schedule.js -->
             </div>
         </div>
     </div>
@@ -2153,6 +2223,7 @@
 <script src="{{ url_for('static', filename='leagues.js') }}"></script>
 <script src="{{ url_for('static', filename='manage-communities.js') }}"></script>
 <script src="{{ url_for('static', filename='tournament-results.js') }}"></script>
+<script src="{{ url_for('static', filename='stream-schedule.js') }}"></script>
 <!-- Must load second-to-last -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <script src="{{ url_for('static', filename='calendar.js') }}"></script>

@@ -638,6 +638,7 @@ from EsportsManagementTool import seasons
 from EsportsManagementTool import leagues
 from EsportsManagementTool import statistics
 from EsportsManagementTool import photo_upload
+from EsportsManagementTool import index
 
 # ================================
 # REGISTER MODULE ROUTES
