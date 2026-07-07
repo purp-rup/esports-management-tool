@@ -9,7 +9,7 @@
    Primary Discord section wrapper
    -------------------------------------------- */
 .discord-profile-container {
-    padding: 0.25rem 0.5rem;
+    width: 100%;
 }
 
 /* --------------------------------------------
@@ -167,7 +167,6 @@
    -------------------------------------------- */
 #discordLoading {
     text-align: center;
-    padding: 2rem;
 }
 
 #discordLoading .fa-spinner {

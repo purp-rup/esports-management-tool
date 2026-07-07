@@ -12,18 +12,34 @@
     margin-bottom: 1rem;
 }
 
-/* Left column: Profile card - stretches to match right column height */
-.profile-card-column .card-header {
+.profile-main-layout .content-card {
     align-items: flex-start;
+    padding: 1rem 2rem 2rem 2rem;
 }
 
-.profile-card-column .content-card {
-    flex: 1;
+@media (max-width: 640px) {
+    .profile-main-layout .content-card {
+        padding: 1rem;
+    }
+}
+
+/* Left column: Profile card - stretches to match right column height */
+.profile-card-column {
     display: flex;
     flex-direction: column;
+    gap: 1rem;
+    height: fit-content;
 }
 
-/* Right column: Communities + Discord stacked - Equal Heights */
+.profile-card-column .card-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+/* Right column */
 .profile-right-column {
     display: flex;
     flex-direction: column;
@@ -36,6 +52,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    align-items: stretch;
 }
 
 .profile-card-header {
@@ -43,6 +60,7 @@
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
+    width: 100%;
 }
 
 .profile-card-header h2 {
@@ -72,16 +90,15 @@
 
 .profile-header-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 2rem;
+    flex-wrap: wrap;
 }
 
-.profile-card-column .card-header {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
+@media (max-width: 405px) {
+    .profile-header-row {
+        justify-content: center;
+    }
 }
 
 .avatar-container {
@@ -139,15 +156,16 @@
 /* Profile info items */
 .profile-info-section {
     display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1.5rem;
     flex: 1;
+    height: 100%;
 }
 
 .info-item {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
 }
 
 .info-label {
@@ -178,6 +196,24 @@
     padding: 0.4rem 1rem;
 }
 
+/* Preferred tab button row */
+.preferred-tab-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* Auto-save confirmation indicator */
+.preferred-tab-saved {
+    display: none;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: #4CAF50;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
 /* ============================================
    MY COMMUNITIES GRID (Profile Tab Only)
    ALL selectors scoped to #myCommunitiesGrid
@@ -186,8 +222,9 @@
 #myCommunitiesGrid {
     display: flex;
     gap: 1rem;
-
+    width: 100%;
     flex-wrap: wrap;
+    justify-content: center;
 }
 
 /* Force square cells using padding-bottom trick */
@@ -241,6 +278,14 @@
 
 #myCommunitiesGrid .community-card-name {
     display: none;
+}
+
+#myCommunitiesLoading {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
 }
 
 /* ============================================

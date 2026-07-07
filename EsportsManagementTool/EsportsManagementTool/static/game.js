@@ -218,7 +218,7 @@ function createGameCard(game, isAdmin) {
  * Initialize division filter buttons for the Communities tab
  */
 function initializeCommunityFilters() {
-    const buttons = document.querySelectorAll('.community-filter-btn');
+    const buttons = document.querySelectorAll('.communities-filter-container .community-filter-btn');
     if (!buttons.length) return;
 
     buttons.forEach(btn => {
@@ -252,14 +252,14 @@ function initializeCommunityFilters() {
 function applyDivisionFilter() {
     if (!window.currentGamesData) return;
 
-    const allBtn = document.querySelector('.community-filter-btn[data-division="all"]');
+    const allBtn = document.querySelector('.communities-filter-container .community-filter-btn[data-division="all"]');
 
     if (allBtn && allBtn.classList.contains('active')) {
         displayGamesList(window.currentGamesData);
         return;
     }
 
-    const activeFilters = [...document.querySelectorAll('.community-filter-btn')]
+    const activeFilters = [...document.querySelectorAll('.communities-filter-container .community-filter-btn')]
         .filter(b => b.dataset.division !== 'all' && b.classList.contains('active'))
         .map(b => b.dataset.division);
 
@@ -274,12 +274,12 @@ function applyDivisionFilter() {
  * Reset all division filter buttons back to the "All" state
  */
 function resetCommunityFilters() {
-    const buttons = document.querySelectorAll('.community-filter-btn');
+    const buttons = document.querySelectorAll('.communities-filter-container .community-filter-btn');
     if (!buttons.length) return;
 
     buttons.forEach(b => b.classList.remove('active'));
 
-    const allBtn = document.querySelector('.community-filter-btn[data-division="all"]');
+    const allBtn = document.querySelector('.communities-filter-container .community-filter-btn[data-division="all"]');
     if (allBtn) allBtn.classList.add('active');
 }
 

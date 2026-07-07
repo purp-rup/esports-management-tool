@@ -187,43 +187,39 @@ function initializeTabNavigation() {
 // ============================================
 
 function initializePreferredTabSetting() {
-    const saveButton = document.getElementById('savePreferredTabBtn');
-    const select = document.getElementById('preferredTabSelect');
-    const message = document.getElementById('preferredTabMessage');
-    const btnText = document.getElementById('savePreferredTabBtnText');
-    const btnSpinner = document.getElementById('savePreferredTabBtnSpinner');
+    const container = document.getElementById('preferredTabButtons');
+    if (!container) return;
 
-    if (!saveButton || !select) return;
+    const buttons = container.querySelectorAll('.community-filter-btn');
+    const message  = document.getElementById('preferredTabMessage');
 
-    saveButton.addEventListener('click', function() {
-        if (btnText) btnText.style.display = 'none';
-        if (btnSpinner) btnSpinner.style.display = 'inline-block';
-        saveButton.disabled = true;
+    buttons.forEach(btn => {
+        btn.addEventListener('click', async function () {
+            const selectedTab = this.dataset.tabValue;
 
-        fetch('/profile/preferred-tab', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ preferred_tab: select.value })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (message) {
-                    message.textContent = data.success ? 'Saved!' : (data.message || 'Failed to save preferred tab.');
-                    message.style.color = data.success ? 'green' : 'red';
-                    message.style.display = 'inline';
+            // Single-select: deactivate all, activate clicked
+            buttons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            try {
+                const response = await fetch('/profile/preferred-tab', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ preferred_tab: selectedTab })
+                });
+                const data = await response.json();
+
+                if (data.success && message) {
+                    // Brief "Saved" confirmation that auto-hides
+                    message.style.display = 'inline-flex';
+                    clearTimeout(message._hideTimer);
+                    message._hideTimer = setTimeout(() => {
+                        message.style.display = 'none';
+                    }, 2000);
                 }
-            })
-            .catch(() => {
-                if (message) {
-                    message.textContent = 'Failed to save preferred tab.';
-                    message.style.color = 'red';
-                    message.style.display = 'inline';
-                }
-            })
-            .finally(() => {
-                if (btnText) btnText.style.display = 'inline';
-                if (btnSpinner) btnSpinner.style.display = 'none';
-                saveButton.disabled = false;
-            });
+            } catch (err) {
+                console.error('Failed to save preferred tab:', err);
+            }
+        });
     });
 }

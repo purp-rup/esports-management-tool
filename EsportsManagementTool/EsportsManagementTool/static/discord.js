@@ -93,7 +93,7 @@ async function loadDiscordInfo() {
             // User has Discord connected - cache data and display profile
             discordInfo = data;
             displayDiscordProfile(data);
-            connectedDiv.style.display = 'block';
+            connectedDiv.style.display = 'flex';
         } else {
             // User hasn't connected Discord yet - show connect prompt
             notConnectedDiv.style.display = 'block';
