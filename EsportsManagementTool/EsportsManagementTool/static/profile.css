@@ -9,12 +9,10 @@
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
     align-items: stretch;
-    margin-bottom: 1rem;
 }
 
 .profile-main-layout .content-card {
     align-items: flex-start;
-    padding: 1rem 2rem 2rem 2rem;
 }
 
 @media (max-width: 640px) {
@@ -244,7 +242,28 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: rgba(0, 0, 0, 0.5) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 54px 55px,
+        rgba(0, 0, 0, 0.12) 0px -12px 30px,
+        rgba(0, 0, 0, 0.12) 0px 4px 6px,
+        rgba(0, 0, 0, 0.17) 0px 12px 13px,
+        rgba(0, 0, 0, 0.09) 0px -3px 5px;
+}
+
+#myCommunitiesGrid .community-card-no-icon {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 54px 55px,
+        rgba(0, 0, 0, 0.12) 0px -12px 30px,
+        rgba(0, 0, 0, 0.12) 0px 4px 6px,
+        rgba(0, 0, 0, 0.17) 0px 12px 13px,
+        rgba(0, 0, 0, 0.09) 0px -3px 5px;
+    background: var(--stockton-blue);
+    transition: transform 0.1s ease-in-out;
 }
 
 #myCommunitiesGrid .community-card-icon img {
@@ -256,7 +275,19 @@
     transition: transform 0.1s ease-in-out;
 }
 
+#myCommunitiesGrid .community-card-no-icon i {
+    border-radius: 10px;
+    object-fit: cover;
+    display: block;
+    font-size: 1.4rem;
+    color: white;
+}
+
 #myCommunitiesGrid .community-card:hover .community-card-icon img {
+    transform: scale(1.1);
+}
+
+#myCommunitiesGrid .community-card:hover .community-card-no-icon {
     transform: scale(1.1);
 }
 
@@ -286,15 +317,6 @@
     justify-content: center;
     align-items: center;
     width: 100%;
-}
-
-/* ============================================
-   DISCORD PROFILE CONTAINER
-   ============================================ */
-.discord-actions .btn {
-    flex: 1;
-    font-size: 0.8125rem;
-    padding: 0.6rem 1rem;
 }
 
 /* ============================================

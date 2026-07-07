@@ -265,7 +265,7 @@
             </div>
         </div>
 
-        <!-- RIGHT: Communities + Discord Stacked -->
+        <!-- RIGHT: Communities + Discord + Notification Settings -->
         <div class="profile-right-column">
             <!-- My Communities -->
             <div class="content-card">
@@ -301,12 +301,12 @@
                 </div>
 
                 <div id="discordNotConnected" style="display: none;">
-                    <div class="empty-state" style="padding: 2rem;">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">
+                    <div class="empty-state">
+                        <div style="font-size: 3rem;">
                             <i class="fab fa-discord" style="color: #5865F2;"></i>
                         </div>
                         <h3>Connect Your Discord</h3>
-                        <p>Link your Discord account to display your profile</p>
+                        <p>Link your Discord account to display it on your profile</p>
                         <button onclick="connectDiscord()" class="btn btn-primary discord-connect-btn">
                             Connect Discord
                         </button>
@@ -318,7 +318,10 @@
                         <div class="discord-profile-header">
                             <div id="discordAvatarContainer" class="discord-avatar-large"></div>
                             <div class="discord-profile-info">
-                                <h3 id="discordUsername"></h3>
+                                <div class="discord-icon-username">
+                                    <i class="fab fa-discord discord-info-icon"></i>
+                                    <h3 id="discordUsername"></h3>
+                                </div>
                                 <p id="discordConnectedDate">
                                     <i class="fas fa-link"></i> <span id="connectedDateText"></span>
                                 </p>
@@ -337,7 +340,7 @@
                     </div>
                 </div>
             </div>
-            <!-- Notification Settings (Full Width) -->
+            <!-- Notification Settings -->
             <div class="content-card">
                 <div class="profile-card-header card-header">
                         <h2>Notification Settings</h2>
@@ -348,7 +351,6 @@
                     <div class="notification-toggle">
                         <div class="toggle-info">
                             <h3>Enable Event Notifications</h3>
-                            <p>Receive email reminders for upcoming events</p>
                         </div>
                         <label class="switch">
                             <input type="checkbox" name="enable_notifications" id="enableNotifications" {% if preferences and preferences.enable_notifications %}checked{% endif %}>
@@ -1343,7 +1345,7 @@
     {% if user.is_admin or user.is_developer %}
     <div id="admin" class="tab-content {% if preferred_tab == 'admin' %}active{% endif %}">
         <div class="content-card">
-            <div class="card header card-header--row">
+            <div class="card-header card-header--row">
                 <div>
                     <h2>Admin Panel</h2>
                     <p style="font-size: 88%; color: var(--text-secondary)">Manage users, roles, and permissions</p>

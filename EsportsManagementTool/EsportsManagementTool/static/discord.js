@@ -162,11 +162,9 @@ function displayDiscordProfile(data) {
         // New format: @username
 
         if (data.discriminator && data.discriminator !== '0') {
-            // Old Discord username format (with discriminator)
-            usernameEl.innerHTML = `<i class="fab fa-discord"></i> ${escapeHtml(data.username)}#${escapeHtml(data.discriminator)}`;
+            usernameEl.textContent = `${data.username}#${data.discriminator}`;
         } else {
-            // New Discord username format (no discriminator)
-            usernameEl.innerHTML = `<i class="fab fa-discord"></i> @${escapeHtml(data.username)}`;
+            usernameEl.textContent = `@${data.username}`;
         }
     }
 
@@ -299,10 +297,9 @@ async function syncDiscordAvatar() {
                 messageDiv.style.display = 'block';
             }
 
-            // Reload to profile tab after 1.5 seconds to show updated avatar
-            // Hash navigation ensures user returns to the profile tab
+            // Use sessionStorage so dashboard.js switches to profile tab once after reload
             setTimeout(() => {
-                window.location.href = window.location.pathname + '#profile';
+                sessionStorage.setItem('activeTab', 'profile');
                 window.location.reload();
             }, 1500);
         } else {

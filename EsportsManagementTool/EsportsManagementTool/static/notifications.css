@@ -10,7 +10,7 @@
 .notification-form {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1rem;
 }
 
 .form-section {
@@ -39,10 +39,12 @@
    -------------------------------------------- */
 .notification-toggle,
 .notification-options {
+    display: flex;
+    gap: 1rem;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    padding: 1.5rem;
+    padding: 1rem;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
     transition: all 0.25s ease;
 }
@@ -67,7 +69,6 @@
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 0.25rem;
 }
 
 .toggle-info p,

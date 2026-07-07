@@ -629,8 +629,8 @@ function createCommunityCard(community) {
         `;
     } else {
         card.innerHTML = `
-            <div class="community-card-icon" style="background: var(--stockton-blue); display: flex; align-items: center; justify-content: center;">
-                <i class="fas fa-gamepad" style="font-size: 2rem; color: white;"></i>
+            <div class="community-card-no-icon">
+                <i class="fas fa-gamepad"></i>
             </div>
         `;
     }

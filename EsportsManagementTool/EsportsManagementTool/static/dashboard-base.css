@@ -58,7 +58,7 @@ main {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    padding: 2rem;
+    padding: 1rem 2rem 1rem 2rem;
 }
 
 @media (max-width: 640px) {
@@ -78,7 +78,7 @@ main {
 }
 
 .card-header h2 {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
 }
 
 .card-header p {
