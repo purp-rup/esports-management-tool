@@ -25,7 +25,7 @@ async function openManageCommunitiesModal() {
     }
 
     modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('manageCommunitiesModal');
 
     // Load communities
     await loadCommunitiesForManagement();
@@ -37,7 +37,7 @@ function closeManageCommunitiesModal() {
     if (!modal) return;
 
     modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
+    unlockBodyScroll('manageCommunitiesModal');
 
     // Reset state
     currentEditingCommunity = null;
@@ -140,7 +140,7 @@ function renderCommunitiesGrid() {
                     <div class="gm-compact-label">Current GM:</div>
                     <div class="gm-compact-user">
                         ${gmProfilePic}
-                        <span>@${escapeHtml(community.current_gm.username)}</span>
+                        <span>${escapeHtml(community.current_gm.username)}</span>
                     </div>
                 </div>
             `;
@@ -686,7 +686,7 @@ async function openAssignGMModal(gameId) {
     loading.style.display = 'block';
     container.style.display = 'none';
     empty.style.display = 'none';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('assignGMModal');
 
     try {
         // Fetch available GMs from API
@@ -735,7 +735,7 @@ function createGMSelectionItem(gm, gameId) {
         ${profilePicHTML}
         <div class="member-info">
             <div class="member-name">${gm.name}</div>
-            <div class="member-username">@${gm.username}</div>
+            <div class="member-username">${gm.username}</div>
         </div>
         <i class="fas fa-chevron-right" style="margin-left: auto; color: var(--text-secondary);"></i>
     `;
@@ -747,22 +747,7 @@ function createGMSelectionItem(gm, gameId) {
 function closeAssignGMModal() {
     const modal = document.getElementById('assignGMModal');
     modal.style.display = 'none';
-
-    // Check if there are other modals still open
-    const openModals = document.querySelectorAll('.modal');
-    const hasOpenModals = Array.from(openModals).some(m => {
-        if (m.id === 'assignGMModal') return false; // Exclude the modal we're closing
-        const style = window.getComputedStyle(m);
-        return style.display === 'block' || style.display === 'flex' || m.classList.contains('active');
-    });
-
-    if (hasOpenModals) {
-        // Other modals are open, keep overflow hidden
-        document.body.style.overflow = 'hidden';
-    } else {
-        // No modals open, restore scrolling
-        document.body.style.overflow = 'auto';
-    }
+    unlockBodyScroll('assignGMModal');
 
     currentGameIdForGM = null;
 }

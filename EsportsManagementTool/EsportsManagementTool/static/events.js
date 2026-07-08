@@ -370,7 +370,7 @@ function openCreateEventModal() {
 
     // Show modal
     setElementDisplay(modal, 'block');
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('createEventModal');
 
     // Reset form and state
     form.reset();
@@ -396,7 +396,7 @@ function openCreateEventModal() {
 function closeCreateEventModal() {
     const modal = document.getElementById('createEventModal');
     setElementDisplay(modal, 'none');
-    document.body.style.overflow = 'auto';
+    unlockBodyScroll('createEventModal');
 }
 
 // Handle location dropdown change
@@ -803,10 +803,7 @@ async function confirmDeleteEvent(eventId) {
 
             // If deletion was from event modal, close that too
             if (EventState.deletionFromModal) {
-                const eventModal = document.getElementById('eventDetailsModal');
-                if (eventModal) {
-                    eventModal.style.display = 'none';
-                }
+                window.closeEventModal();
                 EventState.deletionFromModal = false;
             }
 
@@ -833,8 +830,6 @@ async function confirmDeleteEvent(eventId) {
                 if (EventState.deletionSource === 'events') {
                     // Reload events tab only
                     loadEvents();
-                    // Manually restore scrolling
-                    document.body.style.overflow = 'auto';
                 } else {
                     // Calendar view - ALWAYS full page reload
                     window.location.reload();
@@ -900,10 +895,11 @@ async function deleteEvent() {
    ================================ */
 async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetchedBannerData = null) {
     const pane = document.getElementById('eventsDetailPane');
+    // Apply scroll lock on mobil
     if (window.innerWidth <= 768) {
         pane.classList.add('sheet-open');
         document.getElementById('sheetBackdrop')?.classList.add('open');
-        document.body.style.overflow = 'hidden';
+        lockBodyScroll('eventsSheet');
     }
     EventState.currentEventId = eventId;
 
@@ -1011,11 +1007,6 @@ async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetc
             </div>
         `;
 
-        // Re-apply scroll lock on mobile after innerHTML replacement
-        if (window.innerWidth <= 768) {
-            document.body.style.overflow = 'hidden';
-        }
-
         // Now load the notification section
         await loadNotificationSection(eventId);
 
@@ -1053,7 +1044,7 @@ function closeEventDetailSheet() {
     const pane = document.getElementById('eventsDetailPane');
     pane?.classList.remove('sheet-open');
     document.getElementById('sheetBackdrop')?.classList.remove('open');
-    document.body.style.overflow = '';
+    unlockBodyScroll('eventsSheet');
 }
 
 /* =======================================
@@ -1174,11 +1165,11 @@ function toggleFilterBox(panelId) {
         btn?.classList.add('active');
         if (window.innerWidth <= 768 && filterBackdrop) {
             filterBackdrop.classList.add('open');
-            document.body.style.overflow = 'hidden';
+            lockBodyScroll('filterBox');
         }
     } else {
         filterBackdrop?.classList.remove('open');
-        document.body.style.overflow = '';
+        unlockBodyScroll('filterBox');
     }
 }
 
@@ -1263,13 +1254,7 @@ function closeAllFilterPanels() {
         p.previousElementSibling?.classList.remove('active');
     });
     document.getElementById('filterBackdrop')?.classList.remove('open');
-
-    // Only restore scroll if no modal or sheet is currently open
-    const anyModalOpen = document.querySelector('.modal[style*="display: block"], .modal[style*="display: flex"]');
-    const sheetOpen = document.getElementById('eventsDetailPane')?.classList.contains('sheet-open');
-    if (!anyModalOpen && !sheetOpen) {
-        document.body.style.overflow = '';
-    }
+    unlockBodyScroll('filterBox');
 }
 
 // Populate past seasons flyout on hover

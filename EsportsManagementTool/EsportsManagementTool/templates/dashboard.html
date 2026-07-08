@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='discord.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='communities-list.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='user-profiles.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='updateProfile.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='scheduled-events.css') }}">
@@ -25,6 +26,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='manage-communities.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='tournament-banner.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='tournament-modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='stream-schedule.css') }}">
 
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
@@ -430,136 +432,6 @@
     </div>
 </div>
 
-<!-- MODALS - Edit Profile, Change Password, Change Avatar -->
-<div id="editProfileModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Edit Profile</h2>
-            <span class="close" onclick="closeEditProfileModal()">&times;</span>
-        </div>
-
-        <form id="editProfileForm" class="modal-form">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="editFirstName">First Name *</label>
-                    <input type="text" id="editFirstName" name="firstname" required value="{{ user.firstname }}">
-                </div>
-
-                <div class="form-group">
-                    <label for="editLastName">Last Name *</label>
-                    <input type="text" id="editLastName" name="lastname" required value="{{ user.lastname }}">
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="editUsername">Username *</label>
-                <input type="text" id="editUsername" name="username" required value="{{ user.username }}">
-                <small>This will be your unique identifier</small>
-            </div>
-
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="editEmail" name="email" value="{{ user.email }}" readonly>
-                <small>You cannot change your email address</small>
-            </div>
-
-            <div id="editProfileMessage" class="form-message" style="display: none;"></div>
-
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">
-                    <span id="saveProfileBtnText">Save Changes</span>
-                    <i id="saveProfileBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div id="changePasswordModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Change Password</h2>
-            <span class="close" onclick="closeChangePasswordModal()">&times;</span>
-        </div>
-
-        <form id="changePasswordForm" class="modal-form">
-            <div class="form-group">
-                <label for="currentPassword">Current Password *</label>
-                <input type="password" id="currentPassword" name="current_password" required>
-            </div>
-
-            <div class="form-group">
-                <label for="newPassword">New Password *</label>
-                <input type="password" id="newPassword" name="new_password" required minlength="8">
-                <small>Must be at least 8 characters</small>
-            </div>
-
-            <div class="form-group">
-                <label for="confirmPassword">Confirm New Password *</label>
-                <input type="password" id="confirmPassword" name="confirm_password" required>
-            </div>
-
-            <div id="changePasswordMessage" class="form-message" style="display: none;"></div>
-
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">
-                    <span id="changePasswordBtnText">Change Password</span>
-                    <i id="changePasswordBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div id="changeAvatarModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Change Profile Picture</h2>
-            <button class="modal-close" onclick="closeAvatarModal()"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="modal-body">
-            <p class="modal-subtitle">Upload a custom avatar or sync from Discord</p>
-
-            <form id="uploadAvatarForm" enctype="multipart/form-data" style="margin-bottom: 2rem;">
-                <div class="form-group">
-                    <label for="avatarFile">Choose Image</label>
-                    <input type="file" id="avatarFile" name="avatar" accept="image/png, image/jpeg, image/jpg, image/gif, image/webp" required>
-                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                        Accepted: PNG, JPG, GIF, WEBP (Max 5MB)
-                    </p>
-                </div>
-
-                <div id="avatarPreview" style="display: none; text-align: center; margin: 1rem 0;">
-                    <img id="avatarPreviewImg" style="max-width: 200px; max-height: 200px; border-radius: 50%; border: 4px solid var(--stockton-blue);">
-                </div>
-
-                <div id="avatarUploadMessage" class="form-message" style="display: none;"></div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeAvatarModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <span id="uploadBtnText">Upload Avatar</span>
-                        <i id="uploadBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
-                    </button>
-                </div>
-            </form>
-
-            <div style="text-align: center; margin: 2rem 0; color: var(--text-secondary); position: relative;">
-                <span style="background: var(--background-secondary); padding: 0 1rem; position: relative; z-index: 1;">OR</span>
-                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--border-color); z-index: 0;"></div>
-            </div>
-
-            <div style="text-align: center;">
-                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Use your Discord profile picture</p>
-                <button type="button" onclick="syncAvatarFromModal()" class="btn btn-primary" style="background-color: #5865F2 !important;">
-                    Sync from Discord
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
     <!-- Communities Tab -->
     <div id="rosters" class="tab-content {% if preferred_tab == 'rosters' %}active{% endif %}">
         <div class="content-card">
@@ -1130,20 +1002,26 @@
                     <div class="team-tab-content">
                         <!-- Roster Tab -->
                         <div id="rosterTabContent" class="team-tab-panel active">
-                            <div class="roster-search">
-                                <input type="text"
-                                       id="rosterSearchInput"
-                                       placeholder="Search members..."
-                                       onkeyup="filterRosterMembers()">
-                            </div>
-                            <div id="rosterMembersList" class="roster-members-grid">
-                                <!-- Members will be populated here -->
-                            </div>
-                            <div id="rosterEmpty" class="tab-empty-state" style="display: none;">
-                                <i class="fas fa-users-slash"></i>
-                                <p>No members on this team yet</p>
+                            <div class="roster-layout">
+                                <div class="roster-list-pane">
+                                    <div id="rosterMembersList" class="roster-members-grid">
+                                        <!-- Members will be populated here -->
+                                    </div>
+                                    <div id="rosterEmpty" class="tab-empty-state" style="display: none;">
+                                        <i class="fas fa-users-slash"></i>
+                                        <p>No members on this team yet</p>
+                                    </div>
+                                </div>
+                                <div class="roster-detail-pane" id="rosterDetailPane">
+                                    <div class="roster-detail-placeholder">
+                                        <i class="fas fa-user"></i>
+                                        <p>Select a member to view their profile</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+
+                        <div class="sheet-backdrop" id="rosterSheetBackdrop" onclick="closeRosterDetailSheet()"></div>
 
                         <!-- Schedule Tab -->
                         <div id="scheduleTabContent" class="team-tab-panel">
@@ -1466,6 +1344,9 @@
                     <button class="btn btn-primary" onclick="openManageCommunitiesModal()">
                         <i class="fas fa-cog"></i> Communities
                     </button>
+                    <button class="btn btn-primary" onclick="openManageStreamsModal()">
+                        <i class="fas fa-video"></i> Streams
+                    </button>
                     <button class="btn btn-primary" onclick="window.location.href='/admin/statistics'">
                         <i class="fas fa-chart-line"></i> View Statistics
                     </button>
@@ -1556,7 +1437,7 @@
                                                 {{ u.firstname }} {{ u.lastname }}
                                                 <span class="user-status-dot {{ 'online' if u.is_active else 'offline' }}"></span>
                                             </strong>
-                                            <p>@{{ u.username }} — {{ u.email }}</p>
+                                            <p>{{ u.username }} — {{ u.email }}</p>
                                             <div class="user-item-badges">
                                                 <!-- Role Badges -->
                                                 {% if u.is_admin %}
@@ -1593,6 +1474,149 @@
 </div>
 
 <!-- Global Modals (Accessible from all tabs) -->
+<!-- Edit Profile -->
+<div id="editProfileModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Edit Profile</h2>
+            <span class="close" onclick="closeEditProfileModal()">&times;</span>
+        </div>
+
+        <form id="editProfileForm" class="modal-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="editFirstName">First Name *</label>
+                    <input type="text" id="editFirstName" name="firstname" required value="{{ user.firstname }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="editLastName">Last Name *</label>
+                    <input type="text" id="editLastName" name="lastname" required value="{{ user.lastname }}">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="editUsername">Username *</label>
+                <input type="text" id="editUsername" name="username" required value="{{ user.username }}">
+                <small>This will be your unique identifier</small>
+            </div>
+
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="editEmail" name="email" value="{{ user.email }}" readonly>
+                <small>You cannot change your email address</small>
+            </div>
+
+            <div id="editProfileMessage" class="form-message" style="display: none;"></div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <span id="saveProfileBtnText">Save Changes</span>
+                    <i id="saveProfileBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Change Password -->
+<div id="changePasswordModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Change Password</h2>
+            <span class="close" onclick="closeChangePasswordModal()">&times;</span>
+        </div>
+
+        <form id="changePasswordForm" class="modal-form">
+            <div class="form-group">
+                <label for="currentPassword">Current Password *</label>
+                <input type="password" id="currentPassword" name="current_password" required>
+            </div>
+
+            <div class="form-group">
+                <label for="newPassword">New Password *</label>
+                <input type="password" id="newPassword" name="new_password" required minlength="8">
+                <small>Must be at least 8 characters</small>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Confirm New Password *</label>
+                <input type="password" id="confirmPassword" name="confirm_password" required>
+            </div>
+
+            <div id="changePasswordMessage" class="form-message" style="display: none;"></div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <span id="changePasswordBtnText">Change Password</span>
+                    <i id="changePasswordBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Change Avatar Modal -->
+<div id="changeAvatarModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Change Profile Picture</h2>
+            <button class="modal-close" onclick="closeAvatarModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Upload a custom avatar or sync from Discord</p>
+
+            <form id="uploadAvatarForm" enctype="multipart/form-data" style="margin-bottom: 2rem;">
+                <div class="form-group">
+                    <label for="avatarFile">Choose Image</label>
+                    <input type="file"
+                           id="avatarFile"
+                           name="avatar"
+                           accept="image/png, image/jpeg, image/jpg, image/gif, image/webp"
+                           required>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                        Accepted formats: PNG, JPG, GIF, WEBP (Max 5MB)
+                    </p>
+                </div>
+
+                <div id="avatarPreview" style="display: none; text-align: center; margin: 1rem 0;">
+                    <img id="avatarPreviewImg"
+                         style="max-width: 200px; max-height: 200px; border-radius: 50%; border: 4px solid var(--stockton-blue);">
+                </div>
+
+                <div id="avatarUploadMessage" class="form-message" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeAvatarModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="uploadBtnText">Upload Avatar</span>
+                        <i id="uploadBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                    </button>
+                </div>
+            </form>
+
+            <div style="text-align: center; margin: 2rem 0; color: var(--text-secondary); position: relative;">
+                <span style="background: var(--background-secondary); padding: 0 1rem; position: relative; z-index: 1;">
+                    OR
+                </span>
+                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--border-color); z-index: 0;"></div>
+            </div>
+
+            <div style="text-align: center;">
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                    Use your Discord profile picture
+                </p>
+                <button onclick="syncAvatarFromModal()" class="btn btn-primary" style="background-color: #5865F2 !important;">
+                    Sync from Discord
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Day Events Modal -->
 <div id="dayEventsModal" class="modal">
@@ -1634,6 +1658,83 @@
             <!-- Content Area -->
             <div id="seasonsContent" style="display: none;">
                 <!-- Dynamic content will be loaded here by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Streams Modal -->
+<div id="manageStreamsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Stream Schedule</h2>
+            <button class="modal-close" onclick="closeManageStreamsModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Schedule upcoming Twitch and YouTube streams for the landing page</p>
+
+            <!-- Add Stream Form -->
+            <div class="add-stream-panel">
+                <h4><i class="fas fa-plus-circle"></i> <span id="addStreamPanelTitle">Add Stream</span></h4>
+                <form id="addStreamForm">
+                    <div class="form-group">
+                        <label for="streamName">Stream Name *</label>
+                        <input type="text" id="streamName" placeholder="e.g. Mario Kart Weekly" required>
+                    </div>
+                    <div class="stream-form-row">
+                        <div class="form-group">
+                            <label for="streamDate">Date *</label>
+                            <input type="date" id="streamDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="streamTime">Time *</label>
+                            <input type="time" id="streamTime" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="streamPlatform">Platform *</label>
+                        <select id="streamPlatform" required>
+                            <option value="">Select platform</option>
+                            <option value="twitch">Twitch</option>
+                            <option value="youtube">YouTube</option>
+                        </select>
+                    </div>
+                    <div id="streamFormMessage" class="form-message" style="display: none;"></div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelEditBtn"
+                                style="display: none;" onclick="cancelEditStream()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="addStreamSubmitBtn">
+                            <span id="addStreamBtnText">Add Stream</span>
+                            <i id="addStreamSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Upcoming Streams List -->
+            <div class="admin-stream-list-label">
+                <i class="fas fa-list"></i> Upcoming Streams
+            </div>
+            <div id="adminStreamLoading" style="display: none;">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            <div id="adminStreamList">
+                <!-- Populated by stream-schedule.js -->
+            </div>
+
+            <!-- Past Streams List -->
+            <div class="admin-stream-list-label" style="margin-top: 1.5rem;">
+                <i class="fas fa-history"></i> Past Streams
+            </div>
+            <div id="adminPastStreamLoading" style="display: none;">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            <div id="adminPastStreamList">
+                <!-- Populated by stream-schedule.js -->
             </div>
         </div>
     </div>
@@ -2065,66 +2166,6 @@
         </div>
     </div>
 </div>
-              
-<!-- Change Avatar Modal -->
-<div id="changeAvatarModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Change Profile Picture</h2>
-            <button class="modal-close" onclick="closeAvatarModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-body">
-            <p class="modal-subtitle">Upload a custom avatar or sync from Discord</p>
-
-            <form id="uploadAvatarForm" enctype="multipart/form-data" style="margin-bottom: 2rem;">
-                <div class="form-group">
-                    <label for="avatarFile">Choose Image</label>
-                    <input type="file"
-                           id="avatarFile"
-                           name="avatar"
-                           accept="image/png, image/jpeg, image/jpg, image/gif, image/webp"
-                           required>
-                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                        Accepted formats: PNG, JPG, GIF, WEBP (Max 5MB)
-                    </p>
-                </div>
-
-                <div id="avatarPreview" style="display: none; text-align: center; margin: 1rem 0;">
-                    <img id="avatarPreviewImg"
-                         style="max-width: 200px; max-height: 200px; border-radius: 50%; border: 4px solid var(--stockton-blue);">
-                </div>
-
-                <div id="avatarUploadMessage" class="form-message" style="display: none;"></div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeAvatarModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <span id="uploadBtnText">Upload Avatar</span>
-                        <i id="uploadBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
-                    </button>
-                </div>
-            </form>
-
-            <div style="text-align: center; margin: 2rem 0; color: var(--text-secondary); position: relative;">
-                <span style="background: var(--background-secondary); padding: 0 1rem; position: relative; z-index: 1;">
-                    OR
-                </span>
-                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--border-color); z-index: 0;"></div>
-            </div>
-
-            <div style="text-align: center;">
-                <p style="color: var(--text-secondary); margin-bottom: 1rem;">
-                    Use your Discord profile picture
-                </p>
-                <button onclick="syncAvatarFromModal()" class="btn btn-primary" style="background-color: #5865F2 !important;">
-                    Sync from Discord
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -2136,6 +2177,7 @@
 <script src="{{ url_for('static', filename='image-cropper.js') }}"></script>
 <!-- Rest of js imports -->
 <script src="{{ url_for('static', filename='badges.js') }}"></script>
+<script src="{{ url_for('static', filename='user-profiles.js') }}"></script>
 <script src="{{ url_for('static', filename='discord.js') }}"></script>
 <script src="{{ url_for('static', filename='teams-sidebar.js') }}"></script>
 <script src="{{ url_for('static', filename='teams.js') }}"></script>
@@ -2153,6 +2195,7 @@
 <script src="{{ url_for('static', filename='leagues.js') }}"></script>
 <script src="{{ url_for('static', filename='manage-communities.js') }}"></script>
 <script src="{{ url_for('static', filename='tournament-results.js') }}"></script>
+<script src="{{ url_for('static', filename='stream-schedule.js') }}"></script>
 <!-- Must load second-to-last -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <script src="{{ url_for('static', filename='calendar.js') }}"></script>

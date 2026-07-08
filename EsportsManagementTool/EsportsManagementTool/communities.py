@@ -1,5 +1,5 @@
 from EsportsManagementTool import app, login_required, roles_required, mysql, EST
-from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr, is_all_day_event, build_member_profile
+from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr, is_all_day_event, build_member_profile, attach_profile_extras
 from flask import request, render_template, redirect, url_for, session, flash, jsonify
 from datetime import datetime, timedelta
 import MySQLdb.cursors
@@ -719,15 +719,20 @@ def get_community_details(game_id):
                 cursor.execute("""
                                SELECT u.id, u.firstname, u.lastname, u.username,
                                       u.profile_picture, p.is_admin, p.is_developer, p.is_gm,
-                                      p.is_player, c.joined_at, (u.id = gm.gm_id) as is_game_manager
+                                      p.is_player, c.joined_at, (u.id = gm.gm_id) as is_game_manager,
+                                      d.discord_username, d.discord_discriminator
                                FROM in_communities c
                                JOIN games gm ON c.game_id = gm.GameID
                                JOIN users u ON c.user_id = u.id
                                LEFT JOIN permissions p ON u.id = p.userid
+                               LEFT JOIN discord d ON d.userid = u.id
                                WHERE c.game_id = %s
                                ORDER BY (u.id = gm.gm_id) DESC, p.is_developer DESC, p.is_admin DESC, p.is_gm DESC, c.joined_at ASC
                                """, (game_id,))
                 members = cursor.fetchall()
+
+                # Finish building user profiles using universal_helper function
+                attach_profile_extras(cursor, members, game_id)
 
                 # Format response to build user profiles with GM assignment
                 formatted_members = [build_member_profile(m, include_gm_flag=True) for m in members]

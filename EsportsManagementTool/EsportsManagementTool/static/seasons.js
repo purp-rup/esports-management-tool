@@ -14,7 +14,7 @@ function openManageSeasonsModal() {
     modal.style.display = 'block';
 
     // Prevent background scrolling
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('manageSeasonsModal');
 
     // Load current season and history
     loadSeasonsData();
@@ -28,7 +28,7 @@ function closeManageSeasonsModal() {
     modal.style.display = 'none';
 
     // Restore background scrolling
-    document.body.style.overflow = 'auto';
+    unlockBodyScroll('manageSeasonsModal');
 
     // Clear any messages
     hideMessage('seasonsMessage');

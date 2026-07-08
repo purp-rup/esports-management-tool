@@ -164,11 +164,12 @@ async function loadTeamDetails(teamId) {
             const deleteTeamBtn = document.getElementById('deleteTeamBtn');
             if (deleteTeamBtn) {
                 const showDelete = isDeveloper || ((isAdmin || isGM) && isActiveSeason);
-                deleteTeamBtn.style.display = showDelete ? 'inline-flex' : 'none';
+                deleteTeamBtn.style.display = showDelete ? 'grid' : 'none';
             }
 
             // Store season active status globally for other functions
             window.currentTeamCanManage = canManage && isActiveSeason;
+            window.currentTeamIsGM = team.is_game_gm && isActiveSeason;
 
             // Schedule button - only for active seasons
             if (typeof initScheduleButton === 'function') {
@@ -423,36 +424,6 @@ async function loadRosterTab(members) {
     const fragment = document.createDocumentFragment();
 
     members.forEach(member => {
-        const memberCard = document.createElement('div');
-        memberCard.className = 'roster-member-card';
-
-        memberCard.setAttribute('data-member-name', member.name.toLowerCase());
-        memberCard.setAttribute('data-member-username', member.username.toLowerCase());
-
-        let avatarHTML;
-        if (member.profile_picture) {
-            avatarHTML = `<img src="${member.profile_picture}"
-                              alt="${member.name}"
-                              loading="lazy"
-                              class="roster-member-avatar">`;
-        } else {
-            const initials = member.name.split(' ').map(n => n[0]).join('');
-            avatarHTML = `<div class="roster-member-initials">${initials}</div>`;
-        }
-
-        // Generate badges with season context for historical accuracy
-        let badgesHTML = '';
-
-        if (typeof buildUniversalRoleBadges === 'function') {
-            badgesHTML = buildUniversalRoleBadges({
-                userId: member.id,
-                roles: member.roles || [],
-                contextGameId: null,
-                excludeRoles: ['Player'],
-                seasonId: isActiveSeason ? null : seasonId  // Pass seasonId for past seasons
-            });
-        }
-
         const removeBtn = canManage ? `
             <button class="btn-icon-danger"
                     onclick="event.stopPropagation(); confirmRemoveMember('${member.id}', '${member.name.replace(/'/g, "\\'")}')"
@@ -461,19 +432,15 @@ async function loadRosterTab(members) {
             </button>
         ` : '';
 
-        memberCard.innerHTML = `
-            ${avatarHTML}
-            <div class="roster-member-info">
-                <div class="roster-member-name">${member.name}</div>
-                <div class="roster-member-username">@${member.username}</div>
-                <div class="roster-member-badges">${badgesHTML}</div>
-            </div>
-            <div class="roster-member-actions">
-                ${removeBtn}
-            </div>
-        `;
+        const pill = createMemberPill(member, {
+            size: 'large',
+            actionsHtml: removeBtn,
+            onSelect: (m) => openRosterDetailPanel(m)
+        });
 
-        fragment.appendChild(memberCard);
+        if (member.is_captain) pill.classList.add('member-pill--captain');
+
+        fragment.appendChild(pill);
     });
 
     // Single DOM update
@@ -481,12 +448,34 @@ async function loadRosterTab(members) {
     rosterList.appendChild(fragment);
 }
 
-/**
- * Filter roster members by search input
- * Uses universal filterListItems function
- */
-const filterRosterMembers = () =>
-    filterListItems('rosterSearchInput', '.roster-member-card', ['member-name', 'member-username']);
+// Opens the roster detail panel to view user profiles
+function openRosterDetailPanel(member) {
+    const pane = document.getElementById('rosterDetailPane');
+    if (!pane) return;
+
+    pane.innerHTML = `
+        <div class="user-profile-panel">
+            ${buildUserProfileHeader(member, {
+                showCaptainControl: window.currentTeamIsGM,
+                teamId: window.currentSelectedTeamId
+            })}
+        </div>
+    `;
+
+    if (window.innerWidth <= 768) {
+        pane.classList.add('sheet-open');
+        document.getElementById('rosterSheetBackdrop')?.classList.add('open');
+        lockBodyScroll('rosterSheet');
+    }
+}
+
+// Closes the roster detail pane in MOBILE VIEW
+function closeRosterDetailSheet() {
+    const pane = document.getElementById('rosterDetailPane');
+    pane?.classList.remove('sheet-open');
+    document.getElementById('rosterSheetBackdrop')?.classList.remove('open');
+    unlockBodyScroll('rosterSheet');
+}
 
 // ============================================
 // TEAM MEMBER MANAGEMENT
@@ -516,7 +505,7 @@ function openAddTeamMembersModal() {
     }
 
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('addTeamMembersModal');
 
     if (loading) loading.style.display = 'block';
     if (list) list.style.display = 'none';
@@ -599,7 +588,7 @@ function displayAvailableMembersNew(members) {
             ${profilePicHTML}
             <div class="member-info">
                 <div class="member-name">${member.name}</div>
-                <div class="member-username">@${member.username}</div>
+                <div class="member-username">${member.username}</div>
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
                 ${badgesHTML}
@@ -656,7 +645,7 @@ function closeAddTeamMembersModal() {
     const modal = document.getElementById('addTeamMembersModal');
     if (modal) {
         modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
+        unlockBodyScroll('addTeamMembersModal');
     }
 }
 
@@ -725,11 +714,107 @@ async function removeMember(memberId, memberName) {
     }
 }
 
+/* ================================
+   Team Captain Assignment
+   ================================ */
+let captainConfirmPending = null;
+
+// Build logic for clicking new captain assignment button
+function handleCaptainButtonClick(e, memberId, teamId, isCurrentlyCaptain) {
+    e.stopPropagation();
+    const popup = document.getElementById(`captainConfirmPopup-${memberId}`);
+    if (!popup) return;
+
+    const isPending = captainConfirmPending?.memberId === memberId;
+
+    if (isPending) {
+        // Second click — confirm the action
+        popup.style.display = 'none';
+        const pending = captainConfirmPending;
+        captainConfirmPending = null;
+        document.removeEventListener('click', closeCaptainConfirmOnOutsideClick);
+
+        if (pending.action === 'assign') {
+            assignTeamCaptain(pending.teamId, pending.memberId);
+        } else {
+            removeTeamCaptain(pending.teamId, pending.memberId);
+        }
+        return;
+    }
+
+    // First click — show the confirm popup
+    captainConfirmPending = { memberId, teamId, action: isCurrentlyCaptain ? 'remove' : 'assign' };
+    popup.style.display = 'block';
+    setTimeout(() => document.addEventListener('click', closeCaptainConfirmOnOutsideClick), 0);
+}
+
+// Closes the create captain warning when clicking outside
+function closeCaptainConfirmOnOutsideClick(e) {
+    if (!captainConfirmPending) return;
+    const popup = document.getElementById(`captainConfirmPopup-${captainConfirmPending.memberId}`);
+    const btn = document.getElementById(`captainBtn-${captainConfirmPending.memberId}`);
+    if (popup && !popup.contains(e.target) && !btn?.contains(e.target)) {
+        popup.style.display = 'none';
+        captainConfirmPending = null;
+        document.removeEventListener('click', closeCaptainConfirmOnOutsideClick);
+    }
+}
+
+// Assign the captain
+async function assignTeamCaptain(teamId, userId) {
+    try {
+        const response = await fetch(`/api/teams/${teamId}/captain`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showDeleteSuccessMessage('Captain assigned successfully!');
+            await reopenProfileAfterCaptainChange(teamId, userId);
+        } else {
+            showDeleteErrorMessage(data.message || 'Failed to assign captain');
+        }
+    } catch (err) {
+        console.error('Error assigning captain:', err);
+        showDeleteErrorMessage('Failed to assign captain');
+    }
+}
+
+// Action for removing a team captain
+async function removeTeamCaptain(teamId, userId) {
+    try {
+        const response = await fetch(`/api/teams/${teamId}/captain`, { method: 'DELETE' });
+        const data = await response.json();
+
+        if (data.success) {
+            showDeleteSuccessMessage('Captain removed successfully!');
+            await reopenProfileAfterCaptainChange(teamId, userId);
+        } else {
+            showDeleteErrorMessage(data.message || 'Failed to remove captain');
+        }
+    } catch (err) {
+        console.error('Error removing captain:', err);
+        showDeleteErrorMessage('Failed to remove captain');
+    }
+}
+
+/* Reloads the roster (so pills + orange borders refresh) and reopens the
+ * profile panel for the same member so it stays open instead of
+ * resetting to the placeholder.
+ */
+async function reopenProfileAfterCaptainChange(teamId, userId) {
+    await loadTeamDetails(teamId);
+    const updatedMember = currentTeamCache?.team?.members?.find(m => m.id === userId);
+    if (updatedMember) {
+        openRosterDetailPanel(updatedMember);
+    }
+}
+
 // ============================================
 // TEAM EDITING
 // ============================================
-
-// Open edit team modal
 async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSizes) {
     const modal = document.getElementById('editTeamModal');
     const modalTitle = document.getElementById('editTeamModalTitle');
@@ -808,7 +893,7 @@ async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSize
     }
 
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('editTeamModal');
 }
 
 // Close edit team modal
@@ -836,7 +921,7 @@ function closeEditTeamModal() {
 
     if (modal) {
         modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
+        lockBodyScroll('editTeamModal');
     }
 }
 
@@ -1180,5 +1265,4 @@ window.openEditTeamModal = openEditTeamModal;
 window.closeEditTeamModal = closeEditTeamModal;
 
 //Filters
-window.filterRosterMembers = filterRosterMembers;
 window.filterAvailableMembers = filterAvailableMembers;
