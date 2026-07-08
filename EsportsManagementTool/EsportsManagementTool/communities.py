@@ -959,6 +959,184 @@ def get_next_community_event(game_id):
             'message': f'Failed to load next event: {str(e)}'
         }), 500
 
+
+# ===================================
+# COMMUNITY FORUM
+# ===================================
+FORUM_PAGE_SIZE = 30
+
+@app.route('/api/game/<int:game_id>/messages', methods=['GET'])
+@login_required
+def get_community_messages(game_id):
+    """
+    Fetch a page of community forum messages, cursor-paginated by message_id.
+    Pass ?before=<message_id> to fetch the next chunk older than that message.
+    Anyone who can view the community page can read its forum.
+    """
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute("SELECT GameID FROM games WHERE GameID = %s AND hidden = 0", (game_id,))
+            if not cursor.fetchone():
+                return jsonify({'success': False, 'message': 'Community not found'}), 404
+
+            before_id = request.args.get('before', type=int)
+
+            base_query = """
+                SELECT m.message_id, m.user_id, m.content, m.created_at,
+                       u.username, u.firstname, u.lastname, u.profile_picture
+                FROM community_messages m
+                JOIN users u ON m.user_id = u.id
+                WHERE m.game_id = %s AND m.is_deleted = 0
+            """
+            params = [game_id]
+
+            if before_id:
+                base_query += " AND m.message_id < %s"
+                params.append(before_id)
+
+            base_query += " ORDER BY m.message_id DESC LIMIT %s"
+            params.append(FORUM_PAGE_SIZE)
+
+            cursor.execute(base_query, params)
+            rows = cursor.fetchall()
+
+            has_more = len(rows) == FORUM_PAGE_SIZE
+            rows.reverse()  # ascending message order
+
+            messages = [{
+                'message_id': r['message_id'],
+                'user_id': r['user_id'],
+                'username': r['username'],
+                'full_name': f"{r['firstname']} {r['lastname']}",
+                'profile_picture': r['profile_picture'],
+                'content': r['content'],
+                'created_at': r['created_at'].isoformat()
+            } for r in rows]
+
+            return jsonify({'success': True, 'messages': messages, 'has_more': has_more}), 200
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error fetching community messages: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to load messages'}), 500
+
+
+@app.route('/api/game/<int:game_id>/messages', methods=['POST'])
+@login_required
+def post_community_message(game_id):
+    """Post a new message to a community's forum. Requires community membership."""
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute("SELECT 1 FROM in_communities WHERE user_id = %s AND game_id = %s",
+                           (session['id'], game_id))
+            if not cursor.fetchone():
+                return jsonify({'success': False, 'message': 'You must be a member of this community to post'}), 403
+
+            data = request.get_json(silent=True) or {}
+            content = (data.get('content') or '').strip()
+
+            if not content:
+                return jsonify({'success': False, 'message': 'Message cannot be empty'}), 400
+            if len(content) > 2000:
+                return jsonify({'success': False, 'message': 'Message is too long (2000 character limit)'}), 400
+
+            now = datetime.now(EST)
+            cursor.execute(
+                "INSERT INTO community_messages (game_id, user_id, content, created_at) VALUES (%s, %s, %s, %s)",
+                (game_id, session['id'], content, now)
+            )
+            message_id = cursor.lastrowid
+            mysql.connection.commit()
+
+            cursor.execute(
+                "SELECT username, firstname, lastname, profile_picture FROM users WHERE id = %s",
+                (session['id'],)
+            )
+            user = cursor.fetchone()
+
+            return jsonify({'success': True, 'message': {
+                'message_id': message_id,
+                'user_id': session['id'],
+                'username': user['username'],
+                'full_name': f"{user['firstname']} {user['lastname']}",
+                'profile_picture': user['profile_picture'],
+                'content': content,
+                'created_at': now.isoformat()
+            }}), 200
+
+        except Exception as e:
+            mysql.connection.rollback()
+            print(f"Database error posting community message: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to send message'}), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error posting community message: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+
+@app.route('/api/game/<int:game_id>/messages/<int:message_id>', methods=['DELETE'])
+@login_required
+def delete_community_message(game_id, message_id):
+    """
+    Soft-delete a forum message. Allowed for the message's author or
+    anyone with permissions (admins, developers, GMs)
+    """
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute(
+                "SELECT user_id FROM community_messages WHERE message_id = %s AND game_id = %s",
+                (message_id, game_id)
+            )
+            message = cursor.fetchone()
+            if not message:
+                return jsonify({'success': False, 'message': 'Message not found'}), 404
+
+            cursor.execute("SELECT gm_id FROM games WHERE GameID = %s", (game_id,))
+            game = cursor.fetchone()
+
+            permissions = get_user_permissions(session['id'])
+            can_moderate = (
+                message['user_id'] == session['id'] or
+                permissions['is_admin'] or
+                permissions['is_developer'] or
+                (game and game['gm_id'] == session['id'])
+            )
+
+            if not can_moderate:
+                return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+            cursor.execute(
+                "UPDATE community_messages SET is_deleted = 1, deleted_at = %s WHERE message_id = %s",
+                (datetime.now(EST), message_id)
+            )
+            mysql.connection.commit()
+
+            return jsonify({'success': True, 'message': 'Message deleted'}), 200
+
+        except Exception as e:
+            mysql.connection.rollback()
+            print(f"Database error deleting community message: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to delete message'}), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error deleting community message: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+
 # ===================================
 # COMMUNITY TAB
 # ===================================

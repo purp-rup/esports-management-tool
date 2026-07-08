@@ -11,6 +11,12 @@
 // Currently selected game ID for GM assignment operations
 let currentGameIdForGM = null;
 
+// Forum state
+let forumMessages        = [];
+let forumHasMoreOlder    = false;
+let forumIsLoadingOlder  = false;
+const FORUM_GROUP_GAP_MS = 5 * 60 * 1000; // messages within 5 min of the same user group together
+
 // Initialize photo carousel elements
 let carouselPhotos  = [];
 let carouselIndex   = 0;
@@ -208,6 +214,258 @@ async function initCommunityStats(gameId) {
         leaguesBox.closest('.community-card-stat-row')?.classList.add('has-leagues');
     } catch (e) {
         console.error('Error loading community leagues:', e);
+    }
+}
+
+// ============================================
+// COMMUNITY FORUM
+// ============================================
+
+// Awaits message send and allows multiline messages
+async function initForum() {
+    const gameId = document.getElementById('communityGameId')?.value;
+    const body   = document.getElementById('forumBody');
+    if (!gameId || !body) return;
+
+    await loadForumMessages(gameId);
+
+    body.addEventListener('scroll', () => {
+        if (body.scrollTop === 0 && forumHasMoreOlder && !forumIsLoadingOlder) {
+            loadOlderForumMessages(gameId);
+        }
+    });
+
+    const input = document.getElementById('forumMessageInput');
+    if (input) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendForumMessage();
+            }
+        });
+
+        input.addEventListener('input', () => {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+        });
+    }
+}
+
+// Initial messages upon page load
+async function loadForumMessages(gameId) {
+    const loading = document.getElementById('forumLoading');
+    const empty = document.getElementById('forumEmpty');
+    if (loading) loading.style.display = 'flex';
+
+    try {
+        const res = await fetch(`/api/game/${gameId}/messages`);
+        const data = await res.json();
+        if (loading) loading.style.display = 'none';
+        if (!data.success) return;
+
+        forumMessages = data.messages;
+        forumHasMoreOlder = data.has_more;
+
+        renderForumMessages();
+        if (forumMessages.length === 0 && empty) empty.style.display = 'flex';
+        scrollForumToBottom();
+    } catch (e) {
+        if (loading) loading.style.display = 'none';
+        console.error('Failed to load forum messages:', e);
+    }
+}
+
+// Messages if user scrolls up
+async function loadOlderForumMessages(gameId) {
+    if (!forumMessages.length) return;
+    forumIsLoadingOlder = true;
+
+    const loadOlder = document.getElementById('forumLoadOlder');
+    const body = document.getElementById('forumBody');
+    if (loadOlder) loadOlder.style.display = 'flex';
+
+    const prevScrollHeight = body.scrollHeight;
+
+    try {
+        const oldestId = forumMessages[0].message_id;
+        const res = await fetch(`/api/game/${gameId}/messages?before=${oldestId}`);
+        const data = await res.json();
+
+        if (data.success && data.messages.length) {
+            forumMessages = [...data.messages, ...forumMessages];
+            forumHasMoreOlder = data.has_more;
+            renderForumMessages();
+
+            body.scrollTop = body.scrollHeight - prevScrollHeight;
+        } else {
+            forumHasMoreOlder = false;
+        }
+    } catch (e) {
+        console.error('Failed to load older forum messages:', e);
+    } finally {
+        if (loadOlder) loadOlder.style.display = 'none';
+        forumIsLoadingOlder = false;
+    }
+}
+
+function renderForumMessages() {
+    const container = document.getElementById('forumMessagesList');
+    if (!container) return;
+
+    const currentUsername = document.getElementById('currentUsername')?.value?.toLowerCase();
+    const canModerate = document.getElementById('canModerateForum')?.value === 'true';
+
+    container.innerHTML = forumMessages.map((msg, i) => {
+        const prev = forumMessages[i - 1];
+        const isNewBlock = !prev
+            || prev.user_id !== msg.user_id
+            || (new Date(msg.created_at) - new Date(prev.created_at)) > FORUM_GROUP_GAP_MS;
+
+        const isOwnMessage = msg.username?.toLowerCase() === currentUsername;
+        const canDelete = isOwnMessage || canModerate;
+
+        return buildForumMessageHtml(msg, isNewBlock, canDelete);
+    }).join('');
+}
+
+function buildForumMessageHtml(msg, isNewBlock, canDelete) {
+    const time = formatForumTimestamp(msg.created_at);
+    const deleteBtn = canDelete
+        ? `<button class="forum-message-delete" onclick="confirmDeleteForumMessage(${msg.message_id})" title="Delete message">
+               <i class="fas fa-trash"></i>
+           </button>`
+        : '';
+
+    if (isNewBlock) {
+        const avatarHtml = msg.profile_picture
+            ? `<img src="${msg.profile_picture}" alt="${escapeHtml(msg.username)}" class="forum-message-avatar">`
+            : `<div class="forum-message-avatar-initials">${escapeHtml(forumInitials(msg.full_name))}</div>`;
+
+        return `
+            <div class="forum-message-block" data-message-id="${msg.message_id}">
+                ${avatarHtml}
+                <div class="forum-message-block-content">
+                    <div class="forum-message-block-header">
+                        <span class="forum-message-username">${escapeHtml(msg.username)}</span>
+                        <span class="forum-message-timestamp">${time}</span>
+                    </div>
+                    <div class="forum-message-text-row">
+                        <p class="forum-message-text">${escapeHtml(msg.content)}</p>
+                        ${deleteBtn}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="forum-message-continuation" data-message-id="${msg.message_id}">
+            <span class="forum-message-continuation-time">${time}</span>
+            <div class="forum-message-text-row">
+                <p class="forum-message-text">${escapeHtml(msg.content)}</p>
+                ${deleteBtn}
+            </div>
+        </div>
+    `;
+}
+
+function forumInitials(fullName) {
+    return (fullName || '').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase();
+}
+
+function formatForumTimestamp(isoString) {
+    const date = new Date(isoString);
+    const now = new Date();
+    const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+    if (date.toDateString() === now.toDateString()) return `Today at ${timeStr}`;
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return `Yesterday at ${timeStr}`;
+
+    return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${timeStr}`;
+}
+
+function scrollForumToBottom() {
+    const body = document.getElementById('forumBody');
+    if (body) body.scrollTop = body.scrollHeight;
+}
+
+async function sendForumMessage() {
+    const gameId = document.getElementById('communityGameId')?.value;
+    const input = document.getElementById('forumMessageInput');
+    const sendBtn = document.getElementById('forumSendBtn');
+    if (!gameId || !input) return;
+
+    const content = input.value.trim();
+    if (!content) return;
+
+    input.disabled = true;
+    if (sendBtn) sendBtn.disabled = true;
+
+    try {
+        const res  = await fetch(`/api/game/${gameId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            forumMessages.push(data.message);
+            renderForumMessages();
+            scrollForumToBottom();
+
+            input.value = '';
+            input.style.height = 'auto';
+
+            const empty = document.getElementById('forumEmpty');
+            if (empty) empty.style.display = 'none';
+        } else {
+            alert(data.message || 'Failed to send message');
+        }
+    } catch (e) {
+        console.error('Failed to send forum message:', e);
+        alert('Failed to send message. Please try again.');
+    } finally {
+        input.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        input.focus();
+    }
+}
+
+function confirmDeleteForumMessage(messageId) {
+    openDeleteConfirmModal({
+        title: 'Delete Message?',
+        message: 'Are you sure you want to delete this message? This cannot be undone.',
+        buttonText: 'Delete Message',
+        itemId: messageId,
+        onConfirm: async (id) => {
+            await executeForumMessageDelete(id);
+        }
+    });
+}
+
+async function executeForumMessageDelete(messageId) {
+    const gameId = document.getElementById('communityGameId')?.value;
+
+    try {
+        const res = await fetch(`/api/game/${gameId}/messages/${messageId}`, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (data.success) {
+            forumMessages = forumMessages.filter(m => m.message_id !== messageId);
+            renderForumMessages();
+            closeDeleteConfirmModal();
+            showDeleteSuccessMessage('Message deleted.');
+        } else {
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage('Delete failed: ' + data.message);
+        }
+    } catch (e) {
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Delete failed. Please try again.');
     }
 }
 
@@ -682,6 +940,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initCarousel();
     initFileInputCropper('bannerFileInput', 'banner');
     initFileInputCropper('photoFileInput', 'carousel');
+    initForum();
 
     if (gameId) {
         loadNextCommunityEvent(gameId);
@@ -692,6 +951,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 // EXPORT FUNCTIONS
 // ============================================
+// Community Forum
+window.sendForumMessage          = sendForumMessage;
+window.confirmDeleteForumMessage = confirmDeleteForumMessage;
 
 // Photo Carousel
 window.carouselNext        = carouselNext;
