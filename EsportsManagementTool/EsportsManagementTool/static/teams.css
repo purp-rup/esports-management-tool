@@ -187,7 +187,7 @@
 .team-info-icon-wrapper:hover .team-info-tooltip {
     opacity: 1;
     pointer-events: auto;
-    transform: translateY(-50%) translateX(0);
+    transform: translateY(-40%) translateX(0);
 }
 
 /* Arrow pointing left from tooltip back to icon */

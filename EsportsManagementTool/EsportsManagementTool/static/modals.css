@@ -804,6 +804,7 @@
     margin: 0 auto;
     justify-content: center;
     align-items: center;
+    max-width: 90%;
 }
 
 .popup-footer-scale .notification-opt-in {
