@@ -73,6 +73,7 @@
     gap: 1rem;
     max-height: 50vh;
     overflow-y: auto;
+    padding-top: 0.3rem;
 }
 
 /* VOD Item Card */

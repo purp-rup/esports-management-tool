@@ -53,7 +53,7 @@ function loadTeamVods(teamID) {
     // Store team ID for use in other functions
     currentTeamIdForVods = teamID;
 
-    const isActiveSeason = window.currentTeamSeasonIsActive === 1;
+    const isActiveSeason = window.currentTeamSeasonIsActive == 1;
     const isDeveloper = window.userPermissions?.is_developer || false;
     const canAddVods = (window.currentTeamCanManage || isDeveloper) && isActiveSeason;
 
@@ -84,7 +84,7 @@ function loadTeamVods(teamID) {
 
             // Render each VOD as a clickable card
             vods.forEach(vod => {
-                const vodItem = createVodElement(vod);
+                const vodItem = createVodElement(vod, canAddVods);
                 vodsList.appendChild(vodItem);
             });
         })
@@ -110,9 +110,6 @@ function loadTeamVods(teamID) {
 function createVodElement(vod, canDelete) {
     const vodItem = document.createElement('div');
     vodItem.className = 'vod-item';
-
-    // Check if user has permission to delete VODs (admin or GM)
-     const showDelete = canDelete && (window.currentTeamSeasonIsActive === 1);
 
     // Build VOD card HTML with conditional delete button
     vodItem.innerHTML = `
