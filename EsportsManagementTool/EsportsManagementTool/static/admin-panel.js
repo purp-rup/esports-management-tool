@@ -282,8 +282,18 @@ async function handleUserItemClick(item) {
                     <button id="roleToggleRemove" class="role-toggle" data-action="remove" title="Unassign">Unassign</button>
                 </div>
 
-                <select id="roleTypeSelect" class="styled-dropdown">
-                    <option value="Game Manager">Game Manager</option>
+                <div class="filter-box" id="roleTypeFilterBox">
+                    <button class="filter-box-btn" onclick="toggleFilterBox('roleTypeFilterPanel')">
+                        <span id="roleTypeFilterLabel">Game Manager</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="filter-box-panel" id="roleTypeFilterPanel">
+                        <div class="filter-box-item active" data-value="Game Manager" onclick="applyRoleTypeFilter('Game Manager')">Game Manager</div>
+                        <div class="filter-box-item" data-value="Admin" onclick="applyRoleTypeFilter('Admin')">Admin</div>
+                    </div>
+                </div>
+                <select id="roleTypeSelect" class="styled-dropdown" style="display: none;">
+                    <option value="Game Manager" selected>Game Manager</option>
                     <option value="Admin">Admin</option>
                 </select>
 
@@ -336,6 +346,18 @@ async function handleUserItemClick(item) {
 // ============================================
 // USER MANAGEMENT
 // ============================================
+
+// Selection handler for the role-type filter-box dropdown.
+function applyRoleTypeFilter(value) {
+    document.getElementById('roleTypeFilterLabel').textContent = value;
+    document.getElementById('roleTypeSelect').value = value;
+
+    document.querySelectorAll('#roleTypeFilterPanel .filter-box-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === value);
+    });
+
+    closeAllFilterPanels();
+}
 
 // Add or remove a role from a user (Admin or GM)
 async function handleRoleChange(username) {

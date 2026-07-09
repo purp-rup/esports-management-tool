@@ -240,6 +240,22 @@ function _createAdminStreamRow(stream) {
 }
 
 /**
+ * Selection handler for the stream-platform filter-box dropdown.
+ * Opening/closing is handled by the shared toggleFilterBox()/
+ * closeAllFilterPanels() in universal-helpers.js.
+ */
+function applyStreamPlatformFilter(value, label) {
+    document.getElementById('streamPlatformFilterLabel').textContent = label;
+    document.getElementById('streamPlatform').value = value;
+
+    document.querySelectorAll('#streamPlatformFilterPanel .filter-box-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === value);
+    });
+
+    closeAllFilterPanels();
+}
+
+/**
  * Handle add-stream form submission
  * @param {Event} e
  */
@@ -250,6 +266,16 @@ async function _submitAddStream(e) {
     const submitBtn = document.getElementById('addStreamSubmitBtn');
     const btnText = document.getElementById('addStreamBtnText');
     const spinner = document.getElementById('addStreamSpinner');
+
+    // The real <select> is hidden, so its `required` attribute no longer
+    // triggers native validation — check manually instead.
+    const platform = document.getElementById('streamPlatform').value;
+    if (!platform) {
+        msgDiv.textContent = 'Please select a platform.';
+        msgDiv.className = 'form-message error';
+        msgDiv.style.display = 'block';
+        return;
+    }
 
     submitBtn.disabled = true;
     btnText.style.display = 'none';
@@ -305,7 +331,7 @@ function editStream(stream) {
     document.getElementById('streamName').value     = stream.stream_name;
     document.getElementById('streamDate').value     = stream.stream_date;
     document.getElementById('streamTime').value     = stream.stream_time;
-    document.getElementById('streamPlatform').value = stream.platform;
+    applyStreamPlatformFilter(stream.platform, stream.platform === 'twitch' ? 'Twitch' : 'YouTube');
 
     document.getElementById('addStreamPanelTitle').textContent = 'Edit Stream';
     document.getElementById('addStreamBtnText').textContent    = 'Save Changes';
@@ -315,13 +341,12 @@ function editStream(stream) {
         .scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-/**
- * Reset the form back to Add mode, clearing any edit state
- */
+// Reset the form back to Add mode, clearing any edit state
 function cancelEditStream() {
     _currentEditStreamId = null;
 
     document.getElementById('addStreamForm').reset();
+    applyStreamPlatformFilter('', 'Select platform');
     document.getElementById('addStreamPanelTitle').textContent = 'Add Stream';
     document.getElementById('addStreamBtnText').textContent    = 'Add Stream';
     document.getElementById('cancelEditBtn').style.display     = 'none';
@@ -332,7 +357,6 @@ function cancelEditStream() {
 
 /**
  * Delete a stream entry by ID, then refresh the admin list
- * @param {number} streamId
  */
 async function deleteStream(streamId) {
     try {

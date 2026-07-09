@@ -227,3 +227,21 @@ function initializePreferredTabSetting() {
             });
     });
 }
+
+// ============================================
+// PREFERRED TAB DROPDOWN
+// Selection handler for the filter-box styled dropdown.
+// Opening/closing is handled by toggleFilterBox() and
+// closeAllFilterPanels(), both already defined in events.js.
+// ============================================
+
+function applyPreferredTabFilter(value, label) {
+    document.getElementById('preferredTabFilterLabel').textContent = label;
+    document.getElementById('preferredTabSelect').value = value;
+
+    document.querySelectorAll('#preferredTabFilterPanel .filter-box-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === value);
+    });
+
+    closeAllFilterPanels();
+}

@@ -1,7 +1,6 @@
 /* ============================================
    PROFILE TAB STYLES
    User profile display and information
-   ORGANIZED BY CLAUDEAI
    ============================================ */
 
 /* Main Profile Layout: Two columns - 50/50 split */
@@ -45,6 +44,7 @@
 .profile-card-content {
     display: flex;
     flex-direction: column;
+    margin-bottom: 0.5rem;
 }
 
 .profile-header-row {
