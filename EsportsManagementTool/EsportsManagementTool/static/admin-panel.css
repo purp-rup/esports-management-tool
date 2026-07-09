@@ -254,9 +254,7 @@
     word-break: break-word;
 }
 
-/* ============================
-   Role actions
-   ============================ */
+/* Role actions */
 .role-action-row {
     display: flex;
     align-items: center;

@@ -15,27 +15,14 @@
 //Currently selected user ID in the admin panel
 let selectedUserId = null;
 
-/**
- * Initialize the admin panel module
- * Sets up event listeners and refreshes user list badges
- */
+// Initialize admin panel, refresh badges, and show user list once loaded
 async function initializeAdminPanel() {
-    console.log('Admin panel module initialized');
-
-    // Attach all event listeners for admin functionality
     attachAdminEventListeners();
-
-    // Refresh user list badges after GM mappings load
     await refreshUserListBadges();
-
-    // Shows all users once they are loaded into User Management
     revealUserList();
 }
 
-/**
- * Attach all admin-related event listeners
- * Uses event delegation where possible for better performance
- */
+// Attach admin-related event listeners
 function attachAdminEventListeners() {
     // User item click handlers - shows user details panel
     const userItems = document.querySelectorAll('.user-item');
@@ -50,9 +37,9 @@ function attachAdminEventListeners() {
     }
 }
 
-// ============================================
-// USER SEARCH & FILTERING
-// ============================================
+/* ============================================
+   USER SEARCH & FILTERING
+   ============================================ */
 async function filterUsers() {
     const input = document.getElementById('userSearch');
     const userItemsContainer = document.getElementById('userItems');
@@ -85,10 +72,7 @@ const debouncedUserSearch = debounce(async (searchQuery, userItemsContainer) => 
     }
 }, 300);
 
-/**
- * Render user items in the list
- * @param {Array} users - Array of user objects from server
- */
+// Render full user list on admin panel (left side list)
 function renderUserItems(users) {
     const userItemsContainer = document.getElementById('userItems');
     userItemsContainer.innerHTML = '';
@@ -156,6 +140,7 @@ function renderUserItems(users) {
     });
 }
 
+// Show user list once loaded properly
 function revealUserList() {
     const spinner = document.getElementById('userListLoadingSpinner');
     const userItems = document.getElementById('userItems');

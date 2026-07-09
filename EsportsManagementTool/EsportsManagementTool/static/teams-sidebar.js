@@ -120,6 +120,7 @@ async function initializeViewSwitcher() {
 
         if (data.success && data.views && data.views.length > 0) {
             window.availableViews = data.views;
+            window.teamDivisionCounts = data.division_counts || {};
 
             const storedView = sessionStorage.getItem(VIEW_STORAGE_KEY);
             const validStoredView = window.availableViews.find(v => v.value === storedView);
@@ -157,7 +158,7 @@ function renderViewSwitcher() {
              data-value="${view.value}"
              data-base-label="${view.label.replace(/"/g, '&quot;')}"
              onclick="applyTeamsViewFilter('${view.value}', '${view.label.replace(/'/g, "\\'")}')">
-            ${view.label}
+            ${view.label} (${view.count ?? 0})
         </div>
     `).join('');
 
@@ -168,8 +169,9 @@ function renderViewSwitcher() {
             <div class="filter-box-flyout" id="divisionsFlyout">
                 ${DIVISION_ORDER.map(division => `
                     <div class="filter-box-flyout-item ${window.currentView === 'division' && savedDivision === division ? 'active' : ''}"
+                         data-base-label="${division}"
                          onclick="applyTeamsDivisionFilter('${division}')">
-                        ${division}
+                        ${division} (${window.teamDivisionCounts?.[division] ?? 0})
                     </div>
                 `).join('')}
             </div>
@@ -236,22 +238,12 @@ function hideViewSwitcher() {
     if (viewSwitcher) viewSwitcher.classList.add('hidden');
 }
 
-// Resets the team filter count when a new dropdown option is chosen.
-function resetTeamsViewItemLabels() {
-    document.querySelectorAll(
-        '#teamsViewFilterPanel > .filter-box-item[data-base-label], #pastSeasonsTeamsFlyout .filter-box-flyout-item[data-base-label]'
-    ).forEach(item => {
-        item.textContent = item.getAttribute('data-base-label');
-    });
-}
-
 /**
  * Selection handler for a plain (non-flyout) view item.
  * Opening/closing the panel is handled by the shared toggleFilterBox()/
  * closeAllFilterPanels() in universal-helpers.js.
  */
 function applyTeamsViewFilter(value, label) {
-    resetTeamsViewItemLabels();
     document.getElementById('teamsViewFilterLabel').textContent = label;
     _currentViewBaseLabel = label;
 
@@ -269,7 +261,6 @@ function applyTeamsViewFilter(value, label) {
  * Selection handler for a division flyout item.
  */
 function applyTeamsDivisionFilter(division) {
-    resetTeamsViewItemLabels();
     const label = `Division: ${division}`;
     document.getElementById('teamsViewFilterLabel').textContent = label;
     _currentViewBaseLabel = label;
@@ -890,7 +881,7 @@ async function loadPastSeasonsForTeamsFilter() {
                  data-season-id="${season.season_id}"
                  data-base-label="${season.season_name.replace(/"/g, '&quot;')}"
                  onclick="applyTeamsPastSeasonFilter('${season.season_id}', '${season.season_name.replace(/'/g, "\\'")}')">
-                ${season.season_name}
+                ${season.season_name} (${season.team_count ?? 0})
             </div>
         `).join('');
 
@@ -916,7 +907,6 @@ async function loadPastSeasonsForTeamsFilter() {
  * Selection handler for a past-season flyout item.
  */
 function applyTeamsPastSeasonFilter(seasonId, seasonName) {
-    resetTeamsViewItemLabels();
     const label = `Past Season: ${seasonName}`;
     document.getElementById('teamsViewFilterLabel').textContent = label;
     _currentViewBaseLabel = label;
@@ -1070,7 +1060,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 // EXPORT TO GLOBAL SCOPE
 // ============================================
-
 window.initializeViewSwitcher           = initializeViewSwitcher;
 window.renderViewSwitcher               = renderViewSwitcher;
 window.handleViewChange                 = handleViewChange;

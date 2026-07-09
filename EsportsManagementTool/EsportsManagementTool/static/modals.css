@@ -213,10 +213,10 @@
     margin-top: 0.25rem;
 }
 
-/* --------------------------------------------
+/* ======================================
    MODAL ACTION BUTTONS
    Buttons in modal footer/actions
-   -------------------------------------------- */
+   ====================================== */
 .form-actions {
     display: flex;
     gap: 1rem;
@@ -233,10 +233,10 @@
     gap: 0.5rem;
 }
 
-/* --------------------------------------------
+/* ============================================
    DELETE CONFIRMATION MODAL
-   Modal for confirming event deletion
-   -------------------------------------------- */
+   Universal modal for confirming event deletion
+   ============================================ */
 .delete-confirmation-modal {
     display: none;
     position: fixed;
@@ -331,9 +331,6 @@
     background: #dc2626;
 }
 
-/* =============================================
-   Additional confirmation modal design
-   ============================================= */
 .modal-body ul {
   list-style-type: disc;
   padding-left: 1.5rem;
@@ -420,10 +417,9 @@
     line-height: 1.4;
 }
 
-/* --------------------------------------------
-   EVENT POPUPS
-   Display list of events
-   -------------------------------------------- */
+/* ================================
+   Event popups
+   ================================ */
 .popup-event-item {
     position: absolute !important;
     z-index: 2000 !important;
@@ -611,11 +607,9 @@
     filter: drop-shadow(1px 0 0 var(--border-color, #222));
 }
 
-/* --------------------------------------------
-   Popup coloring
-   -------------------------------------------- */
-
-/* Event Details Popup - Icon Coloring (matches dashboard structure) */
+/* ===========================
+   Popup coloring (port to events.css)
+   =========================== */
 .event-popup-details[data-event-type="tournament"] .popup-icon {
     background: var(--event-tournament-light);
     color: var(--event-tournament);
