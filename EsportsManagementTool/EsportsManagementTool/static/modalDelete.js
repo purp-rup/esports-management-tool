@@ -222,10 +222,10 @@ const NotificationQueue = {
      * Reposition all active notifications with stacking
      */
     repositionAll() {
-        this.active.forEach((notif, index) => {
-            // Stack from top down
-            const topPosition = 20 + (index * this.stackOffset);
+        let topPosition = 20;
+        this.active.forEach((notif) => {
             notif.style.top = `${topPosition}px`;
+            topPosition += notif.offsetHeight + 16; 
         });
     }
 };

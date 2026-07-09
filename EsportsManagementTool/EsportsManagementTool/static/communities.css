@@ -913,3 +913,164 @@
 
     .community-banner-wrapper { height: 150px; }
 }
+/* ===================================
+   GAME COMMUNITIES HEADER — INFO ICON
+   Same visual language as .team-info-icon
+   (see teams.css), reused here for the
+   "Game Communities" header. Hover shows
+   the tooltip on desktop; a tap toggles
+   the .tooltip-open class on mobile/touch.
+   =================================== */
+.community-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.community-info-icon-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.community-info-icon {
+    font-size: 1.0625rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.2s ease;
+    line-height: 1;
+    display: block;
+}
+
+.community-info-icon-wrapper:hover .community-info-icon,
+.community-info-icon-wrapper.tooltip-open .community-info-icon {
+    color: var(--stockton-blue);
+}
+
+/* Tooltip panel — appears to the right of the icon on desktop */
+.community-info-tooltip {
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-4px);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    min-width: 260px;
+    max-width: 320px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 200;
+    white-space: normal;
+}
+
+.community-info-icon-wrapper:hover .community-info-tooltip,
+.community-info-icon-wrapper.tooltip-open .community-info-tooltip {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%) translateX(0);
+}
+
+/* Arrow pointing left from tooltip back to icon */
+.community-info-tooltip::before {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 6px solid transparent;
+    border-right-color: var(--border-color);
+}
+
+.community-info-tooltip::after {
+    content: '';
+    position: absolute;
+    right: calc(100% - 1px);
+    top: 50%;
+    transform: translateY(-50%);
+    border: 6px solid transparent;
+    border-right-color: var(--card-bg);
+}
+
+.community-info-tooltip-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.3rem 0;
+}
+
+.community-info-tooltip-row + .community-info-tooltip-row {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 0.2rem;
+    padding-top: 0.5rem;
+}
+
+.community-info-tooltip-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 55px;
+    padding-top: 0.1rem;
+}
+
+.community-info-tooltip-value {
+    font-size: 0.8125rem;
+    color: var(--text-primary);
+    text-align: left;
+    line-height: 1.4;
+    flex: 1;
+    min-width: 0;
+    white-space: normal;
+}
+
+/* ===================================
+   MOBILE — tooltip flips below the icon
+   instead of to the right, since there's
+   rarely room to the side on small screens.
+   Hover doesn't fire on touch, so the tap
+   -toggled .tooltip-open class (added in
+   communities.js) drives visibility here.
+   =================================== */
+@media (max-width: 768px) {
+    .community-info-tooltip {
+        left: auto;
+        right: -12px;
+        top: calc(100% + 10px);
+        transform: translateY(-4px);
+        min-width: 220px;
+        max-width: 260px;
+    }
+
+    .community-info-icon-wrapper:hover .community-info-tooltip,
+    .community-info-icon-wrapper.tooltip-open .community-info-tooltip {
+        transform: translateY(0);
+    }
+
+    /* Arrow now points up toward the icon instead of left */
+    .community-info-tooltip::before {
+        right: 16px;
+        top: -12px;
+        left: auto;
+        transform: none;
+        border-right-color: transparent;
+        border-bottom-color: var(--border-color);
+    }
+
+    .community-info-tooltip::after {
+        right: 17px;
+        top: -11px;
+        left: auto;
+        transform: none;
+        border-right-color: transparent;
+        border-bottom-color: var(--card-bg);
+    }
+}
