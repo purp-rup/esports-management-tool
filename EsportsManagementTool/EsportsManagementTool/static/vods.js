@@ -56,6 +56,7 @@ function loadTeamVods(teamID) {
     const isActiveSeason = window.currentTeamSeasonIsActive == 1;
     const isDeveloper = window.userPermissions?.is_developer || false;
     const canAddVods = (window.currentTeamCanManage || isDeveloper) && isActiveSeason;
+    const canDelete = window.currentTeamCanManage || isDeveloper;
 
     // Fetch VODs from API
     fetch(`/api/vods/team/${teamID}`)
@@ -84,7 +85,7 @@ function loadTeamVods(teamID) {
 
             // Render each VOD as a clickable card
             vods.forEach(vod => {
-                const vodItem = createVodElement(vod, canAddVods);
+                const vodItem = createVodElement(vod, canDelete);
                 vodsList.appendChild(vodItem);
             });
         })
@@ -386,19 +387,28 @@ function setSubmitButtonLoading(isLoading) {
  * @param {number} vodId - VOD ID to delete
  * @param {Event} event - Click event (to stop propagation)
  */
+let pendingDeleteVodId = null;
+
 function deleteVod(vodId, event) {
     // Prevent click from bubbling to parent VOD card
     if (event) event.stopPropagation();
+    pendingDeleteVodId = vodId;
+    document.getElementById('deleteVodModal').style.display = 'flex';
+}
 
-    // Confirm deletion with user
-    if (!confirm('Delete this VOD? This action cannot be undone.')) {
-        return;
-    }
+function closeDeleteVodModal() {
+    document.getElementById('deleteVodModal').style.display = 'none';
+    pendingDeleteVodId = null;
+}
+
+function confirmDeleteVod() {
+    if (!pendingDeleteVodId) return;
 
     // Make delete API request
-    fetch(`/api/vods/${vodId}`, {method: 'DELETE'})
+    fetch(`/api/vods/${pendingDeleteVodId}`, { method: 'DELETE' })
         .then(response => response.json())
         .then(result => {
+            closeDeleteVodModal();
             if (result.success) {
                 // Reload VODs list to show updated data
                 loadTeamVods(currentTeamIdForVods);
@@ -410,6 +420,7 @@ function deleteVod(vodId, event) {
         .catch(error => {
             // Handle network or other errors
             console.error('Error deleting VOD:', error);
+            closeDeleteVodModal();
             alert('Error deleting VOD. Please try again.');
         });
 }
@@ -553,3 +564,5 @@ window.playVideo = playVideo;
 window.showAddVodModal = showAddVodModal;
 window.closeAddVodModal = closeAddVodModal;
 window.deleteVod = deleteVod;
+window.closeDeleteVodModal = closeDeleteVodModal;
+window.confirmDeleteVod = confirmDeleteVod;
