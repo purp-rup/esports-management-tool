@@ -99,16 +99,20 @@
 /* ================================
    Communities page popup styles
    ================================ */
-.user-profile-popup {
-    position: absolute;
-    width: 260px;
-    background: #161616;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 0;
-    z-index: 51;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-    overflow: hidden;
+/* Desktop-only: floating card anchored near the clicked pill.
+   Below 768px, .mobile-sheet (dashboard-base.css) takes over instead. */
+@media (min-width: 769px) {
+    .user-profile-popup {
+        position: absolute;
+        width: 260px;
+        background: #161616;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 0;
+        z-index: 51;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        overflow: hidden;
+    }
 }
 
 /* Header */

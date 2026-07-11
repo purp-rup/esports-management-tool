@@ -125,6 +125,7 @@ function initFlyoutTriggers(scope = document) {
     scope.querySelectorAll('.filter-box-item--flyout').forEach(trigger => {
         trigger.addEventListener('mouseenter', () => positionFlyout(trigger));
 
+        // Triggers cards to open in mobile view
         if (window.innerWidth <= 768) {
             trigger.addEventListener('click', (e) => {
                 e.stopPropagation();

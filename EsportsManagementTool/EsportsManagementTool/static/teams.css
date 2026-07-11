@@ -1241,13 +1241,29 @@
         grid-template-columns: 1fr 1fr 1fr;
     }
 
+    /* Unwrap the stack so Add Player, Schedule Event, and Delete
+       all become direct grid items sharing the row equally */
+    .team-action-buttons-stack {
+        display: contents;
+    }
+
     .team-header-info h1 {
         font-size: 1.5rem;
     }
 
     .team-header-actions button {
-        flex: 1;
-        font-size: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem;
+    }
+
+    .team-header-actions button i {
+        font-size: 0.9rem;
+    }
+
+    .team-header-actions .btn-label {
+        display: none;
     }
 
     .team-tabs {

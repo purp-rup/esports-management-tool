@@ -942,19 +942,6 @@ select[multiple]:focus {
         margin: 0 auto 1rem;
     }
 
-    /* Backdrop */
-    .sheet-backdrop {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.5);
-        z-index: 499;
-    }
-
-    .sheet-backdrop.open {
-        display: block;
-    }
-
     /* Misc */
     .deletion-time-remaining {
         font-size: 0.7rem;
