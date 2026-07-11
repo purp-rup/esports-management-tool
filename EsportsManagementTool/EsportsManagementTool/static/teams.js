@@ -233,6 +233,14 @@ function populateTeamInfoTooltip(team) {
     if (tooltipLeagues) {
         tooltipLeagues.style.display = 'none';
     }
+
+    // Check if mobile to display sheet
+    document.querySelector('.team-info-icon').onclick = function(e) {
+        if (window.innerWidth <= 768) {
+            e.stopPropagation();
+            openTeamInfoSheet();
+        }
+    }
 }
 
 // Display leagues — updates both the hidden compat element and the tooltip
@@ -1248,6 +1256,24 @@ function formatTimeRemaining(days, hours) {
     } else {
         return `${hours} hour${hours !== 1 ? 's' : ''}`;
     }
+}
+
+// Open info sheet if on mobile
+function openTeamInfoSheet() {
+    // Copy the tooltip content into the sheet
+    const tooltip = document.querySelector('.team-info-tooltip');
+    const title = document.getElementById('teamDetailTitle')?.textContent || 'Team Info';
+
+    document.getElementById('teamInfoSheetTitle').textContent = title;
+    document.getElementById('teamInfoSheetContent').innerHTML = tooltip ? tooltip.innerHTML : '';
+
+    document.getElementById('teamInfoSheet').classList.add('sheet-open');
+    document.getElementById('teamInfoSheetBackdrop').classList.add('open');
+}
+
+function closeTeamInfoSheet() {
+    document.getElementById('teamInfoSheet').classList.remove('sheet-open');
+    document.getElementById('teamInfoSheetBackdrop').classList.remove('open');
 }
 
 // ============================================

@@ -1289,22 +1289,13 @@
         font-size: 0.75rem;
     }
 
-    /* On mobile, show tooltip below instead of to the right */
+    /* On mobile, open a bottom sheet instead of displaying on the i */
     .team-info-tooltip {
-        left: 0;
-        top: calc(100% + 10px);
-        transform: translateX(0) translateY(4px);
-        white-space: normal;
-        min-width: 200px;
+        display: none !important;
     }
 
-    .team-info-icon-wrapper:hover .team-info-tooltip {
-        transform: translateX(0) translateY(0);
-    }
-
-    .team-info-tooltip::before,
-    .team-info-tooltip::after {
-        display: none;
+    .team-info-icon {
+        cursor: pointer;
     }
 
     /* --- Cards --- */
@@ -1364,4 +1355,43 @@
     .teams-main-content {
         padding: 1rem;
     }
+}
+
+/* Team info bottom sheet (mobile only) */
+.team-info-sheet {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    border-radius: 16px 16px 0 0;
+    padding: 1rem 1.25rem 2rem;
+    z-index: 600;
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+}
+
+.team-info-sheet.sheet-open {
+    display: block;
+    transform: translateY(0);
+}
+
+.team-info-sheet::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    margin: 0 auto 1rem;
+}
+
+.team-info-sheet-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 1rem 0;
 }
