@@ -1,7 +1,7 @@
 /**
- * tournament-results.js
+ * playoffs-results.js
  * ============================================================================
- * Handles tournament results recording interface for Game Managers
+ * Handles playoffs results recording interface for Game Managers
  * ============================================================================
  */
 
@@ -21,29 +21,29 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================
 
 /**
- * Check if GM has pending tournament results
+ * Check if GM has pending playoffs results
  * Shows banner if within 7 days of season end, once per day per browser session
  */
 function checkPendingResults() {
     // Only show banner once per day — check localStorage for today's date
     const today = new Date().toISOString().split('T')[0];
-    const lastShown = localStorage.getItem('tournamentBannerDate');
+    const lastShown = localStorage.getItem('playoffsBannerDate');
     if (lastShown === today) {
         return; // Already shown today, skip API call entirely
     }
 
-    fetch('/api/tournament-results/check-pending')
+    fetch('/api/playoffs-results/check-pending')
         .then(response => response.json())
         .then(data => {
             if (data.success && data.has_pending) {
-                showTournamentBanner(
+                showPlayoffsBanner(
                     data.pending_count, 
                     data.days_until_end,
                     data.season_name
                 );
                 // Record that we showed the banner today so it won't reappear until tomorrow
                 const today = new Date().toISOString().split('T')[0];
-                localStorage.setItem('tournamentBannerDate', today);
+                localStorage.setItem('playoffsBannerDate', today);
             }
         })
         .catch(error => {
@@ -52,9 +52,9 @@ function checkPendingResults() {
 }
 
 /**
- * Display the tournament results notification banner
+ * Display the playoffs results notification banner
  */
-function showTournamentBanner(pendingCount, daysUntilEnd, seasonName) {
+function showPlayoffsBanner(pendingCount, daysUntilEnd, seasonName) {
     // Remove the session storage check - we want the banner to show on every page load
     // The user can dismiss it temporarily, but it will come back on refresh
     
@@ -62,26 +62,26 @@ function showTournamentBanner(pendingCount, daysUntilEnd, seasonName) {
     const urgentText = daysUntilEnd <= 3 ? 'URGENT: ' : '';
     
     const banner = document.createElement('div');
-    banner.className = `tournament-banner ${urgentClass}`;
-    banner.id = 'tournamentBanner';
+    banner.className = `playoffs-banner ${urgentClass}`;
+    banner.id = 'playoffsBanner';
     
     banner.innerHTML = `
-        <div class="tournament-banner-content">
-            <div class="tournament-banner-left">
-                <div class="tournament-banner-icon">
+        <div class="playoffs-banner-content">
+            <div class="playoffs-banner-left">
+                <div class="playoffs-banner-icon">
                     <i class="fas fa-trophy"></i>
                 </div>
-                <div class="tournament-banner-text">
-                    <h3>${urgentText}Tournament Results Need Recording</h3>
+                <div class="playoffs-banner-text">
+                    <h3>${urgentText}Playoffs Results Need Recording</h3>
                     <p>${pendingCount} team(s) need results recorded for ${seasonName} • ${daysUntilEnd} day(s) remaining</p>
                 </div>
             </div>
-            <div class="tournament-banner-actions">
-                <button class="tournament-banner-btn" onclick="openRecordResultsModal()">
+            <div class="playoffs-banner-actions">
+                <button class="playoffs-banner-btn" onclick="openRecordResultsModal()">
                     <i class="fas fa-clipboard-check"></i>
                     Record Results Now
                 </button>
-                <button class="tournament-banner-close" onclick="dismissTournamentBanner()">
+                <button class="playoffs-banner-close" onclick="dismissPlayoffsBanner()">
                     Dismiss
                 </button>
             </div>
@@ -90,19 +90,19 @@ function showTournamentBanner(pendingCount, daysUntilEnd, seasonName) {
     
     // Insert banner at top of page
     document.body.insertBefore(banner, document.body.firstChild);
-    document.body.classList.add('has-tournament-banner');
+    document.body.classList.add('has-playoffs-banner');
 }
 
 /**
  * Dismiss banner for this session
  */
-function dismissTournamentBanner() {
-    const banner = document.getElementById('tournamentBanner');
+function dismissPlayoffsBanner() {
+    const banner = document.getElementById('playoffsBanner');
     if (banner) {
         banner.style.animation = 'bannerSlideUp 0.5s ease-out';
         setTimeout(() => {
             banner.remove();
-            document.body.classList.remove('has-tournament-banner');
+            document.body.classList.remove('has-playoffs-banner');
         }, 500);
     }
     
@@ -129,17 +129,17 @@ document.head.appendChild(style);
 // ============================================
 
 /**
- * Open modal to record tournament results
+ * Open modal to record playoffs results
  */
 function openRecordResultsModal() {
     // Load pending teams
-    fetch('/api/tournament-results/pending-teams')
+    fetch('/api/playoffs-results/pending-teams')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 if (data.teams.length === 0) {
-                    showMessage('success', 'All tournament results have been recorded! Great job!');
-                    dismissTournamentBanner();
+                    showMessage('success', 'All playoffs results have been recorded! Great job!');
+                    dismissPlayoffsBanner();
                     return;
                 }
                 
@@ -169,42 +169,42 @@ function displayRecordResultsModal(teams, season, placementOptions) {
     
     // Build team list HTML using createElement to avoid template literal issues
     const resultsContainer = document.createElement('div');
-    resultsContainer.className = 'tournament-results-container';
+    resultsContainer.className = 'playoffs-results-container';
     
     for (const [gameTitle, gameTeams] of Object.entries(teamsByGame)) {
         // Create game section
         const gameSection = document.createElement('div');
-        gameSection.className = 'tournament-game-section';
+        gameSection.className = 'playoffs-game-section';
         
         // Game title
         const gameTitleEl = document.createElement('h4');
-        gameTitleEl.className = 'tournament-game-title';
+        gameTitleEl.className = 'playoffs-game-title';
         gameTitleEl.innerHTML = '<i class="fas fa-gamepad"></i> ' + gameTitle;
         gameSection.appendChild(gameTitleEl);
         
         // Teams list
         const teamsList = document.createElement('div');
-        teamsList.className = 'tournament-teams-list';
+        teamsList.className = 'playoffs-teams-list';
         
         gameTeams.forEach(team => {
             // Team card
             const teamCard = document.createElement('div');
-            teamCard.className = 'tournament-team-card';
+            teamCard.className = 'playoffs-team-card';
             teamCard.setAttribute('data-team-id', team.teamID);
             teamCard.setAttribute('data-league-id', team.league_id);
             
             // Team info
             const teamInfo = document.createElement('div');
-            teamInfo.className = 'tournament-team-info';
+            teamInfo.className = 'playoffs-team-info';
             teamInfo.innerHTML = '<h5>' + team.TeamTitle + '</h5><p>League: ' + team.league_name + '</p>';
             
             // Team actions
             const teamActions = document.createElement('div');
-            teamActions.className = 'tournament-team-actions';
+            teamActions.className = 'playoffs-team-actions';
             
             // Select dropdown
             const select = document.createElement('select');
-            select.className = 'tournament-placement-select';
+            select.className = 'playoffs-placement-select';
             select.setAttribute('data-team-id', team.teamID);
             select.setAttribute('data-league-id', team.league_id);
             
@@ -252,7 +252,7 @@ function displayRecordResultsModal(teams, season, placementOptions) {
     // Modal header
     const modalHeader = document.createElement('div');
     modalHeader.className = 'modal-header';
-    modalHeader.innerHTML = '<h2>Record Tournament Results - ' + season.season_name + '</h2>' +
+    modalHeader.innerHTML = '<h2>Record Playoffs Results - ' + season.season_name + '</h2>' +
         '<button class="modal-close" onclick="closeRecordResultsModal()">' +
         '<i class="fas fa-times"></i></button>';
     
@@ -262,19 +262,19 @@ function displayRecordResultsModal(teams, season, placementOptions) {
     
     const subtitle = document.createElement('p');
     subtitle.className = 'modal-subtitle';
-    subtitle.innerHTML = 'Record final tournament placements for your teams. ' +
+    subtitle.innerHTML = 'Record final playoffs placements for your teams. ' +
         'Season ends: <strong>' + formatDate(season.end_date) + '</strong>';
     
     const messageDiv = document.createElement('div');
-    messageDiv.id = 'tournamentResultsMessage';
+    messageDiv.id = 'playoffsResultsMessage';
     messageDiv.className = 'form-message';
     messageDiv.style.display = 'none';
     
     // Notes section
     const notesSection = document.createElement('div');
-    notesSection.className = 'tournament-notes-section';
-    notesSection.innerHTML = '<label for="tournamentNotes">Additional Notes (Optional)</label>' +
-        '<textarea id="tournamentNotes" rows="3" placeholder="Add any additional context or notes about the season..."></textarea>';
+    notesSection.className = 'playoffs-notes-section';
+    notesSection.innerHTML = '<label for="playoffsNotes">Additional Notes (Optional)</label>' +
+        '<textarea id="playoffsNotes" rows="3" placeholder="Add any additional context or notes about the season..."></textarea>';
     
     modalBody.appendChild(subtitle);
     modalBody.appendChild(messageDiv);
@@ -282,7 +282,7 @@ function displayRecordResultsModal(teams, season, placementOptions) {
     modalBody.appendChild(notesSection);
     
     // Character Counter
-    attachCharacterCounter('tournamentNotes', 250);
+    attachCharacterCounter('playoffsNotes', 250);
 
     // Modal footer
     const modalFooter = document.createElement('div');
@@ -302,7 +302,7 @@ function displayRecordResultsModal(teams, season, placementOptions) {
  */
 function recordSingleResult(teamId, leagueId, seasonId) {
     // Find the select element for this specific team-league combination
-    const select = document.querySelector(`select.tournament-placement-select[data-team-id="${teamId}"]`);
+    const select = document.querySelector(`select.playoffs-placement-select[data-team-id="${teamId}"]`);
     
     if (!select) {
         console.error('Could not find select element for team:', teamId);
@@ -317,7 +317,7 @@ function recordSingleResult(teamId, leagueId, seasonId) {
         return;
     }
     
-    const notes = document.getElementById('tournamentNotes')?.value || '';
+    const notes = document.getElementById('playoffsNotes')?.value || '';
     
     // Get the button that was clicked
     const button = window.event ? window.event.target.closest('button') : null;
@@ -331,7 +331,7 @@ function recordSingleResult(teamId, leagueId, seasonId) {
     
     console.log('Recording result:', { teamId, leagueId, seasonId, placement, notes });
     
-    fetch('/api/tournament-results/record', {
+    fetch('/api/playoffs-results/record', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -353,20 +353,20 @@ function recordSingleResult(teamId, leagueId, seasonId) {
         
         if (data.success) {
             // Remove the team card from display
-            const teamCard = document.querySelector(`.tournament-team-card[data-team-id="${teamId}"][data-league-id="${leagueId}"]`);
+            const teamCard = document.querySelector(`.playoffs-team-card[data-team-id="${teamId}"][data-league-id="${leagueId}"]`);
             if (teamCard) {
                 teamCard.style.animation = 'fadeOut 0.3s ease-out';
                 setTimeout(() => {
                     teamCard.remove();
                     
                     // Check if all teams are done
-                    const remainingTeams = document.querySelectorAll('.tournament-team-card');
+                    const remainingTeams = document.querySelectorAll('.playoffs-team-card');
                     if (remainingTeams.length === 0) {
                         showModalMessage('success', 'All results recorded! Closing modal...');
                         setTimeout(() => {
                             closeRecordResultsModal();
-                            dismissTournamentBanner();
-                            showMessage('success', 'All tournament results have been recorded successfully!');
+                            dismissPlayoffsBanner();
+                            showMessage('success', 'All playoffs results have been recorded successfully!');
                         }, 1500);
                     } else {
                         showModalMessage('success', 'Result saved successfully!');
@@ -408,7 +408,7 @@ function closeRecordResultsModal() {
  * Show message in modal
  */
 function showModalMessage(type, message) {
-    const messageDiv = document.getElementById('tournamentResultsMessage');
+    const messageDiv = document.getElementById('playoffsResultsMessage');
     if (messageDiv) {
         messageDiv.textContent = message;
         messageDiv.className = `form-message form-message-${type}`;
@@ -455,4 +455,4 @@ window.checkPendingResults = checkPendingResults;
 window.openRecordResultsModal = openRecordResultsModal;
 window.closeRecordResultsModal = closeRecordResultsModal;
 window.recordSingleResult = recordSingleResult;
-window.dismissTournamentBanner = dismissTournamentBanner;
+window.dismissPlayoffsBanner = dismissPlayoffsBanner;

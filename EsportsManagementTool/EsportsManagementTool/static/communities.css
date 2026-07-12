@@ -883,10 +883,8 @@
 }
 
 /* ===================================
-   RESPONSIVE DESIGN
-   Mobile and tablet adaptations
+   Mobile Friendliness
    =================================== */
-
 @media (max-width: 768px) {
     .my-communities-grid {
         grid-template-columns: 1fr;

@@ -157,7 +157,7 @@ function enableDropdown(dropdown) {
 
 /**
  * Attach a live character counter to a text area.
- * Used by events.js, scheduled-events.js, manage-communities.js, dashboard.js, & tournament-results.js
+ * Used by events.js, scheduled-events.js, manage-communities.js, dashboard.js, & playoffs-results.js
  */
 function attachCharacterCounter(textareaId, maxLength) {
     const textarea = document.getElementById(textareaId);

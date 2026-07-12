@@ -151,14 +151,14 @@
     </section>
 
     <!-- ================================ -->
-    <!-- TOURNAMENT PLACEMENTS BY LEAGUE -->
+    <!-- PLAYOFFS PLACEMENTS BY LEAGUE -->
     <!-- ================================ -->
     <section class="stats-section">
-        <h2>Tournament Performance</h2>
+        <h2>Playoffs Performance</h2>
         
-        {% if statistics.tournament_placements_by_league %}
+        {% if statistics.playoffs_placements_by_league %}
         <div class="league-stats-container">
-            {% for league in statistics.tournament_placements_by_league %}
+            {% for league in statistics.playoffs_placements_by_league %}
             <div class="league-card">
                 <div class="league-header">
                     <div class="league-title">
@@ -244,7 +244,7 @@
         {% else %}
         <div class="empty-state">
             <i class="fas fa-trophy"></i>
-            <p>No tournament data available for this period</p>
+            <p>No playoffs data available for this period</p>
         </div>
         {% endif %}
     </section>

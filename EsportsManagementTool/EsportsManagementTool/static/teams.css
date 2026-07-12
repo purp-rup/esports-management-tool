@@ -165,12 +165,9 @@
     color: var(--stockton-blue);
 }
 
-/* Tooltip panel — appears to the right */
+/* Tooltip panel */
 .team-info-tooltip {
-    position: absolute;
-    left: calc(100% + 12px);
-    top: 50%;
-    transform: translateY(-50%) translateX(-4px);
+    position: fixed;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 10px;
@@ -180,6 +177,7 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s ease, transform 0.15s ease;
+    transform: translateX(-4px);
     z-index: 200;
     white-space: nowrap;
 }
@@ -187,7 +185,7 @@
 .team-info-icon-wrapper:hover .team-info-tooltip {
     opacity: 1;
     pointer-events: auto;
-    transform: translateY(-40%) translateX(0);
+    transform: translateX(0);
 }
 
 /* Arrow pointing left from tooltip back to icon */
@@ -356,13 +354,6 @@
     color: #ff5252;
     font-size: 0.875rem;
     font-weight: 600;
-}
-
-/* --------------------------------------------
-   TEAM DETAIL LEAGUES (hidden — data lives in tooltip)
-   -------------------------------------------- */
-#teamDetailLeagues {
-    display: none !important;
 }
 
 /* --------------------------------------------

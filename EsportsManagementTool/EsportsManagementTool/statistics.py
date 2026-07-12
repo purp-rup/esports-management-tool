@@ -326,14 +326,13 @@ class EsportsStatistics:
         return result['count'] if result else 0
     
     # =====================================
-    # TOURNAMENT PLACEMENT STATISTICS
+    # PLAYOFFS PLACEMENT STATISTICS
     # =====================================
-    
-    def get_tournament_placements(self):
-        from EsportsManagementTool import tournament_results
+    def get_playoffs_placements(self):
+        from EsportsManagementTool import playoffs_results
         
-        # Actually queries the tournament_results table
-        return tournament_results.get_tournament_results_for_season(self.mysql, self.season_id)
+        # Actually queries the playoffs_results table
+        return playoffs_results.get_playoffs_results_for_season(self.mysql, self.season_id)
     
     # =====================================
     # LEAGUE-SPECIFIC STATISTICS
@@ -457,14 +456,14 @@ class EsportsStatistics:
     # COMPREHENSIVE STATISTICS
     # =====================================
     
-    def get_tournament_placements_by_league(self):
+    def get_playoffs_placements_by_league(self):
         """
-        Get tournament results grouped by league
+        Get playoffs results grouped by league
         Returns: list of dicts with league stats and placements
         """
         cursor = self.cursor
         
-        # Get all leagues that have teams with tournament results
+        # Get all leagues that have teams with playoffs results
         query = """
             SELECT DISTINCT l.id, l.name
             FROM league l
@@ -490,7 +489,7 @@ class EsportsStatistics:
                 SELECT 
                     tr.placement,
                     COUNT(*) as count
-                FROM tournament_results tr
+                FROM playoffs_results tr
                 WHERE tr.league_id = %s
             """
             
@@ -535,7 +534,7 @@ class EsportsStatistics:
                 SELECT COUNT(DISTINCT t.TeamID) as count
                 FROM teams t
                 JOIN team_leagues tl ON t.TeamID = tl.team_id
-                LEFT JOIN tournament_results tr ON (
+                LEFT JOIN playoffs_results tr ON (
                     tr.team_id = t.TeamID 
                     AND tr.league_id = %s
             """
@@ -616,8 +615,8 @@ class EsportsStatistics:
                 'did_not_return': self.get_did_not_return(),
                 'multi_team_players': self.get_multi_team_players(),
             },
-            'tournament_placements': self.get_tournament_placements(),
-            'tournament_placements_by_league': self.get_tournament_placements_by_league(),  
+            'playoffs_placements': self.get_playoffs_placements(),
+            'playoffs_placements_by_league': self.get_playoffs_placements_by_league(),
             'league_breakdown': self.get_league_breakdown(),
         }
         

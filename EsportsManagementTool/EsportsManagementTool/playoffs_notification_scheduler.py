@@ -1,6 +1,6 @@
 """
-Tournament Results Notification Scheduler
-Sends email reminders to Game Managers to record tournament results
+Playoffs Results Notification Scheduler
+Sends email reminders to Game Managers to record playoffs results
 """
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -9,9 +9,9 @@ from EsportsManagementTool import email_manager
 import MySQLdb.cursors
 
 
-def initialize_tournament_scheduler(app, mysql):
+def initialize_playoffs_scheduler(app, mysql):
     """
-    Initialize the tournament notification scheduler
+    Initialize the playoffs notification scheduler
     Runs daily to check and send reminders
     """
     scheduler = BackgroundScheduler()
@@ -20,13 +20,13 @@ def initialize_tournament_scheduler(app, mysql):
     scheduler.add_job(
         func=lambda: check_and_send_reminders(app, mysql),
         trigger=CronTrigger(hour=9, minute=0),
-        id='tournament_reminders',
-        name='Send tournament result reminders to GMs',
+        id='playoffs_reminders',
+        name='Send playoffs result reminders to GMs',
         replace_existing=True
     )
     
     scheduler.start()
-    print("Tournament notification scheduler initialized")
+    print("Playoffs notification scheduler initialized")
     
     # Shutdown scheduler when app closes
     import atexit
@@ -72,13 +72,13 @@ def check_and_send_reminders(app, mysql):
                     send_season_reminders(mysql, season_id, season_name, end_date, days_until_end)
                     
         except Exception as e:
-            print(f"Error in tournament reminder scheduler: {str(e)}")
+            print(f"Error in playoffs reminder scheduler: {str(e)}")
         finally:
             cursor.close()
 
 def send_season_reminders(mysql, season_id, season_name, end_date, days_until_end):
     """
-    Send reminders to all GMs who haven't completed their tournament results
+    Send reminders to all GMs who haven't completed their playoffs results
     """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
@@ -99,7 +99,7 @@ def send_season_reminders(mysql, season_id, season_name, end_date, days_until_en
             AND t.season_id = %s
             AND NOT EXISTS (
                 SELECT 1 
-                FROM tournament_result_notifications trn
+                FROM playoffs_result_notifications trn
                 WHERE trn.gm_id = u.id 
                 AND trn.season_id = %s
                 AND trn.game_id = g.GameID
@@ -119,7 +119,7 @@ def send_season_reminders(mysql, season_id, season_name, end_date, days_until_en
                 SELECT COUNT(DISTINCT t.teamID) as pending_count
                 FROM teams t
                 JOIN team_leagues tl ON t.teamID = tl.team_id
-                LEFT JOIN tournament_results tr ON (
+                LEFT JOIN playoffs_results tr ON (
                     tr.team_id = t.teamID 
                     AND tr.league_id = tl.league_id 
                     AND tr.season_id = %s
@@ -136,7 +136,7 @@ def send_season_reminders(mysql, season_id, season_name, end_date, days_until_en
                 # Check last reminder sent
                 cursor.execute("""
                     SELECT last_reminder_sent, reminder_count
-                    FROM tournament_result_notifications
+                    FROM playoffs_result_notifications
                     WHERE gm_id = %s AND season_id = %s AND game_id = %s
                 """, (gm_id, season_id, game_id))
                 
@@ -160,14 +160,14 @@ def send_season_reminders(mysql, season_id, season_name, end_date, days_until_en
                 # Update or create notification record
                 if notification_record:
                     cursor.execute("""
-                        UPDATE tournament_result_notifications
+                        UPDATE playoffs_result_notifications
                         SET last_reminder_sent = NOW(),
                             reminder_count = reminder_count + 1
                         WHERE gm_id = %s AND season_id = %s AND game_id = %s
                     """, (gm_id, season_id, game_id))
                 else:
                     cursor.execute("""
-                        INSERT INTO tournament_result_notifications
+                        INSERT INTO playoffs_result_notifications
                         (gm_id, season_id, game_id, last_reminder_sent, reminder_count)
                         VALUES (%s, %s, %s, NOW(), 1)
                     """, (gm_id, season_id, game_id))

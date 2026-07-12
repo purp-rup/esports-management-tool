@@ -1,6 +1,6 @@
 """
-Tournament Results Management Module
-Handles recording and tracking of tournament placements for teams
+Playoffs Results Management Module
+Handles recording and tracking of playoffs placements for teams
 """
 from EsportsManagementTool.universal_helpers import get_user_permissions
 from flask import jsonify, request, session
@@ -19,17 +19,17 @@ PLACEMENT_OPTIONS = [
 ]
 
 
-def register_tournament_results_routes(app, mysql, login_required, roles_required):
+def register_playoffs_results_routes(app, mysql, login_required, roles_required):
     """
-    Register tournament results routes with the Flask app
+    Register playoffs results routes with the Flask app
     """
     
-    @app.route('/api/tournament-results/pending-teams', methods=['GET'])
+    @app.route('/api/playoffs-results/pending-teams', methods=['GET'])
     @login_required
     @roles_required('gm')
     def get_pending_teams():
         """
-        Get teams that need tournament results recorded for current GM
+        Get teams that need playoffs results recorded for current GM
         Returns teams from active season that GM manages and haven't recorded results yet
         """
         gm_id = session.get('id')
@@ -71,7 +71,7 @@ def register_tournament_results_routes(app, mysql, login_required, roles_require
                 JOIN games g ON t.gameID = g.GameID
                 JOIN team_leagues tl ON t.teamID = tl.team_id
                 JOIN league l ON tl.league_id = l.id
-                LEFT JOIN tournament_results tr ON (
+                LEFT JOIN playoffs_results tr ON (
                     tr.team_id = t.teamID 
                     AND tr.league_id = l.id 
                     AND tr.season_id = %s
@@ -120,12 +120,12 @@ def register_tournament_results_routes(app, mysql, login_required, roles_require
             cursor.close()
     
     
-    @app.route('/api/tournament-results/record', methods=['POST'])
+    @app.route('/api/playoffs-results/record', methods=['POST'])
     @login_required
     @roles_required('gm')
-    def record_tournament_result():
+    def record_playoffs_result():
         """
-        Record tournament result for a team
+        Record playoffs result for a team
         """
         gm_id = session.get('id')
         data = request.get_json()
@@ -168,9 +168,9 @@ def register_tournament_results_routes(app, mysql, login_required, roles_require
                     'message': 'You do not manage this team'
                 }), 403
             
-            # Insert or update tournament result
+            # Insert or update playoffs result
             cursor.execute("""
-                INSERT INTO tournament_results 
+                INSERT INTO playoffs_results 
                 (team_id, league_id, season_id, placement, notes, recorded_by)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE
@@ -187,26 +187,26 @@ def register_tournament_results_routes(app, mysql, login_required, roles_require
             
             return jsonify({
                 'success': True,
-                'message': 'Tournament result recorded successfully'
+                'message': 'playoffs result recorded successfully'
             }), 200
             
         except Exception as e:
             mysql.connection.rollback()
-            print(f"Error recording tournament result: {str(e)}")
+            print(f"Error recording playoffs result: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': 'Failed to record tournament result'
+                'message': 'Failed to record playoffs result'
             }), 500
         finally:
             cursor.close()
     
     
-    @app.route('/api/tournament-results/check-pending', methods=['GET'])
+    @app.route('/api/playoffs-results/check-pending', methods=['GET'])
     @login_required
     @roles_required('gm')
     def check_pending_results():
         """
-        Check if current GM has pending tournament results to record
+        Check if current GM has pending playoffs results to record
         Returns count and whether to show notification banner
 
         Banner display schedule:
@@ -254,7 +254,7 @@ def register_tournament_results_routes(app, mysql, login_required, roles_require
                 FROM teams t
                 JOIN games g ON t.gameID = g.GameID
                 JOIN team_leagues tl ON t.teamID = tl.team_id
-                LEFT JOIN tournament_results tr ON (
+                LEFT JOIN playoffs_results tr ON (
                     tr.team_id = t.teamID 
                     AND tr.league_id = tl.league_id 
                     AND tr.season_id = %s
@@ -287,7 +287,7 @@ def register_tournament_results_routes(app, mysql, login_required, roles_require
 
 def check_gm_completion(mysql, gm_id, season_id):
     """
-    Check if GM has completed all tournament results and update notification status
+    Check if GM has completed all playoffs results and update notification status
     """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
@@ -298,7 +298,7 @@ def check_gm_completion(mysql, gm_id, season_id):
             FROM teams t
             JOIN games g ON t.gameID = g.GameID
             JOIN team_leagues tl ON t.teamID = tl.team_id
-            LEFT JOIN tournament_results tr ON (
+            LEFT JOIN playoffs_results tr ON (
                 tr.team_id = t.teamID 
                 AND tr.league_id = tl.league_id 
                 AND tr.season_id = %s
@@ -313,7 +313,7 @@ def check_gm_completion(mysql, gm_id, season_id):
         if result['pending_count'] == 0:
             # Mark notification as completed
             cursor.execute("""
-                UPDATE tournament_result_notifications
+                UPDATE playoffs_result_notifications
                 SET is_completed = TRUE
                 WHERE gm_id = %s AND season_id = %s
             """, (gm_id, season_id))
@@ -326,13 +326,13 @@ def check_gm_completion(mysql, gm_id, season_id):
         cursor.close()
 
 
-def get_tournament_results_for_season(mysql, season_id=None):
+def get_playoffs_results_for_season(mysql, season_id=None):
     """
-    Get tournament results aggregated for statistics page
+    Get playoffs results aggregated for statistics page
     Returns counts for each placement category
     
     This function is used by the statistics module to populate the 
-    Tournament Performance section of the admin statistics page
+    Playoffs Performance section of the admin statistics page
     """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
@@ -341,7 +341,7 @@ def get_tournament_results_for_season(mysql, season_id=None):
             SELECT 
                 placement,
                 COUNT(*) as count
-            FROM tournament_results
+            FROM playoffs_results
         """
         
         if season_id:
@@ -385,7 +385,7 @@ def get_tournament_results_for_season(mysql, season_id=None):
                 SELECT COUNT(DISTINCT t.teamID) as count
                 FROM teams t
                 JOIN team_leagues tl ON t.teamID = tl.team_id
-                LEFT JOIN tournament_results tr ON (
+                LEFT JOIN playoffs_results tr ON (
                     tr.team_id = t.teamID 
                     AND tr.league_id = tl.league_id 
                     AND tr.season_id = %s
@@ -401,7 +401,7 @@ def get_tournament_results_for_season(mysql, season_id=None):
         return placements
         
     except Exception as e:
-        print(f"Error getting tournament results: {str(e)}")
+        print(f"Error getting playoffs results: {str(e)}")
         import traceback
         traceback.print_exc()
         return {

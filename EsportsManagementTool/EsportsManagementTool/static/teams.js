@@ -241,65 +241,39 @@ function populateTeamInfoTooltip(team) {
             openTeamInfoSheet();
         }
     }
+
+    /* Position the tooltip via JS so it can't get clipped off the top of
+     * the viewport when the icon sits near the top of the panel.
+     */
+    const infoWrapper = document.querySelector('.team-info-icon-wrapper');
+    if (infoWrapper) {
+        infoWrapper.onmouseenter = function() {
+            positionTeamInfoTooltip(infoWrapper);
+        };
+    }
 }
 
-// Display leagues — updates both the hidden compat element and the tooltip
+// Display leagues — updates both the hidden compact element and the tooltip
 async function displayTeamLeaguesInSubheader(teamId) {
     try {
         const response = await fetch(`/api/teams/${teamId}/leagues`);
         const data = await response.json();
-
-        const leaguesElement = document.getElementById('teamDetailLeagues');
-
-        if (!leaguesElement) {
-            console.warn('teamDetailLeagues element not found');
-            return;
-        }
 
         // Tooltip league row elements
         const tooltipLeagues = document.getElementById('tooltipLeagues');
         const tooltipLeaguesValue = document.getElementById('tooltipLeaguesValue');
 
         if (data.success && data.leagues && data.leagues.length > 0) {
-            // Build leagues HTML for the hidden compat element
-            const leaguesHTML = data.leagues.map(league => {
-                const logoHTML = league.logo
-                    ? `<img src="${league.logo}" alt="${league.name}" class="team-league-logo">`
-                    : '<i class="fas fa-trophy team-league-icon"></i>';
-
-                const content = `${logoHTML}<span class="team-league-name">${league.name}</span>`;
-
-                if (league.website_url) {
-                    return `
-                        <a href="${league.website_url}"
-                           target="_blank"
-                           rel="noopener noreferrer"
-                           class="team-league-link"
-                           title="Visit ${league.name} website">
-                            ${content}
-                            <i class="fas fa-external-link-alt team-league-external"></i>
-                        </a>
-                    `;
-                } else {
-                    return `<span class="team-league-item">${content}</span>`;
-                }
-            }).join('');
-
-            leaguesElement.innerHTML = `League(s): ${leaguesHTML}`;
-
             // Populate tooltip with plain league names (comma-separated)
             if (tooltipLeagues && tooltipLeaguesValue) {
                 tooltipLeaguesValue.textContent = data.leagues.map(l => l.name).join(', ');
                 tooltipLeagues.style.display = 'flex';
             }
         } else {
-            leaguesElement.style.display = 'none';
             if (tooltipLeagues) tooltipLeagues.style.display = 'none';
         }
     } catch (error) {
         console.error('Error loading team leagues:', error);
-        const leaguesElement = document.getElementById('teamDetailLeagues');
-        if (leaguesElement) leaguesElement.style.display = 'none';
         const tooltipLeagues = document.getElementById('tooltipLeagues');
         if (tooltipLeagues) tooltipLeagues.style.display = 'none';
     }
@@ -1274,6 +1248,31 @@ function openTeamInfoSheet() {
 function closeTeamInfoSheet() {
     document.getElementById('teamInfoSheet').classList.remove('sheet-open');
     document.getElementById('teamInfoSheetBackdrop').classList.remove('open');
+}
+
+// Position the team-info tooltip to avoid being cut off on top.
+function positionTeamInfoTooltip(wrapperEl) {
+    if (window.innerWidth <= 768) return; // mobile uses the sheet instead
+
+    const tooltip = wrapperEl.querySelector('.team-info-tooltip');
+    const icon = wrapperEl.querySelector('.team-info-icon');
+    if (!tooltip || !icon) return;
+
+    const iconRect = icon.getBoundingClientRect();
+
+    // Measure the tooltip's real height without it being visibly shown yet
+    tooltip.style.visibility = 'hidden';
+    tooltip.style.display = 'block';
+    const tooltipRect = tooltip.getBoundingClientRect();
+    tooltip.style.display = '';
+    tooltip.style.visibility = '';
+
+    const margin = 8;
+    let top = iconRect.top + (iconRect.height / 2) - (tooltipRect.height / 2);
+    top = Math.max(margin, Math.min(top, window.innerHeight - tooltipRect.height - margin));
+
+    tooltip.style.top = `${top}px`;
+    tooltip.style.left = `${iconRect.right + 12}px`;
 }
 
 // ============================================

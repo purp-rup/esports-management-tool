@@ -663,13 +663,13 @@ statistics.register_statistics_routes(app, mysql, login_required, roles_required
 from EsportsManagementTool import schedules
 schedules.register_schedule_routes(app, mysql, login_required, roles_required)
 
-# Register tournament results routes
-from EsportsManagementTool import tournament_results
-tournament_results.register_tournament_results_routes(app, mysql, login_required, roles_required)
+# Register playoffs results routes
+from EsportsManagementTool import playoffs_results
+playoffs_results.register_playoffs_results_routes(app, mysql, login_required, roles_required)
 
-# Initialize tournament notification scheduler
-from EsportsManagementTool import tournament_notification_scheduler
-tournament_notification_scheduler.initialize_tournament_scheduler(app, mysql)
+# Initialize playoffs notification scheduler
+from EsportsManagementTool import playoffs_notification_scheduler
+playoffs_notification_scheduler.initialize_playoffs_scheduler(app, mysql)
 
 # Register verification email routes
 from EsportsManagementTool import email_manager
