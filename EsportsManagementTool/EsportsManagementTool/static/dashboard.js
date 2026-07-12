@@ -210,10 +210,23 @@ function initializePreferredTabSetting() {
                 const data = await response.json();
 
                 if (data.success && message) {
-                    message.classList.add('visible');
                     clearTimeout(message._hideTimer);
+                    clearTimeout(message._displayTimer);
+
+                    // Set display first, force a reflow so the
+                    // opacity transition has something to animate from,
+                    // then add .visible to trigger the fade-in
+                    message.style.display = 'block';
+                    void message.offsetHeight;
+                    message.classList.add('visible');
+
                     message._hideTimer = setTimeout(() => {
                         message.classList.remove('visible');
+                        // Wait for the 0.25s fade-out to finish before
+                        // collapsing the space entirely
+                        message._displayTimer = setTimeout(() => {
+                            message.style.display = 'none';
+                        }, 250);
                     }, 2000);
                 }
             } catch (err) {

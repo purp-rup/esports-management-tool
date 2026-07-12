@@ -238,13 +238,13 @@
             </div>
             <div class="content-card">
                 <div class="profile-card-header card-header">
-                    <div>
+                    <div class="title-saved-container">
                         <h2>Preferred Tab</h2>
-                        <p>Set your preferred tab to open when visiting the dashboard</p>
+                        <span id="preferredTabMessage" class="preferred-tab-saved">
+                            <i class="fas fa-check-circle"></i> Saved
+                        </span>
                     </div>
-                    <span id="preferredTabMessage" class="preferred-tab-saved">
-                        <i class="fas fa-check-circle"></i> Saved
-                    </span>
+                    <p>Set your preferred tab to open when visiting the dashboard</p>
                 </div>
                 <div class="preferred-tab-buttons" id="preferredTabButtons">
                     <button class="community-filter-btn {% if preferred_tab == 'calendar' %}active{% endif %}" data-tab-value="calendar">
@@ -356,13 +356,14 @@
             <!-- Notification Settings -->
             <div class="content-card">
                 <div class="profile-card-header card-header">
-                    <div>
+                    <div class="title-saved-container">
                         <h2>Notification Settings</h2>
-                        <p>Configure how you receive email reminders</p>
+                        <span id="notifSavedMessage" class="preferred-tab-saved">
+                            <i class="fas fa-check-circle"></i>
+                            Saved
+                        </span>
                     </div>
-                    <span id="notifSavedMessage" class="preferred-tab-saved">
-                        <i class="fas fa-check-circle"></i> Saved
-                    </span>
+                    <p>Configure how you receive email reminders</p>
                 </div>
 
                 <div id="notificationSettingsForm" class="notification-form">

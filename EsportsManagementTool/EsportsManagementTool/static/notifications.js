@@ -108,9 +108,19 @@ async function autoSaveNotifications() {
  */
 function _showSavedIndicator(el) {
     if (!el) return;
-    el.classList.add('visible');
     clearTimeout(el._hideTimer);
-    el._hideTimer = setTimeout(() => el.classList.remove('visible'), 2000);
+    clearTimeout(el._displayTimer);
+
+    el.style.display = 'block';
+    void el.offsetHeight; // force reflow so opacity transition plays
+    el.classList.add('visible');
+
+    el._hideTimer = setTimeout(() => {
+        el.classList.remove('visible');
+        el._displayTimer = setTimeout(() => {
+            el.style.display = 'none';
+        }, 250);
+    }, 2000);
 }
 
 /**
