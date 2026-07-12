@@ -167,9 +167,21 @@
                         <h2>Profile</h2>
                         <p>View and manage your account information</p>
                     </div>
-                    <div class="profile-actions">
-                        <button class="btn btn-primary btn-sm" type="button" onclick="openEditProfileModal()">Edit Profile</button>
-                        <button class="btn btn-secondary btn-sm" type="button" onclick="openChangePasswordModal()">Change Password</button>
+                    <div class="filter-box">
+                        <button class="filter-box-btn profile-kebab-btn" type="button"
+                                onclick="toggleFilterBox('profileActionsPanel')">
+                            <i id="profileKebab" class="fas fa-ellipsis"></i>
+                        </button>
+                        <div class="filter-box-panel" id="profileActionsPanel">
+                            <div class="filter-box-item"
+                                 onclick="openEditProfileModal(); closeAllFilterPanels();">
+                                <span>Edit Profile</span>
+                            </div>
+                            <div class="filter-box-item"
+                                 onclick="openChangePasswordModal(); closeAllFilterPanels();">
+                                <span>Change Password</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -216,47 +228,63 @@
                         </div>
                     </div>
                 </div>
-
-                <div style="padding-top: 2rem; border-top: 1px solid var(--border-color); margin-top: 2rem;">
-                    <h3 style="font-size: 1.5rem; font-weight: 600; margin: 0 0 0.75rem 0;">Preferred Tab</h3>
-                    <div class="event-filter-dropdown">
-                        <label for="preferredTabSelect">Default Tab:</label>
-                        <select id="preferredTabSelect" name="preferred_tab">
-                            <option value="calendar" {% if preferred_tab == 'calendar' %}selected{% endif %}>Calendar</option>
-                            <option value="profile" {% if preferred_tab == 'profile' %}selected{% endif %}>Profile</option>
-                            <option value="rosters" {% if preferred_tab == 'rosters' %}selected{% endif %}>Communities</option>
-                            <option value="events" {% if preferred_tab == 'events' %}selected{% endif %}>Events</option>
-                            <option value="teams" {% if preferred_tab == 'teams' %}selected{% endif %}>Teams</option>
-                            {% if user.is_admin or user.is_developer %}
-                            <option value="admin" {% if preferred_tab == 'admin' %}selected{% endif %}>Admin</option>
-                            {% endif %}
-                        </select>
+            </div>
+            <div class="content-card">
+                <div class="profile-card-header card-header">
+                    <div class="title-saved-container">
+                        <h2>Preferred Tab</h2>
+                        <span id="preferredTabMessage" class="preferred-tab-saved">
+                            <i class="fas fa-check-circle"></i> Saved
+                        </span>
                     </div>
-                    <div style="margin-top: 2.1rem;">
-                        <button type="button" id="savePreferredTabBtn" class="btn btn-primary btn-sm">
-                            <span id="savePreferredTabBtnText">Save</span>
-                            <i id="savePreferredTabBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
-                        </button>
-                    </div>
+                    <p>Set your preferred tab to open when visiting the dashboard</p>
+                </div>
+                <div class="preferred-tab-buttons" id="preferredTabButtons">
+                    <button class="community-filter-btn {% if preferred_tab == 'calendar' %}active{% endif %}" data-tab-value="calendar">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Calendar
+                    </button>
+                    <button class="community-filter-btn {% if preferred_tab == 'profile' %}active{% endif %}" data-tab-value="profile">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Profile
+                    </button>
+                    <button class="community-filter-btn {% if preferred_tab == 'rosters' %}active{% endif %}" data-tab-value="rosters">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Communities
+                    </button>
+                    <button class="community-filter-btn {% if preferred_tab == 'events' %}active{% endif %}" data-tab-value="events">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Events
+                    </button>
+                    <button class="community-filter-btn {% if preferred_tab == 'teams' %}active{% endif %}" data-tab-value="teams">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Teams
+                    </button>
+                    {% if user.is_admin or user.is_developer %}
+                    <button class="community-filter-btn {% if preferred_tab == 'admin' %}active{% endif %}" data-tab-value="admin">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Admin
+                    </button>
+                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- RIGHT: Communities + Discord Stacked -->
+        <!-- RIGHT: Communities + Discord + Notification Settings -->
         <div class="profile-right-column">
             <!-- My Communities -->
             <div class="content-card">
-                <div class="card-header">
+                <div class="profile-card-header card-header">
                     <h2>My Communities</h2>
                     <p>Game communities you've joined</p>
                 </div>
 
-                <div id="myCommunitiesLoading" style="text-align: center; padding: 2rem;">
+                <div id="myCommunitiesLoading" style="text-align: center;">
                     <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
                     <p style="color: var(--text-secondary); margin-top: 1rem;">Loading communities...</p>
                 </div>
 
-                <div id="myCommunitiesGrid" class="my-communities-grid" style="display: none;"></div>
+                <div id="myCommunitiesGrid" style="display: none;"></div>
 
                 <div id="myCommunitiesEmpty" class="empty-state" style="display: none;">
                     <div class="empty-state-icon">🎮</div>
@@ -267,23 +295,23 @@
 
             <!-- Discord Integration -->
             <div class="content-card">
-                <div class="card-header">
+                <div class="profile-card-header card-header">
                     <h2>Discord Integration</h2>
                     <p>Connect your Discord account</p>
                 </div>
 
-                <div id="discordLoading" style="text-align: center; padding: 2rem;">
+                <div id="discordLoading">
                     <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
                     <p style="color: var(--text-secondary); margin-top: 1rem;">Loading...</p>
                 </div>
 
                 <div id="discordNotConnected" style="display: none;">
-                    <div class="empty-state" style="padding: 2rem;">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">
+                    <div class="empty-state">
+                        <div style="font-size: 3rem;">
                             <i class="fab fa-discord" style="color: #5865F2;"></i>
                         </div>
                         <h3>Connect Your Discord</h3>
-                        <p>Link your Discord account to display your profile</p>
+                        <p>Link your Discord account to display it on your profile</p>
                         <button onclick="connectDiscord()" class="btn btn-primary discord-connect-btn">
                             Connect Discord
                         </button>
@@ -295,14 +323,18 @@
                         <div class="discord-profile-header">
                             <div id="discordAvatarContainer" class="discord-avatar-large"></div>
                             <div class="discord-profile-info">
-                                <h3 id="discordUsername"></h3>
+                                <div class="discord-icon-username">
+                                    <i class="fab fa-discord discord-info-icon"></i>
+                                    <h3 id="discordUsername"></h3>
+                                </div>
                                 <p id="discordConnectedDate">
                                     <i class="fas fa-link"></i> <span id="connectedDateText"></span>
                                 </p>
                             </div>
                         <div class="discord-actions">
-                            <button onclick="syncDiscordAvatar()" class="btn btn-primary btn-sm">
-                                <i class="fas fa-sync"></i> Sync Avatar
+                            <button id="syncAvatarBtn" onclick="syncDiscordAvatar()" class="btn btn-primary btn-sm discord-sync-btn">
+                                <span id="syncAvatarBtnText"><i class="fas fa-sync"></i> Sync Avatar</span>
+                                <i id="syncAvatarBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
                             </button>
                             <button onclick="disconnectDiscord()" class="btn btn-secondary btn-sm">
                                 <i class="fas fa-unlink"></i> Disconnect
@@ -314,113 +346,107 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Notification Settings (Full Width) -->
-    <div class="content-card" style="margin-top: 2rem;">
-        <div class="card-header">
-            <h2>Notification Settings</h2>
-            <p>Configure how you receive event reminders</p>
-        </div>
-
-        <form id="notificationSettingsForm" class="notification-form">
-            <div class="notification-toggle">
-                <div class="toggle-info">
-                    <h3>Enable Event Notifications</h3>
-                    <p>Receive email reminders for upcoming events</p>
-                </div>
-                <label class="switch">
-                    <input type="checkbox" name="enable_notifications" id="enableNotifications" {% if preferences and preferences.enable_notifications %}checked{% endif %}>
-                    <span class="slider"></span>
-                </label>
-            </div>
-
-            <div id="notificationOptions" class="notification-options" style="{% if not preferences or not preferences.enable_notifications %}display: none;{% endif %}">
-                <div class="form-section">
-                    <h3>Event Types to Notify</h3>
-                    <p class="section-description">Choose which types of events you want to be notified about</p>
-
-                    <div class="event-type-checkboxes">
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="notify_practices" {% if not preferences or preferences.notify_practices %}checked{% endif %}>
-                            <span class="checkbox-text">
-                                <i class="fas fa-dumbbell"></i>
-                                <strong>Practices</strong>
-                                <small>Team practice sessions</small>
-                            </span>
-                        </label>
-
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="notify_matches" {% if not preferences or preferences.notify_matches %}checked{% endif %}>
-                            <span class="checkbox-text">
-                                <i class="fas fa-gamepad"></i>
-                                <strong>Matches</strong>
-                                <small>Competitive matches</small>
-                            </span>
-                        </label>
-
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="notify_tournaments" {% if not preferences or preferences.notify_tournaments %}checked{% endif %}>
-                            <span class="checkbox-text">
-                                <i class="fas fa-trophy"></i>
-                                <strong>Tournaments</strong>
-                                <small>Tournament events</small>
-                            </span>
-                        </label>
-
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="notify_events" {% if not preferences or preferences.notify_events %}checked{% endif %}>
-                            <span class="checkbox-text">
-                                <i class="fas fa-calendar-alt"></i>
-                                <strong>General Events</strong>
-                                <small>Meetings and socials</small>
-                            </span>
-                        </label>
-
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="notify_misc" {% if not preferences or preferences.notify_misc %}checked{% endif %}>
-                            <span class="checkbox-text">
-                                <i class="fas fa-star"></i>
-                                <strong>Miscellaneous</strong>
-                                <small>Photoshoots and outings</small>
-                            </span>
-                        </label>
+            <!-- Notification Settings -->
+            <div class="content-card">
+                <div class="profile-card-header card-header">
+                    <div class="title-saved-container">
+                        <h2>Notification Settings</h2>
+                        <span id="notifSavedMessage" class="preferred-tab-saved">
+                            <i class="fas fa-check-circle"></i>
+                            Saved
+                        </span>
                     </div>
+                    <p>Configure how you receive email reminders</p>
                 </div>
 
-                <div class="form-section">
-                    <h3>Advance Notice</h3>
-                    <p class="section-description">How far in advance should we notify you?</p>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="adviceNoticeDays">Days Before</label>
-                            <input type="number" id="adviceNoticeDays" name="advance_notice_days" min="0" max="30" value="{% if preferences %}{{ preferences.advance_notice_days }}{% else %}1{% endif %}">
+                <div id="notificationSettingsForm" class="notification-form">
+                    <div class="notification-toggle">
+                        <div class="notif-toggle-header">
+                            <div class="toggle-info">
+                                <div class="notif-info-row">
+                                    <h3>Enable Event Notifications</h3>
+                                    <div class="team-info-icon-wrapper">
+                                        <i class="fas fa-info-circle team-info-icon"></i>
+                                        <div class="team-info-tooltip">
+                                            <div class="team-info-tooltip-row">
+                                                <span class="team-info-tooltip-label">What</span>
+                                                <span class="team-info-tooltip-value">Receive reminders for events you're subscribed to</span>
+                                            </div>
+                                            <div class="team-info-tooltip-row">
+                                                <span class="team-info-tooltip-label">Types</span>
+                                                <span class="team-info-tooltip-value">Choose which event types trigger notifications below</span>
+                                            </div>
+                                            <div class="team-info-tooltip-row">
+                                                <span class="team-info-tooltip-label">Timing</span>
+                                                <span class="team-info-tooltip-value">Set how many days and hours in advance you are notified</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="enableNotifications"
+                                    {% if preferences and preferences.enable_notifications %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
                         </div>
 
-                        <div class="form-group">
-                            <label for="adviceNoticeHours">Hours Before</label>
-                            <input type="number" id="adviceNoticeHours" name="advance_notice_hours" min="0" max="23" value="{% if preferences %}{{ preferences.advance_notice_hours }}{% else %}0{% endif %}">
+                        <!-- Collapsible: event types + advance notice -->
+                        <div id="notificationOptions"
+                            {% if not preferences or not preferences.enable_notifications %}style="display: none;"{% endif %}>
+
+                            <!-- Event type filter buttons -->
+                            <p class="section-description">Event types to notify</p>
+                            <div class="notif-type-buttons">
+                                <button type="button" data-notif-type="notify_practices"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_practices %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Practices
+                                </button>
+                                <button type="button" data-notif-type="notify_matches"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_matches %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Matches
+                                </button>
+                                <button type="button" data-notif-type="notify_tournaments"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_tournaments %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Tournaments
+                                </button>
+                                <button type="button" data-notif-type="notify_events"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_events %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Events
+                                </button>
+                                <button type="button" data-notif-type="notify_misc"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_misc %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Misc
+                                </button>
+                            </div>
+
+                            <!-- Advance notice inputs -->
+                            <div class="notif-advance-row">
+                                <div class="form-group">
+                                    <label for="adviceNoticeDays">Days Before</label>
+                                    <input type="number" id="adviceNoticeDays" name="advance_notice_days"
+                                           min="0" max="30"
+                                           value="{% if preferences %}{{ preferences.advance_notice_days }}{% else %}1{% endif %}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="adviceNoticeHours">Hours Before</label>
+                                    <input type="number" id="adviceNoticeHours" name="advance_notice_hours"
+                                           min="0" max="23"
+                                           value="{% if preferences %}{{ preferences.advance_notice_hours }}{% else %}0{% endif %}">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="notification-preview">
-                        <i class="fas fa-info-circle"></i>
-                        <span id="notificationPreview">You'll be notified <strong id="previewTime">1 day</strong> before each event</span>
-                    </div>
+                    <div id="notificationMessage" class="form-message" style="display: none;"></div>
                 </div>
             </div>
-
-            <div id="notificationMessage" class="form-message" style="display: none;"></div>
-
-            <div class="profile-actions">
-                <button type="submit" class="btn btn-primary">
-                    <span id="saveNotifBtnText">Save Notification Settings</span>
-                    <i id="saveNotifBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
@@ -1336,7 +1362,7 @@
     {% if user.is_admin or user.is_developer %}
     <div id="admin" class="tab-content {% if preferred_tab == 'admin' %}active{% endif %}">
         <div class="content-card">
-            <div class="card header card-header--row">
+            <div class="card-header card-header--row">
                 <div>
                     <h2>Admin Panel</h2>
                     <p style="font-size: 88%; color: var(--text-secondary)">Manage users, roles, and permissions</p>

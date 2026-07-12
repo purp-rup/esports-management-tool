@@ -3,27 +3,40 @@
    User profile display and information
    ============================================ */
 
-/* Main Profile Layout: Two columns - 50/50 split */
+/* Main Profile Layout: Two columns */
 .profile-main-layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    margin-bottom: 2rem;
+    grid-template-columns: 6fr 5fr;
+    gap: 1rem;
     align-items: stretch;
 }
 
-/* Left column: Profile card - stretches to match right column height */
-.profile-card-column .card-header {
+.profile-main-layout .content-card {
     align-items: flex-start;
 }
 
-.profile-card-column .content-card {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+@media (max-width: 640px) {
+    .profile-main-layout .content-card {
+        padding: 1rem;
+    }
 }
 
-/* Right column: Communities + Discord stacked - Equal Heights */
+/* Left column: Profile card */
+.profile-card-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    height: fit-content;
+}
+
+.profile-card-column .card-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Right column */
 .profile-right-column {
     display: flex;
     flex-direction: column;
@@ -36,11 +49,46 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    align-items: stretch;
+}
+
+.profile-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.title-saved-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.profile-card-header h2 {
+    margin-right: 2rem;
+}
+
+@media (max-width: 1038px) {
+    .profile-card-header {
+        flex-direction: row !important;
+        gap: 0 !important;
+    }
+}
+
+@media (max-width: 696px) {
+    .profile-card-header {
+        flex-direction: row !important;
+        gap: 0 !important;
+    }
 }
 
 /* ============================================
    PROFILE CARD CONTENT
    ============================================ */
+
 .profile-card-content {
     display: flex;
     flex-direction: column;
@@ -49,16 +97,15 @@
 
 .profile-header-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 2rem;
+    flex-wrap: wrap;
 }
 
-.profile-card-column .card-header {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
+@media (max-width: 405px) {
+    .profile-header-row {
+        justify-content: center;
+    }
 }
 
 .avatar-container {
@@ -116,15 +163,16 @@
 /* Profile info items */
 .profile-info-section {
     display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1.5rem;
     flex: 1;
+    height: 100%;
 }
 
 .info-item {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
 }
 
 .info-label {
@@ -140,72 +188,126 @@
     font-size: 0.95rem;
 }
 
-/* Profile card actions - pinned to bottom */
-.profile-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    flex-shrink: 0;
-    width: auto;
+.profile-kebab-btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    justify-content: center;
 }
 
-.profile-actions .btn {
-    width: auto;
+#profileKebab {
+    font-size: 1rem;
+}
+
+#profileActionsPanel {
+    left: auto;
+    right: 0;
+}
+
+/* Preferred tab button row */
+.preferred-tab-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.profile-kebab-btn.active i {
+    transform: none;
+}
+
+/* Auto-save confirmation indicator */
+.preferred-tab-saved {
+    display: none;
+    font-size: 0.8125rem;
+    color: #4CAF50;
+    font-weight: 500;
     white-space: nowrap;
-    padding: 0.4rem 1rem;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+    margin-left: -1rem;
+}
+
+.preferred-tab-saved.visible {
+    opacity: 1;
 }
 
 /* ============================================
-   MY COMMUNITIES GRID (Profile Tab Only)
-   ALL selectors scoped to #myCommunitiesGrid
-   to avoid colliding with Communities tab cards
+   MY COMMUNITIES GRID
    ============================================ */
 #myCommunitiesGrid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 125px));
-    grid-auto-rows: 125px;
-    gap: 2.5rem;
-    padding: 1rem 0;
-    max-height: 200px;
-    overflow-y: auto;
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
-/* Force square cells using padding-bottom trick */
 #myCommunitiesGrid .community-card {
     position: relative;
     border-radius: 10px;
-    overflow: hidden;
     cursor: pointer;
-    width: 125px;
-    height: 125px;
+    width: 55px;
+    height: 55px;
 }
 
 #myCommunitiesGrid .community-card-icon {
     position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
     border-radius: 10px;
-    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: rgba(0, 0, 0, 0.5) 0 54px 55px,
+        rgba(0, 0, 0, 0.12) 0 -12px 30px,
+        rgba(0, 0, 0, 0.12) 0 4px 6px,
+        rgba(0, 0, 0, 0.17) 0 12px 13px,
+        rgba(0, 0, 0, 0.09) 0 -3px 5px;
+}
+
+#myCommunitiesGrid .community-card-no-icon {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: rgba(0, 0, 0, 0.5) 0 54px 55px,
+        rgba(0, 0, 0, 0.12) 0 -12px 30px,
+        rgba(0, 0, 0, 0.12) 0 4px 6px,
+        rgba(0, 0, 0, 0.17) 0 12px 13px,
+        rgba(0, 0, 0, 0.09) 0 -3px 5px;
+    background: var(--stockton-blue);
+    transition: transform 0.1s ease-in-out;
 }
 
 #myCommunitiesGrid .community-card-icon img {
     width: 100%;
     height: 100%;
+    border-radius: 10px;
     object-fit: cover;
     display: block;
-    transition: transform 0.2s ease;
+    transition: transform 0.1s ease-in-out;
+}
+
+#myCommunitiesGrid .community-card-no-icon i {
+    border-radius: 10px;
+    object-fit: cover;
+    display: block;
+    font-size: 1.4rem;
+    color: white;
 }
 
 #myCommunitiesGrid .community-card:hover .community-card-icon img {
-    transform: scale(1.05);
+    transform: scale(1.1);
 }
 
-/* Hover overlay with eye icon */
+#myCommunitiesGrid .community-card:hover .community-card-no-icon {
+    transform: scale(1.1);
+}
+
 #myCommunitiesGrid .community-card::after {
     content: '';
     position: absolute;
@@ -218,31 +320,20 @@
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.2s ease;
     border-radius: 10px;
     z-index: 1;
-}
-
-#myCommunitiesGrid .community-card:hover::after {
-    opacity: 1;
-    content: '\f06e';
-    font-family: 'Font Awesome 6 Free';
-    font-weight: 900;
-    color: white;
-    font-size: 1.5rem;
 }
 
 #myCommunitiesGrid .community-card-name {
     display: none;
 }
 
-/* ============================================
-   DISCORD PROFILE CONTAINER
-   ============================================ */
-.discord-actions .btn {
-    flex: 1;
-    font-size: 0.8125rem;
-    padding: 0.6rem 1rem;
+#myCommunitiesLoading {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
 }
 
 /* ============================================
@@ -270,17 +361,15 @@
 }
 
 /* --------------------------------------------
-   RESPONSIVE DESIGN
-   Mobile and tablet adaptations
+   MOBILE FRIENDLINESS
    -------------------------------------------- */
 @media (max-width: 1200px) {
     .profile-main-layout {
         grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
     }
 
     #myCommunitiesGrid {
-        grid-template-columns: repeat(3, 1fr);
+        display: flex;
     }
 }
 
@@ -292,24 +381,12 @@
     .profile-right-column {
         grid-column: 1;
     }
-
-    #myCommunitiesGrid {
-        grid-template-columns: repeat(4, 1fr);
-    }
 }
 
 @media (max-width: 768px) {
-    .profile-main-layout {
-        gap: 1.5rem;
-    }
-
     .avatar-container {
         width: 120px;
         height: 120px;
         font-size: 2.5rem;
-    }
-
-    #myCommunitiesGrid {
-        grid-template-columns: repeat(3, 1fr);
     }
 }
