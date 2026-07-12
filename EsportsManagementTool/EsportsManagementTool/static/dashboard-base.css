@@ -3,12 +3,10 @@
    Core stylesheet for dashboard layout
    ============================================ */
 
-/* --------------------------------------------
-   EXTERNAL RESOURCES
-   -------------------------------------------- */
+/* External Resources */
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 
-/* --------------------------------------------
+/* ==========================================
    FORM ELEMENTS
    Shared input, select, and button styles
    - Andrew note:
@@ -16,26 +14,26 @@
         but this is the only way I could get the FontAwesome icons
         to render properly in both select and option elements without
         additional dependencies.
-   -------------------------------------------- */
+   ========================================== */
 select.fa-icons, option.fa-icons {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif, 'FontAwesome';
     font-size: 1rem;
     font-weight: 500;
 }
 
-/* --------------------------------------------
+/* ====================================
    MAIN LAYOUT
    Dashboard viewport and spacing
-   -------------------------------------------- */
+   ==================================== */
 main {
     min-height: calc(100vh - 73px) !important;
     padding: 1rem 0;
 }
 
-/* --------------------------------------------
+/* =====================================
    DASHBOARD HEADER
    Page title and description area
-   -------------------------------------------- */
+   ===================================== */
 .dashboard-header {
     margin-bottom: 1rem;
 }
@@ -50,10 +48,10 @@ main {
     font-size: 0.875rem;
 }
 
-/* --------------------------------------------
+/* =======================================
    CONTENT CARDS
    Primary content container styling
-   -------------------------------------------- */
+   ======================================= */
 .content-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -109,10 +107,7 @@ main {
     --event-misc-hover: #ca8a04;
 }
 
-/* --------------------------------------------
-   EMPTY STATES
-   No content placeholder styling
-   -------------------------------------------- */
+/* Empty states */
 .empty-state {
     text-align: center;
     padding: 4rem 2rem;
@@ -135,10 +130,7 @@ main {
     font-size: 0.875rem;
 }
 
-/* --------------------------------------------
-   CUSTOM SCROLLBARS
-   Shared scrollbar styling
-   -------------------------------------------- */
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -165,10 +157,268 @@ main {
     scrollbar-color: var(--border-color) var(--dark-bg);
 }
 
-/* --------------------------------------------
-   RESPONSIVE DESIGN
-   Mobile adaptations
-   -------------------------------------------- */
+/* ====================================
+   DROPDOWN / FILTER BOX
+   ==================================== */
+.filter-box {
+    position: relative;
+}
+
+.filter-box-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.875rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.filter-box-btn:hover,
+.filter-box-btn.active {
+    border-color: var(--stockton-blue);
+    background: var(--hover-bg);
+}
+
+.filter-box-btn i {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    transition: transform 0.2s;
+}
+
+.filter-box-btn.active i {
+    transform: rotate(180deg);
+}
+
+.filter-box-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    left: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.375rem;
+    min-width: 180px;
+    z-index: 200;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.filter-box-panel.open {
+    display: block;
+}
+
+.filter-box-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.filter-box-item:hover {
+    background: var(--hover-bg);
+}
+
+.filter-box-item i {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+/* Selected state - used where a dropdown reflects a persisted value
+   (e.g. Preferred Tab) rather than a momentary filter action */
+.filter-box-item.active {
+    background: var(--hover-bg);
+    color: var(--stockton-blue);
+    font-weight: 600;
+}
+
+/* ===================================
+   ROLE BADGES
+   User role indicators (Admin, GM, Player)
+   =================================== */
+.role-badge {
+  display: flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.role-badge.admin {
+  background: #ff5252;
+  color: white;
+}
+
+.role-badge.dev {
+    background-color: #0a1232;
+    color: #ffcc00;
+    border: 2px solid #3B8BBE;
+}
+
+.role-badge.gm {
+  background-color: #2196F3;
+  color: white;
+  gap: 0.25rem;
+}
+
+.role-badge.player {
+  background-color: #e3d500;
+  color: white;
+}
+
+/* GM badge with image icon */
+.role-badge.gm img {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid black;
+  object-fit: cover;
+}
+
+/* ============================================
+   FLYOUT SUBMENU
+   ============================================ */
+.filter-box-item--flyout .filter-box-flyout {
+    display: none;
+    position: fixed;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.375rem;
+    min-width: 160px;
+    z-index: 301;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    max-height: 210px;
+    overflow-y: auto;
+}
+
+/* Transparent bridge fills the gap between item and flyout so
+   the mouse doesn't leave the hover zone while crossing */
+.filter-box-item--flyout::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 100%;
+    width: 0.75rem;
+    height: 100%;
+    background: transparent;
+}
+
+/* Bridge for left side popout */
+.filter-box-item--flyout::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 100%;
+    width: 0.75rem;
+    height: 100%;
+    background: transparent;
+}
+
+.filter-box-item--flyout:hover .filter-box-flyout {
+    display: block;
+}
+
+.filter-box-flyout-item {
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.filter-box-flyout-item:hover {
+    background: var(--hover-bg);
+}
+
+.filter-box-flyout-item.active {
+    background: var(--hover-bg);
+    color: var(--stockton-blue);
+    font-weight: 600;
+}
+
+.filter-box-flyout-loading {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+/* ====================================
+   Mobile Sheet View
+   Shared dim backdrop + slide-up panel treatment.
+   Add class="mobile-sheet" to any panel that should become a bottom
+   sheet on mobile.
+   ==================================== */
+.sheet-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 499;
+}
+
+.sheet-backdrop.open {
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .mobile-sheet {
+        display: none;
+        position: fixed;
+        top: auto !important;
+        left: 0 !important;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        border: none;
+        border-top: 1px solid var(--border-color);
+        border-radius: 16px 16px 0 0;
+        background: var(--card-bg);
+        padding: 1rem 1.25rem 1.5rem;
+        z-index: 500;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+        transform: translateY(100%);
+        transition: transform 0.3s ease;
+    }
+
+    .mobile-sheet.sheet-open {
+        display: block;
+        transform: translateY(0);
+    }
+
+    .mobile-sheet::before {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: var(--border-color);
+        border-radius: 2px;
+        margin: 0 auto 1rem;
+    }
+}
+
+/* ===============================
+   Responsive Design
+   =============================== */
 @media (max-width: 1038px) {
   .card-header {
     flex-direction: column;
@@ -181,4 +431,53 @@ main {
   .dashboard-header {
     display: none;
   }
+}
+
+@media (max-width: 768px) {
+    .filter-box-item--flyout .filter-box-flyout {
+        position: static;
+        display: none;
+        box-shadow: none;
+        border: none;
+        border-radius: 10px;
+        padding: 0 0 0 1rem;
+        max-height: 10rem;
+    }
+
+    .filter-box-item--flyout:hover .filter-box-flyout {
+        display: none;
+    }
+
+    .filter-box-item--flyout.flyout-expanded .filter-box-flyout {
+        display: block;
+    }
+
+    .filter-box-item--flyout::after,
+    .filter-box-item--flyout::before {
+        display: none;
+    }
+
+    .filter-box-item--flyout > i.fa-chevron-right {
+        transition: transform 0.2s;
+    }
+
+    .filter-box-item--flyout.flyout-expanded > i.fa-chevron-right {
+        transform: rotate(90deg);
+    }
+
+    .filter-box-panel {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        border-radius: 16px 16px 0 0;
+        padding: 1rem 0.5rem 2rem;
+        max-height: 60vh;
+        overflow-y: auto;
+        z-index: 600;
+        box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+    }
 }

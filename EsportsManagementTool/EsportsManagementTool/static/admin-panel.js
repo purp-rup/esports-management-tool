@@ -15,27 +15,14 @@
 //Currently selected user ID in the admin panel
 let selectedUserId = null;
 
-/**
- * Initialize the admin panel module
- * Sets up event listeners and refreshes user list badges
- */
+// Initialize admin panel, refresh badges, and show user list once loaded
 async function initializeAdminPanel() {
-    console.log('Admin panel module initialized');
-
-    // Attach all event listeners for admin functionality
     attachAdminEventListeners();
-
-    // Refresh user list badges after GM mappings load
     await refreshUserListBadges();
-
-    // Shows all users once they are loaded into User Management
     revealUserList();
 }
 
-/**
- * Attach all admin-related event listeners
- * Uses event delegation where possible for better performance
- */
+// Attach admin-related event listeners
 function attachAdminEventListeners() {
     // User item click handlers - shows user details panel
     const userItems = document.querySelectorAll('.user-item');
@@ -50,9 +37,9 @@ function attachAdminEventListeners() {
     }
 }
 
-// ============================================
-// USER SEARCH & FILTERING
-// ============================================
+/* ============================================
+   USER SEARCH & FILTERING
+   ============================================ */
 async function filterUsers() {
     const input = document.getElementById('userSearch');
     const userItemsContainer = document.getElementById('userItems');
@@ -85,10 +72,7 @@ const debouncedUserSearch = debounce(async (searchQuery, userItemsContainer) => 
     }
 }, 300);
 
-/**
- * Render user items in the list
- * @param {Array} users - Array of user objects from server
- */
+// Render full user list on admin panel (left side list)
 function renderUserItems(users) {
     const userItemsContainer = document.getElementById('userItems');
     userItemsContainer.innerHTML = '';
@@ -156,6 +140,7 @@ function renderUserItems(users) {
     });
 }
 
+// Show user list once loaded properly
 function revealUserList() {
     const spinner = document.getElementById('userListLoadingSpinner');
     const userItems = document.getElementById('userItems');
@@ -282,8 +267,18 @@ async function handleUserItemClick(item) {
                     <button id="roleToggleRemove" class="role-toggle" data-action="remove" title="Unassign">Unassign</button>
                 </div>
 
-                <select id="roleTypeSelect" class="styled-dropdown">
-                    <option value="Game Manager">Game Manager</option>
+                <div class="filter-box" id="roleTypeFilterBox">
+                    <button class="filter-box-btn" onclick="toggleFilterBox('roleTypeFilterPanel')">
+                        <span id="roleTypeFilterLabel">Game Manager</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="filter-box-panel" id="roleTypeFilterPanel">
+                        <div class="filter-box-item active" data-value="Game Manager" onclick="applyRoleTypeFilter('Game Manager')">Game Manager</div>
+                        <div class="filter-box-item" data-value="Admin" onclick="applyRoleTypeFilter('Admin')">Admin</div>
+                    </div>
+                </div>
+                <select id="roleTypeSelect" class="styled-dropdown" style="display: none;">
+                    <option value="Game Manager" selected>Game Manager</option>
                     <option value="Admin">Admin</option>
                 </select>
 
@@ -336,6 +331,18 @@ async function handleUserItemClick(item) {
 // ============================================
 // USER MANAGEMENT
 // ============================================
+
+// Selection handler for the role-type filter-box dropdown.
+function applyRoleTypeFilter(value) {
+    document.getElementById('roleTypeFilterLabel').textContent = value;
+    document.getElementById('roleTypeSelect').value = value;
+
+    document.querySelectorAll('#roleTypeFilterPanel .filter-box-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === value);
+    });
+
+    closeAllFilterPanels();
+}
 
 // Add or remove a role from a user (Admin or GM)
 async function handleRoleChange(username) {

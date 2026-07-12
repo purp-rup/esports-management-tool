@@ -4,12 +4,13 @@
  
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='dashboard-base.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='user-profiles.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='admin-panel.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='modals.css') }}">
 {% endblock %}
- 
+
 {% block content %}
 <input type="hidden" id="communityGameId" value="{{ game.GameID }}">
 <input type="hidden" id="currentUsername" value="{{ session.username }}">
@@ -104,10 +105,11 @@
                 </div>
 
                 <!-- User profile popup -->
-                <div class="user-profile-popup"
+                <div class="user-profile-popup mobile-sheet"
                      id="userProfilePopup"
                      style="display:none;">
                 </div>
+                <div class="sheet-backdrop" id="userProfileSheetBackdrop" onclick="closeUserProfilePopup()"></div>
 
                 <!-- Forum placeholder -->
                 <div class="community-forum-placeholder">

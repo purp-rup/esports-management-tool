@@ -99,16 +99,20 @@
 /* ================================
    Communities page popup styles
    ================================ */
-.user-profile-popup {
-    position: absolute;
-    width: 260px;
-    background: #161616;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 0;
-    z-index: 51;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-    overflow: hidden;
+/* Desktop-only: floating card anchored near the clicked pill.
+   Below 768px, .mobile-sheet (dashboard-base.css) takes over instead. */
+@media (min-width: 769px) {
+    .user-profile-popup {
+        position: absolute;
+        width: 260px;
+        background: #161616;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 0;
+        z-index: 51;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        overflow: hidden;
+    }
 }
 
 /* Header */
@@ -330,4 +334,24 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Shrink the large pill variant on mobile so two fit per row */
+@media (max-width: 768px) {
+    .member-pill--large {
+        min-width: 0;
+        padding: 0.5rem 0.6rem;
+        gap: 0.5rem;
+    }
+
+    .member-pill--large .member-pill-avatar,
+    .member-pill--large .member-pill-initials {
+        width: 32px;
+        height: 32px;
+        font-size: 0.75rem;
+    }
+
+    .member-pill--large .member-pill-username {
+        font-size: 0.75rem;
+    }
 }

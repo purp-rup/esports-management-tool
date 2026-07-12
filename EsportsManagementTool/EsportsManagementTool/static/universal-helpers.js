@@ -6,11 +6,6 @@
  * Universal list filter function.
  * Reads a search input and shows/hides items based on data attribute matches.
  *
- * @param {string} searchInputId   - ID of the <input> element to read from
- * @param {string} itemSelector    - CSS selector for the items to show/hide
- * @param {string[]} dataAttributes - data-* attribute names (without "data-") to match against
- * @param {string} [displayStyle]  - display value when visible (default: 'flex')
- *
  * Used by teams.js
  */
 const filterListItems = debounce(function(searchInputId, itemSelector, dataAttributes, displayStyle = 'flex') {
@@ -29,6 +24,122 @@ const filterListItems = debounce(function(searchInputId, itemSelector, dataAttri
         item.style.display = matches ? displayStyle : 'none';
     });
 }, 300);
+
+/**
+ * Generic filter-box dropdown toggle. Opens the given panel and closes
+ * any other open filter-box panels. On mobile, also opens the shared
+ * #filterBackdrop sheet and locks body scroll, if that element exists
+ * on the page (safe no-op otherwise).
+ *
+ * Used by events.js, dashboard.js, & admin-statistics.js,
+ */
+function toggleFilterBox(panelId) {
+    const panel = document.getElementById(panelId);
+    const btn = panel?.previousElementSibling;
+    const isOpen = panel?.classList.contains('open');
+
+    closeAllFilterPanels();
+
+    const filterBackdrop = document.getElementById('filterBackdrop');
+
+    if (!isOpen) {
+        panel?.classList.add('open');
+        btn?.classList.add('active');
+        if (window.innerWidth <= 768 && filterBackdrop) {
+            filterBackdrop.classList.add('open');
+            lockBodyScroll('filterBox');
+        }
+    } else {
+        filterBackdrop?.classList.remove('open');
+        unlockBodyScroll('filterBox');
+    }
+}
+
+/**
+ * Closes every open .filter-box-panel on the page and releases the
+ * mobile backdrop/scroll lock if one was held.
+ *
+ * Used by events.js, dashboard.js, & admin-statistics.js
+ */
+function closeAllFilterPanels() {
+    document.querySelectorAll('.filter-box-panel.open').forEach(p => {
+        p.classList.remove('open');
+        p.previousElementSibling?.classList.remove('active');
+    });
+    document.getElementById('filterBackdrop')?.classList.remove('open');
+    unlockBodyScroll('filterBox');
+}
+
+// Close any open filter-box panel when clicking outside it
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.filter-box')) {
+        closeAllFilterPanels();
+    }
+});
+
+/**
+ * Position a flyout submenu to the left if it would overflow the
+ * right edge of the viewport.
+ *
+ * Used by events.js & teams-sidebar.js
+ */
+function positionFlyout(triggerEl) {
+    const flyout = triggerEl.querySelector('.filter-box-flyout');
+    if (!flyout) return;
+
+    // On mobile the flyout renders inline
+    if (window.innerWidth <= 768) return;
+
+    flyout.style.display = 'block';
+    flyout.style.position = 'fixed';
+
+    const triggerRect = triggerEl.getBoundingClientRect();
+    const flyoutRect = flyout.getBoundingClientRect();
+
+    let left = triggerRect.right + 6;
+    let top = triggerRect.top - 6;
+
+    // Flip to the trigger's left side if it would overflow the right edge
+    if (left + flyoutRect.width > window.innerWidth) {
+        left = triggerRect.left - flyoutRect.width - 6;
+    }
+
+    // Clamp vertically so it doesn't run off the bottom of the viewport
+    if (top + flyoutRect.height > window.innerHeight) {
+        top = Math.max(8, window.innerHeight - flyoutRect.height - 8);
+    }
+
+    flyout.style.left = `${left}px`;
+    flyout.style.top = `${top}px`;
+
+    flyout.style.display = '';
+}
+
+/**
+ * Wires up hover-positioning and mobile tap-to-expand behavior for
+ * every .filter-box-item--flyout trigger within the given scope.
+ *
+ * Used by events.js, teams-sidebar.js.
+ */
+function initFlyoutTriggers(scope = document) {
+    scope.querySelectorAll('.filter-box-item--flyout').forEach(trigger => {
+        trigger.addEventListener('mouseenter', () => positionFlyout(trigger));
+
+        // Triggers cards to open in mobile view
+        if (window.innerWidth <= 768) {
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isExpanded = trigger.classList.contains('flyout-expanded');
+                document.querySelectorAll('.filter-box-item--flyout.flyout-expanded').forEach(t => {
+                    t.classList.remove('flyout-expanded');
+                });
+                if (!isExpanded) {
+                    trigger.classList.add('flyout-expanded');
+                }
+            });
+        }
+    });
+}
 
 /**
  * Universal dropdown enabler (removes all disabled states)
@@ -183,6 +294,10 @@ function unlockBodyScroll(ownerId) {
 
 //Global Exports
 window.filterListItems = filterListItems;
+window.toggleFilterBox = toggleFilterBox;
+window.closeAllFilterPanels = closeAllFilterPanels;
+window.positionFlyout = positionFlyout;
+window.initFlyoutTriggers = initFlyoutTriggers;
 window.enableDropdown = enableDropdown;
 window.attachCharacterCounter = attachCharacterCounter;
 window.navigateToEvent = navigateToEvent;

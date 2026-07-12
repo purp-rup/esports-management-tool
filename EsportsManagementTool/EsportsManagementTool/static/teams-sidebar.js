@@ -71,6 +71,13 @@ const PastSeasonTeamsFilterState = {
 };
 
 /**
+ * Base label text (without the trailing count) for the currently
+ * selected view. Used by updateDropdownCount() to append "(N)"
+ * without needing to re-derive the label from the DOM each time.
+ */
+let _currentViewBaseLabel = 'All';
+
+/**
  * Available views for current user based on permissions
  * @type {Array<Object>}
  */
@@ -113,14 +120,13 @@ async function initializeViewSwitcher() {
 
         if (data.success && data.views && data.views.length > 0) {
             window.availableViews = data.views;
+            window.teamDivisionCounts = data.division_counts || {};
 
             const storedView = sessionStorage.getItem(VIEW_STORAGE_KEY);
             const validStoredView = window.availableViews.find(v => v.value === storedView);
             window.currentView = validStoredView ? storedView : window.availableViews[0].value;
 
             renderViewSwitcher();
-            initializeDivisionFilter();
-            initializePastSeasonFilter();
         } else {
             // Mark as initialised (even if empty) so loadTeams does not loop
             window.availableViews = ['__none__'];
@@ -138,44 +144,93 @@ async function initializeViewSwitcher() {
 
 function renderViewSwitcher() {
     const viewSwitcher = document.getElementById('teamViewSwitcher');
-    const viewSelect = document.getElementById('teamViewSelect');
-
-    if (!viewSwitcher || !viewSelect) {
-        console.error('View switcher elements not found');
+    if (!viewSwitcher) {
+        console.error('View switcher element not found');
         return;
     }
 
-    viewSelect.innerHTML = '';
-
-    window.availableViews.forEach(view => {
-        const option = document.createElement('option');
-        option.value = view.value;
-        option.textContent = view.label;
-        option.setAttribute('data-base-label', view.label);
-        if (view.value === window.currentView) option.selected = true;
-        viewSelect.appendChild(option);
-    });
-
     const isAdmin = window.userPermissions?.is_admin || window.userPermissions?.is_developer || false;
+    const savedDivision = getSelectedDivisionFilter();
+    const savedSeasonId = getSelectedPastSeasonFilter();
 
-    if (isAdmin) {
-        const divisionOption = document.createElement('option');
-        divisionOption.value = 'division';
-        divisionOption.textContent = 'Divisions';
-        divisionOption.setAttribute('data-base-label', 'Divisions');
-        if (window.currentView === 'division') divisionOption.selected = true;
-        viewSelect.appendChild(divisionOption);
+    const viewItemsHtml = window.availableViews.map(view => `
+        <div class="filter-box-item ${view.value === window.currentView ? 'active' : ''}"
+             data-value="${view.value}"
+             data-base-label="${view.label.replace(/"/g, '&quot;')}"
+             onclick="applyTeamsViewFilter('${view.value}', '${view.label.replace(/'/g, "\\'")}')">
+            ${view.label} (${view.count ?? 0})
+        </div>
+    `).join('');
 
-        const pastSeasonOption = document.createElement('option');
-        pastSeasonOption.value = 'past_seasons';
-        pastSeasonOption.textContent = 'Past Seasons';
-        pastSeasonOption.setAttribute('data-base-label', 'Past Seasons');
-        if (window.currentView === 'past_seasons') pastSeasonOption.selected = true;
-        viewSelect.appendChild(pastSeasonOption);
+    const adminItemsHtml = isAdmin ? `
+        <div class="filter-box-item filter-box-item--flyout" id="divisionsFlyoutTrigger">
+            Divisions
+            <i class="fas fa-chevron-right"></i>
+            <div class="filter-box-flyout" id="divisionsFlyout">
+                ${DIVISION_ORDER.map(division => `
+                    <div class="filter-box-flyout-item ${window.currentView === 'division' && savedDivision === division ? 'active' : ''}"
+                         data-base-label="${division}"
+                         onclick="applyTeamsDivisionFilter('${division}')">
+                        ${division} (${window.teamDivisionCounts?.[division] ?? 0})
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+        <div class="filter-box-item filter-box-item--flyout" id="pastSeasonsTeamsFlyoutTrigger">
+            Past Seasons
+            <i class="fas fa-chevron-right"></i>
+            <div class="filter-box-flyout" id="pastSeasonsTeamsFlyout">
+                <div class="filter-box-flyout-loading">Loading&hellip;</div>
+            </div>
+        </div>
+    ` : '';
+
+    // Initial button label reflects whichever view is currently active
+    let initialLabel = 'All';
+    if (window.currentView === 'division') {
+        initialLabel = savedDivision ? `Division: ${savedDivision}` : 'Divisions';
+    } else if (window.currentView === 'past_seasons') {
+        initialLabel = 'Past Seasons'; // resolved to a real season name below, once loaded
+    } else {
+        const matchedView = window.availableViews.find(v => v.value === window.currentView);
+        if (matchedView) initialLabel = matchedView.label;
     }
+    _currentViewBaseLabel = initialLabel;
+
+    viewSwitcher.innerHTML = `
+        <div class="filter-box" id="teamsViewFilterBox">
+            <button type="button" class="filter-box-btn" onclick="toggleFilterBox('teamsViewFilterPanel')">
+                <span id="teamsViewFilterLabel">${initialLabel}</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="filter-box-panel" id="teamsViewFilterPanel">
+                ${viewItemsHtml}
+                ${adminItemsHtml}
+            </div>
+        </div>
+    `;
 
     viewSwitcher.classList.remove('hidden');
-    viewSelect.onchange = handleViewChange;
+
+    // Wire up hover-position/mobile-tap behavior for the flyouts just created
+    initFlyoutTriggers(viewSwitcher);
+
+    if (isAdmin) {
+        // Lazy-load past seasons on hover, same pattern as Events' game flyout
+        const trigger = document.getElementById('pastSeasonsTeamsFlyoutTrigger');
+        let loaded = false;
+        trigger.addEventListener('mouseenter', () => {
+            if (loaded) return;
+            loaded = true;
+            loadPastSeasonsForTeamsFilter();
+        });
+
+        // Resolve the saved season's name up front if this view was active
+        // on a previous visit, so the button doesn't just say "Past Seasons"
+        if (window.currentView === 'past_seasons' && savedSeasonId) {
+            loadPastSeasonsForTeamsFilter();
+        }
+    }
 }
 
 function hideViewSwitcher() {
@@ -183,15 +238,68 @@ function hideViewSwitcher() {
     if (viewSwitcher) viewSwitcher.classList.add('hidden');
 }
 
-function handleViewChange(event) {
-    const newView = event.target.value;
+/**
+ * Selection handler for a plain (non-flyout) view item.
+ * Opening/closing the panel is handled by the shared toggleFilterBox()/
+ * closeAllFilterPanels() in universal-helpers.js.
+ */
+function applyTeamsViewFilter(value, label) {
+    document.getElementById('teamsViewFilterLabel').textContent = label;
+    _currentViewBaseLabel = label;
 
+    document.querySelectorAll('#teamsViewFilterPanel > .filter-box-item:not(.filter-box-item--flyout)').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === value);
+    });
+    document.querySelectorAll('#divisionsFlyout .filter-box-flyout-item, #pastSeasonsTeamsFlyout .filter-box-flyout-item')
+        .forEach(item => item.classList.remove('active'));
+
+    closeAllFilterPanels();
+    handleViewChange(value);
+}
+
+/**
+ * Selection handler for a division flyout item.
+ */
+function applyTeamsDivisionFilter(division) {
+    const label = `Division: ${division}`;
+    document.getElementById('teamsViewFilterLabel').textContent = label;
+    _currentViewBaseLabel = label;
+
+    document.querySelectorAll('#teamsViewFilterPanel > .filter-box-item:not(.filter-box-item--flyout)').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('#divisionsFlyout .filter-box-flyout-item').forEach(item => {
+        item.classList.toggle('active', item.textContent.trim() === division);
+    });
+    document.querySelectorAll('#pastSeasonsTeamsFlyout .filter-box-flyout-item').forEach(item => item.classList.remove('active'));
+
+    closeAllFilterPanels();
+
+    window.currentView = 'division';
+    sessionStorage.setItem(VIEW_STORAGE_KEY, 'division');
+    setSelectedDivisionFilter(division);
+
+    PastSeasonTeamsFilterState.selectedSeasonId = null;
+    PastSeasonTeamsFilterState.selectedSeasonName = '';
+    PastSeasonTeamsFilterState.isFilteringPastSeason = false;
+    setSelectedPastSeasonFilter(null);
+
+    invalidateTeamsCache();
+
+    window.currentSelectedTeamId = null;
+    document.getElementById('teamsWelcomeState').style.display = 'flex';
+    document.getElementById('teamsDetailContent').style.display = 'none';
+
+    loadTeams();
+}
+
+/**
+ * Core view-change logic, shared by applyTeamsViewFilter(). Kept
+ * separate since it used to be the <select> onchange handler directly;
+ * now it just takes the new view value as a plain argument.
+ */
+function handleViewChange(newView) {
     if (newView !== window.currentView) {
         window.currentView = newView;
         sessionStorage.setItem(VIEW_STORAGE_KEY, newView);
-
-        hideDivisionFilterDropdown();
-        hidePastSeasonFilterDropdown();
 
         setSelectedDivisionFilter(null);
 
@@ -200,19 +308,7 @@ function handleViewChange(event) {
         PastSeasonTeamsFilterState.isFilteringPastSeason = false;
         setSelectedPastSeasonFilter(null);
 
-        const seasonSelect = document.getElementById('pastSeasonFilterSelect');
-        if (seasonSelect) seasonSelect.value = '';
-
         invalidateTeamsCache();
-
-        if (newView === 'division') {
-            showDivisionFilterDropdown();
-        } else if (newView === 'past_seasons') {
-            PastSeasonTeamsFilterState.isFilteringPastSeason = true;
-            showPastSeasonFilterDropdown();
-            loadPastSeasonsForTeamsFilter();
-            return;
-        }
 
         window.currentSelectedTeamId = null;
         document.getElementById('teamsWelcomeState').style.display = 'flex';
@@ -723,25 +819,29 @@ function sortTeamsByDivision(teams) {
 // ============================================
 // DROPDOWN COUNT
 // ============================================
-
 function updateDropdownCount(count) {
-    const viewSelect = document.getElementById('teamViewSelect');
-    if (!viewSelect) return;
+    const filterLabel = document.getElementById('teamsViewFilterLabel');
+    if (filterLabel) filterLabel.textContent = `${_currentViewBaseLabel} (${count})`;
 
-    const selectedOption = viewSelect.options[viewSelect.selectedIndex];
-    if (!selectedOption) return;
+    // Keep the matching panel item in sync
+    const item = document.querySelector(`#teamsViewFilterPanel > .filter-box-item[data-value="${window.currentView}"]`);
+    if (item) item.textContent = `${_currentViewBaseLabel} (${count})`;
 
-    const baseLabel = selectedOption.getAttribute('data-base-label')
-        || selectedOption.textContent.replace(/\s*\(\d+\)$/, '').trim();
-
-    selectedOption.setAttribute('data-base-label', baseLabel);
-    selectedOption.textContent = `${baseLabel} (${count})`;
+    // Show count on past season flyout
+    if (window.currentView === 'past_seasons' && PastSeasonTeamsFilterState.selectedSeasonId) {
+        const flyoutItem = document.querySelector(
+            `#pastSeasonsTeamsFlyout .filter-box-flyout-item[data-season-id="${PastSeasonTeamsFilterState.selectedSeasonId}"]`
+        );
+        if (flyoutItem) {
+            const baseLabel = flyoutItem.getAttribute('data-base-label') || PastSeasonTeamsFilterState.selectedSeasonName;
+            flyoutItem.textContent = `${baseLabel} (${count})`;
+        }
+    }
 }
 
 // ============================================
 // PAST SEASON FILTER
 // ============================================
-
 function getSelectedPastSeasonFilter() {
     return sessionStorage.getItem(PAST_SEASON_FILTER_KEY);
 }
@@ -754,115 +854,79 @@ function setSelectedPastSeasonFilter(seasonId) {
     }
 }
 
-function initializePastSeasonFilter() {
-    const isAdmin = window.userPermissions?.is_admin || window.userPermissions?.is_developer || false;
-    if (!isAdmin) return;
-
-    const divisionFilterContainer = document.getElementById('divisionFilterContainer');
-    if (!divisionFilterContainer || !divisionFilterContainer.parentNode) return;
-
-    let pastSeasonFilterContainer = document.getElementById('pastSeasonFilterContainer');
-
-    if (!pastSeasonFilterContainer) {
-        pastSeasonFilterContainer = document.createElement('div');
-        pastSeasonFilterContainer.id = 'pastSeasonFilterContainer';
-        pastSeasonFilterContainer.className = 'past-season-filter-container hidden';
-
-        pastSeasonFilterContainer.innerHTML = `
-            <label for="pastSeasonFilterSelect" class="past-season-filter-label">Season:</label>
-            <select id="pastSeasonFilterSelect" class="past-season-filter-select">
-                <option value="">Select Past Season</option>
-            </select>
-            <div id="pastSeasonFilterLoadingIndicator" style="display: none; margin-left: 0.5rem;">
-                <i class="fas fa-spinner fa-spin"></i>
-            </div>
-        `;
-
-        divisionFilterContainer.parentNode.insertBefore(
-            pastSeasonFilterContainer,
-            divisionFilterContainer.nextSibling
-        );
-
-        const seasonSelect = document.getElementById('pastSeasonFilterSelect');
-        if (seasonSelect) {
-            seasonSelect.addEventListener('change', handlePastSeasonFilterChange);
-        }
-    }
-
-    if (window.currentView === 'past_seasons') {
-        showPastSeasonFilterDropdown();
-
-        const savedSeasonId = getSelectedPastSeasonFilter();
-        if (savedSeasonId) {
-            PastSeasonTeamsFilterState.selectedSeasonId = savedSeasonId;
-            const seasonSelect = document.getElementById('pastSeasonFilterSelect');
-            if (seasonSelect) seasonSelect.value = savedSeasonId;
-        }
-    }
-}
-
-function showPastSeasonFilterDropdown() {
-    const container = document.getElementById('pastSeasonFilterContainer');
-    if (container) container.classList.remove('hidden');
-}
-
-function hidePastSeasonFilterDropdown() {
-    const container = document.getElementById('pastSeasonFilterContainer');
-    if (container) container.classList.add('hidden');
-}
-
 async function loadPastSeasonsForTeamsFilter() {
-    const seasonSelect = document.getElementById('pastSeasonFilterSelect');
-    const loadingIndicator = document.getElementById('pastSeasonFilterLoadingIndicator');
-    if (!seasonSelect) return;
-
-    if (loadingIndicator) loadingIndicator.style.display = 'inline-block';
-    seasonSelect.disabled = true;
+    const flyout = document.getElementById('pastSeasonsTeamsFlyout');
+    if (!flyout) return;
 
     try {
         const response = await fetch('/api/seasons/past');
         const data = await response.json();
 
-        if (data.success && data.seasons) {
-            PastSeasonTeamsFilterState.availablePastSeasons = data.seasons;
-            seasonSelect.innerHTML = '<option value="">Select Past Season</option>';
+        if (!data.success || !data.seasons) {
+            flyout.innerHTML = '<div class="filter-box-flyout-loading">Error loading past seasons</div>';
+            return;
+        }
 
-            if (data.seasons.length === 0) {
-                seasonSelect.innerHTML += '<option value="" disabled>No past seasons available</option>';
-            } else {
-                data.seasons.forEach(season => {
-                    const option = document.createElement('option');
-                    option.value = season.season_id;
-                    option.textContent = season.season_name;
-                    seasonSelect.appendChild(option);
-                });
+        PastSeasonTeamsFilterState.availablePastSeasons = data.seasons;
+
+        if (data.seasons.length === 0) {
+            flyout.innerHTML = '<div class="filter-box-flyout-loading">No past seasons available</div>';
+            return;
+        }
+
+        const savedSeasonId = getSelectedPastSeasonFilter();
+
+        flyout.innerHTML = data.seasons.map(season => `
+            <div class="filter-box-flyout-item ${String(season.season_id) === savedSeasonId ? 'active' : ''}"
+                 data-season-id="${season.season_id}"
+                 data-base-label="${season.season_name.replace(/"/g, '&quot;')}"
+                 onclick="applyTeamsPastSeasonFilter('${season.season_id}', '${season.season_name.replace(/'/g, "\\'")}')">
+                ${season.season_name} (${season.team_count ?? 0})
+            </div>
+        `).join('');
+
+        // Restore the button label if this view was active on a previous visit
+        if (window.currentView === 'past_seasons' && savedSeasonId) {
+            const match = data.seasons.find(s => String(s.season_id) === savedSeasonId);
+            if (match) {
+                PastSeasonTeamsFilterState.selectedSeasonId = match.season_id;
+                PastSeasonTeamsFilterState.selectedSeasonName = match.season_name;
+                const label = `Past Season: ${match.season_name}`;
+                _currentViewBaseLabel = label;
+                const filterLabel = document.getElementById('teamsViewFilterLabel');
+                if (filterLabel) filterLabel.textContent = label;
             }
-        } else {
-            seasonSelect.innerHTML = '<option value="">Error loading past seasons</option>';
         }
     } catch (error) {
         console.error('Error fetching past seasons:', error);
-        seasonSelect.innerHTML = '<option value="">Error loading past seasons</option>';
-    } finally {
-        if (loadingIndicator) loadingIndicator.style.display = 'none';
-        seasonSelect.disabled = false;
+        flyout.innerHTML = '<div class="filter-box-flyout-loading">Failed to load</div>';
     }
 }
 
-function handlePastSeasonFilterChange(event) {
-    const selectedSeasonId = event.target.value;
+/**
+ * Selection handler for a past-season flyout item.
+ */
+function applyTeamsPastSeasonFilter(seasonId, seasonName) {
+    const label = `Past Season: ${seasonName}`;
+    document.getElementById('teamsViewFilterLabel').textContent = label;
+    _currentViewBaseLabel = label;
 
-    if (!selectedSeasonId) {
-        PastSeasonTeamsFilterState.selectedSeasonId = null;
-        PastSeasonTeamsFilterState.selectedSeasonName = '';
-        setSelectedPastSeasonFilter(null);
-        return;
-    }
+    document.querySelectorAll('#teamsViewFilterPanel > .filter-box-item:not(.filter-box-item--flyout)').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('#divisionsFlyout .filter-box-flyout-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('#pastSeasonsTeamsFlyout .filter-box-flyout-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-season-id') === String(seasonId));
+    });
 
-    PastSeasonTeamsFilterState.selectedSeasonId = selectedSeasonId;
-    const seasonSelect = event.target;
-    PastSeasonTeamsFilterState.selectedSeasonName = seasonSelect.options[seasonSelect.selectedIndex].text;
-    setSelectedPastSeasonFilter(selectedSeasonId);
+    closeAllFilterPanels();
+
+    window.currentView = 'past_seasons';
+    sessionStorage.setItem(VIEW_STORAGE_KEY, 'past_seasons');
+    setSelectedDivisionFilter(null);
+
+    PastSeasonTeamsFilterState.isFilteringPastSeason = true;
+    PastSeasonTeamsFilterState.selectedSeasonId = seasonId;
+    PastSeasonTeamsFilterState.selectedSeasonName = seasonName;
+    setSelectedPastSeasonFilter(seasonId);
 
     invalidateTeamsCache();
 
@@ -887,72 +951,6 @@ function setSelectedDivisionFilter(division) {
     } else {
         sessionStorage.removeItem(DIVISION_FILTER_KEY);
     }
-}
-
-function initializeDivisionFilter() {
-    const isAdmin = window.userPermissions?.is_admin || window.userPermissions?.is_developer || false;
-    if (!isAdmin) return;
-
-    const sidebarHeaderTop = document.querySelector('.sidebar-header-top');
-    if (!sidebarHeaderTop) return;
-
-    let divisionFilterContainer = document.getElementById('divisionFilterContainer');
-
-    if (!divisionFilterContainer) {
-        divisionFilterContainer = document.createElement('div');
-        divisionFilterContainer.id = 'divisionFilterContainer';
-        divisionFilterContainer.className = 'division-filter-container hidden';
-
-        divisionFilterContainer.innerHTML = `
-            <label for="divisionFilterSelect" class="division-filter-label">Division:</label>
-            <select id="divisionFilterSelect" class="division-filter-select">
-                <option value="">All Divisions</option>
-                <option value="Strategy">Strategy</option>
-                <option value="Shooter">Shooter</option>
-                <option value="Sports">Sports</option>
-                <option value="Other">Other</option>
-            </select>
-        `;
-
-        if (sidebarHeaderTop.parentNode) {
-            sidebarHeaderTop.parentNode.insertBefore(divisionFilterContainer, sidebarHeaderTop.nextSibling);
-        }
-
-        const divisionSelect = document.getElementById('divisionFilterSelect');
-        if (divisionSelect) {
-            divisionSelect.addEventListener('change', handleDivisionFilterChange);
-        }
-    }
-
-    if (window.currentView === 'division') {
-        showDivisionFilterDropdown();
-        const savedDivision = getSelectedDivisionFilter();
-        if (savedDivision) {
-            const divisionSelect = document.getElementById('divisionFilterSelect');
-            if (divisionSelect) divisionSelect.value = savedDivision;
-        }
-    }
-}
-
-function showDivisionFilterDropdown() {
-    const container = document.getElementById('divisionFilterContainer');
-    if (container) container.classList.remove('hidden');
-}
-
-function hideDivisionFilterDropdown() {
-    const container = document.getElementById('divisionFilterContainer');
-    if (container) container.classList.add('hidden');
-}
-
-function handleDivisionFilterChange(event) {
-    const selectedDivision = event.target.value;
-    setSelectedDivisionFilter(selectedDivision || null);
-
-    window.currentSelectedTeamId = null;
-    document.getElementById('teamsWelcomeState').style.display = 'flex';
-    document.getElementById('teamsDetailContent').style.display = 'none';
-
-    loadTeams();
 }
 
 // ============================================
@@ -1062,22 +1060,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 // EXPORT TO GLOBAL SCOPE
 // ============================================
-
-window.loadTeams                        = loadTeams;
-window.toggleGameCollapse               = toggleGameCollapse;
-window.sortTeamsByDivision              = sortTeamsByDivision;
-window.getDivisionSortPriority          = getDivisionSortPriority;
-window.renderTeamsSidebarWithGroups     = renderTeamsSidebarWithGroups;
-window.renderTeamsSidebar               = renderTeamsSidebar;
-window.updateSidebarActiveState         = updateSidebarActiveState;
 window.initializeViewSwitcher           = initializeViewSwitcher;
 window.renderViewSwitcher               = renderViewSwitcher;
 window.handleViewChange                 = handleViewChange;
+window.applyTeamsViewFilter             = applyTeamsViewFilter;
+window.applyTeamsDivisionFilter         = applyTeamsDivisionFilter;
+window.applyTeamsPastSeasonFilter       = applyTeamsPastSeasonFilter;
 window.getSubtitleForView               = getSubtitleForView;
-window.initializeDivisionFilter         = initializeDivisionFilter;
-window.showDivisionFilterDropdown       = showDivisionFilterDropdown;
-window.hideDivisionFilterDropdown       = hideDivisionFilterDropdown;
-window.handleDivisionFilterChange       = handleDivisionFilterChange;
 window.invalidateTeamsCache             = invalidateTeamsCache;
 window.isCacheFresh                     = isCacheFresh;
 window.openCreateTeam                   = openCreateTeam;
@@ -1085,10 +1074,6 @@ window.closeGamePickerModal             = closeGamePickerModal;
 window.updateDropdownCount              = updateDropdownCount;
 
 // Past Season exports
-window.initializePastSeasonFilter       = initializePastSeasonFilter;
-window.showPastSeasonFilterDropdown     = showPastSeasonFilterDropdown;
-window.hidePastSeasonFilterDropdown     = hidePastSeasonFilterDropdown;
 window.loadPastSeasonsForTeamsFilter    = loadPastSeasonsForTeamsFilter;
-window.handlePastSeasonFilterChange     = handlePastSeasonFilterChange;
 window.getSelectedPastSeasonFilter      = getSelectedPastSeasonFilter;
 window.setSelectedPastSeasonFilter      = setSelectedPastSeasonFilter;

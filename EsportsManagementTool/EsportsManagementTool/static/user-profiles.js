@@ -27,7 +27,14 @@ function toggleUserProfilePopup(e, member) {
     popup.dataset.username = member.username;
     popup.style.display = 'block';
 
-    positionUserProfilePopup(e.currentTarget);
+    if (window.innerWidth <= 768) {
+        // Sheet view for mobile
+        popup.classList.add('sheet-open');
+        document.getElementById('userProfileSheetBackdrop')?.classList.add('open');
+        lockBodyScroll('userProfileSheet');
+    } else {
+        positionUserProfilePopup(e.currentTarget);
+    }
 
     // Foundation only — profile content is built out in a later step
     popup.innerHTML = buildUserProfileHeader(member);
@@ -196,8 +203,11 @@ function closeUserProfilePopup() {
     const popup = document.getElementById('userProfilePopup');
     if (popup) {
         popup.style.display = 'none';
+        popup.classList.remove('sheet-open');
         delete popup.dataset.username;
     }
+    document.getElementById('userProfileSheetBackdrop')?.classList.remove('open');
+    unlockBodyScroll('userProfileSheet');
     userProfileOpen = false;
     document.removeEventListener('click', outsideUserProfileClick);
 }

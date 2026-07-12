@@ -156,7 +156,6 @@
     </div>
 
 <!-- PROFILE TAB  -->
-
 <div id="profile" class="tab-content {% if preferred_tab == 'profile' %}active{% endif %}">
     <div class="profile-main-layout">
 
@@ -949,7 +948,7 @@
                                         class="btn btn-primary"
                                         onclick="openAddTeamMembersModal()"
                                         style="display: none;">
-                                    <i class="fas fa-user-plus"></i> Add Player
+                                    <i class="fas fa-user-plus"></i> <span class="btn-label">Add Player</span>
                                 </button>
 
                                 <!-- Schedule button SECOND -->
@@ -957,7 +956,7 @@
                                         class="btn btn-create-schedule"
                                         onclick="openCreateScheduleModal()"
                                         style="display: none;">
-                                    <i class="fas fa-calendar-plus"></i> Schedule Event
+                                    <i class="fas fa-calendar-plus"></i> <span class="btn-label">Schedule Event</span>
                                 </button>
                             </div>
 
@@ -1723,7 +1722,17 @@
                     </div>
                     <div class="form-group">
                         <label for="streamPlatform">Platform *</label>
-                        <select id="streamPlatform" required>
+                        <div class="filter-box" id="streamPlatformFilterBox">
+                            <button type="button" class="filter-box-btn" onclick="toggleFilterBox('streamPlatformFilterPanel')">
+                                <span id="streamPlatformFilterLabel">Select platform</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="filter-box-panel" id="streamPlatformFilterPanel">
+                                <div class="filter-box-item" data-value="twitch" onclick="applyStreamPlatformFilter('twitch', 'Twitch')">Twitch</div>
+                                <div class="filter-box-item" data-value="youtube" onclick="applyStreamPlatformFilter('youtube', 'YouTube')">YouTube</div>
+                            </div>
+                        </div>
+                        <select id="streamPlatform" required style="display: none;">
                             <option value="">Select platform</option>
                             <option value="twitch">Twitch</option>
                             <option value="youtube">YouTube</option>

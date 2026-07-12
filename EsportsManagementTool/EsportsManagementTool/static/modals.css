@@ -1,13 +1,15 @@
 /* ============================================
    MODAL STYLES
-   Modal windows and dialogs
-   ORGANIZED BY CLAUDEAI
+   - modal structure
+   - Popup structure and coloring
+   - Delete confirmation modal design
+   - Mobile friendliness for modals
    ============================================ */
 
-/* --------------------------------------------
+/* ===============================
    BASE MODAL STRUCTURE
    Modal overlay and container
-   -------------------------------------------- */
+   =============================== */
 .modal {
     display: none;
     position: fixed;
@@ -37,10 +39,7 @@
     max-width: 700px;
 }
 
-/* --------------------------------------------
-   MODAL HEADER
-   Title bar with close button
-   -------------------------------------------- */
+/* Header with close button */
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -78,10 +77,7 @@
     color: var(--stockton-blue);
 }
 
-/* --------------------------------------------
-   MODAL BODY
-   Content area with scrolling
-   -------------------------------------------- */
+/* Body with content scrolling */
 .modal-body {
     padding: 1.5rem 2rem 2rem;
     max-height: 60vh;
@@ -89,10 +85,7 @@
     overflow-x: hidden;
 }
 
-/* --------------------------------------------
-   LOADING STATE
-   Spinner for loading content
-   -------------------------------------------- */
+/* Loading state */
 .loading-spinner {
     text-align: center;
     padding: 2rem;
@@ -105,161 +98,27 @@
     margin-bottom: 1rem;
 }
 
-/* --------------------------------------------
-   EVENT LIST IN MODAL
-   Display list of events
-   -------------------------------------------- */
-.modal-event-item {
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    transition: all 0.2s;
-    cursor: pointer;
-}
-
-.modal-event-item:hover {
-    background: var(--hover-bg);
-    border-color: var(--stockton-blue);
-    transform: translateX(4px);
-}
-
-.modal-event-item:last-child {
-    margin-bottom: 0;
-}
-
-.modal-event-time {
-    color: var(--stockton-blue);
-    font-weight: 600;
-    font-size: 0.875rem;
-    margin-bottom: 0.5rem;
-}
-
-.modal-event-title {
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-weight: 500;
-    margin-bottom: 0.25rem;
-}
-
-.modal-event-description {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    line-height: 1.4;
-    word-break: break-word;
-    overflow-wrap: break-word;
-}   
-
-.modal-event-meta {
-    display: flex;
-    gap: 1rem;
-    margin-top: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-
-.modal-event-meta span {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-/* --------------------------------------------
-   EVENT DETAILS GRID
-   Two-column compact layout
-   -------------------------------------------- */
-.event-detail-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-}
-
-.event-detail-section {
-    display: flex;
-    gap: 0.75rem;
-    padding: 1rem;
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-}
-
-.event-detail-section.full-width {
-    grid-column: 1 / -1; /* Span full width */
-    flex-direction: column;
-}
-
-.event-detail-icon {
-    width: 36px;
-    height: 36px;
-    background: rgba(121, 189, 233, 0.1);
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--stockton-blue);
-    flex-shrink: 0;
-}
-
-.event-detail-icon i {
-    font-size: 1.125rem;
-}
-
-.event-detail-content {
-    flex: 1;
-    min-width: 0; /* Allow text truncation */
-}
-
-.event-detail-content h3 {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.375rem;
-}
-
-.event-detail-content p {
-    font-size: 0.9375rem;
-    color: var(--text-primary);
-    line-height: 1.5;
-    margin: 0;
-}
-
-.event-detail-value {
-    color: var(--text-primary);
-    flex: 1;
-    word-break: break-word;
-    overflow-wrap: break-word;
-    min-width: 0;
-}
-
-/* --------------------------------------------
-   EVENT FORM MODAL
-   Form for creating/editing events
-   -------------------------------------------- */
+/* Create event modal */
 .event-form-modal {
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
 
-/* FIX: Add proper form-group styling */
 .event-form-modal .form-group {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    margin-bottom: 0; /* Remove default margin since parent has gap */
+    margin-bottom: 0;
 }
 
 .event-form-modal .form-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1rem;
-    margin-bottom: 0; /* Remove default margin since parent has gap */
+    margin-bottom: 0;
 }
 
-/* FIX: Ensure form-row children don't have conflicting margins */
 .event-form-modal .form-row .form-group {
     margin-bottom: 0;
 }
@@ -268,8 +127,8 @@
     font-weight: 600;
     font-size: 0.875rem;
     color: var(--text-primary);
-    display: block; /* FIX: Ensure label is block-level */
-    margin-bottom: 0.25rem; /* FIX: Add small margin for spacing */
+    display: block;
+    margin-bottom: 0.25rem;
 }
 
 /* Form inputs */
@@ -285,7 +144,7 @@
     font-size: 0.875rem;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     transition: all 0.2s;
-    box-sizing: border-box; /* FIX: Ensure padding doesn't break width */
+    box-sizing: border-box;
 }
 
 .event-form-modal input:focus,
@@ -306,7 +165,6 @@
     min-height: 100px;
 }
 
-/* FIX: Ensure small helper text doesn't overlap */
 .event-form-modal small {
     display: block;
     color: var(--text-secondary);
@@ -347,25 +205,18 @@
     text-align: center;
 }
 
-/* --------------------------------------------
+/* Character count display below description input boxes */
+.char-counter {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: right;
+    margin-top: 0.25rem;
+}
+
+/* ======================================
    MODAL ACTION BUTTONS
    Buttons in modal footer/actions
-   -------------------------------------------- */
-
-/* Event actions section */
-.event-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-color);
-}
-
-.event-actions .btn {
-    flex: 1;
-}
-
-/* Form actions section */
+   ====================================== */
 .form-actions {
     display: flex;
     gap: 1rem;
@@ -382,61 +233,10 @@
     gap: 0.5rem;
 }
 
-/* Edit button */
-.btn-edit-event {
-    background: transparent;
-    border: 1px solid var(--stockton-blue);
-    color: var(--stockton-blue);
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.25rem;
-    font-size: 0.875rem;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-.btn-edit-event:hover {
-    background: var(--stockton-blue);
-    color: var(--stockton-black);
-}
-
-.btn-edit-event i {
-    font-size: 0.875rem;
-}
-
-/* Delete button */
-.btn-delete-event {
-    background: transparent;
-    border: 1px solid #ff4d4d;
-    color: #ff4d4d;
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.875rem;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-.btn-delete-event:hover {
-    background: #ff4d4d;
-    color: white;
-}
-
-.btn-delete-event i {
-    font-size: 0.875rem;
-}
-
-/* --------------------------------------------
+/* ============================================
    DELETE CONFIRMATION MODAL
-   Modal for confirming event deletion
-   -------------------------------------------- */
+   Universal modal for confirming event deletion
+   ============================================ */
 .delete-confirmation-modal {
     display: none;
     position: fixed;
@@ -531,11 +331,28 @@
     background: #dc2626;
 }
 
+.modal-body ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+}
+
+.modal-body ul li {
+  margin-bottom: 0.25rem;
+}
+
+/* Warning box for important notices */
+.warning-box {
+  background-color: #fff3cd;
+  border-left: 4px solid #ff9800;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+}
+
 /* ============================================
    DELETE NOTIFICATION CARDS
    Success/error notifications after deletion
    ============================================ */
-
 .delete-notification-card {
     position: fixed;
     top: 20px;
@@ -600,92 +417,9 @@
     line-height: 1.4;
 }
 
-/* --------------------------------------------
-   EVENT NOTIFICATIONS
-   Opt-in section for event notifications
-   -------------------------------------------- */
-.event-notification-section {
-    display: flex;
-    justify-content: center;
-    margin-top: 1.5rem;
-}
-
-.notification-opt-in {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    max-width: 500px;
-    padding: 1rem 1.25rem;
-    background-color: #1e1e2f;
-    border-radius: 10px;
-    color: white;
-}
-
-.notification-info {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.notification-icon i {
-    font-size: 1.5rem;
-    color: #f4b400;
-}
-
-/* Notification button states */
-.notification-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background-color: #006eff;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-}
-
-.notification-btn:hover {
-    background-color: #0052c9;
-}
-
-.notification-btn.subscribed {
-    background-color: #4caf50; /* Green */
-    color: white;
-}
-
-.notification-btn.subscribed:hover {
-    background-color: #45a049;
-}
-
-.notification-btn.unsubscribe {
-    background-color: #ff5252;
-}
-
-.notification-btn.disabled {
-    background-color: #0052c9;
-    cursor: not-allowed;
-    pointer-events: none;
-    opacity: 0.7;
-}
-
-/* Notification disabled state */
-.notification-disabled {
-    text-align: center;
-    padding: 1rem;
-}
-
-.notification-disabled i {
-    font-size: 1.75rem;
-    color: #ff5252;
-    margin-bottom: 0.5rem;
-}
-
-/* --------------------------------------------
-   EVENT POPUPS
-   Display list of events
-   -------------------------------------------- */
+/* ================================
+   Event popups
+   ================================ */
 .popup-event-item {
     position: absolute !important;
     z-index: 2000 !important;
@@ -874,38 +608,9 @@
     filter: drop-shadow(1px 0 0 var(--border-color, #222));
 }
 
-/* --------------------------------------------
-   ICON COLORING
-   Event Modal and Popup Details
-   -------------------------------------------- */
-
-/* Event Details Modal - Icon Coloring (matches dashboard structure) */
-.event-card-details[data-event-type="tournament"] .event-detail-icon {
-    background: var(--event-tournament-light);
-    color: var(--event-tournament);
-}
-
-.event-card-details[data-event-type="match"] .event-detail-icon {
-    background: var(--event-match-light);
-    color: var(--event-match);
-}
-
-.event-card-details[data-event-type="practice"] .event-detail-icon {
-    background: var(--event-practice-light);
-    color: var(--event-practice);
-}
-
-.event-card-details[data-event-type="event"] .event-detail-icon {
-    background: var(--event-event-light);
-    color: var(--event-event);
-}
-
-.event-card-details[data-event-type="misc"] .event-detail-icon {
-    background: var(--event-misc-light);
-    color: var(--event-misc);
-}
-
-/* Event Details Popup - Icon Coloring (matches dashboard structure) */
+/* ===========================
+   Popup coloring (port to events.css)
+   =========================== */
 .event-popup-details[data-event-type="tournament"] .popup-icon {
     background: var(--event-tournament-light);
     color: var(--event-tournament);
@@ -931,11 +636,9 @@
     color: var(--event-misc);
 }
 
-
-/* --------------------------------------------
-   ANIMATIONS
-   Modal entrance animations
-   -------------------------------------------- */
+/* =====================================
+   Modal animations
+   ===================================== */
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -952,10 +655,9 @@
     }
 }
 
-/* --------------------------------------------
-   RESPONSIVE DESIGN
-   Mobile and tablet adaptations
-   -------------------------------------------- */
+/* ===================================
+   Mobile friendliness
+   =================================== */
 @media (max-width: 768px) {
     .modal-content {
         width: 95%;
@@ -1014,12 +716,4 @@
     .popup-description-box {
         grid-column: span 1 !important;
     }
-}
-
-/* Character counter displayed below text boxes */
-.char-counter {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    text-align: right;
-    margin-top: 0.25rem;
 }
