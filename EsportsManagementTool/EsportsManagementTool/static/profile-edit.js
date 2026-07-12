@@ -465,20 +465,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-
-    // ========================================
-    // ATTACH BUTTON CLICK HANDLERS
-    // ========================================
-    const editProfileBtn = document.querySelector('.profile-actions .btn-primary');
-    const changePasswordBtn = document.querySelector('.profile-actions .btn-secondary');
-
-    if (editProfileBtn) {
-        editProfileBtn.onclick = openEditProfileModal;
-    }
-
-    if (changePasswordBtn) {
-        changePasswordBtn.onclick = openChangePasswordModal;
-    }
 });
 
 // ============================================

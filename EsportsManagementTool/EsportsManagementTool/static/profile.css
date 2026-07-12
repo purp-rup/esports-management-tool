@@ -187,20 +187,6 @@
     font-size: 0.95rem;
 }
 
-.profile-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    flex-shrink: 0;
-    width: auto;
-}
-
-.profile-actions .btn {
-    width: auto;
-    white-space: nowrap;
-    padding: 0.4rem 1rem;
-}
-
 .profile-kebab-btn {
     width: 38px;
     height: 38px;
@@ -347,32 +333,6 @@
     justify-content: center;
     align-items: center;
     width: 100%;
-}
-
-/* Abbreviation overlay */
-#myCommunitiesGrid .community-card-abbr {
-    position: absolute;
-    width: 55px;
-    height: 55px;
-    z-index: 2;
-    opacity: 0;
-    transition: all 0.2s ease-in-out;
-}
-
-#myCommunitiesGrid .community-card-abbr p {
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-shadow: 0 0 3px #000000;
-    color: white;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-#myCommunitiesGrid .community-card-abbr:hover {
-    opacity: 1;
 }
 
 /* ============================================
