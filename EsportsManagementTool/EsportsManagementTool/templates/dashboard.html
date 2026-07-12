@@ -24,8 +24,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='seasons.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='leagues.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='manage-communities.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='tournament-banner.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='tournament-modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='playoffs.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='stream-schedule.css') }}">
 
 <!-- Import Calendar CSS -->
@@ -958,11 +957,6 @@
                                         </div>
                                     </div>
                                 </div>
-                                <!-- Hidden compat elements — JS still writes to these; they stay hidden -->
-                                <p id="teamDetailGame" style="display: none;"></p>
-                                <p id="teamDetailDivision" style="display: none;"></p>
-                                <p id="teamDetailLeagues" style="display: none;"></p>
-                                <p id="teamDetailSeason" style="display: none;"></p>
                             </div>
                         </div>
 
@@ -2264,7 +2258,7 @@
 <script src="{{ url_for('static', filename='seasons.js') }}"></script>
 <script src="{{ url_for('static', filename='leagues.js') }}"></script>
 <script src="{{ url_for('static', filename='manage-communities.js') }}"></script>
-<script src="{{ url_for('static', filename='tournament-results.js') }}"></script>
+<script src="{{ url_for('static', filename='playoffs-results.js') }}"></script>
 <script src="{{ url_for('static', filename='stream-schedule.js') }}"></script>
 <!-- Must load second-to-last -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>

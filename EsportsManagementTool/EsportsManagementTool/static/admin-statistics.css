@@ -198,7 +198,7 @@
 }
 
 /* ============================================
-   PLACEMENT CARDS (Tournament Performance)
+   PLACEMENT CARDS (Playoffs Performance)
    ============================================ */
 .placements-grid {
     display: grid;
@@ -482,7 +482,7 @@
 }
 
 /* ============================================
-   LEAGUE ICON STYLING (for tournament section)
+   LEAGUE ICON STYLING (for playoffs section)
    ============================================ */
 .league-icon {
     width: 40px;
@@ -498,7 +498,7 @@
 }
 
 /* ============================================
-   LEAGUE CARD UPDATES (for tournament grid)
+   LEAGUE CARD UPDATES (for playoffs grid)
    ============================================ */
 .league-card .placements-grid {
     margin-top: 0;

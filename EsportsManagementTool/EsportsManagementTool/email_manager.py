@@ -131,11 +131,11 @@ def send_event_notification(user_email, user_firstname, event_type, start_time, 
 
 # GM Reminder Email
 def send_reminder_email(user_email, user_firstname, season_name, game_title, pending_count, days_until_end):
-    """Send GMs reminders to update their tournament results."""
+    """Send GMs reminders to update their playoffs results."""
     try:
         urgency = "URGENT " if days_until_end <= 3 else ""
 
-        subject = f"{urgency}Action Required: Record Tournament Results for {game_title}"
+        subject = f"{urgency}Action Required: Record Playoffs Results for {game_title}"
 
         msg = Message(subject, recipients=[user_email])
         msg.html = f'''
@@ -149,13 +149,13 @@ def send_reminder_email(user_email, user_firstname, season_name, game_title, pen
                             <br>
                             <p style="text-align: left; font-weight: bold;">Hello, {user_firstname}!</p>
                             <div style="padding-left: 15px;">
-                                <p style="font-size: 15px;">This is a reminder to record tournament results for <strong>{game_title}</strong> in the <strong>{season_name}</strong> season.</p>
+                                <p style="font-size: 15px;">This is a reminder to record playoffs results for <strong>{game_title}</strong> in the <strong>{season_name}</strong> season.</p>
                                 <p style="font-size: 15px;">
                                     <strong>Season End:</strong> {days_until_end} day(s) remaining<br>
-                                    <strong>Pending Results:</strong> {pending_count} team(s) need tournament placement recorded.
+                                    <strong>Pending Results:</strong> {pending_count} team(s) need playoffs placement recorded.
                                 </p>
-                                <p style="font-size: 15px;">Please log into the Stockton Esports Management Tool and click the <strong>"Record Tournament Results"</strong> button in your dashboard to get started.</p>
-                                <p style="font-size: 15px;"><strong>Tournament placement options:</strong><br>
+                                <p style="font-size: 15px;">Please log into the Stockton Esports Management Tool and click the <strong>"Record Playoffs Results"</strong> button in your dashboard to get started.</p>
+                                <p style="font-size: 15px;"><strong>Playoffs placement options:</strong><br>
                                     Winner (1st place)<br>
                                     Finals (2nd place)<br>
                                     Semifinals (3rd–4th place)<br>

@@ -11,7 +11,7 @@ def get_user_permissions(user_id: int) -> dict[str, int]:
     """
     Fetch all permissions/roles for a specific user.
     Used in dashboard.py, events.py, communities.py, leagues.py, schedules.py, seasons.py,
-    teams.py, team_stats.py, tournament_results.py, & vods.py
+    teams.py, team_stats.py, playoffs_results.py, & vods.py
     """
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 

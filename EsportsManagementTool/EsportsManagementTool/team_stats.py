@@ -458,7 +458,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
     @login_required
     def can_record_results(team_id):
         """
-        Check if current user can record match/tournament results for a team.
+        Check if current user can record match/playoffs results for a team.
         Returns true if user is the GM for this team's game OR is an admin.
         Used to conditionally show the Record Results button on the team stats page.
         """
