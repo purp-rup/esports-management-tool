@@ -69,8 +69,11 @@
    -------------------------------------------- */
 .vods-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding-top: 0.3rem;
 }
 
 /* VOD Item Card */

@@ -109,13 +109,6 @@
                     <div class="calendar-grid" id="calendarGrid">
                         <!-- Populated by calendar.js -->
                     </div>
-
-                    <!-- Calendar Footer -->
-                         <!-- <div class="calendar-footer"> -->
-                            <!-- <a href="{{ url_for('dashboard') }}" class="today-button"> -->
-                                <!-- <i class="fas fa-calendar-day"></i> Jump to Today -->
-                            <!-- </a> -->
-                        <!-- </div> -->
                 </div>
             </div>
 
@@ -1535,6 +1528,26 @@
     </div>
 </div>
 
+<!-- Delete VODS -->
+<div id="deleteVodModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-body" style="padding: 2rem; text-align: center;">
+            <div style="width: 60px; height: 60px; background: rgba(239,68,68,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                <i class="fas fa-exclamation-triangle" style="color: #ef4444; font-size: 1.5rem;"></i>
+            </div>
+            <h2 style="margin: 0 0 1rem 0;">Delete VOD?</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Are you sure you want to delete this VOD? This action cannot be undone.</p>
+            <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; text-align: left;">
+                <p style="color: #ef4444; margin: 0; font-weight: 600;">⚠ This action cannot be undone.</p>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button onclick="closeDeleteVodModal()" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+                <button onclick="confirmDeleteVod()" class="btn" style="flex: 1; background: #ef4444; color: white; border: none;">Delete VOD</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Change Password -->
 <div id="changePasswordModal" class="modal">
     <div class="modal-content">
@@ -2032,6 +2045,13 @@
         </div>
     </div>
 </div>
+
+<!-- Team info bottom sheet for mobile -->
+<div id="teamInfoSheet" class="team-info-sheet">
+    <h3 class="team-info-sheet-title" id="teamInfoSheetTitle"></h3>
+    <div id="teamInfoSheetContent"></div>
+</div>
+<div class="sheet-backdrop" id="teamInfoSheetBackdrop" onclick="closeTeamInfoSheet()"></div>
 
 <!-- Manage Leagues Modal -->
 <div id="manageLeaguesModal" class="modal">
