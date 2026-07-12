@@ -557,6 +557,10 @@
         padding: 0.5rem 1rem;
     }
 
+    .game-group.expanded .game-folder-row::after {
+        left: calc(1rem + 19px);
+    }
+
     /* Adjust tree line and item indent for smaller sidebar padding */
     .game-teams-list::before {
         left: calc(1rem + 19px);
@@ -567,6 +571,10 @@
     }
 
     .team-tree-item::before {
+        left: calc(1rem + 19px);
+    }
+
+    .team-tree-item::after {
         left: calc(1rem + 19px);
     }
 }

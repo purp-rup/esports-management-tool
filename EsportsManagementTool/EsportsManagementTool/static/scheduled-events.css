@@ -4,32 +4,9 @@
    ============================================ */
 
 /* --------------------------------------------
-   TEAM STATS SUMMARY
-   Statistics header with next event
-   -------------------------------------------- */
-.team-stats-summary {
-    display: flex;
-    flex-direction: row;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    width: 100%;
-    max-width: none;
-}
-
-#nextScheduledEventContainer {
-    flex: 2;
-}
-
-/* --------------------------------------------
    NEXT SCHEDULED EVENT IN HEADER
    Compact next event display
    -------------------------------------------- */
-#nextscheduledeventcontainer {
-    grid-column: auto;
-    min-height: 90px;
-    width: 100%;
-}
-
 .next-scheduled-event h4 {
     font-size: 0.875rem;
     color: var(--text-secondary);
@@ -899,13 +876,5 @@
 
     .schedule-cards-grid {
         grid-template-columns: 1fr;
-    }
-}
-
-/* Medium screens (tablets) */
-@media (max-width: 600px) {
-    .team-stats-summary {
-        max-width: 100%;
-        flex-direction: column;
     }
 }

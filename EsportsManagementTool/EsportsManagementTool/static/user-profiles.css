@@ -335,3 +335,23 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* Shrink the large pill variant on mobile so two fit per row */
+@media (max-width: 768px) {
+    .member-pill--large {
+        min-width: 0;
+        padding: 0.5rem 0.6rem;
+        gap: 0.5rem;
+    }
+
+    .member-pill--large .member-pill-avatar,
+    .member-pill--large .member-pill-initials {
+        width: 32px;
+        height: 32px;
+        font-size: 0.75rem;
+    }
+
+    .member-pill--large .member-pill-username {
+        font-size: 0.75rem;
+    }
+}

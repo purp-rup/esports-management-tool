@@ -921,7 +921,7 @@ function closeEditTeamModal() {
 
     if (modal) {
         modal.style.display = 'none';
-        lockBodyScroll('editTeamModal');
+        unlockBodyScroll('editTeamModal');
     }
 }
 
