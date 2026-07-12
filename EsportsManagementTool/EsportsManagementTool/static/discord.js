@@ -272,11 +272,17 @@ async function disconnectDiscord() {
  */
 async function syncDiscordAvatar() {
     const messageDiv = document.getElementById('discordActionMessage');
+    const btn = document.getElementById('syncAvatarBtn');
+    const btnText = document.getElementById('syncAvatarBtnText');
+    const btnSpinner = document.getElementById('syncAvatarBtnSpinner');
 
     // Hide any previous messages
-    if (messageDiv) {
-        messageDiv.style.display = 'none';
-    }
+    if (messageDiv) messageDiv.style.display = 'none';
+
+    // Show loading state
+    if (btn) btn.disabled = true;
+    if (btnText) btnText.style.display = 'none';
+    if (btnSpinner) btnSpinner.style.display = 'inline-block';
 
     try {
         // Request avatar sync from backend
@@ -314,6 +320,10 @@ async function syncDiscordAvatar() {
             messageDiv.className = 'form-message error';
             messageDiv.style.display = 'block';
         }
+    } finally {
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.style.display = 'inline';
+        if (btnSpinner) btnSpinner.style.display = 'none';
     }
 }
 

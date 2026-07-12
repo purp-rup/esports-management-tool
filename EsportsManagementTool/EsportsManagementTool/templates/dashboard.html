@@ -174,9 +174,21 @@
                         <h2>Profile</h2>
                         <p>View and manage your account information</p>
                     </div>
-                    <div class="profile-actions">
-                        <button class="btn btn-primary btn-sm" type="button" onclick="openEditProfileModal()">Edit Profile</button>
-                        <button class="btn btn-secondary btn-sm" type="button" onclick="openChangePasswordModal()">Change Password</button>
+                    <div class="filter-box">
+                        <button class="filter-box-btn profile-kebab-btn" type="button"
+                                onclick="toggleFilterBox('profileActionsPanel')">
+                            <i id="profileKebab" class="fas fa-ellipsis"></i>
+                        </button>
+                        <div class="filter-box-panel" id="profileActionsPanel">
+                            <div class="filter-box-item"
+                                 onclick="openEditProfileModal(); closeAllFilterPanels();">
+                                <span>Edit Profile</span>
+                            </div>
+                            <div class="filter-box-item"
+                                 onclick="openChangePasswordModal(); closeAllFilterPanels();">
+                                <span>Change Password</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -230,7 +242,7 @@
                         <h2>Preferred Tab</h2>
                         <p>Set your preferred tab to open when visiting the dashboard</p>
                     </div>
-                    <span id="preferredTabMessage" class="preferred-tab-saved" style="display: none;">
+                    <span id="preferredTabMessage" class="preferred-tab-saved">
                         <i class="fas fa-check-circle"></i> Saved
                     </span>
                 </div>
@@ -327,8 +339,9 @@
                                 </p>
                             </div>
                         <div class="discord-actions">
-                            <button onclick="syncDiscordAvatar()" class="btn btn-primary btn-sm">
-                                <i class="fas fa-sync"></i> Sync Avatar
+                            <button id="syncAvatarBtn" onclick="syncDiscordAvatar()" class="btn btn-primary btn-sm discord-sync-btn">
+                                <span id="syncAvatarBtnText"><i class="fas fa-sync"></i> Sync Avatar</span>
+                                <i id="syncAvatarBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
                             </button>
                             <button onclick="disconnectDiscord()" class="btn btn-secondary btn-sm">
                                 <i class="fas fa-unlink"></i> Disconnect
@@ -343,106 +356,101 @@
             <!-- Notification Settings -->
             <div class="content-card">
                 <div class="profile-card-header card-header">
+                    <div>
                         <h2>Notification Settings</h2>
-                        <p>Configure how you receive event reminders</p>
+                        <p>Configure how you receive email reminders</p>
+                    </div>
+                    <span id="notifSavedMessage" class="preferred-tab-saved">
+                        <i class="fas fa-check-circle"></i> Saved
+                    </span>
                 </div>
 
-                <form id="notificationSettingsForm" class="notification-form">
+                <div id="notificationSettingsForm" class="notification-form">
                     <div class="notification-toggle">
-                        <div class="toggle-info">
-                            <h3>Enable Event Notifications</h3>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" name="enable_notifications" id="enableNotifications" {% if preferences and preferences.enable_notifications %}checked{% endif %}>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-
-                    <div id="notificationOptions" class="notification-options" style="{% if not preferences or not preferences.enable_notifications %}display: none;{% endif %}">
-                        <div class="form-section">
-                            <h3>Event Types to Notify</h3>
-                            <p class="section-description">Choose which types of events you want to be notified about</p>
-
-                            <div class="event-type-checkboxes">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="notify_practices" {% if not preferences or preferences.notify_practices %}checked{% endif %}>
-                                    <span class="checkbox-text">
-                                        <i class="fas fa-dumbbell"></i>
-                                        <strong>Practices</strong>
-                                        <small>Team practice sessions</small>
-                                    </span>
-                                </label>
-
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="notify_matches" {% if not preferences or preferences.notify_matches %}checked{% endif %}>
-                                    <span class="checkbox-text">
-                                        <i class="fas fa-gamepad"></i>
-                                        <strong>Matches</strong>
-                                        <small>Competitive matches</small>
-                                    </span>
-                                </label>
-
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="notify_tournaments" {% if not preferences or preferences.notify_tournaments %}checked{% endif %}>
-                                    <span class="checkbox-text">
-                                        <i class="fas fa-trophy"></i>
-                                        <strong>Tournaments</strong>
-                                        <small>Tournament events</small>
-                                    </span>
-                                </label>
-
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="notify_events" {% if not preferences or preferences.notify_events %}checked{% endif %}>
-                                    <span class="checkbox-text">
-                                        <i class="fas fa-calendar-alt"></i>
-                                        <strong>General Events</strong>
-                                        <small>Meetings and socials</small>
-                                    </span>
-                                </label>
-
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="notify_misc" {% if not preferences or preferences.notify_misc %}checked{% endif %}>
-                                    <span class="checkbox-text">
-                                        <i class="fas fa-star"></i>
-                                        <strong>Miscellaneous</strong>
-                                        <small>Photoshoots and outings</small>
-                                    </span>
-                                </label>
+                        <div class="notif-toggle-header">
+                            <div class="toggle-info">
+                                <div class="notif-info-row">
+                                    <h3>Enable Event Notifications</h3>
+                                    <div class="team-info-icon-wrapper">
+                                        <i class="fas fa-info-circle team-info-icon"></i>
+                                        <div class="team-info-tooltip">
+                                            <div class="team-info-tooltip-row">
+                                                <span class="team-info-tooltip-label">What</span>
+                                                <span class="team-info-tooltip-value">Receive reminders for events you're subscribed to</span>
+                                            </div>
+                                            <div class="team-info-tooltip-row">
+                                                <span class="team-info-tooltip-label">Types</span>
+                                                <span class="team-info-tooltip-value">Choose which event types trigger notifications below</span>
+                                            </div>
+                                            <div class="team-info-tooltip-row">
+                                                <span class="team-info-tooltip-label">Timing</span>
+                                                <span class="team-info-tooltip-value">Set how many days and hours in advance you are notified</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+                            <label class="switch">
+                                <input type="checkbox" id="enableNotifications"
+                                    {% if preferences and preferences.enable_notifications %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
                         </div>
 
-                        <div class="form-section">
-                            <h3>Advance Notice</h3>
-                            <p class="section-description">How far in advance should we notify you?</p>
+                        <!-- Collapsible: event types + advance notice -->
+                        <div id="notificationOptions"
+                            {% if not preferences or not preferences.enable_notifications %}style="display: none;"{% endif %}>
 
-                            <div class="form-row">
+                            <!-- Event type filter buttons -->
+                            <p class="section-description">Event types to notify</p>
+                            <div class="notif-type-buttons">
+                                <button type="button" data-notif-type="notify_practices"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_practices %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Practices
+                                </button>
+                                <button type="button" data-notif-type="notify_matches"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_matches %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Matches
+                                </button>
+                                <button type="button" data-notif-type="notify_tournaments"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_tournaments %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Tournaments
+                                </button>
+                                <button type="button" data-notif-type="notify_events"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_events %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Events
+                                </button>
+                                <button type="button" data-notif-type="notify_misc"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_misc %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Misc
+                                </button>
+                            </div>
+
+                            <!-- Advance notice inputs -->
+                            <div class="notif-advance-row">
                                 <div class="form-group">
                                     <label for="adviceNoticeDays">Days Before</label>
-                                    <input type="number" id="adviceNoticeDays" name="advance_notice_days" min="0" max="30" value="{% if preferences %}{{ preferences.advance_notice_days }}{% else %}1{% endif %}">
+                                    <input type="number" id="adviceNoticeDays" name="advance_notice_days"
+                                           min="0" max="30"
+                                           value="{% if preferences %}{{ preferences.advance_notice_days }}{% else %}1{% endif %}">
                                 </div>
-
                                 <div class="form-group">
                                     <label for="adviceNoticeHours">Hours Before</label>
-                                    <input type="number" id="adviceNoticeHours" name="advance_notice_hours" min="0" max="23" value="{% if preferences %}{{ preferences.advance_notice_hours }}{% else %}0{% endif %}">
+                                    <input type="number" id="adviceNoticeHours" name="advance_notice_hours"
+                                           min="0" max="23"
+                                           value="{% if preferences %}{{ preferences.advance_notice_hours }}{% else %}0{% endif %}">
                                 </div>
-                            </div>
-
-                            <div class="notification-preview">
-                                <i class="fas fa-info-circle"></i>
-                                <span id="notificationPreview">You'll be notified <strong id="previewTime">1 day</strong> before each event</span>
                             </div>
                         </div>
                     </div>
 
                     <div id="notificationMessage" class="form-message" style="display: none;"></div>
-
-                    <div class="profile-actions">
-                        <button type="submit" class="btn btn-primary">
-                            <span id="saveNotifBtnText">Save Notification Settings</span>
-                            <i id="saveNotifBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>

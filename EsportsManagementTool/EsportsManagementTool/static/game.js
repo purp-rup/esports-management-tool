@@ -237,7 +237,7 @@ function initializeCommunityFilters() {
                 const anyActive = [...buttons].some(
                     b => b.dataset.division !== 'all' && b.classList.contains('active')
                 );
-                const allBtn = document.querySelector('.community-filter-btn[data-division="all"]');
+                const allBtn = document.querySelector('.communities-filter-container .community-filter-btn[data-division="all"]');
                 allBtn.classList.toggle('active', !anyActive);
             }
 

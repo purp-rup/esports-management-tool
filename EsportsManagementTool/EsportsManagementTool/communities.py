@@ -1149,7 +1149,7 @@ def get_user_communities():
 
         try:
             cursor.execute(
-                "SELECT GameID, GameTitle, Description, GameImage, ImageMimeType, TeamSizes FROM games ORDER BY GameTitle ASC")
+                "SELECT GameID, GameTitle, Description, GameImage, ImageMimeType, TeamSizes, Abbreviation FROM games ORDER BY GameTitle ASC")
             all_games = cursor.fetchall()
 
             formatted_communities = []
@@ -1177,7 +1177,7 @@ def get_user_communities():
                         formatted_communities.append(
                             {'id': game_id, 'title': game_title, 'description': game['Description'],
                              'image_url': image_url, 'team_sizes': game['TeamSizes'], 'joined_at': joined_str,
-                             'member_count': member_count})
+                             'member_count': member_count, 'abbreviation': game['Abbreviation']})
                 except Exception as e:
                     print(f"Error checking membership for {game_title}: {e}")
                     continue

@@ -197,7 +197,7 @@ function initializePreferredTabSetting() {
         btn.addEventListener('click', async function () {
             const selectedTab = this.dataset.tabValue;
 
-            // Single-select: deactivate all, activate clicked
+            // Single-select
             buttons.forEach(b => b.classList.remove('active'));
             this.classList.add('active');
 
@@ -210,11 +210,10 @@ function initializePreferredTabSetting() {
                 const data = await response.json();
 
                 if (data.success && message) {
-                    // Brief "Saved" confirmation that auto-hides
-                    message.style.display = 'inline-flex';
+                    message.classList.add('visible');
                     clearTimeout(message._hideTimer);
                     message._hideTimer = setTimeout(() => {
-                        message.style.display = 'none';
+                        message.classList.remove('visible');
                     }, 2000);
                 }
             } catch (err) {
