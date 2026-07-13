@@ -244,6 +244,134 @@ function createMemberPill(member, options = {}) {
     return pill;
 }
 
+// ============================================
+// INFO ICON
+// ============================================
+
+/**
+ * Position an info tooltip using fixed viewport coordinates so it
+ * can't be clipped by overflow:hidden ancestors or panel scroll.
+ * Resets when the wrapper loses hover (see initInfoIcon).
+ * @param {HTMLElement} wrapperEl .info-icon-wrapper element
+ */
+function positionInfoTooltip(wrapperEl) {
+    if (window.innerWidth <= 768) return;
+
+    const tooltip = wrapperEl.querySelector('.info-tooltip');
+    if (!tooltip) return;
+
+    tooltip.style.top = '';
+
+    const wrapperRect  = wrapperEl.getBoundingClientRect();
+    const tooltipWidth = 260; // matches the fixed CSS width
+    const gap          = 12;
+    const margin       = 8;
+
+    // Open left if there's not enough room to the right but enough to the left
+    const spaceRight = window.innerWidth - wrapperRect.right - gap;
+    const spaceLeft  = wrapperRect.left - gap;
+    const opensLeft  = spaceRight < tooltipWidth && spaceLeft >= tooltipWidth;
+
+    tooltip.classList.toggle('info-tooltip--left', opensLeft);
+
+    // Vertical clamp
+    tooltip.style.visibility = 'hidden';
+    tooltip.style.display    = 'block';
+    const h = tooltip.offsetHeight;
+    tooltip.style.display    = '';
+    tooltip.style.visibility = '';
+
+    const defaultViewportTop = wrapperRect.top + wrapperRect.height / 2 - h / 2;
+
+    if (defaultViewportTop < margin) {
+        tooltip.style.top = `${margin - wrapperRect.top + h / 2}px`;
+    } else if (defaultViewportTop + h > window.innerHeight - margin) {
+        tooltip.style.top = `${window.innerHeight - margin - wrapperRect.top - h / 2}px`;
+    }
+}
+
+/**
+ * Open the universal info bottom sheet.
+ * @param {string}      title     Heading shown at the top of the sheet
+ * @param {HTMLElement} tooltipEl The .info-tooltip whose innerHTML to clone
+ */
+function openInfoSheet(title, tooltipEl) {
+    const sheet    = document.getElementById('infoSheet');
+    const titleEl  = document.getElementById('infoSheetTitle');
+    const content  = document.getElementById('infoSheetContent');
+    const backdrop = document.getElementById('infoSheetBackdrop');
+    if (!sheet || !titleEl || !content) return;
+
+    titleEl.textContent  = title;
+    content.innerHTML    = tooltipEl ? tooltipEl.innerHTML : '';
+    sheet.classList.add('sheet-open');
+    backdrop?.classList.add('open');
+    lockBodyScroll('infoSheet');
+}
+
+/**
+ * Close the universal info bottom sheet.
+ */
+function closeInfoSheet() {
+    document.getElementById('infoSheet')?.classList.remove('sheet-open');
+    document.getElementById('infoSheetBackdrop')?.classList.remove('open');
+    unlockBodyScroll('infoSheet');
+}
+
+/**
+ * Initialize a single info icon wrapper for both desktop and mobile.
+ *
+ * @param {HTMLElement}        wrapperEl .info-icon-wrapper element
+ * @param {string|function}    titleOrFn Sheet heading, or a function
+ *                                       that returns it (for dynamic titles)
+ */
+function initInfoIcon(wrapperEl, titleOrFn) {
+    if (!wrapperEl) return;
+
+    const icon = wrapperEl.querySelector('.info-icon');
+
+    // Mobile click
+    icon?.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768) {
+            e.stopPropagation();
+            const tooltip = wrapperEl.querySelector('.info-tooltip');
+            const title   = typeof titleOrFn === 'function' ? titleOrFn() : (titleOrFn || '');
+            openInfoSheet(title, tooltip);
+        }
+    });
+
+    // Desktop hover
+    wrapperEl.addEventListener('mouseenter', () => {
+        const t = wrapperEl.querySelector('.info-tooltip');
+        if (!t) return;
+        clearTimeout(t._flipTimer);
+        // Sets --left if needed force reflow so browser sees the
+        // correct starting transform before --visible triggers the transition
+        positionInfoTooltip(wrapperEl);
+        void t.offsetHeight;
+        t.classList.add('info-tooltip--visible');
+    });
+    wrapperEl.addEventListener('mouseleave', () => {
+        const t = wrapperEl.querySelector('.info-tooltip');
+        if (!t) return;
+        t.style.top = '';
+        t.classList.remove('info-tooltip--visible'); // fade + slide out
+        clearTimeout(t._flipTimer);
+        // Remove direction class only after the exit transition finishes
+        t._flipTimer = setTimeout(() => {
+            t.classList.remove('info-tooltip--left');
+        }, 150);
+    });
+}
+
+// Auto-init any info icon that declares a static title via data attribute.
+// The Teams tab wires its own icon manually (dynamic title).
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.info-icon-wrapper[data-info-title]').forEach(wrapper => {
+        initInfoIcon(wrapper, wrapper.dataset.infoTitle);
+    });
+});
+
 // ========================================
 // UTILITIES
 // =======================================
@@ -305,3 +433,7 @@ window.createMemberPill = createMemberPill;
 window.debounce = debounce;
 window.lockBodyScroll = lockBodyScroll;
 window.unlockBodyScroll = unlockBodyScroll;
+window.positionInfoTooltip = positionInfoTooltip;
+window.openInfoSheet = openInfoSheet;
+window.closeInfoSheet = closeInfoSheet;
+window.initInfoIcon = initInfoIcon;

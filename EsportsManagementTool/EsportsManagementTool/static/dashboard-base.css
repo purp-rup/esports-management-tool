@@ -245,6 +245,183 @@ main {
     font-weight: 600;
 }
 
+/* ====================================
+   INFO ICON
+   ==================================== */
+.info-icon-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.info-icon {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    cursor: default;
+    transition: color 0.2s ease;
+    line-height: 1;
+    display: block;
+}
+
+.info-icon-wrapper:hover .info-icon {
+    color: var(--stockton-blue);
+}
+
+/* Tooltip panel — positioned to the right by JS on hover */
+.info-tooltip {
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-4px);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    min-width: 260px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 200;
+    white-space: nowrap;
+}
+
+/* Arrow pointing left from tooltip back to icon */
+.info-tooltip::before {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 6px solid transparent;
+    border-right-color: var(--border-color);
+}
+
+.info-tooltip::after {
+    content: '';
+    position: absolute;
+    right: calc(100% - 1px);
+    top: 50%;
+    transform: translateY(-50%);
+    border: 6px solid transparent;
+    border-right-color: var(--card-bg);
+}
+
+/* Visible state */
+.info-tooltip.info-tooltip--visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%) translateX(0);
+    overflow: visible;
+}
+
+/* Rows inside the tooltip */
+.info-tooltip-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.3rem 0;
+}
+
+.info-tooltip-row + .info-tooltip-row {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 0.2rem;
+    padding-top: 0.5rem;
+}
+
+.info-tooltip-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 60px;
+    padding-top: 0.1rem;
+}
+
+.info-tooltip-value {
+    font-size: 0.8125rem;
+    color: var(--text-primary);
+    line-height: 1.4;
+    flex: 1;
+    min-width: 0;
+    white-space: normal;
+}
+
+/* Left-opening variant */
+.info-tooltip--left {
+    left: auto;
+    right: calc(100% + 12px);
+    transform: translateY(-50%) translateX(4px); /* slides in from the right */
+}
+
+.info-tooltip--left::before {
+    right: auto;
+    left: 100%;
+    border-right-color: transparent;
+    border-left-color: var(--border-color);
+}
+
+.info-tooltip--left::after {
+    right: auto;
+    left: calc(100% - 1px);
+    border-right-color: transparent;
+    border-left-color: var(--card-bg);
+}
+
+/* Universal info bottom sheet for mobile */
+.info-sheet {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    border-radius: 16px 16px 0 0;
+    padding: 1rem 1.25rem 2rem;
+    z-index: 600;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+}
+
+.info-sheet.sheet-open {
+    display: block;
+    transform: translateY(0);
+}
+
+.info-sheet::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    margin: 0 auto 1rem;
+}
+
+.info-sheet-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 1rem 0;
+}
+
+/* Mobile: hide desktop tooltip, make icon a tap target */
+@media (max-width: 768px) {
+    .info-tooltip {
+        display: none !important;
+    }
+
+    .info-icon {
+        cursor: pointer;
+    }
+}
+
 /* ===================================
    ROLE BADGES
    User role indicators (Admin, GM, Player)

@@ -234,23 +234,12 @@ function populateTeamInfoTooltip(team) {
         tooltipLeagues.style.display = 'none';
     }
 
-    // Check if mobile to display sheet
-    document.querySelector('.team-info-icon').onclick = function(e) {
-        if (window.innerWidth <= 768) {
-            e.stopPropagation();
-            openTeamInfoSheet();
-        }
-    }
-
-    /* Position the tooltip via JS so it can't get clipped off the top of
-     * the viewport when the icon sits near the top of the panel.
-     */
-    const infoWrapper = document.querySelector('.team-info-icon-wrapper');
-    if (infoWrapper) {
-        infoWrapper.onmouseenter = function() {
-            positionTeamInfoTooltip(infoWrapper);
-        };
-    }
+    // Wire the teams info icon using the universal helper.
+    // Title is pulled from the visible team name at open time.
+    initInfoIcon(
+        document.querySelector('.team-title-row .info-icon-wrapper'),
+        () => document.getElementById('teamDetailTitle')?.textContent || 'Team Info'
+    );
 }
 
 // Display leagues — updates both the hidden compact element and the tooltip
@@ -1234,45 +1223,18 @@ function formatTimeRemaining(days, hours) {
 
 // Open info sheet if on mobile
 function openTeamInfoSheet() {
-    // Copy the tooltip content into the sheet
-    const tooltip = document.querySelector('.team-info-tooltip');
-    const title = document.getElementById('teamDetailTitle')?.textContent || 'Team Info';
-
-    document.getElementById('teamInfoSheetTitle').textContent = title;
-    document.getElementById('teamInfoSheetContent').innerHTML = tooltip ? tooltip.innerHTML : '';
-
-    document.getElementById('teamInfoSheet').classList.add('sheet-open');
-    document.getElementById('teamInfoSheetBackdrop').classList.add('open');
+    const tooltip = document.querySelector('.team-title-row .info-tooltip');
+    const title   = document.getElementById('teamDetailTitle')?.textContent || 'Team Info';
+    openInfoSheet(title, tooltip);
 }
 
 function closeTeamInfoSheet() {
-    document.getElementById('teamInfoSheet').classList.remove('sheet-open');
-    document.getElementById('teamInfoSheetBackdrop').classList.remove('open');
+    closeInfoSheet();
 }
 
 // Position the team-info tooltip to avoid being cut off on top.
 function positionTeamInfoTooltip(wrapperEl) {
-    if (window.innerWidth <= 768) return; // mobile uses the sheet instead
-
-    const tooltip = wrapperEl.querySelector('.team-info-tooltip');
-    const icon = wrapperEl.querySelector('.team-info-icon');
-    if (!tooltip || !icon) return;
-
-    const iconRect = icon.getBoundingClientRect();
-
-    // Measure the tooltip's real height without it being visibly shown yet
-    tooltip.style.visibility = 'hidden';
-    tooltip.style.display = 'block';
-    const tooltipRect = tooltip.getBoundingClientRect();
-    tooltip.style.display = '';
-    tooltip.style.visibility = '';
-
-    const margin = 8;
-    let top = iconRect.top + (iconRect.height / 2) - (tooltipRect.height / 2);
-    top = Math.max(margin, Math.min(top, window.innerHeight - tooltipRect.height - margin));
-
-    tooltip.style.top = `${top}px`;
-    tooltip.style.left = `${iconRect.right + 12}px`;
+    positionInfoTooltip(wrapperEl);
 }
 
 // ============================================
