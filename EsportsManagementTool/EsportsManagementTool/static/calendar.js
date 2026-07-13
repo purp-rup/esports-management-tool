@@ -6,7 +6,7 @@
 let currentDate = new Date();
 let calendarEventsData = {};  
 let isUserLoggedIn = false;
-let clickOutsideHandler = null; // Listens for clicks outside of popups
+let clickOutsideHandler = null; // Listens for clicks outside popups
 let activeAnchorElement = null;
 
 window.currentEventId = null;
@@ -170,13 +170,6 @@ function renderCalendar() {
         eventsContainer.id = `events-${dateKey}`;
         cell.appendChild(eventsContainer);
 
-        cell.addEventListener('click', function() {
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                'July', 'August', 'September', 'October', 'November', 'December'];
-            const dateDisplay = `${monthNames[month]} ${day}, ${year}`;
-            openDayModal(dateKey, dateDisplay);
-        });
-
         grid.appendChild(cell);
     }
 
@@ -321,53 +314,8 @@ function updateTodayEvents() {
         type.textContent = event.event_type;
         item.appendChild(type);
 
-        item.addEventListener('click', function() {
-            openCalendarEventModal(event.id);
-        });
-
         container.appendChild(item);
     });
-}
-
-function openCalendarEventModal(eventId) {
-    const modal = document.getElementById('eventDetailsModal');
-    const modalBody = document.getElementById('eventModalBody');
-
-    modal.style.display = 'block';
-    lockBodyScroll('calendarEventModal');
-    window.currentEventId = eventId;
-
-    modalBody.innerHTML = `
-        <div class="loading-spinner">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Loading event details...</p>
-        </div>
-    `;
-
-    fetch(`/api/events/${eventId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                modalBody.innerHTML = `
-                    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                        <i class="fas fa-exclamation-circle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                        <p>${data.error || 'Failed to load event details'}</p>
-                    </div>
-                `;
-            } else {
-                window.currentEventData = data;
-                displayEventDetails(data);
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching event:', error);
-            modalBody.innerHTML = `
-                <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                    <i class="fas fa-exclamation-circle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                    <p>Failed to load event details</p>
-                </div>
-            `;
-        });
 }
 
 function displayEventDetails(event) {
@@ -481,38 +429,6 @@ function displayEventDetails(event) {
     if (isUserLoggedIn && event.id) {
         loadNotificationSection(event.id);
     }
-}
-
-function openDayModal(dateKey, dateDisplay) {
-    const modal = document.getElementById('dayEventsModal');
-    const title = document.getElementById('dayModalTitle');
-    const body = document.getElementById('dayModalBody');
-
-    title.textContent = `Events on ${dateDisplay}`;
-    const events = calendarEventsData[dateKey] || [];
-
-    if (events.length === 0) {
-        body.innerHTML = '<p style="color: var(--text-secondary);">No events on this day</p>';
-    } else {
-        let html = '';
-        events.forEach(event => {
-            html += `
-                <div class="modal-event-item" onclick="closeDayModal(); openCalendarEventModal(${event.id});">
-                    ${event.time ? `<div class="modal-event-time">${event.time}</div>` : ''}
-                    <div class="modal-event-title">${event.title}</div>
-                    ${event.description ? `<div class="modal-event-description">${event.description}</div>` : ''}
-                    <div class="modal-event-meta">
-                        <span><i class="fas fa-tag"></i> ${event.event_type}</span>
-                        ${event.game_name ? `<span><i class="fas fa-gamepad"></i> ${event.game_name}</span>` : ''}
-                    </div>
-                </div>
-            `;
-        });
-        body.innerHTML = html;
-    }
-
-    modal.style.display = 'block';
-    lockBodyScroll('dayEventsModal');
 }
 
 function openEventPopup(event_id, clickedElement) {
@@ -763,29 +679,6 @@ function capitalizeFirst(str) {
 // DAY MODAL (CALENDAR VIEW)
 // ============================================
 
-// Create event item for day modal
-function createDayModalEventItem(event) {
-    const eventItem = document.createElement('div');
-    eventItem.className = 'modal-event-item';
-    eventItem.onclick = (e) => {
-        e.stopPropagation();
-        closeDayModal();
-        openEventModal(event.id);
-    };
-
-    let eventHTML = '';
-    if (event.time) {
-        eventHTML += `<div class="modal-event-time"><i class="fas fa-clock"></i> ${event.time}</div>`;
-    }
-    eventHTML += `<div class="modal-event-title">${event.title}</div>`;
-    if (event.description) {
-        eventHTML += `<div class="modal-event-description">${event.description}</div>`;
-    }
-
-    eventItem.innerHTML = eventHTML;
-    return eventItem;
-}
-
 // ============================================
 // EVENT SUBSCRIPTION FUNCTIONS
 // ============================================
@@ -850,20 +743,5 @@ async function toggleEventSubscription() {
     }
 }
 
-window.closeDayModal = function() {
-    const modal = document.getElementById('dayEventsModal');
-    if (modal) modal.style.display = 'none';
-    unlockBodyScroll('dayEventsModal');
-};
-
 function closeEventModal() { window.closeEventModal(); }
-function closeDayModal() { window.closeDayModal(); }
 function closeEventPopup() { window.closeEventPopup(); }
-
-window.openCalendarEventModal = openCalendarEventModal;
-window.openDayModal = openDayModal;
-window.closeDayModal = closeDayModal;
-
-if (typeof window.openEventModal !== 'function') {
-    window.openEventModal = openCalendarEventModal;
-}
