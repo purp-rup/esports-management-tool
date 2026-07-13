@@ -17,7 +17,7 @@
 .teams-layout {
     display: flex;
     flex-direction: row;
-    gap: 1.5rem !important;
+    gap: 1rem !important;
     height: calc(100vh - 50px);
     min-height: 675px;
     width: 100%;
