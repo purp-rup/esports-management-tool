@@ -1,5 +1,10 @@
-/* League Management Styles */
+/* ============================================
+   LEAGUES STYLES
+   - League modal design
+   - League display in teams and communities
+   ============================================ */
 
+/* Main modal layout */
 .league-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -222,152 +227,9 @@
     color: var(--text-primary);
 }
 
-/* Loading state */
-.league-loading {
-    text-align: center;
-    padding: 2rem;
-}
-
-.league-loading i {
-    font-size: 2rem;
-    color: var(--stockton-blue);
-}
-
-.league-loading p {
-    color: var(--text-secondary);
-    margin-top: 1rem;
-}
-
-/* League delete button styling */
-.btn-league-delete {
-    background: transparent !important;
-    color: #ef4444 !important;
-    border: 1px solid #ef4444 !important;
-    transition: all 0.2s;
-}
-
-.btn-league-delete:hover {
-    background: rgba(239, 68, 68, 0.1) !important;
-    transform: translateY(-1px);
-}
-
-/* Delete confirmation for leagues */
-.league-delete-warning {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-}
-
-.league-delete-warning p {
-    margin: 0;
-    color: #ef4444;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-/* Image Cropper Modal */
-
-#imageCropperModal {
-    z-index: 10002;
-}
-#imageCropperModal .modal-content {
-    max-width: 600px;
-    width: 90%;
-}
-
-.cropper-container-wrapper {
-    max-height: 500px;
-    background: #000;
-    border-radius: 8px;
-    overflow: hidden;
-    margin: 1rem 0;
-    position: relative;
-}
-
-.cropper-container {
-    max-height: 400px;
-}
-
-/* Style cropper.js outline */
-.cropper-container .cropper-view-box {
-    outline: 2px solid var(--stockton-blue);
-    outline-offset: -1px;
-}
-
-.cropper-container .cropper-face {
-    background-color: transparent !important;
-}
-
-.crop-controls {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-}
-
-.crop-controls button {
-    padding: 0.75rem 1rem;
-    background: var(--background-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-
-.crop-controls button i {
-    font-size: 1.25rem;
-    color: var(--stockton-blue);
-}
-
-.crop-controls button:hover {
-    background: var(--dark-bg);
-    border-color: var(--stockton-blue);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-.crop-controls button:active {
-    transform: translateY(0);
-}
-
-.crop-preview-text {
-    text-align: center;
-    color: var(--text-secondary);
-    margin-top: 1rem;
-    font-size: 0.875rem;
-    padding: 0.75rem;
-    background: rgba(91, 192, 235, 0.1);
-    border-radius: 6px;
-    border: 1px solid rgba(91, 192, 235, 0.2);
-}
-
-.crop-preview-text i {
-    color: var(--stockton-blue);
-    margin-right: 0.5rem;
-}
-
-/* Cropper action buttons */
-#imageCropperModal .form-actions {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--border-color);
-}
-
-#imageCropperModal .form-actions button {
-    min-width: 120px;
-}
-
-/* Responsive */
+/* =====================================
+   Mobile Friendliness
+   ===================================== */
 @media (max-width: 768px) {
     .league-grid {
         grid-template-columns: 1fr;
@@ -382,9 +244,5 @@
         flex-direction: column;
         gap: 1rem;
         align-items: stretch;
-    }
-
-    .crop-controls {
-        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
     }
 }

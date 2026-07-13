@@ -1,21 +1,15 @@
 /* ============================================
    DISCORD INTEGRATION STYLES
-   OAuth integration and profile display
-   ORGANIZED BY CLAUDEAI
+   - Main widget on profile tab
+   - Different states based on connected status
    ============================================ */
 
-/* --------------------------------------------
-   MAIN CONTAINER
-   Primary Discord section wrapper
-   -------------------------------------------- */
+/* Main container */
 .discord-profile-container {
     width: 100%;
 }
 
-/* --------------------------------------------
-   DISCORD PROFILE HEADER
-   Connected user display card
-   -------------------------------------------- */
+/* Profile header */
 .discord-profile-header {
     display: flex;
     align-items: center;
@@ -32,10 +26,7 @@
     box-shadow: 0 4px 12px rgba(88, 101, 242, 0.1);
 }
 
-/* --------------------------------------------
-   DISCORD AVATAR
-   Large circular profile picture
-   -------------------------------------------- */
+/* Avatar */
 .discord-avatar-large {
     width: 75px;
     height: 75px;
@@ -67,10 +58,7 @@
     font-size: 1.5rem;
 }
 
-/* --------------------------------------------
-   DISCORD PROFILE INFO
-   User information text section
-   -------------------------------------------- */
+/* Profile info */
 .discord-profile-info {
     min-width: 0; /* Prevents text overflow issues */
 }
@@ -120,10 +108,7 @@
     color: #5865F2;
 }
 
-/* --------------------------------------------
-   ACTION BUTTONS
-   Connect, sync, and disconnect buttons
-   -------------------------------------------- */
+/* Connect, sync, and disconnect buttons */
 .discord-actions {
     margin-left: auto;
     margin-top: 0;
@@ -169,10 +154,7 @@
     outline-offset: 2px;
 }
 
-/* --------------------------------------------
-   LOADING STATE
-   Display while fetching Discord data
-   -------------------------------------------- */
+/* States */
 #discordLoading {
     text-align: center;
 }
@@ -187,10 +169,6 @@
     margin-top: 1rem;
 }
 
-/* --------------------------------------------
-   NOT CONNECTED STATE
-   Display when no Discord account linked
-   -------------------------------------------- */
 #discordNotConnected .empty-state {
     padding: 0;
 }
@@ -211,10 +189,7 @@
     margin: 0 auto;
 }
 
-/* --------------------------------------------
-   ACTION MESSAGES
-   Success/error feedback messages
-   -------------------------------------------- */
+/* Success/error feedback */
 #discordActionMessage {
     margin-top: 1rem;
     padding: 0.75rem 1rem;
@@ -222,10 +197,9 @@
     animation: slideIn 0.3s ease;
 }
 
-/* --------------------------------------------
+/* ========================
    ANIMATIONS
-   Keyframe animations
-   -------------------------------------------- */
+   ======================== */
 @keyframes slideIn {
     from {
         opacity: 0;
@@ -237,11 +211,9 @@
     }
 }
 
-/* --------------------------------------------
-   MOBILE FRIENDLINESS
-   -------------------------------------------- */
-
-/* Mobile devices */
+/* ==============================
+   Mobile Friendliness
+   ============================== */
 @media (max-width: 768px) {
     .discord-profile-header {
         flex-direction: column;
@@ -278,7 +250,6 @@
     }
 }
 
-/* Tablet devices */
 @media (max-width: 992px) and (min-width: 769px) {
     .discord-profile-header {
         gap: 1rem;
@@ -291,22 +262,11 @@
     }
 }
 
-/* --------------------------------------------
+/* ==========================
    DARK MODE SUPPORT
-   Enhanced dark mode styling
-   -------------------------------------------- */
+   ========================== */
 @media (prefers-color-scheme: dark) {
     .discord-profile-header {
         background: linear-gradient(135deg, rgba(88, 101, 242, 0.15) 0%, rgba(88, 101, 242, 0.08) 100%);
-    }
-}
-
-/* --------------------------------------------
-   PRINT STYLES
-   Hide Discord section when printing
-   -------------------------------------------- */
-@media print {
-    .discord-profile-container {
-        display: none;
     }
 }
