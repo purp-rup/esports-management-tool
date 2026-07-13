@@ -1,12 +1,11 @@
 /* ============================================
-   NOTIFICATION SETTINGS STYLES
-   User notification preferences interface
+   NOTIFICATION STYLES
+   - Section layout on profile tab
+   - Settings options and checkboxes (for email notifications)
+   - Card design (in-app message notifications)
    ============================================ */
 
-/* --------------------------------------------
-   FORM LAYOUT
-   Main notification form structure
-   -------------------------------------------- */
+/* Section layout */
 .notification-form {
     display: flex;
     flex-direction: column;
@@ -33,10 +32,7 @@
     font-size: 0.8125rem;
 }
 
-/* --------------------------------------------
-   TOGGLE CARDS
-   Card containers for settings sections
-   -------------------------------------------- */
+/* Card container for notification options */
 .notification-toggle {
     display: flex;
     flex-direction: column;
@@ -102,10 +98,7 @@
     margin: 0;
 }
 
-/* --------------------------------------------
-   SECTION HEADERS
-   Titles and descriptions
-   -------------------------------------------- */
+/* Options section headers */
 .toggle-info h3,
 .form-section h3 {
     font-size: 1rem;
@@ -120,10 +113,7 @@
     margin: 0;
 }
 
-/* --------------------------------------------
-   TOGGLE SWITCH
-   On/off switch component
-   -------------------------------------------- */
+/* Toggle Switch */
 .switch {
     position: relative;
     display: inline-block;
@@ -169,10 +159,7 @@ input:checked + .slider:before {
     transform: translateX(24px);
 }
 
-/* --------------------------------------------
-   FORM INPUTS
-   Number input fields
-   -------------------------------------------- */
+/* Advance number input fields */
 .notification-form input[type="number"] {
     width: 100%;
     padding: 0.75rem;
@@ -191,10 +178,7 @@ input:checked + .slider:before {
     box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.15);
 }
 
-/* --------------------------------------------
-   EVENT TYPE CHECKBOXES
-   Selectable event type preferences
-   -------------------------------------------- */
+/* Event type checkboxes */
 .event-type-checkboxes {
     display: flex;
     flex-direction: column;
@@ -238,36 +222,77 @@ input:checked + .slider:before {
     font-size: 0.8rem;
 }
 
-/* --------------------------------------------
-   NOTIFICATION PREVIEW
-   Preview banner for notification appearance
-   -------------------------------------------- */
-.notification-preview {
+/* ============================================
+   DELETE NOTIFICATION CARDS
+   Success/error notifications after deletion
+   ============================================ */
+.delete-notification-card {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 1rem;
-    background: rgba(121, 189, 233, 0.1);
-    border: 1px solid var(--stockton-blue);
-    border-radius: 10px;
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    box-shadow: 0 2px 4px rgba(121, 189, 233, 0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    transition: all 0.3s ease-out, top 0.3s ease-out;
+    max-width: 400px;
 }
 
-.notification-preview i {
-    color: var(--stockton-blue);
-    font-size: 1.125rem;
+.delete-notification-card.show {
+    opacity: 1;
+    transform: translateX(0);
 }
 
-.notification-preview strong {
-    color: var(--stockton-blue);
+/* Success variant */
+.delete-notification-card[data-type="success"] {
+    background: #10b981;
+    border: 1px solid #059669;
+    color: white;
 }
 
-/* --------------------------------------------
+.delete-notification-card[data-type="success"] i {
+    color: white;
+    font-size: 1.25rem;
+}
+
+/* Error variant */
+.delete-notification-card[data-type="error"] {
+    background: #ef4444;
+    border: 1px solid #dc2626;
+    color: white;
+}
+
+.delete-notification-card[data-type="error"] i {
+    color: white;
+    font-size: 1.25rem;
+}
+
+/* Info variant (for informational messages like auto-cleanup) */
+.delete-notification-card[data-type="info"] {
+    background: #3b82f6;
+    border: 1px solid #2563eb;
+    color: white;
+}
+
+.delete-notification-card[data-type="info"] i {
+    color: white;
+    font-size: 1.25rem;
+}
+
+.delete-notification-card p {
+    margin: 0;
+    flex: 1;
+    line-height: 1.4;
+}
+
+/* =============================
    ANIMATIONS
-   Keyframe animations
-   -------------------------------------------- */
+   ============================= */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -276,5 +301,21 @@ input:checked + .slider:before {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+/* ===================================
+   Mobile friendliness
+   =================================== */
+@media (max-width: 768px) {
+    .delete-confirmation-content {
+        margin: 1rem;
+    }
+
+    .delete-notification-card {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
     }
 }

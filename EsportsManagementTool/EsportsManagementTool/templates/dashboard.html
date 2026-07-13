@@ -17,7 +17,6 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='communities-list.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='user-profiles.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='updateProfile.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='scheduled-events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='teamstats.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='vods.css') }}">
@@ -1536,7 +1535,7 @@
 
             <div id="editProfileMessage" class="form-message" style="display: none;"></div>
 
-            <div class="modal-actions">
+            <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary">
                     <span id="saveProfileBtnText">Save Changes</span>
@@ -1594,7 +1593,7 @@
 
             <div id="changePasswordMessage" class="form-message" style="display: none;"></div>
 
-            <div class="modal-actions">
+            <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary">
                     <span id="changePasswordBtnText">Change Password</span>

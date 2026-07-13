@@ -360,9 +360,28 @@
     font-size: 0.875rem;
 }
 
-/* --------------------------------------------
+/* ============================================
+   UPDATE PROFILE MODAL STYLES
+   Profile editing modal interface
+   ============================================ */
+
+/* =================================
+   Animations
+   ================================ */
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =============================
    MOBILE FRIENDLINESS
-   -------------------------------------------- */
+   ============================= */
 @media (max-width: 1200px) {
     .profile-main-layout {
         grid-template-columns: 1fr 1fr;
