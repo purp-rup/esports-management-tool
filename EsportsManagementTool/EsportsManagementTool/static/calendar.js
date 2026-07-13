@@ -8,12 +8,20 @@ let calendarEventsData = {};
 let isUserLoggedIn = false;
 let clickOutsideHandler = null; // Listens for clicks outside popups
 let activeAnchorElement = null;
+let currentFetchController = null; // AbortController for the in-flight event fetch
 
 window.currentEventId = null;
 window.currentEventData = null;
 
 // Popup close function
 window.closeEventPopup = function() {
+    // Cancel any in-flight fetch so rapid clicks don't send concurrent
+    // requests to Flask's single-threaded dev server
+    if (currentFetchController) {
+        currentFetchController.abort();
+        currentFetchController = null;
+    }
+
     const existingPopup = document.getElementById('landingEventPopup');
     if (existingPopup) {
         existingPopup.remove();
@@ -124,6 +132,7 @@ function updateCalendarHeader() {
 }
 
 function renderCalendar() {
+    closeOverflowPanel();
     const grid = document.getElementById('calendarGrid');
     if (!grid) {
         console.error('Calendar grid element not found!');
@@ -240,6 +249,11 @@ function displayEvents() {
             const overflow = document.createElement('div');
             overflow.className = 'event-overflow';
             overflow.textContent = `+${events.length - 3} more`;
+            const hiddenEvents = events.slice(3);
+            overflow.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleCellOverflow(overflow, hiddenEvents);
+            });
             container.appendChild(overflow);
         }
     });
@@ -468,9 +482,13 @@ function openEventPopup(event_id, clickedElement) {
         }
     }, 50);
 
-    fetch(`/api/events/${event_id}`)
+    const controller = new AbortController();
+    currentFetchController = controller;
+
+    fetch(`/api/events/${event_id}`, { signal: controller.signal })
         .then(response => response.json())
         .then(data => {
+            currentFetchController = null;
             if (data.error) {
                 popup.innerHTML = `<div class="popup-error">Failed to load details</div>`;
             } else {
@@ -479,6 +497,7 @@ function openEventPopup(event_id, clickedElement) {
             }
         })
         .catch(error => {
+            if (error.name === 'AbortError') return; // intentional cancel, not an error
             console.error('Error fetching event:', error);
             popup.innerHTML = `<div class="popup-error">Failed to load details</div>`;
         });
@@ -676,8 +695,87 @@ function capitalizeFirst(str) {
 }
 
 // ============================================
-// DAY MODAL (CALENDAR VIEW)
+// CELL OVERFLOW EXPANSION
 // ============================================
+
+let _overflowPanel  = null;
+let _overflowCell   = null;
+let _overflowTrigger = null;
+
+/**
+ * Toggle the overflow expansion panel for a day cell.
+ * Opens if closed, closes if the same cell is clicked again.
+ */
+function toggleCellOverflow(overflowEl, hiddenEvents) {
+    const cell = overflowEl.closest('.calendar-cell');
+
+    if (_overflowCell === cell) {
+        closeOverflowPanel();
+        return;
+    }
+
+    closeOverflowPanel();
+
+    // Build the panel and populate with the hidden events
+    const panel = document.createElement('div');
+    panel.className = 'calendar-overflow-panel';
+
+    const cellMirror = document.createElement('div');
+    cellMirror.className = 'calendar-cell calendar-overflow-inner';
+    hiddenEvents.forEach(event => cellMirror.appendChild(createEventElement(event)));
+    panel.appendChild(cellMirror);
+
+    document.body.appendChild(panel);
+    overflowEl.style.display = 'none';
+
+    positionOverflowPanel(panel, cell);
+    cell.classList.add('calendar-cell--expanded');
+
+    _overflowPanel   = panel;
+    _overflowCell    = cell;
+    _overflowTrigger = overflowEl;
+}
+
+/**
+ * Position the panel flush below the cell, overlapping by 1px
+ * to bridge the grid gap seamlessly.
+ */
+function positionOverflowPanel(panel, cell) {
+    requestAnimationFrame(() => {
+        const rect = cell.getBoundingClientRect();
+        panel.style.top   = `${rect.bottom - 8}px`;
+        panel.style.left  = `${rect.left}px`;
+        panel.style.width = `${rect.width}px`;
+    });
+}
+
+/**
+ * Close and remove the active overflow panel.
+ */
+function closeOverflowPanel() {
+    if (_overflowPanel && activeAnchorElement && _overflowPanel.contains(activeAnchorElement)) {
+        window.closeEventPopup();
+    }
+    if (_overflowPanel)   { _overflowPanel.remove();   _overflowPanel   = null; }
+    if (_overflowCell)    { _overflowCell.classList.remove('calendar-cell--expanded'); _overflowCell = null; }
+    if (_overflowTrigger) { _overflowTrigger.style.display = ''; _overflowTrigger = null; }
+}
+
+// Close when clicking outside the panel
+document.addEventListener('click', (e) => {
+    if (_overflowPanel && !_overflowPanel.contains(e.target)) {
+        closeOverflowPanel();
+    }
+});
+
+// Reposition panel on scroll/resize so it follows the cell
+function handleOverflowReposition() {
+    if (!_overflowPanel || !_overflowCell) return;
+    positionOverflowPanel(_overflowPanel, _overflowCell);
+}
+
+window.addEventListener('scroll', handleOverflowReposition, { passive: true });
+window.addEventListener('resize', handleOverflowReposition);
 
 // ============================================
 // EVENT SUBSCRIPTION FUNCTIONS

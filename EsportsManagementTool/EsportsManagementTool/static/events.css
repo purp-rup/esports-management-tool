@@ -274,6 +274,7 @@ textarea.panel-edit-input {
     gap: 1.25rem;
     align-items: start;
     min-height: 100%;
+    margin-top: 0.1rem;
 }
 
 .event-card {

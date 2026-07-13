@@ -65,6 +65,7 @@
     font-size: 0.875rem;
     font-weight: 500;
     transition: all 0.2s;
+    cursor: pointer;
 }
 
 .nav-button:hover {
@@ -249,9 +250,56 @@
 /* Event overflow indicator */
 .event-overflow {
     font-size: 0.75rem;
-    color: var(--text-secondary);
-    padding: 0.25rem 0.5rem;
-    font-style: italic;
+    color: var(--stockton-blue);
+    padding: 0.2rem 0.5rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 4px;
+    user-select: none;
+    transition: background 0.15s ease;
+    display: inline-block;
+}
+
+.event-overflow:hover {
+    background: rgba(121, 189, 233, 0.15);
+}
+
+.event-overflow.active {
+    font-weight: 600;
+    background: rgba(121, 189, 233, 0.1);
+}
+
+/* -----------------------------------------------
+   CELL OVERFLOW EXPANSION PANEL
+   ----------------------------------------------- */
+
+.calendar-cell--expanded {
+    background: rgba(121, 189, 233, 0.07) !important;
+}
+
+.calendar-overflow-panel {
+    position: fixed;
+    z-index: 50;
+    background: #303437;
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    padding: 0.25rem 0.5rem 0.5rem;
+    overflow: hidden;
+}
+
+.calendar-overflow-panel .event:last-child {
+    margin-bottom: 0;
+}
+
+.calendar-overflow-inner {
+    min-height: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    position: static !important;
+    overflow: visible !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
 }
 
 /* --------------------------------------------
