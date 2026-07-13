@@ -268,7 +268,6 @@ main {
     color: var(--stockton-blue);
 }
 
-/* Tooltip panel — positioned to the right by JS on hover */
 .info-tooltip {
     position: absolute;
     left: calc(100% + 12px);
@@ -355,7 +354,7 @@ main {
 .info-tooltip--left {
     left: auto;
     right: calc(100% + 12px);
-    transform: translateY(-50%) translateX(4px); /* slides in from the right */
+    transform: translateY(-50%) translateX(4px);
 }
 
 .info-tooltip--left::before {
@@ -411,7 +410,7 @@ main {
     margin: 0 0 1rem 0;
 }
 
-/* Mobile: hide desktop tooltip, make icon a tap target */
+/* Hide desktop tooltip */
 @media (max-width: 768px) {
     .info-tooltip {
         display: none !important;
