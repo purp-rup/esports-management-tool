@@ -2,7 +2,6 @@
  * teams-sidebar.js
  * ============================================================================
  * TEAMS SIDEBAR MANAGEMENT
- * ORGANIZED BY CLAUDEAI
  * ============================================================================
  * Handles all sidebar-related functionality:
  * - View switching (All Teams, Teams I Manage, Teams I Play On)
@@ -321,7 +320,6 @@ function handleViewChange(newView) {
 // ============================================
 // TEAM LOADING & SIDEBAR
 // ============================================
-
 async function loadTeams() {
     const sidebarLoading = document.getElementById('teamsSidebarLoading');
     const sidebarList = document.getElementById('teamsSidebarList');
@@ -398,7 +396,6 @@ async function loadTeams() {
             window.allTeamsData = teamsToDisplay;
 
             updateDropdownCount(teamsToDisplay.length);
-            updateSidebarSubtitle(teamsToDisplay.length);
 
             if (teamsToDisplay.length > 0) {
                 renderTeamsSidebar(teamsToDisplay);
@@ -414,7 +411,6 @@ async function loadTeams() {
             }
         } else {
             updateDropdownCount(0);
-            updateSidebarSubtitle(0);
             if (sidebarEmpty) {
                 sidebarEmpty.innerHTML = `<i class="fas fa-users"></i><p>${getEmptyMessageForView(window.currentView)}</p>`;
             }
@@ -431,7 +427,6 @@ async function loadTeams() {
 function renderFromCache(cachedTeams, sidebarLoading, sidebarList, sidebarEmpty) {
     window.allTeamsData = cachedTeams;
     updateDropdownCount(cachedTeams.length);
-    updateSidebarSubtitle(cachedTeams.length);
 
     if (cachedTeams.length > 0) {
         renderTeamsSidebar(cachedTeams);
@@ -459,51 +454,7 @@ function invalidateTeamsCache() {
     console.log('Teams cache invalidated');
 }
 
-/**
- * Update the "All Games · N" subtitle in the sidebar header
- */
-function updateSidebarSubtitle(count) {
-    const subtitle = document.querySelector('.teams-subtitle');
-    if (!subtitle) return;
 
-    const view = window.currentView;
-    let label = 'All Games';
-
-    if (view === 'manage' || view === 'past_managed') {
-        label = 'Managed Games';
-    } else if (view === 'play' || view === 'my_past_teams') {
-        label = 'My Games';
-    } else if (view === 'division') {
-        const d = getSelectedDivisionFilter();
-        label = d ? `${d} Division` : 'All Divisions';
-    } else if (view === 'past_seasons') {
-        const name = PastSeasonTeamsFilterState.selectedSeasonName;
-        label = name ? name : 'Past Seasons';
-    }
-
-    subtitle.textContent = `${label} · ${count}`;
-}
-
-function getSubtitleForView(view, count = 0) {
-    let label = '';
-    if (view === 'division') {
-        const selectedDivision = getSelectedDivisionFilter();
-        label = selectedDivision ? `${selectedDivision} Teams` : 'All Teams';
-    } else if (view === 'past_seasons') {
-        const seasonName = PastSeasonTeamsFilterState.selectedSeasonName;
-        label = seasonName ? `${seasonName} Teams` : 'Past Seasons';
-    } else {
-        const viewObj = window.availableViews.find(v => v.value === view);
-        if (viewObj) {
-            label = viewObj.label;
-        } else {
-            const isAdmin = window.userPermissions?.is_admin || window.userPermissions?.is_developer || false;
-            const isGM = window.userPermissions?.is_gm || false;
-            label = isAdmin ? 'All Teams' : isGM ? 'Teams I Manage' : 'Your Teams';
-        }
-    }
-    return `${label} (${count})`;
-}
 
 function getEmptyMessageForView(view) {
     const messages = {
@@ -1066,7 +1017,6 @@ window.handleViewChange                 = handleViewChange;
 window.applyTeamsViewFilter             = applyTeamsViewFilter;
 window.applyTeamsDivisionFilter         = applyTeamsDivisionFilter;
 window.applyTeamsPastSeasonFilter       = applyTeamsPastSeasonFilter;
-window.getSubtitleForView               = getSubtitleForView;
 window.invalidateTeamsCache             = invalidateTeamsCache;
 window.isCacheFresh                     = isCacheFresh;
 window.openCreateTeam                   = openCreateTeam;

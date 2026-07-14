@@ -1,13 +1,12 @@
 /* ============================================
    TAB NAVIGATION STYLES
-   Tabbed interface navigation system
-   ORGANIZED BY CLAUDEAI
+   - Tab navigation
+   - Mobile tab integration
    ============================================ */
 
-/* --------------------------------------------
-   TAB NAVIGATION
+/* ================================
    Horizontal tab button container
-   -------------------------------------------- */
+   ================================ */
 .tab-navigation {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -54,10 +53,9 @@
     font-size: 1.125rem;
 }
 
-/* --------------------------------------------
-   MOBILE TAB DROPDOWN
-   Dropdown selector for mobile devices
-   -------------------------------------------- */
+/* ====================================
+   Mobile-specific tab dropdown
+   ====================================*/
 .tab-dropdown {
     display: none;
     width: 100%;
@@ -89,10 +87,7 @@
     padding: 1rem;
 }
 
-/* --------------------------------------------
-   TAB CONTENT
-   Content panels for each tab
-   -------------------------------------------- */
+/* Base tab content */
 .tab-content {
     display: none;
 }
@@ -101,15 +96,10 @@
     display: block;
 }
 
-/* --------------------------------------------
-   RESPONSIVE DESIGN
-   Mobile adaptations
-   -------------------------------------------- */
+/* ============================
+   Mobile Friendliness
+   ============================ */
 @media (max-width: 1000px) {
-    /*.tab-navigation {*/
-    /*    display: none;*/
-    /*}*/
-
     .tab-navigation span {
       display: none;
     }

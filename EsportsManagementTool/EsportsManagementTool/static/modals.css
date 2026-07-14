@@ -25,33 +25,21 @@
 }
 
 .modal-content {
-    background: var(--card-bg);
-    margin: 5% auto;
-    padding: 0;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    border-radius: 16px;
     width: 90%;
     max-width: 600px;
-    animation: slideDown 0.3s;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin: 5% auto;
+    padding: 0;
+    animation: modalSlideIn 0.3s ease-out;
 }
 
 .modal-content-large {
     max-width: 700px;
-}
-
-/* Header with close button */
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem 2rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.modal-header h2 {
-    font-size: 1.5rem;
-    color: var(--text-primary);
-    margin: 0;
 }
 
 .modal-subtitle {
@@ -85,20 +73,143 @@
     overflow-x: hidden;
 }
 
-/* Loading state */
-.loading-spinner {
-    text-align: center;
-    padding: 2rem;
-    color: var(--text-secondary);
+/* Header section */
+.modal-header {
+    padding: 2rem 2rem 1.5rem 2rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.loading-spinner i {
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.modal-header .close {
     font-size: 2rem;
-    color: var(--stockton-blue);
-    margin-bottom: 1rem;
+    font-weight: 300;
+    color: #999999;
+    cursor: pointer;
+    transition: color 0.2s;
+    line-height: 1;
+    background: none;
+    border: none;
+    padding: 0;
 }
 
-/* Create event modal */
+.modal-header .close:hover {
+    color: #ffffff;
+}
+
+/* Modal structure */
+.modal-form {
+    padding: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #b0b0b0;
+    font-size: 0.95rem;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: #888888;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+/* Modal inputs */
+.form-group input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    font-size: 1rem;
+    color: #ffffff;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.form-group input:focus {
+    outline: none;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: #5cacee;
+    box-shadow: 0 0 0 3px rgba(92, 172, 238, 0.2);
+}
+
+.form-group input::placeholder {
+    color: #666666;
+}
+
+/* Read-only input styling */
+.form-group input[readonly] {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #aaaaaa;
+    cursor: not-allowed;
+}
+
+.form-group input[readonly]:focus {
+    outline: none;
+    box-shadow: none;
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Modal action buttons */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.form-actions .btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* Form messages */
+.form-message {
+    padding: 1rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.form-message.success {
+    background-color: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.form-message.error {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Create content modal structure*/
 .event-form-modal {
     display: flex;
     flex-direction: column;
@@ -213,29 +324,8 @@
     margin-top: 0.25rem;
 }
 
-/* ======================================
-   MODAL ACTION BUTTONS
-   Buttons in modal footer/actions
-   ====================================== */
-.form-actions {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-color);
-}
-
-.form-actions .btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-}
-
 /* ============================================
-   DELETE CONFIRMATION MODAL
-   Universal modal for confirming event deletion
+   Deletion confirmation modal structure
    ============================================ */
 .delete-confirmation-modal {
     display: none;
@@ -347,74 +437,6 @@
   padding: 1rem;
   margin-bottom: 1rem;
   border-radius: 4px;
-}
-
-/* ============================================
-   DELETE NOTIFICATION CARDS
-   Success/error notifications after deletion
-   ============================================ */
-.delete-notification-card {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 10000;
-    padding: 1rem 1.5rem;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    font-size: 0.9375rem;
-    font-weight: 500;
-    transition: all 0.3s ease-out, top 0.3s ease-out;
-    max-width: 400px;
-}
-
-.delete-notification-card.show {
-    opacity: 1;
-    transform: translateX(0);
-}
-
-/* Success variant */
-.delete-notification-card[data-type="success"] {
-    background: #10b981;
-    border: 1px solid #059669;
-    color: white;
-}
-
-.delete-notification-card[data-type="success"] i {
-    color: white;
-    font-size: 1.25rem;
-}
-
-/* Error variant */
-.delete-notification-card[data-type="error"] {
-    background: #ef4444;
-    border: 1px solid #dc2626;
-    color: white;
-}
-
-.delete-notification-card[data-type="error"] i {
-    color: white;
-    font-size: 1.25rem;
-}
-
-/* Info variant (for informational messages like auto-cleanup) */
-.delete-notification-card[data-type="info"] {
-    background: #3b82f6;
-    border: 1px solid #2563eb;
-    color: white;
-}
-
-.delete-notification-card[data-type="info"] i {
-    color: white;
-    font-size: 1.25rem;
-}
-
-.delete-notification-card p {
-    margin: 0;
-    flex: 1;
-    line-height: 1.4;
 }
 
 /* ================================
@@ -639,11 +661,6 @@
 /* =====================================
    Modal animations
    ===================================== */
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
 @keyframes slideDown {
     from {
         transform: translateY(-50px);
@@ -704,6 +721,27 @@
 
     .card-header .btn {
         width: 100%;
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: 1rem;
+    }
+
+    .modal-header {
+        padding: 1.5rem 1.5rem 1rem 1.5rem;
+    }
+
+    .modal-header h2 {
+        font-size: 1.5rem;
+    }
+
+    .modal-form {
+        padding: 1.5rem;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
     }
 }
 
