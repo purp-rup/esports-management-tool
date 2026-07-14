@@ -17,7 +17,7 @@
 .teams-layout {
     display: flex;
     flex-direction: row;
-    gap: 1.5rem !important;
+    gap: 1rem !important;
     height: calc(100vh - 50px);
     min-height: 675px;
     width: 100%;
@@ -142,129 +142,6 @@
     line-height: 1.2;
 }
 
-/* --------------------------------------------
-   TEAM INFO ICON & TOOLTIP
-   -------------------------------------------- */
-.team-info-icon-wrapper {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    flex-shrink: 0;
-}
-
-.team-info-icon {
-    font-size: 1.25rem;
-    color: var(--text-secondary);
-    cursor: default;
-    transition: color 0.2s ease;
-    line-height: 1;
-    display: block;
-}
-
-.team-info-icon-wrapper:hover .team-info-icon {
-    color: var(--stockton-blue);
-}
-
-/* Tooltip panel */
-.team-info-tooltip {
-    position: fixed;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 0.75rem 1rem;
-    min-width: 240px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease, transform 0.15s ease;
-    transform: translateX(-4px);
-    z-index: 200;
-    white-space: nowrap;
-}
-
-.team-info-icon-wrapper:hover .team-info-tooltip {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateX(0);
-}
-
-/* Arrow pointing left from tooltip back to icon */
-.team-info-tooltip::before {
-    content: '';
-    position: absolute;
-    right: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    border: 6px solid transparent;
-    border-right-color: var(--border-color);
-}
-
-.team-info-tooltip::after {
-    content: '';
-    position: absolute;
-    right: calc(100% - 1px);
-    top: 50%;
-    transform: translateY(-50%);
-    border: 6px solid transparent;
-    border-right-color: var(--card-bg);
-}
-
-/* Individual info rows inside tooltip */
-.team-info-tooltip-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.3rem 0;
-}
-
-.team-info-tooltip-row + .team-info-tooltip-row {
-    border-top: 1px solid rgba(255,255,255,0.06);
-    margin-top: 0.2rem;
-    padding-top: 0.5rem;
-}
-
-.team-info-tooltip-label {
-    font-size: 0.6875rem;
-    font-weight: 700;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    white-space: nowrap;
-    flex-shrink: 0;
-    min-width: 60px;
-    padding-top: 0.1rem;
-}
-
-.team-info-tooltip-value {
-    font-size: 0.8125rem;
-    color: var(--text-primary);
-    text-align: left;
-    line-height: 1.4;
-    flex: 1;
-    min-width: 0;
-    white-space: normal;
-}
-
-/* Season active dot inside tooltip */
-.tooltip-season-dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    margin-right: 5px;
-    vertical-align: middle;
-    position: relative;
-    top: -1px;
-}
-
-.tooltip-season-dot.active {
-    background: #22c55e;
-}
-
-.tooltip-season-dot.inactive {
-    background: #94a3b8;
-}
-
 /* Header action buttons */
 .team-header-actions {
     display: flex;
@@ -283,6 +160,28 @@
 .team-action-buttons-stack .btn {
     width: 100%;
     justify-content: center;
+}
+
+/* --------------------------------------------
+   TEAM INFO ICON & TOOLTIP
+   -------------------------------------------- */
+.tooltip-season-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+}
+
+.tooltip-season-dot.active {
+    background: #22c55e;
+}
+
+.tooltip-season-dot.inactive {
+    background: #94a3b8;
 }
 
 /* --------------------------------------------
@@ -1391,43 +1290,4 @@
     .teams-main-content {
         padding: 1rem;
     }
-}
-
-/* Team info bottom sheet (mobile only) */
-.team-info-sheet {
-    display: none;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--card-bg);
-    border-top: 1px solid var(--border-color);
-    border-radius: 16px 16px 0 0;
-    padding: 1rem 1.25rem 2rem;
-    z-index: 600;
-    box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
-    transform: translateY(100%);
-    transition: transform 0.3s ease;
-}
-
-.team-info-sheet.sheet-open {
-    display: block;
-    transform: translateY(0);
-}
-
-.team-info-sheet::before {
-    content: '';
-    display: block;
-    width: 40px;
-    height: 4px;
-    background: var(--border-color);
-    border-radius: 2px;
-    margin: 0 auto 1rem;
-}
-
-.team-info-sheet-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0 0 1rem 0;
 }
