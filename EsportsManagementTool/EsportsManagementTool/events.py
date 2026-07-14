@@ -639,13 +639,21 @@ def register_event_routes(app, mysql, login_required, roles_required):
 
         try:
             cursor.execute("""
-                SELECT season_id, season_name, start_date, end_date, is_active
-                FROM seasons
-                WHERE is_active = 0
-                ORDER BY end_date DESC
-            """)
+                        SELECT season_id, season_name, start_date, end_date, is_active
+                        FROM seasons
+                        WHERE is_active = 0
+                        ORDER BY end_date DESC
+                    """)
 
             seasons = cursor.fetchall()
+
+            # Team counts per season, in one query rather than one per season
+            cursor.execute("""
+                        SELECT season_id, COUNT(*) as team_count
+                        FROM teams
+                        GROUP BY season_id
+                    """)
+            team_counts = {row['season_id']: row['team_count'] for row in cursor.fetchall()}
 
             # Format dates
             formatted_seasons = []
@@ -655,7 +663,8 @@ def register_event_routes(app, mysql, login_required, roles_required):
                     'season_name': season['season_name'],
                     'start_date': season['start_date'].strftime('%Y-%m-%d'),
                     'end_date': season['end_date'].strftime('%Y-%m-%d'),
-                    'is_active': season['is_active']
+                    'is_active': season['is_active'],
+                    'team_count': team_counts.get(season['season_id'], 0)
                 })
 
             return jsonify({

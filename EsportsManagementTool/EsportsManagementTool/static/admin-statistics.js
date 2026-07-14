@@ -191,16 +191,16 @@ function exportToExcel() {
     csvContent += `Multi-Team Players,${window.statisticsData.player_stats.multi_team_players}\n`;
     csvContent += "\n";
     
-    // Tournament placements
-    csvContent += "TOURNAMENT PERFORMANCE\n";
+    // Playoffs placements
+    csvContent += "PLAYOFFS PERFORMANCE\n";
     csvContent += "Placement,Count\n";
-    csvContent += `Winners,${window.statisticsData.tournament_placements.winners}\n`;
-    csvContent += `Finals,${window.statisticsData.tournament_placements.finals}\n`;
-    csvContent += `Semifinals,${window.statisticsData.tournament_placements.semifinals}\n`;
-    csvContent += `Quarterfinals,${window.statisticsData.tournament_placements.quarterfinals}\n`;
-    csvContent += `Playoffs,${window.statisticsData.tournament_placements.playoffs}\n`;
-    csvContent += `Did Not Qualify,${window.statisticsData.tournament_placements.regular_season}\n`;
-    csvContent += `In Progress,${window.statisticsData.tournament_placements.in_progress}\n`;
+    csvContent += `Winners,${window.statisticsData.playoffs_placements.winners}\n`;
+    csvContent += `Finals,${window.statisticsData.playoffs_placements.finals}\n`;
+    csvContent += `Semifinals,${window.statisticsData.playoffs_placements.semifinals}\n`;
+    csvContent += `Quarterfinals,${window.statisticsData.playoffs_placements.quarterfinals}\n`;
+    csvContent += `Playoffs,${window.statisticsData.playoffs_placements.playoffs}\n`;
+    csvContent += `Did Not Qualify,${window.statisticsData.playoffs_placements.regular_season}\n`;
+    csvContent += `In Progress,${window.statisticsData.playoffs_placements.in_progress}\n`;
     csvContent += "\n";
     
     // League breakdown

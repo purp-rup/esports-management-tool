@@ -192,8 +192,8 @@ async function renderStatsContent() {
         `;
     }
 
-    // Build tournament results button for GMs and admins
-    const tournamentBtnHTML = canRecordResults ? `
+    // Build playoffs results button for GMs and admins
+    const playoffsBtnHTML = canRecordResults ? `
         <button class="btn btn-primary btn-sm" 
                 onclick="openRecordResultsModal()" 
                 title="Record team results for your teams"
@@ -264,7 +264,7 @@ async function renderStatsContent() {
                         Match History
                         ${currentLeagueFilter ? `<span style="color: var(--stockton-blue); font-size: 0.875rem; font-weight: normal; margin-left: 0.5rem;">(${availableLeagues.find(l => l.id === currentLeagueFilter)?.name})</span>` : ''}
                     </h3>
-                    ${tournamentBtnHTML}
+                    ${playoffsBtnHTML}
                 </div>
 
                 ${renderMatchHistory()}

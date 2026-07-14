@@ -16,16 +16,15 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='communities-list.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='user-profiles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='photo-upload.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='updateProfile.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='scheduled-events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='teamstats.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='vods.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='seasons.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='leagues.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='manage-communities.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='tournament-banner.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='tournament-modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='playoffs.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='stream-schedule.css') }}">
 
 <!-- Import Calendar CSS -->
@@ -109,20 +108,13 @@
                     <div class="calendar-grid" id="calendarGrid">
                         <!-- Populated by calendar.js -->
                     </div>
-
-                    <!-- Calendar Footer -->
-                         <!-- <div class="calendar-footer"> -->
-                            <!-- <a href="{{ url_for('dashboard') }}" class="today-button"> -->
-                                <!-- <i class="fas fa-calendar-day"></i> Jump to Today -->
-                            <!-- </a> -->
-                        <!-- </div> -->
                 </div>
             </div>
 
-            <!-- Sidebar with Legend -->
-            <div class="calendar-sidebar">
+            <!-- Calendar legend widget -->
+            <div class="widget-sidebar">
                 <!-- Event Type Legend Card -->
-                <div class="sidebar-card">
+                <div class="widget-card">
                     <h3><i class="fas fa-palette"></i> Event Types</h3>
                     <div class="legend-items">
                         <div class="legend-item">
@@ -152,7 +144,7 @@
                     </div>
                 </div>
                 <!-- Today's Events Card -->
-                <div class="sidebar-card">
+                <div class="widget-card">
                     <h3><i class="fas fa-calendar-day"></i> Today's Events</h3>
                     <div class="today-events-list" id="todayEventsList">
                         <p style="color: var(--text-secondary); font-size: 0.875rem;">No events today</p>   
@@ -163,7 +155,6 @@
     </div>
 
 <!-- PROFILE TAB  -->
-
 <div id="profile" class="tab-content {% if preferred_tab == 'profile' %}active{% endif %}">
     <div class="profile-main-layout">
 
@@ -175,9 +166,21 @@
                         <h2>Profile</h2>
                         <p>View and manage your account information</p>
                     </div>
-                    <div class="profile-actions">
-                        <button class="btn btn-primary btn-sm" type="button" onclick="openEditProfileModal()">Edit Profile</button>
-                        <button class="btn btn-secondary btn-sm" type="button" onclick="openChangePasswordModal()">Change Password</button>
+                    <div class="filter-box">
+                        <button class="filter-box-btn profile-kebab-btn" type="button"
+                                onclick="toggleFilterBox('profileActionsPanel')">
+                            <i id="profileKebab" class="fas fa-ellipsis"></i>
+                        </button>
+                        <div class="filter-box-panel" id="profileActionsPanel">
+                            <div class="filter-box-item"
+                                 onclick="openEditProfileModal(); closeAllFilterPanels();">
+                                <span>Edit Profile</span>
+                            </div>
+                            <div class="filter-box-item"
+                                 onclick="openChangePasswordModal(); closeAllFilterPanels();">
+                                <span>Change Password</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -224,47 +227,63 @@
                         </div>
                     </div>
                 </div>
-
-                <div style="padding-top: 2rem; border-top: 1px solid var(--border-color); margin-top: 2rem;">
-                    <h3 style="font-size: 1.5rem; font-weight: 600; margin: 0 0 0.75rem 0;">Preferred Tab</h3>
-                    <div class="event-filter-dropdown">
-                        <label for="preferredTabSelect">Default Tab:</label>
-                        <select id="preferredTabSelect" name="preferred_tab">
-                            <option value="calendar" {% if preferred_tab == 'calendar' %}selected{% endif %}>Calendar</option>
-                            <option value="profile" {% if preferred_tab == 'profile' %}selected{% endif %}>Profile</option>
-                            <option value="rosters" {% if preferred_tab == 'rosters' %}selected{% endif %}>Communities</option>
-                            <option value="events" {% if preferred_tab == 'events' %}selected{% endif %}>Events</option>
-                            <option value="teams" {% if preferred_tab == 'teams' %}selected{% endif %}>Teams</option>
-                            {% if user.is_admin or user.is_developer %}
-                            <option value="admin" {% if preferred_tab == 'admin' %}selected{% endif %}>Admin</option>
-                            {% endif %}
-                        </select>
+            </div>
+            <div class="content-card">
+                <div class="profile-card-header card-header">
+                    <div class="title-saved-container">
+                        <h2>Preferred Tab</h2>
+                        <span id="preferredTabMessage" class="preferred-tab-saved">
+                            <i class="fas fa-check-circle"></i> Saved
+                        </span>
                     </div>
-                    <div style="margin-top: 2.1rem;">
-                        <button type="button" id="savePreferredTabBtn" class="btn btn-primary btn-sm">
-                            <span id="savePreferredTabBtnText">Save</span>
-                            <i id="savePreferredTabBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
-                        </button>
-                    </div>
+                    <p>Set your preferred tab to open when visiting the dashboard</p>
+                </div>
+                <div class="preferred-tab-buttons" id="preferredTabButtons">
+                    <button class="community-filter-btn {% if preferred_tab == 'calendar' %}active{% endif %}" data-tab-value="calendar">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Calendar
+                    </button>
+                    <button class="community-filter-btn {% if preferred_tab == 'profile' %}active{% endif %}" data-tab-value="profile">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Profile
+                    </button>
+                    <button class="community-filter-btn {% if preferred_tab == 'rosters' %}active{% endif %}" data-tab-value="rosters">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Communities
+                    </button>
+                    <button class="community-filter-btn {% if preferred_tab == 'events' %}active{% endif %}" data-tab-value="events">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Events
+                    </button>
+                    <button class="community-filter-btn {% if preferred_tab == 'teams' %}active{% endif %}" data-tab-value="teams">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Teams
+                    </button>
+                    {% if user.is_admin or user.is_developer %}
+                    <button class="community-filter-btn {% if preferred_tab == 'admin' %}active{% endif %}" data-tab-value="admin">
+                        <span class="filter-check"><i class="fas fa-check"></i></span>
+                        Admin
+                    </button>
+                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- RIGHT: Communities + Discord Stacked -->
+        <!-- RIGHT: Communities + Discord + Notification Settings -->
         <div class="profile-right-column">
             <!-- My Communities -->
             <div class="content-card">
-                <div class="card-header">
+                <div class="profile-card-header card-header">
                     <h2>My Communities</h2>
                     <p>Game communities you've joined</p>
                 </div>
 
-                <div id="myCommunitiesLoading" style="text-align: center; padding: 2rem;">
+                <div id="myCommunitiesLoading" style="text-align: center;">
                     <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
                     <p style="color: var(--text-secondary); margin-top: 1rem;">Loading communities...</p>
                 </div>
 
-                <div id="myCommunitiesGrid" class="my-communities-grid" style="display: none;"></div>
+                <div id="myCommunitiesGrid" style="display: none;"></div>
 
                 <div id="myCommunitiesEmpty" class="empty-state" style="display: none;">
                     <div class="empty-state-icon">🎮</div>
@@ -275,23 +294,23 @@
 
             <!-- Discord Integration -->
             <div class="content-card">
-                <div class="card-header">
+                <div class="profile-card-header card-header">
                     <h2>Discord Integration</h2>
                     <p>Connect your Discord account</p>
                 </div>
 
-                <div id="discordLoading" style="text-align: center; padding: 2rem;">
+                <div id="discordLoading">
                     <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
                     <p style="color: var(--text-secondary); margin-top: 1rem;">Loading...</p>
                 </div>
 
                 <div id="discordNotConnected" style="display: none;">
-                    <div class="empty-state" style="padding: 2rem;">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">
+                    <div class="empty-state">
+                        <div style="font-size: 3rem;">
                             <i class="fab fa-discord" style="color: #5865F2;"></i>
                         </div>
                         <h3>Connect Your Discord</h3>
-                        <p>Link your Discord account to display your profile</p>
+                        <p>Link your Discord account to display it on your profile</p>
                         <button onclick="connectDiscord()" class="btn btn-primary discord-connect-btn">
                             Connect Discord
                         </button>
@@ -303,14 +322,18 @@
                         <div class="discord-profile-header">
                             <div id="discordAvatarContainer" class="discord-avatar-large"></div>
                             <div class="discord-profile-info">
-                                <h3 id="discordUsername"></h3>
+                                <div class="discord-icon-username">
+                                    <i class="fab fa-discord discord-info-icon"></i>
+                                    <h3 id="discordUsername"></h3>
+                                </div>
                                 <p id="discordConnectedDate">
                                     <i class="fas fa-link"></i> <span id="connectedDateText"></span>
                                 </p>
                             </div>
                         <div class="discord-actions">
-                            <button onclick="syncDiscordAvatar()" class="btn btn-primary btn-sm">
-                                <i class="fas fa-sync"></i> Sync Avatar
+                            <button id="syncAvatarBtn" onclick="syncDiscordAvatar()" class="btn btn-primary btn-sm discord-sync-btn">
+                                <span id="syncAvatarBtnText"><i class="fas fa-sync"></i> Sync Avatar</span>
+                                <i id="syncAvatarBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
                             </button>
                             <button onclick="disconnectDiscord()" class="btn btn-secondary btn-sm">
                                 <i class="fas fa-unlink"></i> Disconnect
@@ -322,113 +345,107 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Notification Settings (Full Width) -->
-    <div class="content-card" style="margin-top: 2rem;">
-        <div class="card-header">
-            <h2>Notification Settings</h2>
-            <p>Configure how you receive event reminders</p>
-        </div>
-
-        <form id="notificationSettingsForm" class="notification-form">
-            <div class="notification-toggle">
-                <div class="toggle-info">
-                    <h3>Enable Event Notifications</h3>
-                    <p>Receive email reminders for upcoming events</p>
-                </div>
-                <label class="switch">
-                    <input type="checkbox" name="enable_notifications" id="enableNotifications" {% if preferences and preferences.enable_notifications %}checked{% endif %}>
-                    <span class="slider"></span>
-                </label>
-            </div>
-
-            <div id="notificationOptions" class="notification-options" style="{% if not preferences or not preferences.enable_notifications %}display: none;{% endif %}">
-                <div class="form-section">
-                    <h3>Event Types to Notify</h3>
-                    <p class="section-description">Choose which types of events you want to be notified about</p>
-
-                    <div class="event-type-checkboxes">
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="notify_practices" {% if not preferences or preferences.notify_practices %}checked{% endif %}>
-                            <span class="checkbox-text">
-                                <i class="fas fa-dumbbell"></i>
-                                <strong>Practices</strong>
-                                <small>Team practice sessions</small>
-                            </span>
-                        </label>
-
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="notify_matches" {% if not preferences or preferences.notify_matches %}checked{% endif %}>
-                            <span class="checkbox-text">
-                                <i class="fas fa-gamepad"></i>
-                                <strong>Matches</strong>
-                                <small>Competitive matches</small>
-                            </span>
-                        </label>
-
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="notify_tournaments" {% if not preferences or preferences.notify_tournaments %}checked{% endif %}>
-                            <span class="checkbox-text">
-                                <i class="fas fa-trophy"></i>
-                                <strong>Tournaments</strong>
-                                <small>Tournament events</small>
-                            </span>
-                        </label>
-
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="notify_events" {% if not preferences or preferences.notify_events %}checked{% endif %}>
-                            <span class="checkbox-text">
-                                <i class="fas fa-calendar-alt"></i>
-                                <strong>General Events</strong>
-                                <small>Meetings and socials</small>
-                            </span>
-                        </label>
-
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="notify_misc" {% if not preferences or preferences.notify_misc %}checked{% endif %}>
-                            <span class="checkbox-text">
-                                <i class="fas fa-star"></i>
-                                <strong>Miscellaneous</strong>
-                                <small>Photoshoots and outings</small>
-                            </span>
-                        </label>
+            <!-- Notification Settings -->
+            <div class="content-card">
+                <div class="profile-card-header card-header">
+                    <div class="title-saved-container">
+                        <h2>Notification Settings</h2>
+                        <span id="notifSavedMessage" class="preferred-tab-saved">
+                            <i class="fas fa-check-circle"></i>
+                            Saved
+                        </span>
                     </div>
+                    <p>Configure how you receive email reminders</p>
                 </div>
 
-                <div class="form-section">
-                    <h3>Advance Notice</h3>
-                    <p class="section-description">How far in advance should we notify you?</p>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="adviceNoticeDays">Days Before</label>
-                            <input type="number" id="adviceNoticeDays" name="advance_notice_days" min="0" max="30" value="{% if preferences %}{{ preferences.advance_notice_days }}{% else %}1{% endif %}">
+                <div id="notificationSettingsForm" class="notification-form">
+                    <div class="notification-toggle">
+                        <div class="notif-toggle-header">
+                            <div class="toggle-info">
+                                <div class="notif-info-row">
+                                    <h3>Enable Event Notifications</h3>
+                                    <div class="info-icon-wrapper" data-info-title="Notification Settings">
+                                        <i class="fas fa-info-circle info-icon"></i>
+                                        <div class="info-tooltip">
+                                            <div class="info-tooltip-row">
+                                                <span class="info-tooltip-label">What</span>
+                                                <span class="info-tooltip-value">Receive reminders for events you're subscribed to</span>
+                                            </div>
+                                            <div class="info-tooltip-row">
+                                                <span class="info-tooltip-label">Types</span>
+                                                <span class="info-tooltip-value">Choose which event types trigger notifications below</span>
+                                            </div>
+                                            <div class="info-tooltip-row">
+                                                <span class="info-tooltip-label">Timing</span>
+                                                <span class="info-tooltip-value">Set how many days and hours in advance you are notified</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="enableNotifications"
+                                    {% if preferences and preferences.enable_notifications %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
                         </div>
 
-                        <div class="form-group">
-                            <label for="adviceNoticeHours">Hours Before</label>
-                            <input type="number" id="adviceNoticeHours" name="advance_notice_hours" min="0" max="23" value="{% if preferences %}{{ preferences.advance_notice_hours }}{% else %}0{% endif %}">
+                        <!-- Collapsible: event types + advance notice -->
+                        <div id="notificationOptions"
+                            {% if not preferences or not preferences.enable_notifications %}style="display: none;"{% endif %}>
+
+                            <!-- Event type filter buttons -->
+                            <p class="section-description">Event types to notify</p>
+                            <div class="notif-type-buttons">
+                                <button type="button" data-notif-type="notify_practices"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_practices %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Practices
+                                </button>
+                                <button type="button" data-notif-type="notify_matches"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_matches %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Matches
+                                </button>
+                                <button type="button" data-notif-type="notify_tournaments"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_tournaments %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Tournaments
+                                </button>
+                                <button type="button" data-notif-type="notify_events"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_events %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Events
+                                </button>
+                                <button type="button" data-notif-type="notify_misc"
+                                        class="community-filter-btn {% if not preferences or preferences.notify_misc %}active{% endif %}">
+                                    <span class="filter-check"><i class="fas fa-check"></i></span>
+                                    Misc
+                                </button>
+                            </div>
+
+                            <!-- Advance notice inputs -->
+                            <div class="notif-advance-row">
+                                <div class="form-group">
+                                    <label for="adviceNoticeDays">Days Before</label>
+                                    <input type="number" id="adviceNoticeDays" name="advance_notice_days"
+                                           min="0" max="30"
+                                           value="{% if preferences %}{{ preferences.advance_notice_days }}{% else %}1{% endif %}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="adviceNoticeHours">Hours Before</label>
+                                    <input type="number" id="adviceNoticeHours" name="advance_notice_hours"
+                                           min="0" max="23"
+                                           value="{% if preferences %}{{ preferences.advance_notice_hours }}{% else %}0{% endif %}">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="notification-preview">
-                        <i class="fas fa-info-circle"></i>
-                        <span id="notificationPreview">You'll be notified <strong id="previewTime">1 day</strong> before each event</span>
-                    </div>
+                    <div id="notificationMessage" class="form-message" style="display: none;"></div>
                 </div>
             </div>
-
-            <div id="notificationMessage" class="form-message" style="display: none;"></div>
-
-            <div class="profile-actions">
-                <button type="submit" class="btn btn-primary">
-                    <span id="saveNotifBtnText">Save Notification Settings</span>
-                    <i id="saveNotifBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
@@ -437,7 +454,22 @@
         <div class="content-card">
             <div class="card-header">
                 <div>
-                    <h2>Game Communities</h2>
+                    <div class="community-title-row">
+                        <h2>Game Communities</h2>
+                        <div class="info-icon-wrapper" id="communityInfoIconWrapper" data-info-title="Community Info">
+                            <i class="fas fa-info-circle info-icon" id="communityInfoIcon"></i>
+                            <div class="info-tooltip" id="communityInfoTooltip">
+                                <div class="info-tooltip-row">
+                                    <span class="info-tooltip-label">Joining</span>
+                                    <span class="info-tooltip-value">Get assigned to a team, view the game's schedule, and see exclusive events.</span>
+                                </div>
+                                <div class="info-tooltip-row">
+                                    <span class="info-tooltip-label">Leaving</span>
+                                    <span class="info-tooltip-value">You'll lose team assignment, schedule, and event access until you rejoin.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <p>Browse games and join communities</p>
                 </div>
                 <div class="communities-filter-container">
@@ -899,37 +931,32 @@
                                 <div class="team-title-row">
                                     <h1 id="teamDetailTitle">Team Name</h1>
                                     <!-- Info icon with hover tooltip -->
-                                    <div class="team-info-icon-wrapper">
-                                        <i class="fas fa-info-circle team-info-icon" id="teamInfoIcon"></i>
-                                        <div class="team-info-tooltip" id="teamInfoTooltip">
+                                    <div class="info-icon-wrapper">
+                                        <i class="fas fa-info-circle info-icon" id="teamInfoIcon"></i>
+                                        <div class="info-tooltip" id="teamInfoTooltip">
                                             <!-- Game — always shown -->
-                                            <div class="team-info-tooltip-row" id="tooltipGame">
-                                                <span class="team-info-tooltip-label">Game</span>
-                                                <span class="team-info-tooltip-value" id="tooltipGameValue">—</span>
+                                            <div class="info-tooltip-row" id="tooltipGame">
+                                                <span class="info-tooltip-label">Game</span>
+                                                <span class="info-tooltip-value" id="tooltipGameValue">—</span>
                                             </div>
                                             <!-- Division — shown only when present -->
-                                            <div class="team-info-tooltip-row" id="tooltipDivision" style="display: none;">
-                                                <span class="team-info-tooltip-label">Division</span>
-                                                <span class="team-info-tooltip-value" id="tooltipDivisionValue">—</span>
+                                            <div class="info-tooltip-row" id="tooltipDivision" style="display: none;">
+                                                <span class="info-tooltip-label">Division</span>
+                                                <span class="info-tooltip-value" id="tooltipDivisionValue">—</span>
                                             </div>
                                             <!-- League(s) — shown only when present -->
-                                            <div class="team-info-tooltip-row" id="tooltipLeagues" style="display: none;">
-                                                <span class="team-info-tooltip-label">League(s)</span>
-                                                <span class="team-info-tooltip-value" id="tooltipLeaguesValue">—</span>
+                                            <div class="info-tooltip-row" id="tooltipLeagues" style="display: none;">
+                                                <span class="info-tooltip-label">League(s)</span>
+                                                <span class="info-tooltip-value" id="tooltipLeaguesValue">—</span>
                                             </div>
                                             <!-- Season — shown only when present -->
-                                            <div class="team-info-tooltip-row" id="tooltipSeason" style="display: none;">
-                                                <span class="team-info-tooltip-label">Season</span>
-                                                <span class="team-info-tooltip-value" id="tooltipSeasonValue">—</span>
+                                            <div class="info-tooltip-row" id="tooltipSeason" style="display: none;">
+                                                <span class="info-tooltip-label">Season</span>
+                                                <span class="info-tooltip-value" id="tooltipSeasonValue">—</span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <!-- Hidden compat elements — JS still writes to these; they stay hidden -->
-                                <p id="teamDetailGame" style="display: none;"></p>
-                                <p id="teamDetailDivision" style="display: none;"></p>
-                                <p id="teamDetailLeagues" style="display: none;"></p>
-                                <p id="teamDetailSeason" style="display: none;"></p>
                             </div>
                         </div>
 
@@ -941,7 +968,7 @@
                                         class="btn btn-primary"
                                         onclick="openAddTeamMembersModal()"
                                         style="display: none;">
-                                    <i class="fas fa-user-plus"></i> Add Player
+                                    <i class="fas fa-user-plus"></i> <span class="btn-label">Add Player</span>
                                 </button>
 
                                 <!-- Schedule button SECOND -->
@@ -949,7 +976,7 @@
                                         class="btn btn-create-schedule"
                                         onclick="openCreateScheduleModal()"
                                         style="display: none;">
-                                    <i class="fas fa-calendar-plus"></i> Schedule Event
+                                    <i class="fas fa-calendar-plus"></i> <span class="btn-label">Schedule Event</span>
                                 </button>
                             </div>
 
@@ -1329,7 +1356,7 @@
     {% if user.is_admin or user.is_developer %}
     <div id="admin" class="tab-content {% if preferred_tab == 'admin' %}active{% endif %}">
         <div class="content-card">
-            <div class="card header card-header--row">
+            <div class="card-header card-header--row">
                 <div>
                     <h2>Admin Panel</h2>
                     <p style="font-size: 88%; color: var(--text-secondary)">Manage users, roles, and permissions</p>
@@ -1509,7 +1536,7 @@
 
             <div id="editProfileMessage" class="form-message" style="display: none;"></div>
 
-            <div class="modal-actions">
+            <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary">
                     <span id="saveProfileBtnText">Save Changes</span>
@@ -1517,6 +1544,26 @@
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Delete VODS -->
+<div id="deleteVodModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-body" style="padding: 2rem; text-align: center;">
+            <div style="width: 60px; height: 60px; background: rgba(239,68,68,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                <i class="fas fa-exclamation-triangle" style="color: #ef4444; font-size: 1.5rem;"></i>
+            </div>
+            <h2 style="margin: 0 0 1rem 0;">Delete VOD?</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Are you sure you want to delete this VOD? This action cannot be undone.</p>
+            <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; text-align: left;">
+                <p style="color: #ef4444; margin: 0; font-weight: 600;">⚠ This action cannot be undone.</p>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button onclick="closeDeleteVodModal()" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+                <button onclick="confirmDeleteVod()" class="btn" style="flex: 1; background: #ef4444; color: white; border: none;">Delete VOD</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1547,7 +1594,7 @@
 
             <div id="changePasswordMessage" class="form-message" style="display: none;"></div>
 
-            <div class="modal-actions">
+            <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary">
                     <span id="changePasswordBtnText">Change Password</span>
@@ -1618,21 +1665,6 @@
     </div>
 </div>
 
-<!-- Day Events Modal -->
-<div id="dayEventsModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="dayModalTitle"></h2>
-            <button class="modal-close" onclick="closeDayModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-body" id="dayModalBody">
-            <!-- Events will be populated here -->
-        </div>
-    </div>
-</div>
-
 <!-- Manage Seasons Modal -->
 <div id="manageSeasonsModal" class="modal">
     <div class="modal-content modal-content-large">
@@ -1695,7 +1727,17 @@
                     </div>
                     <div class="form-group">
                         <label for="streamPlatform">Platform *</label>
-                        <select id="streamPlatform" required>
+                        <div class="filter-box" id="streamPlatformFilterBox">
+                            <button type="button" class="filter-box-btn" onclick="toggleFilterBox('streamPlatformFilterPanel')">
+                                <span id="streamPlatformFilterLabel">Select platform</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="filter-box-panel" id="streamPlatformFilterPanel">
+                                <div class="filter-box-item" data-value="twitch" onclick="applyStreamPlatformFilter('twitch', 'Twitch')">Twitch</div>
+                                <div class="filter-box-item" data-value="youtube" onclick="applyStreamPlatformFilter('youtube', 'YouTube')">YouTube</div>
+                            </div>
+                        </div>
+                        <select id="streamPlatform" required style="display: none;">
                             <option value="">Select platform</option>
                             <option value="twitch">Twitch</option>
                             <option value="youtube">YouTube</option>
@@ -2018,6 +2060,13 @@
     </div>
 </div>
 
+<!-- Universal info bottom sheet for mobile -->
+<div id="infoSheet" class="info-sheet">
+    <h3 class="info-sheet-title" id="infoSheetTitle"></h3>
+    <div id="infoSheetContent"></div>
+</div>
+<div class="sheet-backdrop" id="infoSheetBackdrop" onclick="closeInfoSheet()"></div>
+
 <!-- Manage Leagues Modal -->
 <div id="manageLeaguesModal" class="modal">
     <div class="modal-content modal-content-large">
@@ -2174,7 +2223,7 @@
 <!-- Delete Modal js (must be called first) -->
 <script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
 <script src="{{ url_for('static', filename='modalDelete.js') }}"></script>
-<script src="{{ url_for('static', filename='image-cropper.js') }}"></script>
+<script src="{{ url_for('static', filename='photo-upload.js') }}"></script>
 <!-- Rest of js imports -->
 <script src="{{ url_for('static', filename='badges.js') }}"></script>
 <script src="{{ url_for('static', filename='user-profiles.js') }}"></script>
@@ -2194,7 +2243,7 @@
 <script src="{{ url_for('static', filename='seasons.js') }}"></script>
 <script src="{{ url_for('static', filename='leagues.js') }}"></script>
 <script src="{{ url_for('static', filename='manage-communities.js') }}"></script>
-<script src="{{ url_for('static', filename='tournament-results.js') }}"></script>
+<script src="{{ url_for('static', filename='playoffs-results.js') }}"></script>
 <script src="{{ url_for('static', filename='stream-schedule.js') }}"></script>
 <!-- Must load second-to-last -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>

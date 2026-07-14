@@ -30,13 +30,6 @@
     position: relative;
 }
 
-/* Make calendar responsive on landing page */
-@media (max-width: 1024px) {
-    .calendar-section .calendar-sidebar {
-        grid-template-columns: 1fr;
-    }
-}
-
 /* Textured background */
 body {
     background:

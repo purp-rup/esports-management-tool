@@ -19,6 +19,7 @@ import pytz
 import cloudinary
 import cloudinary.uploader
 from cloudinary.utils import cloudinary_url
+import boto3
 
 # =========================================
 # APPLICATION INITIALIZATION
@@ -36,6 +37,8 @@ app.config['MYSQL_HOST'] = os.environ.get('MYSQL_HOST')
 app.config['MYSQL_USER'] = os.environ.get('MYSQL_USER')
 app.config['MYSQL_PASSWORD'] = os.environ.get('MYSQL_PASSWORD')
 app.config['MYSQL_DB'] = os.environ.get('MYSQL_DB')
+app.config["AWS_REGION"] = os.environ.get("AWS_REGION")
+app.config["DYNAMODB_TABLE"] = os.environ.get("DYNAMODB_TABLE")
 
 # SSL Configuration for MySQL (enforces encrypted connections)
 app.config['MYSQL_SSL_DISABLED'] = False
@@ -84,6 +87,14 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # Initialize extensions
 mysql = MySQL(app)
 mail = Mail(app)
+
+# Initialize DynamoDB - NoSQL
+dynamodb = boto3.resource(
+    "dynamodb",
+    region_name=app.config["AWS_REGION"]
+)
+
+chat_table = dynamodb.Table(app.config["DYNAMODB_TABLE"])
 
 # Cloudinary Configuration for Profile Pictures
 cloudinary.config(
@@ -663,13 +674,13 @@ statistics.register_statistics_routes(app, mysql, login_required, roles_required
 from EsportsManagementTool import schedules
 schedules.register_schedule_routes(app, mysql, login_required, roles_required)
 
-# Register tournament results routes
-from EsportsManagementTool import tournament_results
-tournament_results.register_tournament_results_routes(app, mysql, login_required, roles_required)
+# Register playoffs results routes
+from EsportsManagementTool import playoffs_results
+playoffs_results.register_playoffs_results_routes(app, mysql, login_required, roles_required)
 
-# Initialize tournament notification scheduler
-from EsportsManagementTool import tournament_notification_scheduler
-tournament_notification_scheduler.initialize_tournament_scheduler(app, mysql)
+# Initialize playoffs notification scheduler
+from EsportsManagementTool import playoffs_notification_scheduler
+playoffs_notification_scheduler.initialize_playoffs_scheduler(app, mysql)
 
 # Register verification email routes
 from EsportsManagementTool import email_manager

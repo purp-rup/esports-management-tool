@@ -1,17 +1,9 @@
-/**
- * Manage Communities Modal Styles
- * Similar to Manage Leagues modal design
- */
-
-/* Modal container */
-#manageCommunitiesModal {
-    z-index: 10000;
-}
-
-#manageCommunitiesModal .modal-content {
-    max-width: 600px;
-    width: 90%;
-}
+/* ============================================
+   COMMUNITY MANAGEMENT MODAL STYLES
+   - Modal design
+   - Community cards
+   - Hidden communities
+   ============================================ */
 
 /* Header actions bar */
 .communities-modal-actions {
@@ -48,6 +40,7 @@
     border: 2px solid var(--border-color);
     border-radius: 12px;
     padding: 1rem;
+    position: relative;
     transition: all 0.2s ease;
     cursor: pointer;
 }
@@ -126,9 +119,7 @@
     margin-top: 0.25rem !important;
 }
 
-/* ==========================
- * HIDE COMMUNITY BUTTON
- * ========================== */
+/* Hide community button */
  .community-hide-btn {
     position: absolute;
     top: 0.75rem;
@@ -182,15 +173,7 @@
     border-radius: 12px;
 }
 
-/* Make sure card has position relative */
-.community-manage-card {
-    position: relative;
-}
-
-/* --------------------------------------------
-   GM SELECTION MODAL
-   List for selecting/assigning GMs
-   -------------------------------------------- */
+/* GM Selection Modal */
 #assignGMModal {
     z-index: 10001; /* Higher than manageCommunitiesModal */
 }
@@ -229,9 +212,8 @@
 }
 
 /* ======================================
- * COMMUNITY ACTIONS
+ * COMMUNITY CARD ACTIONS
  * ====================================== */
- /* Header right side container */
 .community-header-right {
     position: absolute;
     top: 0.75rem;
@@ -314,10 +296,7 @@
     color: white;
 }
 
-/* ==========================
- * GM INFO
- * ========================== */
-/* Compact GM info styling */
+/* GM info on community card */
 .community-gm-compact {
     border-top: none;
     text-align: left;
@@ -347,7 +326,6 @@
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    border: 2px solid black;
     object-fit: cover;
 }
 
@@ -370,9 +348,7 @@
     margin-bottom: 0;
 }
 
-/* ===========================
- * EDIT AND DELETE BUTTONS
- * =========================== */
+/* Edit and delete buttons */
 .community-action-buttons {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -428,22 +404,6 @@
     margin: 0 0 1.5rem 0;
 }
 
-/* Loading state */
-.communities-loading {
-    text-align: center;
-    padding: 2rem;
-}
-
-.communities-loading i {
-    font-size: 2rem;
-    color: var(--stockton-blue);
-}
-
-.communities-loading p {
-    color: var(--text-secondary);
-    margin-top: 1rem;
-}
-
 /* Community form */
 .community-form-group {
     margin-bottom: 1.5rem;
@@ -488,37 +448,6 @@
     font-size: 0.8125rem;
 }
 
-/* Image upload section */
-.community-image-upload {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.community-image-preview {
-    width: 120px;
-    height: 120px;
-    margin: 0 auto;
-    border-radius: 12px;
-    background: var(--dark-bg);
-    border: 2px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-
-.community-image-preview img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.community-image-preview i {
-    font-size: 2rem;
-    color: var(--text-secondary);
-}
-
 /* Team sizes checkboxes (reuse existing styles) */
 .community-form-group .team-sizes-grid {
     display: grid;
@@ -526,7 +455,145 @@
     gap: 0.75rem;
 }
 
-/* Responsive design */
+/* ========================================
+    Create community modal checkbox system
+   ======================================== */
+.team-size-checkbox {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.team-size-checkbox input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    width: 0;
+    height: 0;
+}
+
+.team-size-checkbox span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    width: 100%;
+    min-height: 90px;
+    position: relative;
+}
+
+/* Icon */
+.team-size-checkbox .checkbox-icon {
+    font-size: 1.35rem;
+    color: rgba(255, 255, 255, 0.4);
+    transition: all 0.2s ease;
+}
+
+/* Text */
+.team-size-checkbox .checkbox-text {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    transition: color 0.2s ease;
+    text-align: center;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+/* Hover state */
+.team-size-checkbox:hover span {
+    background: rgba(121, 189, 233, 0.08);
+    border-color: rgba(121, 189, 233, 0.4);
+    transform: translateY(-2px);
+}
+
+.team-size-checkbox:hover .checkbox-icon {
+    color: var(--stockton-blue);
+    transform: scale(1.1);
+}
+
+/* Checked state */
+.team-size-checkbox input[type="checkbox"]:checked + span {
+    background: linear-gradient(135deg,
+        rgba(121, 189, 233, 0.2) 0%,
+        rgba(121, 189, 233, 0.1) 100%);
+    border-color: var(--stockton-blue);
+    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.15);
+    transform: translateY(-2px);
+}
+
+.team-size-checkbox input[type="checkbox"]:checked + span .checkbox-icon {
+    color: var(--stockton-blue);
+    transform: scale(1.15);
+}
+
+.team-size-checkbox input[type="checkbox"]:checked + span .checkbox-text {
+    color: var(--stockton-blue);
+}
+
+/* Checkmark indicator */
+.team-size-checkbox input[type="checkbox"]:checked + span::after {
+    content: '\f00c';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    background: var(--stockton-blue);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.65rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    animation: checkmarkPop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Focus state for accessibility */
+.team-size-checkbox input[type="checkbox"]:focus + span {
+    outline: 2px solid var(--stockton-blue);
+    outline-offset: 2px;
+}
+
+/* ===========================
+   Animations
+   =========================== */
+@keyframes checkmarkPop {
+    0% {
+        transform: scale(0) rotate(0deg);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2) rotate(180deg);
+    }
+    100% {
+        transform: scale(1) rotate(360deg);
+        opacity: 1;
+    }
+}
+
+/* ===============================
+   Mobile Friendliness
+   =============================== */
+@media (max-width: 1200px) {
+  .team-sizes-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+}
+
 @media (max-width: 768px) {
     #manageCommunitiesModal .modal-content {
         max-width: 95%;
@@ -548,5 +615,24 @@
 
     .community-form-group .team-sizes-grid {
         grid-template-columns: repeat(3, 1fr);
+    }
+
+    .team-sizes-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    .team-size-checkbox span {
+        min-height: 80px;
+        padding: 0.875rem 0.5rem;
+    }
+
+    .team-size-checkbox .checkbox-icon {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+  .team-sizes-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
     }
 }

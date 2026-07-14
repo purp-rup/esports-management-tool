@@ -675,7 +675,7 @@ def get_teams_for_sidebar():
                 cursor.execute(base_select + "WHERE g.gm_id = %s AND t.season_id IS NOT NULL",
                                (session['id'],))
 
-        elif view_mode == 'play' and is_player:
+        elif view_mode == 'play' and (is_player or perms['in_teams']):
             if active_season_id:
                 cursor.execute(base_select + """
                     INNER JOIN team_members tm ON t.TeamID = tm.team_id
@@ -687,7 +687,7 @@ def get_teams_for_sidebar():
                     WHERE tm.user_id = %s
                 """, (session['id'],))
 
-        elif view_mode == 'my_past_teams' and is_player:
+        elif view_mode == 'my_past_teams' and (is_player or perms['in_teams']):
             if active_season_id:
                 cursor.execute(base_select + """
                     INNER JOIN team_members tm ON t.TeamID = tm.team_id
@@ -762,7 +762,8 @@ def get_teams_for_sidebar():
 @login_required
 def get_team_sidebar_filters():
     """
-    Get list of available view options based on user's roles.
+    Get list of available view options based on user's roles, each with a
+    team count, plus a division breakdown for the admin-only Divisions flyout.
     Each role independently contributes its own views.
     Admins: All Teams, Past Seasons, Division filters.
     GMs: Managed Teams, Past Managed.
@@ -772,33 +773,110 @@ def get_team_sidebar_filters():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         perms = get_permissions_for_sidebar(session['id'])
+        user_id = session['id']
+        is_admin = perms['is_admin']
+        is_developer = perms['is_developer']
+        is_gm = perms['is_gm']
+        is_player = perms['is_player']
+
+        cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+        active_season = cursor.fetchone()
+        active_season_id = active_season['season_id'] if active_season else None
+
+        def count_teams(where_sql, params):
+            cursor.execute("""
+                SELECT COUNT(*) as cnt
+                FROM teams t
+                LEFT JOIN games g ON t.gameID = g.GameID
+            """ + where_sql, params)
+            return cursor.fetchone()['cnt']
+
         views = []
 
-        if perms['is_admin'] or perms['is_developer']:
-            views.append({'value': 'all', 'label': 'All Teams', 'priority': 1})
+        if is_admin or is_developer:
+            if active_season_id:
+                count = count_teams("WHERE t.season_id = %s", (active_season_id,))
+            else:
+                count = count_teams("", ())
+            views.append({'value': 'all', 'label': 'All Teams', 'priority': 1, 'count': count})
 
-        if perms['is_admin'] or perms['is_developer'] or perms['manages_games']:
-            views.append({'value': 'manage', 'label': 'Managed Teams', 'priority': 2})
+        if is_admin or is_developer or perms['manages_games']:
+            if active_season_id:
+                count = count_teams("WHERE g.gm_id = %s AND t.season_id = %s", (user_id, active_season_id))
+            else:
+                count = count_teams("WHERE g.gm_id = %s", (user_id,))
+            views.append({'value': 'manage', 'label': 'Managed Teams', 'priority': 2, 'count': count})
 
-        if perms['is_admin'] or perms['is_developer'] or perms['manages_games'] or perms['has_managed_teams']:
-            views.append({'value': 'past_managed', 'label': 'Past Managed Teams', 'priority': 3})
+        if is_admin or is_developer or perms['manages_games'] or perms['has_managed_teams']:
+            if active_season_id:
+                count = count_teams(
+                    "WHERE g.gm_id = %s AND (t.season_id IS NULL OR t.season_id != %s)",
+                    (user_id, active_season_id)
+                )
+            else:
+                count = count_teams("WHERE g.gm_id = %s AND t.season_id IS NOT NULL", (user_id,))
+            views.append({'value': 'past_managed', 'label': 'Past Managed Teams', 'priority': 3, 'count': count})
 
-        if perms['is_player'] or perms['in_teams']:
-            views.append({'value': 'play', 'label': 'My Teams', 'priority': 4})
+        if is_player or perms['in_teams']:
+            join = " INNER JOIN team_members tm ON t.TeamID = tm.team_id"
+            if active_season_id:
+                count = count_teams(join + " WHERE tm.user_id = %s AND t.season_id = %s", (user_id, active_season_id))
+            else:
+                count = count_teams(join + " WHERE tm.user_id = %s", (user_id,))
+            views.append({'value': 'play', 'label': 'My Teams', 'priority': 4, 'count': count})
 
         if perms['in_teams']:
-            views.append({'value': 'my_past_teams', 'label': 'My Past Teams', 'priority': 5})
+            join = " INNER JOIN team_members tm ON t.TeamID = tm.team_id"
+            if active_season_id:
+                count = count_teams(
+                    join + " WHERE tm.user_id = %s AND (t.season_id IS NULL OR t.season_id != %s)",
+                    (user_id, active_season_id)
+                )
+            else:
+                count = count_teams(join + " WHERE tm.user_id = %s AND t.season_id IS NOT NULL", (user_id,))
+            views.append({'value': 'my_past_teams', 'label': 'My Past Teams', 'priority': 5, 'count': count})
 
         views.sort(key=lambda x: x['priority'])
 
         # Always guarantee at least one view so the sidebar never infinite-loads
         if not views:
-            views.append({'value': 'all', 'label': 'All Teams', 'priority': 1})
+            views.append({'value': 'all', 'label': 'All Teams', 'priority': 1, 'count': 0})
+
+        # Division breakdown — mirrors the "default" (else) branch of
+        # get_teams_for_sidebar(), since that's the exact dataset the
+        # Divisions flyout filters client-side by team.division.
+        division_counts = {}
+        division_join = None
+        if is_admin or is_developer:
+            division_join = ""
+            division_where = "WHERE t.season_id = %s" if active_season_id else ""
+            division_params = (active_season_id,) if active_season_id else ()
+        elif is_gm:
+            division_join = ""
+            division_where = "WHERE g.gm_id = %s AND t.season_id = %s" if active_season_id else "WHERE g.gm_id = %s"
+            division_params = (user_id, active_season_id) if active_season_id else (user_id,)
+        elif is_player:
+            division_join = " INNER JOIN team_members tm ON t.TeamID = tm.team_id"
+            division_where = "WHERE tm.user_id = %s AND t.season_id = %s" if active_season_id else "WHERE tm.user_id = %s"
+            division_params = (user_id, active_season_id) if active_season_id else (user_id,)
+
+        if division_join is not None:
+            cursor.execute(f"""
+                SELECT COALESCE(g.Division, 'Other') as division, COUNT(*) as cnt
+                FROM teams t
+                LEFT JOIN games g ON t.gameID = g.GameID
+                {division_join}
+                {division_where}
+                GROUP BY COALESCE(g.Division, 'Other')
+            """, division_params)
+            for row in cursor.fetchall():
+                division_counts[row['division']] = row['cnt']
 
         return jsonify({
             'success': True,
             'views': views,
-            'has_multiple': len(views) > 1
+            'has_multiple': len(views) > 1,
+            'division_counts': division_counts
         })
 
     except Exception as e:

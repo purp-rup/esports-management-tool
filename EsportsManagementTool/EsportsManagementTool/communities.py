@@ -1,4 +1,4 @@
-from EsportsManagementTool import app, login_required, roles_required, mysql, EST
+from EsportsManagementTool import app, login_required, roles_required, mysql, EST, season_roles
 from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr, is_all_day_event, build_member_profile, attach_profile_extras
 from flask import request, render_template, redirect, url_for, session, flash, jsonify
 from datetime import datetime, timedelta
@@ -216,7 +216,26 @@ def remove_game_manager(game_id):
 @app.route('/api/gm-game-mappings', methods=['GET'])
 @login_required
 def get_gm_game_mappings():
-    """Get all GM assignments for universal badge display"""
+    """
+    Get GM assignments for universal badge display.
+    Accepts an optional ?season_id= query param — when present, returns
+    frozen historical assignments for that past season (via the existing
+    season_roles helper) instead of live/current ones.
+    """
+    season_id = request.args.get('season_id', type=int)
+
+    if season_id:
+        try:
+            mappings = season_roles.get_gm_game_mappings_for_season(mysql, season_id)
+            return jsonify({'success': True, 'mappings': mappings}), 200
+        except Exception as e:
+            print(f"Error getting season GM-game mappings: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Failed to load GM mappings',
+                'mappings': {}
+            }), 500
+
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -1327,7 +1346,7 @@ def get_user_communities():
 
         try:
             cursor.execute(
-                "SELECT GameID, GameTitle, Description, GameImage, ImageMimeType, TeamSizes FROM games ORDER BY GameTitle ASC")
+                "SELECT GameID, GameTitle, Description, GameImage, ImageMimeType, TeamSizes, Abbreviation FROM games ORDER BY GameTitle ASC")
             all_games = cursor.fetchall()
 
             formatted_communities = []
@@ -1355,7 +1374,7 @@ def get_user_communities():
                         formatted_communities.append(
                             {'id': game_id, 'title': game_title, 'description': game['Description'],
                              'image_url': image_url, 'team_sizes': game['TeamSizes'], 'joined_at': joined_str,
-                             'member_count': member_count})
+                             'member_count': member_count, 'abbreviation': game['Abbreviation']})
                 except Exception as e:
                     print(f"Error checking membership for {game_title}: {e}")
                     continue

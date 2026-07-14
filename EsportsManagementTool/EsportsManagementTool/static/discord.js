@@ -93,7 +93,7 @@ async function loadDiscordInfo() {
             // User has Discord connected - cache data and display profile
             discordInfo = data;
             displayDiscordProfile(data);
-            connectedDiv.style.display = 'block';
+            connectedDiv.style.display = 'flex';
         } else {
             // User hasn't connected Discord yet - show connect prompt
             notConnectedDiv.style.display = 'block';
@@ -162,11 +162,9 @@ function displayDiscordProfile(data) {
         // New format: @username
 
         if (data.discriminator && data.discriminator !== '0') {
-            // Old Discord username format (with discriminator)
-            usernameEl.innerHTML = `<i class="fab fa-discord"></i> ${escapeHtml(data.username)}#${escapeHtml(data.discriminator)}`;
+            usernameEl.textContent = `${data.username}#${data.discriminator}`;
         } else {
-            // New Discord username format (no discriminator)
-            usernameEl.innerHTML = `<i class="fab fa-discord"></i> @${escapeHtml(data.username)}`;
+            usernameEl.textContent = `@${data.username}`;
         }
     }
 
@@ -274,11 +272,17 @@ async function disconnectDiscord() {
  */
 async function syncDiscordAvatar() {
     const messageDiv = document.getElementById('discordActionMessage');
+    const btn = document.getElementById('syncAvatarBtn');
+    const btnText = document.getElementById('syncAvatarBtnText');
+    const btnSpinner = document.getElementById('syncAvatarBtnSpinner');
 
     // Hide any previous messages
-    if (messageDiv) {
-        messageDiv.style.display = 'none';
-    }
+    if (messageDiv) messageDiv.style.display = 'none';
+
+    // Show loading state
+    if (btn) btn.disabled = true;
+    if (btnText) btnText.style.display = 'none';
+    if (btnSpinner) btnSpinner.style.display = 'inline-block';
 
     try {
         // Request avatar sync from backend
@@ -299,10 +303,9 @@ async function syncDiscordAvatar() {
                 messageDiv.style.display = 'block';
             }
 
-            // Reload to profile tab after 1.5 seconds to show updated avatar
-            // Hash navigation ensures user returns to the profile tab
+            // Use sessionStorage so dashboard.js switches to profile tab once after reload
             setTimeout(() => {
-                window.location.href = window.location.pathname + '#profile';
+                sessionStorage.setItem('activeTab', 'profile');
                 window.location.reload();
             }, 1500);
         } else {
@@ -317,6 +320,10 @@ async function syncDiscordAvatar() {
             messageDiv.className = 'form-message error';
             messageDiv.style.display = 'block';
         }
+    } finally {
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.style.display = 'inline';
+        if (btnSpinner) btnSpinner.style.display = 'none';
     }
 }
 

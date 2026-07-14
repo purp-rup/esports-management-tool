@@ -3,6 +3,7 @@
 {% block title %}Program Statistics - Stockton Esports{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dashboard-base.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='admin-statistics.css') }}">
 {% endblock %}
 
@@ -15,18 +16,28 @@
         </div>
         
         <!-- Season Filter -->
+        {% set ns = namespace(current_season_label='All Time') %}
+        {% for season in seasons %}
+            {% if selected_season == season.season_id %}
+                {% set ns.current_season_label = season.season_name + (' (Current)' if season.is_active else '') %}
+            {% endif %}
+        {% endfor %}
         <div class="season-filter">
-            <label for="seasonSelect">Season:</label>
-            <select id="seasonSelect" class="season-dropdown" onchange="filterBySeason(this.value)">
-                <option value="">All Time</option>
-                {% for season in seasons %}
-                <option value="{{ season.season_id }}" 
-                        {% if selected_season == season.season_id %}selected{% endif %}>
-                    {{ season.season_name }}
-                    {% if season.is_active %}(Current){% endif %}
-                </option>
-                {% endfor %}
-            </select>
+            <label>Season:</label>
+            <div class="filter-box" id="seasonFilterBox">
+                <button class="filter-box-btn" onclick="toggleFilterBox('seasonFilterPanel')">
+                    <span id="seasonFilterLabel">{{ ns.current_season_label }}</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="filter-box-panel" id="seasonFilterPanel">
+                    <div class="filter-box-item {% if not selected_season %}active{% endif %}" onclick="filterBySeason('')">All Time</div>
+                    {% for season in seasons %}
+                    <div class="filter-box-item {% if selected_season == season.season_id %}active{% endif %}" onclick="filterBySeason('{{ season.season_id }}')">
+                        {{ season.season_name }}{% if season.is_active %} (Current){% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
 
@@ -140,14 +151,14 @@
     </section>
 
     <!-- ================================ -->
-    <!-- TOURNAMENT PLACEMENTS BY LEAGUE -->
+    <!-- PLAYOFFS PLACEMENTS BY LEAGUE -->
     <!-- ================================ -->
     <section class="stats-section">
-        <h2>Tournament Performance</h2>
+        <h2>Playoffs Performance</h2>
         
-        {% if statistics.tournament_placements_by_league %}
+        {% if statistics.playoffs_placements_by_league %}
         <div class="league-stats-container">
-            {% for league in statistics.tournament_placements_by_league %}
+            {% for league in statistics.playoffs_placements_by_league %}
             <div class="league-card">
                 <div class="league-header">
                     <div class="league-title">
@@ -233,7 +244,7 @@
         {% else %}
         <div class="empty-state">
             <i class="fas fa-trophy"></i>
-            <p>No tournament data available for this period</p>
+            <p>No playoffs data available for this period</p>
         </div>
         {% endif %}
     </section>
@@ -326,5 +337,6 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
 <script src="{{ url_for('static', filename='admin-statistics.js') }}"></script>
 {% endblock %}

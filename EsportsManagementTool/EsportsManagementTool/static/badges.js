@@ -2,7 +2,6 @@
  * badges.js
  * ============================================================================
  * UNIVERSAL BADGE SYSTEM
- * ORGANIZED BY CLAUDEAI
  * ============================================================================
  * Centralized badge generation system that handles:
  * - Role badge rendering (Admin, Game Manager, Player, Member)
@@ -90,7 +89,7 @@ async function loadSeasonGMGameMappings(seasonId) {
     }
 
     try {
-        const response = await fetch(`/api/season/${seasonId}/gm-game-mappings`);
+        const response = await fetch(`/api/gm-game-mappings?season_id=${seasonId}`);
         const data = await response.json();
 
         if (data.success) {

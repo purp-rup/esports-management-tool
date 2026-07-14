@@ -1,27 +1,11 @@
 /* ============================================
    TEAMS SIDEBAR STYLES
-   Left sidebar with team list and filters
-   ORGANIZED BY CLAUDE AI
+   - Teams list on left sidebar
+   - Tree design connecting teams to games
+   - Collapsible folder system
    ============================================ */
 
-
-.teams-layout {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: flex-start;
-    gap: 1.25rem;
-    width: 100%;
-}
-
-.teams-main-content {
-    flex: 1 1 0% !important;
-    min-width: 0;
-    overflow: hidden;
-}
-
-/* --------------------------------------------
-   LEFT SIDEBAR - TEAM LIST
-   -------------------------------------------- */
+/* Main layout */
 .teams-sidebar {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -32,15 +16,11 @@
     display: flex;
     flex-direction: column;
     width: 280px;
-    min-width: 280px;
-    max-width: 280px;
     flex-shrink: 0;
     align-self: stretch;
 }
 
-/* ============================================
-   SIDEBAR HEADER
-   ============================================ */
+/* Header */
 .teams-sidebar-header {
     padding: 0 1.25rem;
     margin-bottom: 0.75rem;
@@ -50,7 +30,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.2rem;
 }
 
 .sidebar-header-top h2 {
@@ -61,7 +41,7 @@
     letter-spacing: -0.01em;
 }
 
-/* + Create button — icon-only square button */
+/* Create button */
 .btn-create-team-sidebar {
     width: 30px;
     height: 30px;
@@ -93,56 +73,53 @@
     display: block;
 }
 
-/* "All Games · N" subtitle */
-.teams-subtitle {
-    margin: 0;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-}
-
-/* ============================================
-   VIEW SWITCHER
-   ============================================ */
+/* Sidebar filter */
 .view-switcher {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0 1.25rem;
-    margin-bottom: 0.75rem;
-}
-
-.view-switcher-select {
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-secondary);
-    padding: 0.375rem 0.625rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-    width: 100%;
-    outline: none;
-}
-
-.view-switcher-select:hover,
-.view-switcher-select:focus {
-    border-color: var(--stockton-blue);
-    color: var(--text-primary);
-}
-
-.view-switcher-select option {
-    background: var(--dark-bg);
-    color: var(--text-primary);
 }
 
 .view-switcher.hidden {
     display: none;
 }
 
-/* ============================================
-   SIDEBAR STATES
-   ============================================ */
+#teamsViewFilterBox {
+    width: 100%;
+}
+
+#teamsViewFilterBox .filter-box-btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8125rem;
+    gap: 0.4rem;
+}
+
+#teamsViewFilterBox .filter-box-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+#teamsViewFilterBox .filter-box-btn i {
+    flex-shrink: 0;
+}
+
+#teamsViewFilterPanel {
+    min-width: 200px;
+}
+
+#teamsViewFilterPanel .filter-box-item {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.8125rem;
+}
+
+#teamsViewFilterPanel .filter-box-flyout-item {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.8125rem;
+}
+
+/* Sidebar states */
 .sidebar-loading,
 .sidebar-empty {
     text-align: center;
@@ -159,9 +136,7 @@
     display: block;
 }
 
-/* ============================================
-   TEAMS LIST CONTAINER
-   ============================================ */
+/* Teams list container */
 .teams-list {
     display: flex;
     flex-direction: column;
@@ -176,9 +151,7 @@
     flex-direction: column;
 }
 
-/* ============================================
-   GAME ROW — clickable folder header
-   ============================================ */
+/* Row - clickable folder header */
 .game-folder-row {
     display: flex;
     align-items: center;
@@ -199,15 +172,14 @@
 .game-group.expanded .game-folder-row::after {
     content: '';
     position: absolute;
-    left: calc(1.25rem + 19px);  /* icon center x */
-    top: calc(0.5rem + 38px);    /* row padding-top + full icon height */
+    left: calc(1.25rem + 19px);
+    top: calc(0.5rem + 38px);
     bottom: 0;
     width: 1px;
     background:  rgba(121, 189, 233, 0.45);
     pointer-events: none;
 }
 
-/* Game icon */
 .game-folder-icon {
     width: 38px;
     height: 38px;
@@ -241,7 +213,6 @@
     border-radius: 9px;
 }
 
-/* Game name */
 .game-folder-name {
     flex: 1;
     min-width: 0;
@@ -309,12 +280,9 @@
     display: none;
 }
 
-/* ============================================
-   TEAM TREE ITEM
-   ============================================ */
+/* Team tree item */
 .team-tree-item {
     position: relative;
-    /* indent = icon center (1.25rem + 19px) + 14px connector gap + inner padding */
     padding: 0.3125rem 0.75rem 0.3125rem calc(1.25rem + 19px + 14px);
     cursor: pointer;
     border-radius: 0 6px 6px 0;
@@ -375,7 +343,6 @@
     box-shadow: inset 3px 0 0 var(--stockton-blue);
 }
 
-/* Team name */
 .team-tree-name {
     font-size: 0.875rem;
     font-weight: 500;
@@ -397,7 +364,6 @@
     font-weight: 600;
 }
 
-/* Edit button */
 .team-tree-edit-btn {
     background: transparent;
     border: none;
@@ -418,106 +384,6 @@
 .team-tree-edit-btn:hover {
     color: var(--stockton-blue);
     background: rgba(121, 189, 233, 0.12);
-}
-
-/* ============================================
-   COMPATIBILITY SHIM
-   teams.js queries .team-sidebar-item and .team-sidebar-content.
-   These overrides ensure the tree layout is not broken by whatever
-   styles teams.css applies to those classes.
-   ============================================ */
-.team-tree-item.team-sidebar-item {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0 6px 6px 0 !important;
-    /* Use the tree indent, not the legacy sidebar padding */
-    padding: 0.3125rem 0.75rem 0.3125rem calc(1.25rem + 19px + 14px) !important;
-    margin: 0 0.75rem 0 0 !important;
-    transform: none !important;
-    flex-direction: row !important;
-}
-
-.team-tree-item.team-sidebar-item:hover {
-    background: var(--hover-bg) !important;
-    transform: none !important;
-}
-
-.team-tree-item.team-sidebar-item.active {
-    background: rgba(121, 189, 233, 0.07) !important;
-    border: none !important;
-    border-left: none !important;
-}
-
-.team-tree-item .team-sidebar-content.team-tree-content {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    padding: 0;
-    background: none;
-}
-
-/* ============================================
-   PAST SEASON / DIVISION FILTER DROPDOWNS
-   ============================================ */
-.division-filter-container,
-.past-season-filter-container {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0 1.25rem;
-    margin-bottom: 0.75rem;
-    transition: all 0.3s ease;
-}
-
-.division-filter-container.hidden,
-.past-season-filter-container.hidden {
-    display: none;
-}
-
-.division-filter-label,
-.past-season-filter-label {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    margin: 0;
-    flex-shrink: 0;
-}
-
-.division-filter-select,
-.past-season-filter-select {
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-primary);
-    padding: 0.375rem 0.625rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-    outline: none;
-    flex: 1;
-    min-width: 0;
-}
-
-.division-filter-select:hover,
-.division-filter-select:focus,
-.past-season-filter-select:hover,
-.past-season-filter-select:focus {
-    border-color: var(--stockton-blue);
-    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.08);
-}
-
-.division-filter-select option,
-.past-season-filter-select option {
-    background: var(--dark-bg);
-    color: var(--text-primary);
-}
-
-#pastSeasonFilterLoadingIndicator {
-    color: var(--stockton-blue);
-    font-size: 0.875rem;
 }
 
 /* ============================================
@@ -576,9 +442,9 @@
     animation: slideDownFilter 0.2s ease-out;
 }
 
-/* ============================================
-   RESPONSIVE
-   ============================================ */
+/* ========================================
+   Mobile friendliness
+   ======================================== */
 @media (max-width: 1024px) {
     .teams-layout {
         flex-direction: column !important;
@@ -607,12 +473,12 @@
         padding: 0 0;
     }
 
-    .view-switcher-select {
-        width: 55%;
-    }
-
     .game-folder-row {
         padding: 0.5rem 1rem;
+    }
+
+    .game-group.expanded .game-folder-row::after {
+        left: calc(1rem + 19px);
     }
 
     /* Adjust tree line and item indent for smaller sidebar padding */
@@ -625,6 +491,10 @@
     }
 
     .team-tree-item::before {
+        left: calc(1rem + 19px);
+    }
+
+    .team-tree-item::after {
         left: calc(1rem + 19px);
     }
 }

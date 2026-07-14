@@ -6,11 +6,6 @@
  * Universal list filter function.
  * Reads a search input and shows/hides items based on data attribute matches.
  *
- * @param {string} searchInputId   - ID of the <input> element to read from
- * @param {string} itemSelector    - CSS selector for the items to show/hide
- * @param {string[]} dataAttributes - data-* attribute names (without "data-") to match against
- * @param {string} [displayStyle]  - display value when visible (default: 'flex')
- *
  * Used by teams.js
  */
 const filterListItems = debounce(function(searchInputId, itemSelector, dataAttributes, displayStyle = 'flex') {
@@ -31,6 +26,122 @@ const filterListItems = debounce(function(searchInputId, itemSelector, dataAttri
 }, 300);
 
 /**
+ * Generic filter-box dropdown toggle. Opens the given panel and closes
+ * any other open filter-box panels. On mobile, also opens the shared
+ * #filterBackdrop sheet and locks body scroll, if that element exists
+ * on the page (safe no-op otherwise).
+ *
+ * Used by events.js, dashboard.js, & admin-statistics.js,
+ */
+function toggleFilterBox(panelId) {
+    const panel = document.getElementById(panelId);
+    const btn = panel?.previousElementSibling;
+    const isOpen = panel?.classList.contains('open');
+
+    closeAllFilterPanels();
+
+    const filterBackdrop = document.getElementById('filterBackdrop');
+
+    if (!isOpen) {
+        panel?.classList.add('open');
+        btn?.classList.add('active');
+        if (window.innerWidth <= 768 && filterBackdrop) {
+            filterBackdrop.classList.add('open');
+            lockBodyScroll('filterBox');
+        }
+    } else {
+        filterBackdrop?.classList.remove('open');
+        unlockBodyScroll('filterBox');
+    }
+}
+
+/**
+ * Closes every open .filter-box-panel on the page and releases the
+ * mobile backdrop/scroll lock if one was held.
+ *
+ * Used by events.js, dashboard.js, & admin-statistics.js
+ */
+function closeAllFilterPanels() {
+    document.querySelectorAll('.filter-box-panel.open').forEach(p => {
+        p.classList.remove('open');
+        p.previousElementSibling?.classList.remove('active');
+    });
+    document.getElementById('filterBackdrop')?.classList.remove('open');
+    unlockBodyScroll('filterBox');
+}
+
+// Close any open filter-box panel when clicking outside it
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.filter-box')) {
+        closeAllFilterPanels();
+    }
+});
+
+/**
+ * Position a flyout submenu to the left if it would overflow the
+ * right edge of the viewport.
+ *
+ * Used by events.js & teams-sidebar.js
+ */
+function positionFlyout(triggerEl) {
+    const flyout = triggerEl.querySelector('.filter-box-flyout');
+    if (!flyout) return;
+
+    // On mobile the flyout renders inline
+    if (window.innerWidth <= 768) return;
+
+    flyout.style.display = 'block';
+    flyout.style.position = 'fixed';
+
+    const triggerRect = triggerEl.getBoundingClientRect();
+    const flyoutRect = flyout.getBoundingClientRect();
+
+    let left = triggerRect.right + 6;
+    let top = triggerRect.top - 6;
+
+    // Flip to the trigger's left side if it would overflow the right edge
+    if (left + flyoutRect.width > window.innerWidth) {
+        left = triggerRect.left - flyoutRect.width - 6;
+    }
+
+    // Clamp vertically so it doesn't run off the bottom of the viewport
+    if (top + flyoutRect.height > window.innerHeight) {
+        top = Math.max(8, window.innerHeight - flyoutRect.height - 8);
+    }
+
+    flyout.style.left = `${left}px`;
+    flyout.style.top = `${top}px`;
+
+    flyout.style.display = '';
+}
+
+/**
+ * Wires up hover-positioning and mobile tap-to-expand behavior for
+ * every .filter-box-item--flyout trigger within the given scope.
+ *
+ * Used by events.js, teams-sidebar.js.
+ */
+function initFlyoutTriggers(scope = document) {
+    scope.querySelectorAll('.filter-box-item--flyout').forEach(trigger => {
+        trigger.addEventListener('mouseenter', () => positionFlyout(trigger));
+
+        // Triggers cards to open in mobile view
+        if (window.innerWidth <= 768) {
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isExpanded = trigger.classList.contains('flyout-expanded');
+                document.querySelectorAll('.filter-box-item--flyout.flyout-expanded').forEach(t => {
+                    t.classList.remove('flyout-expanded');
+                });
+                if (!isExpanded) {
+                    trigger.classList.add('flyout-expanded');
+                }
+            });
+        }
+    });
+}
+
+/**
  * Universal dropdown enabler (removes all disabled states)
  * Used by teams.js, game.js, leagues.js, & events.js
  */
@@ -46,7 +157,7 @@ function enableDropdown(dropdown) {
 
 /**
  * Attach a live character counter to a text area.
- * Used by events.js, scheduled-events.js, manage-communities.js, dashboard.js, & tournament-results.js
+ * Used by events.js, scheduled-events.js, manage-communities.js, dashboard.js, & playoffs-results.js
  */
 function attachCharacterCounter(textareaId, maxLength) {
     const textarea = document.getElementById(textareaId);
@@ -133,6 +244,134 @@ function createMemberPill(member, options = {}) {
     return pill;
 }
 
+// ============================================
+// INFO ICON
+// ============================================
+
+/**
+ * Position an info tooltip using fixed viewport coordinates so it
+ * can't be clipped by overflow:hidden ancestors or panel scroll.
+ * Resets when the wrapper loses hover (see initInfoIcon).
+ * @param {HTMLElement} wrapperEl .info-icon-wrapper element
+ */
+function positionInfoTooltip(wrapperEl) {
+    if (window.innerWidth <= 768) return;
+
+    const tooltip = wrapperEl.querySelector('.info-tooltip');
+    if (!tooltip) return;
+
+    tooltip.style.top = '';
+
+    const wrapperRect  = wrapperEl.getBoundingClientRect();
+    const tooltipWidth = 260; // matches the fixed CSS width
+    const gap          = 12;
+    const margin       = 8;
+
+    // Open left if there's not enough room to the right but enough to the left
+    const spaceRight = window.innerWidth - wrapperRect.right - gap;
+    const spaceLeft  = wrapperRect.left - gap;
+    const opensLeft  = spaceRight < tooltipWidth && spaceLeft >= tooltipWidth;
+
+    tooltip.classList.toggle('info-tooltip--left', opensLeft);
+
+    // Vertical clamp
+    tooltip.style.visibility = 'hidden';
+    tooltip.style.display    = 'block';
+    const h = tooltip.offsetHeight;
+    tooltip.style.display    = '';
+    tooltip.style.visibility = '';
+
+    const defaultViewportTop = wrapperRect.top + wrapperRect.height / 2 - h / 2;
+
+    if (defaultViewportTop < margin) {
+        tooltip.style.top = `${margin - wrapperRect.top + h / 2}px`;
+    } else if (defaultViewportTop + h > window.innerHeight - margin) {
+        tooltip.style.top = `${window.innerHeight - margin - wrapperRect.top - h / 2}px`;
+    }
+}
+
+/**
+ * Open the universal info bottom sheet.
+ * @param {string}      title     Heading shown at the top of the sheet
+ * @param {HTMLElement} tooltipEl The .info-tooltip whose innerHTML to clone
+ */
+function openInfoSheet(title, tooltipEl) {
+    const sheet    = document.getElementById('infoSheet');
+    const titleEl  = document.getElementById('infoSheetTitle');
+    const content  = document.getElementById('infoSheetContent');
+    const backdrop = document.getElementById('infoSheetBackdrop');
+    if (!sheet || !titleEl || !content) return;
+
+    titleEl.textContent  = title;
+    content.innerHTML    = tooltipEl ? tooltipEl.innerHTML : '';
+    sheet.classList.add('sheet-open');
+    backdrop?.classList.add('open');
+    lockBodyScroll('infoSheet');
+}
+
+/**
+ * Close the universal info bottom sheet.
+ */
+function closeInfoSheet() {
+    document.getElementById('infoSheet')?.classList.remove('sheet-open');
+    document.getElementById('infoSheetBackdrop')?.classList.remove('open');
+    unlockBodyScroll('infoSheet');
+}
+
+/**
+ * Initialize a single info icon wrapper for both desktop and mobile.
+ *
+ * @param {HTMLElement}        wrapperEl .info-icon-wrapper element
+ * @param {string|function}    titleOrFn Sheet heading, or a function
+ *                                       that returns it (for dynamic titles)
+ */
+function initInfoIcon(wrapperEl, titleOrFn) {
+    if (!wrapperEl) return;
+
+    const icon = wrapperEl.querySelector('.info-icon');
+
+    // Mobile click
+    icon?.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768) {
+            e.stopPropagation();
+            const tooltip = wrapperEl.querySelector('.info-tooltip');
+            const title   = typeof titleOrFn === 'function' ? titleOrFn() : (titleOrFn || '');
+            openInfoSheet(title, tooltip);
+        }
+    });
+
+    // Desktop hover
+    wrapperEl.addEventListener('mouseenter', () => {
+        const t = wrapperEl.querySelector('.info-tooltip');
+        if (!t) return;
+        clearTimeout(t._flipTimer);
+        // Sets --left if needed force reflow so browser sees the
+        // correct starting transform before --visible triggers the transition
+        positionInfoTooltip(wrapperEl);
+        void t.offsetHeight;
+        t.classList.add('info-tooltip--visible');
+    });
+    wrapperEl.addEventListener('mouseleave', () => {
+        const t = wrapperEl.querySelector('.info-tooltip');
+        if (!t) return;
+        t.style.top = '';
+        t.classList.remove('info-tooltip--visible'); // fade + slide out
+        clearTimeout(t._flipTimer);
+        // Remove direction class only after the exit transition finishes
+        t._flipTimer = setTimeout(() => {
+            t.classList.remove('info-tooltip--left');
+        }, 150);
+    });
+}
+
+// Auto-init any info icon that declares a static title via data attribute.
+// The Teams tab wires its own icon manually (dynamic title).
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.info-icon-wrapper[data-info-title]').forEach(wrapper => {
+        initInfoIcon(wrapper, wrapper.dataset.infoTitle);
+    });
+});
+
 // ========================================
 // UTILITIES
 // =======================================
@@ -183,6 +422,10 @@ function unlockBodyScroll(ownerId) {
 
 //Global Exports
 window.filterListItems = filterListItems;
+window.toggleFilterBox = toggleFilterBox;
+window.closeAllFilterPanels = closeAllFilterPanels;
+window.positionFlyout = positionFlyout;
+window.initFlyoutTriggers = initFlyoutTriggers;
 window.enableDropdown = enableDropdown;
 window.attachCharacterCounter = attachCharacterCounter;
 window.navigateToEvent = navigateToEvent;
@@ -190,3 +433,7 @@ window.createMemberPill = createMemberPill;
 window.debounce = debounce;
 window.lockBodyScroll = lockBodyScroll;
 window.unlockBodyScroll = unlockBodyScroll;
+window.positionInfoTooltip = positionInfoTooltip;
+window.openInfoSheet = openInfoSheet;
+window.closeInfoSheet = closeInfoSheet;
+window.initInfoIcon = initInfoIcon;

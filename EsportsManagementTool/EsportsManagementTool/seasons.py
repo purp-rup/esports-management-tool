@@ -425,7 +425,7 @@ def season_end_procedure(cursor, season_id):
 
     # 2. Remove Player role from all users
     cursor.execute("""
-        UPDATE permissions "
+        UPDATE permissions
         SET is_player = 0
     """)
 

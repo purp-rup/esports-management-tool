@@ -48,6 +48,7 @@ const MODAL_CLOSE_HANDLERS = {
     // Team-related modals
     'createTeamModal': () => closeCreateTeamModal(),
     'addTeamMembersModal': () => closeAddTeamMembersModal(),
+    'editTeamModal': () => closeEditTeamModal(),
 
     // Profile-related modals
     'changeAvatarModal': () => closeAvatarModal(),

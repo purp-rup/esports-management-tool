@@ -48,115 +48,55 @@ function initializeCommunitiesModule() {
             }
         });
     }
+
+    initCommunityInfoTooltip();
+}
+
+// ============================================
+// COMMUNITY INFO TOOLTIP (header "i" icon)
+// Hover on desktop; tap-to-toggle on touch/mobile.
+// ============================================
+function initCommunityInfoTooltip() {
+    const wrapper = document.getElementById('communityInfoIconWrapper');
+    if (!wrapper) return;
+
+    // Tap toggles the tooltip open/closed. Harmless on desktop too —
+    // hover still works there via CSS, this just adds a click fallback.
+    wrapper.addEventListener('click', function(e) {
+        e.stopPropagation();
+        wrapper.classList.toggle('tooltip-open');
+    });
+
+    // Tapping/clicking anywhere else closes it
+    document.addEventListener('click', function(e) {
+        if (wrapper.classList.contains('tooltip-open') && !wrapper.contains(e.target)) {
+            wrapper.classList.remove('tooltip-open');
+        }
+    });
+
+    // Also close on scroll/resize so it doesn't get stranded on mobile
+    window.addEventListener('scroll', function() {
+        wrapper.classList.remove('tooltip-open');
+    }, { passive: true });
 }
 
 // ============================================
 // COMMUNITY MEMBERSHIP - JOIN/LEAVE
 // ============================================
 
-// Confirm joining a game community with confirmation modal
+// Join a game community directly (no confirmation modal — see the
+// info icon next to "Game Communities" for what joining/leaving means)
 function confirmJoinGame(gameId, gameTitle) {
-    const modal = createConfirmModal(
-        'Join Community',
-        gameTitle,
-        [
-            'You can be assigned to a team',
-            'You can view this game\'s schedule',
-            'You can view exclusive events'
-        ],
-        'You can always leave later if you change your mind.',
-        'success',
-        () => updateGameMembership(gameId, 'join')
-    );
-    document.body.appendChild(modal);
+    updateGameMembership(gameId, 'join');
 }
 
-// Confirm leaving a game community
+// Leave a game community directly (no confirmation modal)
 function confirmLeaveGame(gameId, gameTitle) {
-    const modal = createConfirmModal(
-        'Leave Community',
-        gameTitle,
-        [
-            'You\'ll no longer be able to join a team',
-            'You won\'t see this game\'s schedule',
-            'You won\'t see this game\'s exclusive events'
-        ],
-        'You can always rejoin if you change your mind',
-        'warning',
-        () => updateGameMembership(gameId, 'leave')
-    );
-    document.body.appendChild(modal);
-}
-
-// Create a membership confirmation modal (joining or leaving)
-function createConfirmModal(title, gameTitle, benefits, note, type, onConfirm) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.display = 'block';
-    modal.id = 'confirmJoinModal';
-
-    const icon = type === 'success' ? 'fa-user-plus' : 'fa-sign-out-alt';
-    const headerColor = type === 'success' ? '' : 'style="background-color: #ff9800;"';
-    const btnClass = type === 'success' ? 'join-btn' : 'leave-btn';
-    const btnIcon = type === 'success' ? 'fa-check' : 'fa-sign-out-alt';
-    const btnText = type === 'success' ? 'Join' : 'Leave';
-
-    // Build benefits list
-    const benefitsList = benefits.map(b => `<li>${b}</li>`).join('');
-
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header" ${headerColor}>
-                <h2><i class="fas ${icon}"></i> ${title}</h2>
-            </div>
-            <div class="modal-body">
-                <p>Would you like to ${type === 'success' ? 'join' : 'leave'} the <strong>${gameTitle}</strong> community?</p>
-                <ul style="margin: 1rem 0; padding-left: 1.5rem; color: var(--text-primary); line-height: 1.6;">
-                    ${benefitsList}
-                </ul>
-                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 1rem;">
-                    ${note}
-                </p>
-            </div>
-            <div class="form-actions">
-                <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
-                <button class="btn ${btnClass}" onclick="confirmMembershipModalAction()">
-                    <i class="fas ${btnIcon}"></i> ${btnText}
-                </button>
-            </div>
-        </div>
-    `;
-
-    // Store callback on modal element
-    modal._confirmCallback = onConfirm;
-
-    // Close on background click
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) closeConfirmModal();
-    });
-
-    return modal;
-}
-
-// Execute the confirm action stored in the modal
-function confirmMembershipModalAction() {
-    const modal = document.getElementById('confirmJoinModal');
-    if (modal && modal._confirmCallback) {
-        modal._confirmCallback();
-    }
-}
-
-// Close membership confirmation modal
-function closeConfirmModal() {
-    const modal = document.getElementById('confirmJoinModal');
-    if (modal) {
-        modal.remove();
-    }
+    updateGameMembership(gameId, 'leave');
 }
 
 // Accepts joining and leaving community to change user membership
 async function updateGameMembership(gameId, action) {
-    closeConfirmModal();
     try {
         const res  = await fetch(`/api/game/${gameId}/${action}`, {
             method: 'POST',
@@ -164,15 +104,27 @@ async function updateGameMembership(gameId, action) {
         });
         const data = await res.json();
         if (data.success) {
-            alert(data.message);
+            if (typeof showDeleteSuccessMessage === 'function') {
+                showDeleteSuccessMessage(data.message);
+            } else {
+                alert(data.message);
+            }
             if (typeof closeCommunityModal === 'function') closeCommunityModal();
             if (typeof loadGames === 'function') loadGames();
         } else {
-            alert(`Error: ${data.message}`);
+            if (typeof showDeleteErrorMessage === 'function') {
+                showDeleteErrorMessage(data.message || `Failed to ${action} community`);
+            } else {
+                alert(`Error: ${data.message}`);
+            }
         }
     } catch (error) {
         console.error(`Error ${action}ing community:`, error);
-        alert(`Failed to ${action} community. Please try again.`);
+        if (typeof showDeleteErrorMessage === 'function') {
+            showDeleteErrorMessage(`Failed to ${action} community. Please try again.`);
+        } else {
+            alert(`Failed to ${action} community. Please try again.`);
+        }
     }
 }
 
@@ -855,7 +807,7 @@ async function loadMyCommunities() {
             });
 
             loading.style.display = 'none';
-            grid.style.display = 'grid';
+            grid.style.display = 'flex';
         } else {
             // No communities, show empty state
             loading.style.display = 'none';
@@ -887,8 +839,8 @@ function createCommunityCard(community) {
         `;
     } else {
         card.innerHTML = `
-            <div class="community-card-icon" style="background: var(--stockton-blue); display: flex; align-items: center; justify-content: center;">
-                <i class="fas fa-gamepad" style="font-size: 2rem; color: white;"></i>
+            <div class="community-card-no-icon">
+                <i class="fas fa-gamepad"></i>
             </div>
         `;
     }

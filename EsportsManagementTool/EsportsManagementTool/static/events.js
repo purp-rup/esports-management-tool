@@ -99,29 +99,7 @@ function attachEventListeners() {
     // Filter box flyouts
     initPastSeasonsFlyout();
     initGameFlyouts();
-
-    // Determines whether popout should appear to the right or left of the filter dropdown menu
-    document.querySelectorAll('.filter-box-item--flyout').forEach(trigger => {
-    trigger.addEventListener('mouseenter', () => positionFlyout(trigger));
-    });
-
-    // Mobile: tap flyout triggers to expand in-place instead of hover
-    if (window.innerWidth <= 768) {
-        document.querySelectorAll('.filter-box-item--flyout').forEach(trigger => {
-            trigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const isExpanded = trigger.classList.contains('flyout-expanded');
-                // Collapse all others first
-                document.querySelectorAll('.filter-box-item--flyout.flyout-expanded').forEach(t => {
-                    t.classList.remove('flyout-expanded');
-                });
-                // Toggle this one
-                if (!isExpanded) {
-                    trigger.classList.add('flyout-expanded');
-                }
-            });
-        });
-    }
+    initFlyoutTriggers();
 }
 
 // ============================================
@@ -1148,30 +1126,6 @@ async function loadGamesForFilter() {
 /* =================================
    Filter UI
    ================================= */
-function toggleFilterBox(panelId) {
-    const panel = document.getElementById(panelId);
-    const btn = panel?.previousElementSibling;
-    const isOpen = panel?.classList.contains('open');
-
-    document.querySelectorAll('.filter-box-panel.open').forEach(p => {
-        p.classList.remove('open');
-        p.previousElementSibling?.classList.remove('active');
-    });
-
-    const filterBackdrop = document.getElementById('filterBackdrop');
-
-    if (!isOpen) {
-        panel?.classList.add('open');
-        btn?.classList.add('active');
-        if (window.innerWidth <= 768 && filterBackdrop) {
-            filterBackdrop.classList.add('open');
-            lockBodyScroll('filterBox');
-        }
-    } else {
-        filterBackdrop?.classList.remove('open');
-        unlockBodyScroll('filterBox');
-    }
-}
 
 // Sets active filter using only a primary option from the first box
 function applyPrimaryFilter(value, label) {
@@ -1247,16 +1201,6 @@ function applySecondaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal
     loadEventsForPastSeason();
 }
 
-// Closes all filters when options are selected
-function closeAllFilterPanels() {
-    document.querySelectorAll('.filter-box-panel.open').forEach(p => {
-        p.classList.remove('open');
-        p.previousElementSibling?.classList.remove('active');
-    });
-    document.getElementById('filterBackdrop')?.classList.remove('open');
-    unlockBodyScroll('filterBox');
-}
-
 // Populate past seasons flyout on hover
 function initPastSeasonsFlyout() {
     const trigger = document.getElementById('pastSeasonsFlyoutTrigger');
@@ -1317,13 +1261,6 @@ function initGameFlyouts() {
         });
     });
 }
-
-// Close panels when clicking outside for MOBILE VIEW
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.filter-box')) {
-        closeAllFilterPanels();
-    }
-});
 
 /* ===============================
    Event Filtering
@@ -1750,23 +1687,6 @@ function escapeQuotes(str) {
     return str.replace(/'/g, "\\'");
 }
 
-// Determines from which direction the event filter submenu pops out from
-function positionFlyout(triggerEl) {
-    const flyout = triggerEl.querySelector('.filter-box-flyout');
-    if (!flyout) return;
-
-    // Reset first so we can measure natural width
-    flyout.classList.remove('flyout-left');
-    flyout.style.display = 'block';
-
-    const rect = flyout.getBoundingClientRect();
-    if (rect.right > window.innerWidth - 8) {
-        flyout.classList.add('flyout-left');
-    }
-
-    flyout.style.display = '';
-}
-
 // Builds a loading state for events
 function showEventsLoadingState() {
     setElementDisplay(document.getElementById('eventsLoading'), 'block');
@@ -1882,7 +1802,6 @@ window.deleteEvent = deleteEvent;
 
 // Filtering
 window.filterEvents = filterEvents;
-window.toggleFilterBox = toggleFilterBox;
 window.filterEventsByPastSeason = filterEventsByPastSeason;
 
 // Event Detail Panel

@@ -187,43 +187,69 @@ function initializeTabNavigation() {
 // ============================================
 
 function initializePreferredTabSetting() {
-    const saveButton = document.getElementById('savePreferredTabBtn');
-    const select = document.getElementById('preferredTabSelect');
-    const message = document.getElementById('preferredTabMessage');
-    const btnText = document.getElementById('savePreferredTabBtnText');
-    const btnSpinner = document.getElementById('savePreferredTabBtnSpinner');
+    const container = document.getElementById('preferredTabButtons');
+    if (!container) return;
 
-    if (!saveButton || !select) return;
+    const buttons = container.querySelectorAll('.community-filter-btn');
+    const message  = document.getElementById('preferredTabMessage');
 
-    saveButton.addEventListener('click', function() {
-        if (btnText) btnText.style.display = 'none';
-        if (btnSpinner) btnSpinner.style.display = 'inline-block';
-        saveButton.disabled = true;
+    buttons.forEach(btn => {
+        btn.addEventListener('click', async function () {
+            const selectedTab = this.dataset.tabValue;
 
-        fetch('/profile/preferred-tab', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ preferred_tab: select.value })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (message) {
-                    message.textContent = data.success ? 'Saved!' : (data.message || 'Failed to save preferred tab.');
-                    message.style.color = data.success ? 'green' : 'red';
-                    message.style.display = 'inline';
+            // Single-select
+            buttons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            try {
+                const response = await fetch('/profile/preferred-tab', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ preferred_tab: selectedTab })
+                });
+                const data = await response.json();
+
+                if (data.success && message) {
+                    clearTimeout(message._hideTimer);
+                    clearTimeout(message._displayTimer);
+
+                    // Set display first, force a reflow so the
+                    // opacity transition has something to animate from,
+                    // then add .visible to trigger the fade-in
+                    message.style.display = 'block';
+                    void message.offsetHeight;
+                    message.classList.add('visible');
+
+                    message._hideTimer = setTimeout(() => {
+                        message.classList.remove('visible');
+                        // Wait for the 0.25s fade-out to finish before
+                        // collapsing the space entirely
+                        message._displayTimer = setTimeout(() => {
+                            message.style.display = 'none';
+                        }, 250);
+                    }, 2000);
                 }
-            })
-            .catch(() => {
-                if (message) {
-                    message.textContent = 'Failed to save preferred tab.';
-                    message.style.color = 'red';
-                    message.style.display = 'inline';
-                }
-            })
-            .finally(() => {
-                if (btnText) btnText.style.display = 'inline';
-                if (btnSpinner) btnSpinner.style.display = 'none';
-                saveButton.disabled = false;
-            });
+            } catch (err) {
+                console.error('Failed to save preferred tab:', err);
+            }
+        });
     });
+}
+
+// ============================================
+// PREFERRED TAB DROPDOWN
+// Selection handler for the filter-box styled dropdown.
+// Opening/closing is handled by toggleFilterBox() and
+// closeAllFilterPanels(), both already defined in events.js.
+// ============================================
+
+function applyPreferredTabFilter(value, label) {
+    document.getElementById('preferredTabFilterLabel').textContent = label;
+    document.getElementById('preferredTabSelect').value = value;
+
+    document.querySelectorAll('#preferredTabFilterPanel .filter-box-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === value);
+    });
+
+    closeAllFilterPanels();
 }

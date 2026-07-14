@@ -233,65 +233,36 @@ function populateTeamInfoTooltip(team) {
     if (tooltipLeagues) {
         tooltipLeagues.style.display = 'none';
     }
+
+    // Wire the teams info icon using the universal helper.
+    // Title is pulled from the visible team name at open time.
+    initInfoIcon(
+        document.querySelector('.team-title-row .info-icon-wrapper'),
+        () => document.getElementById('teamDetailTitle')?.textContent || 'Team Info'
+    );
 }
 
-// Display leagues — updates both the hidden compat element and the tooltip
+// Display leagues — updates both the hidden compact element and the tooltip
 async function displayTeamLeaguesInSubheader(teamId) {
     try {
         const response = await fetch(`/api/teams/${teamId}/leagues`);
         const data = await response.json();
-
-        const leaguesElement = document.getElementById('teamDetailLeagues');
-
-        if (!leaguesElement) {
-            console.warn('teamDetailLeagues element not found');
-            return;
-        }
 
         // Tooltip league row elements
         const tooltipLeagues = document.getElementById('tooltipLeagues');
         const tooltipLeaguesValue = document.getElementById('tooltipLeaguesValue');
 
         if (data.success && data.leagues && data.leagues.length > 0) {
-            // Build leagues HTML for the hidden compat element
-            const leaguesHTML = data.leagues.map(league => {
-                const logoHTML = league.logo
-                    ? `<img src="${league.logo}" alt="${league.name}" class="team-league-logo">`
-                    : '<i class="fas fa-trophy team-league-icon"></i>';
-
-                const content = `${logoHTML}<span class="team-league-name">${league.name}</span>`;
-
-                if (league.website_url) {
-                    return `
-                        <a href="${league.website_url}"
-                           target="_blank"
-                           rel="noopener noreferrer"
-                           class="team-league-link"
-                           title="Visit ${league.name} website">
-                            ${content}
-                            <i class="fas fa-external-link-alt team-league-external"></i>
-                        </a>
-                    `;
-                } else {
-                    return `<span class="team-league-item">${content}</span>`;
-                }
-            }).join('');
-
-            leaguesElement.innerHTML = `League(s): ${leaguesHTML}`;
-
             // Populate tooltip with plain league names (comma-separated)
             if (tooltipLeagues && tooltipLeaguesValue) {
                 tooltipLeaguesValue.textContent = data.leagues.map(l => l.name).join(', ');
                 tooltipLeagues.style.display = 'flex';
             }
         } else {
-            leaguesElement.style.display = 'none';
             if (tooltipLeagues) tooltipLeagues.style.display = 'none';
         }
     } catch (error) {
         console.error('Error loading team leagues:', error);
-        const leaguesElement = document.getElementById('teamDetailLeagues');
-        if (leaguesElement) leaguesElement.style.display = 'none';
         const tooltipLeagues = document.getElementById('tooltipLeagues');
         if (tooltipLeagues) tooltipLeagues.style.display = 'none';
     }
@@ -921,7 +892,7 @@ function closeEditTeamModal() {
 
     if (modal) {
         modal.style.display = 'none';
-        lockBodyScroll('editTeamModal');
+        unlockBodyScroll('editTeamModal');
     }
 }
 
@@ -1248,6 +1219,22 @@ function formatTimeRemaining(days, hours) {
     } else {
         return `${hours} hour${hours !== 1 ? 's' : ''}`;
     }
+}
+
+// Open info sheet if on mobile
+function openTeamInfoSheet() {
+    const tooltip = document.querySelector('.team-title-row .info-tooltip');
+    const title   = document.getElementById('teamDetailTitle')?.textContent || 'Team Info';
+    openInfoSheet(title, tooltip);
+}
+
+function closeTeamInfoSheet() {
+    closeInfoSheet();
+}
+
+// Position the team-info tooltip to avoid being cut off on top.
+function positionTeamInfoTooltip(wrapperEl) {
+    positionInfoTooltip(wrapperEl);
 }
 
 // ============================================
