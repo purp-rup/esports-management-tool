@@ -763,9 +763,13 @@ function closeOverflowPanel() {
 
 // Close when clicking outside the panel
 document.addEventListener('click', (e) => {
-    if (_overflowPanel && !_overflowPanel.contains(e.target)) {
-        closeOverflowPanel();
-    }
+    if (!_overflowPanel) return;
+    if (_overflowPanel.contains(e.target)) return;
+
+    const popup = document.getElementById('landingEventPopup');
+    if (popup && popup.contains(e.target)) return;
+
+    closeOverflowPanel();
 });
 
 // Reposition panel on scroll/resize so it follows the cell

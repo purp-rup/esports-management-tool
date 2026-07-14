@@ -589,11 +589,6 @@
         padding: 0.5rem;
     }
 
-    .calendar-cell {
-        min-height: 80px;
-        padding: 0.25rem;
-    }
-
     .day-number {
         font-size: 0.75rem;
     }
@@ -626,11 +621,6 @@
 @media (max-width: 400px) {
     .calendar-grid {
         gap: 0;
-    }
-
-    .calendar-cell {
-        min-height: 60px;
-        padding: 0.15rem;
     }
 
     .calendar-day-name {
