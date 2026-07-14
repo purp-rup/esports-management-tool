@@ -661,11 +661,6 @@
 /* =====================================
    Modal animations
    ===================================== */
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
 @keyframes slideDown {
     from {
         transform: translateY(-50px);
@@ -675,106 +670,6 @@
         transform: translateY(0);
         opacity: 1;
     }
-}
-
-/* =====================================
-   Image Cropper Modal specific styling
-   ===================================== */
-#imageCropperModal {
-    z-index: 10002;
-}
-#imageCropperModal .modal-content {
-    max-width: 600px;
-    width: 90%;
-}
-
-.cropper-container-wrapper {
-    max-height: 500px;
-    background: #000;
-    border-radius: 8px;
-    overflow: hidden;
-    margin: 1rem 0;
-    position: relative;
-}
-
-.cropper-container {
-    max-height: 400px;
-}
-
-/* Style cropper.js outline */
-.cropper-container .cropper-view-box {
-    outline: 2px solid var(--stockton-blue);
-    outline-offset: -1px;
-}
-
-.cropper-container .cropper-face {
-    background-color: transparent !important;
-}
-
-.crop-controls {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-}
-
-.crop-controls button {
-    padding: 0.75rem 1rem;
-    background: var(--background-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-
-.crop-controls button i {
-    font-size: 1.25rem;
-    color: var(--stockton-blue);
-}
-
-.crop-controls button:hover {
-    background: var(--dark-bg);
-    border-color: var(--stockton-blue);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-.crop-controls button:active {
-    transform: translateY(0);
-}
-
-.crop-preview-text {
-    text-align: center;
-    color: var(--text-secondary);
-    margin-top: 1rem;
-    font-size: 0.875rem;
-    padding: 0.75rem;
-    background: rgba(91, 192, 235, 0.1);
-    border-radius: 6px;
-    border: 1px solid rgba(91, 192, 235, 0.2);
-}
-
-.crop-preview-text i {
-    color: var(--stockton-blue);
-    margin-right: 0.5rem;
-}
-
-/* Cropper action buttons */
-#imageCropperModal .form-actions {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--border-color);
-}
-
-#imageCropperModal .form-actions button {
-    min-width: 120px;
 }
 
 /* ===================================
@@ -803,10 +698,6 @@
         right: 10px;
         left: 10px;
         max-width: none;
-    }
-
-    .crop-controls {
-        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
     }
 }
 

@@ -290,20 +290,6 @@ input:checked + .slider:before {
     line-height: 1.4;
 }
 
-/* =============================
-   ANIMATIONS
-   ============================= */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-5px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 /* ===================================
    Mobile friendliness
    =================================== */
