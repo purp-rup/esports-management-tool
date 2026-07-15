@@ -13,7 +13,13 @@
 {% endblock %}
 
 {% block content %}
+<!-- Landing Page Photo Gallery (film-reel marquee) -->
+<div class="landing-gallery-strip" id="landingGalleryStrip">
+    <div class="landing-gallery-track" id="landingGalleryTrack"></div>
+</div>
+
 <!-- Hero Section -->
+<section class="hero">
 <section class="hero">
     <div class="hero-content">
         <div class="hero-top">
@@ -263,11 +269,11 @@
 </script>
 <!-- Load calendar.js near first to define modal close handlers -->
 <script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
+<script src="{{ url_for('static', filename='photo-upload.js') }}"></script>
 <script src="{{ url_for('static', filename='calendar.js') }}"></script>
 <!-- Then load modals.js which references those handlers -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <script src="{{ url_for('static', filename='stream-schedule.js') }}"></script>
-<!-- DO NOT load events.js - it conflicts with landing calendar functions -->
 <script src="https://embed.twitch.tv/embed/v1.js"></script>
 <script>
     async function checkEmbedder() {

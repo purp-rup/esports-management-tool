@@ -383,6 +383,44 @@
 
 .carousel-delete-btn:hover { background: rgba(180, 0, 0, 0.55); }
 
+/* Landing page photo gallery */
+.landing-gallery-strip {
+    --gallery-slide-height: 190px;
+    overflow: hidden;
+    width: 100%;
+    height: calc(var(--gallery-slide-height) + 3rem); /* slide height + top/bottom padding */
+    padding: 1.5rem 0;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    display: none; /* shown via JS once photos load */
+}
+
+.landing-gallery-track {
+    display: flex;
+    width: max-content;
+    animation: landingGalleryScroll 60s linear infinite;
+}
+
+.landing-gallery-strip:hover .landing-gallery-track {
+    animation-play-state: paused;
+}
+
+.landing-gallery-slide {
+    flex: 0 0 auto;
+    width: 300px;
+    height: 190px;
+    overflow: hidden;
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+}
+
+.landing-gallery-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 /* Photo Manager Popup */
 .photo-manager-popup {
     position: absolute;
@@ -475,6 +513,18 @@
 
 .photo-manager-delete-btn:hover { background: rgba(180, 0, 0, 0.8); }
 
+/* Landing gallery management modal (on admin panel) */
+.landing-gallery-admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+}
+
+.landing-gallery-admin-grid .photo-manager-thumb {
+    width: 100%;
+    height: 100px;
+}
+
 /* Community pages cropper modal */
 .cropper-container-wrapper {
     height: 300px;
@@ -514,6 +564,14 @@
     margin-bottom: 1rem;
 }
 
+/* ===========================
+   Animations
+   =========================== */
+@keyframes landingGalleryScroll {
+    from { transform: translateX(-50%); }
+    to   { transform: translateX(0%); }
+}
+
 /* ===================================
    Mobile friendliness
    =================================== */
@@ -525,6 +583,17 @@
     .league-logo-upload {
         flex-direction: column;
         align-items: flex-start;
+    }
+}
+
+@media (max-width: 600px) {
+    .landing-gallery-strip {
+        --gallery-slide-height: 150px;
+    }
+
+    .landing-gallery-slide {
+        width: 240px;
+        height: 150px;
     }
 }
 

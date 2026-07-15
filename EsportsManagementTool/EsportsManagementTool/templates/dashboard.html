@@ -1371,6 +1371,9 @@
                     <button class="btn btn-primary" onclick="openManageCommunitiesModal()">
                         <i class="fas fa-cog"></i> Communities
                     </button>
+                    <button class="btn btn-primary" onclick="openManageLandingGalleryModal()">
+                        <i class="fas fa-images"></i> Landing Gallery
+                    </button>
                     <button class="btn btn-primary" onclick="openManageStreamsModal()">
                         <i class="fas fa-video"></i> Streams
                     </button>
@@ -2125,6 +2128,39 @@
     </div>
 </div>
 
+<!-- Manage Landing Gallery Modal -->
+<div id="manageLandingGalleryModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <div class="modal-header">
+            <h2>Landing Page Gallery</h2>
+            <button class="modal-close" onclick="closeManageLandingGalleryModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Photos here rotate through the scrolling gallery on the public landing page</p>
+
+            <input type="file" id="landingGalleryFileInput" accept="image/*" style="display:none;">
+            <div class="form-actions" style="justify-content: flex-start; margin-bottom: 1.5rem;">
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('landingGalleryFileInput').click()">
+                    <i class="fas fa-plus"></i> Add Photo
+                </button>
+            </div>
+
+            <div id="landingGalleryMessage" class="form-message" style="display: none;"></div>
+
+            <div id="landingGalleryLoading" style="display: block; text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+            </div>
+
+            <div id="landingGalleryGrid" class="landing-gallery-admin-grid" style="display: none;"></div>
+            <p id="landingGalleryEmpty" style="display: none; color: var(--text-secondary); text-align: center; padding: 2rem;">
+                No photos yet. Add one to get started.
+            </p>
+        </div>
+    </div>
+</div>
+
 <!-- Add VOD Modal -->
 <div id="addVodModal" class="modal" style="display:none;">
     <div class="modal-content">
@@ -2230,7 +2266,7 @@
 <script src="{{ url_for('static', filename='discord.js') }}"></script>
 <script src="{{ url_for('static', filename='teams-sidebar.js') }}"></script>
 <script src="{{ url_for('static', filename='teams.js') }}"></script>
-<script src="{{ url_for ('static', filename='profile-edit.js')}}"></script>
+<script src="{{ url_for ('static', filename='profile.js')}}"></script>
 <script src="{{ url_for('static', filename='suspensions.js') }}"></script>
 <script src="{{ url_for('static', filename='events.js') }}"></script>
 <script src="{{ url_for('static', filename='admin-panel.js') }}"></script>

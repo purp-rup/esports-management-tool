@@ -567,9 +567,87 @@ async function removeUser(userId, username, fullName) {
     }
 }
 
+/* ===================================
+   Landing gallery modal
+   =================================== */
+function openManageLandingGalleryModal() {
+    const modal = document.getElementById('manageLandingGalleryModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    lockBodyScroll('manageLandingGalleryModal');
+    loadLandingGalleryAdmin();
+}
+
+function closeManageLandingGalleryModal() {
+    const modal = document.getElementById('manageLandingGalleryModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    unlockBodyScroll('manageLandingGalleryModal');
+}
+
+// Loads the gallery management modal
+async function loadLandingGalleryAdmin() {
+    const loading = document.getElementById('landingGalleryLoading');
+    const grid    = document.getElementById('landingGalleryGrid');
+    const empty   = document.getElementById('landingGalleryEmpty');
+    if (!loading || !grid || !empty) return;
+
+    loading.style.display = 'block';
+    grid.style.display    = 'none';
+    empty.style.display   = 'none';
+
+    try {
+        const res  = await fetch('/api/admin/landing-photos');
+        const data = await res.json();
+
+        if (data.success) {
+            landingGalleryPhotos = data.photos;
+            renderLandingGalleryAdminGrid();
+        } else {
+            showLandingGalleryError(data.message || 'Failed to load photos');
+        }
+    } catch (e) {
+        console.error('Error loading landing gallery:', e);
+        showLandingGalleryError('Failed to load photos. Please try again.');
+    } finally {
+        loading.style.display = 'none';
+    }
+}
+
+// Renders the frontend for the gallery admin modal
+function renderLandingGalleryAdminGrid() {
+    const grid  = document.getElementById('landingGalleryGrid');
+    const empty = document.getElementById('landingGalleryEmpty');
+    if (!grid) return;
+
+    if (landingGalleryPhotos.length === 0) {
+        grid.style.display  = 'none';
+        empty.style.display = 'block';
+        return;
+    }
+
+    empty.style.display = 'none';
+    grid.style.display  = 'grid';
+
+    // Reuses the .photo-manager-thumb / .photo-manager-delete-btn styling
+    // already defined in communities.css for community photo management
+    grid.innerHTML = landingGalleryPhotos.map(p => `
+        <div class="photo-manager-thumb" data-photo-id="${p.photo_id}">
+            <img src="${p.photo_url}" alt="Landing gallery photo">
+            <button class="photo-manager-delete-btn"
+                    onclick="confirmDeleteLandingPhoto(${p.photo_id})"
+                    title="Delete this photo">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
 // ============================================
 // EXPORT FUNCTIONS
 // ============================================
 window.initializeAdminPanel = initializeAdminPanel;
 window.filterUsers = filterUsers;
 window.closeRemoveUserModal = closeRemoveUserModal;
+window.openManageLandingGalleryModal  = openManageLandingGalleryModal;
+window.closeManageLandingGalleryModal = closeManageLandingGalleryModal;

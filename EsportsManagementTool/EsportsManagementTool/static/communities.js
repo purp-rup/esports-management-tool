@@ -616,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Community page
     initCarousel();
     initFileInputCropper('bannerFileInput', 'banner');
-    initFileInputCropper('photoFileInput', 'carousel');
+    initFileInputCropper('photoFileInput', 'gallery');
 
     if (gameId) {
         loadNextCommunityEvent(gameId);
