@@ -342,11 +342,12 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 1.5rem 0;
+    padding: 10.5rem 0;
     color: var(--text-secondary);
     font-family: 'Inter', sans-serif;
     font-size: 0.9rem;
     text-align: center;
+    overflow: hidden;
 }
 
 .forum-load-older {
@@ -364,8 +365,13 @@
 .forum-message-block {
     display: flex;
     gap: 0.75rem;
-    padding: 0.4rem 0.5rem;
+    padding: 0.1rem 0.5rem;
     border-radius: 8px;
+}
+
+.forum-message-block-content {
+    flex: 1;
+    min-width: 0;
 }
 
 .forum-message-avatar {
@@ -414,22 +420,14 @@
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
-    padding: 0.1rem 0.5rem;
+    padding: 0.05rem 0.5rem;
 }
 
 .forum-message-continuation-time {
     width: 40px;
     flex-shrink: 0;
-    text-align: center;
-    font-size: 0.65rem;
-    color: var(--text-secondary);
-    opacity: 0;
-    padding-top: 3px;
 }
 
-.forum-message-continuation:hover .forum-message-continuation-time {
-    opacity: 1;
-}
 
 .forum-message-text-row {
     display: flex;
@@ -451,7 +449,12 @@
 
 .forum-message-delete {
     opacity: 0;
-    transition: opacity 0.15s, color 0.15s;
+    transition: opacity 0.15s; 
+    color: var(--event-match-hover);
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 82, 82, 0.4);
+    border-radius: 2px;
+    padding: 0.2rem 0.3rem;
 }
 
 .forum-message-block:hover .forum-message-delete,
@@ -479,6 +482,7 @@
     font-size: 0.9rem;
     padding: 0.6rem 0.75rem;
     line-height: 1.3;
+    overflow: hidden;
 }
 
 .forum-message-input:focus {
@@ -505,6 +509,21 @@
 
 .forum-send-btn:hover { opacity: 0.85; }
 .forum-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.community-forum-textbox {
+    position: relative;
+}
+
+.community-forum-textbox .char-counter {
+    position: absolute;
+    right: 1rem;
+    bottom: -1.3rem;
+    width: 50px;
+    text-align: center;
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    pointer-events: none;
+}
 
 /* ── Cropper modal ── */
 .cropper-container-wrapper {

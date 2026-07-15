@@ -189,6 +189,8 @@ async function initForum() {
 
     const input = document.getElementById('forumMessageInput');
     if (input) {
+        attachCharacterCounter('forumMessageInput', 250);
+
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -283,7 +285,7 @@ function renderForumMessages() {
 function buildForumMessageHtml(msg, isNewBlock, canDelete) {
     const time = formatForumTimestamp(msg.created_at);
     const deleteBtn = canDelete
-        ? `<button class="forum-message-delete" onclick="confirmDeleteForumMessage(${msg.message_id})" title="Delete message">
+        ? `<button class="forum-message-delete" onclick="confirmDeleteForumMessage('${escapeHtml(String(msg.message_id))}')" title="Delete message">
                <i class="fas fa-trash"></i>
            </button>`
         : '';
@@ -312,7 +314,7 @@ function buildForumMessageHtml(msg, isNewBlock, canDelete) {
 
     return `
         <div class="forum-message-continuation" data-message-id="${msg.message_id}">
-            <span class="forum-message-continuation-time">${time}</span>
+            <span class="forum-message-continuation-time"></span>
             <div class="forum-message-text-row">
                 <p class="forum-message-text">${escapeHtml(msg.content)}</p>
                 ${deleteBtn}
