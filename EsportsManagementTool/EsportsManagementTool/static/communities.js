@@ -325,6 +325,16 @@ function forumInitials(fullName) {
     return (fullName || '').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase();
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function formatForumTimestamp(isoString) {
     const date = new Date(isoString);
     const now = new Date();

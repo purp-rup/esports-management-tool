@@ -1,4 +1,4 @@
-from EsportsManagementTool import app, login_required, roles_required, mysql, EST, season_roles
+from EsportsManagementTool import app, login_required, roles_required, mysql, EST, season_roles, forum_db
 from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr, is_all_day_event, build_member_profile, attach_profile_extras
 from flask import request, render_template, redirect, url_for, session, flash, jsonify
 from datetime import datetime, timedelta
@@ -6,7 +6,6 @@ import MySQLdb.cursors
 import json
 import cloudinary
 import cloudinary.uploader
-
 
 # ======================================
 # COMMUNITY MANAGEMENT MODAL
@@ -1005,39 +1004,36 @@ def get_community_messages(game_id):
             if not cursor.fetchone():
                 return jsonify({'success': False, 'message': 'Community not found'}), 404
 
-            before_id = request.args.get('before', type=int)
+            before_id = request.args.get('before', type=str)
 
-            base_query = """
-                SELECT m.message_id, m.user_id, m.content, m.created_at,
-                       u.username, u.firstname, u.lastname, u.profile_picture
-                FROM community_messages m
-                JOIN users u ON m.user_id = u.id
-                WHERE m.game_id = %s AND m.is_deleted = 0
-            """
-            params = [game_id]
+            items, has_more = forum_db.get_messages_page(
+                community_id=game_id, before=before_id, limit=FORUM_PAGE_SIZE
+            )
+            items.reverse()  # ascending message order
 
-            if before_id:
-                base_query += " AND m.message_id < %s"
-                params.append(before_id)
+            if not items:
+                return jsonify({'success': True, 'messages': [], 'has_more': has_more}), 200
 
-            base_query += " ORDER BY m.message_id DESC LIMIT %s"
-            params.append(FORUM_PAGE_SIZE)
+            user_ids = sorted({item['user_id'] for item in items})
+            placeholders = ','.join(['%s'] * len(user_ids))
+            cursor.execute(
+                f"SELECT id, username, firstname, lastname, profile_picture FROM users WHERE id IN ({placeholders})",
+                user_ids
+            )
+            users_by_id = {row['id']: row for row in cursor.fetchall()}
 
-            cursor.execute(base_query, params)
-            rows = cursor.fetchall()
-
-            has_more = len(rows) == FORUM_PAGE_SIZE
-            rows.reverse()  # ascending message order
-
-            messages = [{
-                'message_id': r['message_id'],
-                'user_id': r['user_id'],
-                'username': r['username'],
-                'full_name': f"{r['firstname']} {r['lastname']}",
-                'profile_picture': r['profile_picture'],
-                'content': r['content'],
-                'created_at': r['created_at'].isoformat()
-            } for r in rows]
+            messages = []
+            for item in items:
+                user = users_by_id.get(item['user_id'], {})
+                messages.append({
+                    'message_id': item['message_id'],
+                    'user_id': item['user_id'],
+                    'username': user.get('username', 'Unknown'),
+                    'full_name': f"{user.get('firstname', '')} {user.get('lastname', '')}".strip() or 'Unknown User',
+                    'profile_picture': user.get('profile_picture'),
+                    'content': item['content'],
+                    'created_at': datetime.fromtimestamp(item['created_at'], EST).isoformat()
+                })
 
             return jsonify({'success': True, 'messages': messages, 'has_more': has_more}), 200
 
@@ -1070,13 +1066,10 @@ def post_community_message(game_id):
             if len(content) > 2000:
                 return jsonify({'success': False, 'message': 'Message is too long (2000 character limit)'}), 400
 
-            now = datetime.now(EST)
-            cursor.execute(
-                "INSERT INTO community_messages (game_id, user_id, content, created_at) VALUES (%s, %s, %s, %s)",
-                (game_id, session['id'], content, now)
+            # community_id/user_id from MySQL
+            item = forum_db.create_message(
+                community_id=game_id, user_id=session['id'], content=content
             )
-            message_id = cursor.lastrowid
-            mysql.connection.commit()
 
             cursor.execute(
                 "SELECT username, firstname, lastname, profile_picture FROM users WHERE id = %s",
@@ -1085,18 +1078,17 @@ def post_community_message(game_id):
             user = cursor.fetchone()
 
             return jsonify({'success': True, 'message': {
-                'message_id': message_id,
+                'message_id': item['message_id'],
                 'user_id': session['id'],
                 'username': user['username'],
                 'full_name': f"{user['firstname']} {user['lastname']}",
                 'profile_picture': user['profile_picture'],
                 'content': content,
-                'created_at': now.isoformat()
+                'created_at': datetime.fromtimestamp(item['created_at'], EST).isoformat()
             }}), 200
 
         except Exception as e:
-            mysql.connection.rollback()
-            print(f"Database error posting community message: {str(e)}")
+            print(f"Error posting community message: {str(e)}")
             return jsonify({'success': False, 'message': 'Failed to send message'}), 500
 
         finally:
@@ -1107,22 +1099,17 @@ def post_community_message(game_id):
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
 
-@app.route('/api/game/<int:game_id>/messages/<int:message_id>', methods=['DELETE'])
+@app.route('/api/game/<int:game_id>/messages/<message_id>', methods=['DELETE'])
 @login_required
 def delete_community_message(game_id, message_id):
     """
-    Soft-delete a forum message. Allowed for the message's author or
-    anyone with permissions (admins, developers, GMs)
+    Allowed for the message's author or anyone with permissions (admins, developers, GMs).
     """
     try:
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         try:
-            cursor.execute(
-                "SELECT user_id FROM community_messages WHERE message_id = %s AND game_id = %s",
-                (message_id, game_id)
-            )
-            message = cursor.fetchone()
+            message = forum_db.get_message(community_id=game_id, message_id=message_id)
             if not message:
                 return jsonify({'success': False, 'message': 'Message not found'}), 404
 
@@ -1140,17 +1127,16 @@ def delete_community_message(game_id, message_id):
             if not can_moderate:
                 return jsonify({'success': False, 'message': 'Permission denied'}), 403
 
-            cursor.execute(
-                "UPDATE community_messages SET is_deleted = 1, deleted_at = %s WHERE message_id = %s",
-                (datetime.now(EST), message_id)
+            updated = forum_db.soft_delete_message(
+                community_id=game_id, message_id=message_id, deleted_by=session['id']
             )
-            mysql.connection.commit()
+            if not updated:
+                return jsonify({'success': False, 'message': 'Message not found'}), 404
 
             return jsonify({'success': True, 'message': 'Message deleted'}), 200
 
         except Exception as e:
-            mysql.connection.rollback()
-            print(f"Database error deleting community message: {str(e)}")
+            print(f"Error deleting community message: {str(e)}")
             return jsonify({'success': False, 'message': 'Failed to delete message'}), 500
 
         finally:
@@ -1177,7 +1163,7 @@ def view_communities():
     try:
         user_id = session['id']
 
-        # Step 1: Get all games with basic info
+        # Get all games with basic info
         cursor.execute("""
             SELECT 
                 GameID,
@@ -1198,11 +1184,11 @@ def view_communities():
         if not games:
             return jsonify({'success': True, 'games': []})
 
-        # Step 2: Get member counts for each game
+        # Get member counts for each game
         game_ids = [game['GameID'] for game in games]
         member_counts, team_counts = get_game_stats(cursor, game_ids)
 
-        # Step 3: Get current user's memberships
+        # Get current user's memberships
         placeholders = ','.join(['%s'] * len(game_ids))
         cursor.execute(f"""
             SELECT game_id
@@ -1212,7 +1198,7 @@ def view_communities():
 
         user_memberships = {row['game_id'] for row in cursor.fetchall()}
 
-        # Step 4: Build full response
+        # Build full response
         games_with_details = []
         for game in games:
             game_id = game['GameID']
@@ -1226,7 +1212,7 @@ def view_communities():
                 'ImageURL': f'/game-image/{game_id}' if game['has_image'] else None,
                 'GameBanner': game['GameBanner'],
                 'member_count': member_counts.get(game_id, 0),
-                'team_count': team_counts.get(game_id, 0),  # Will be 0 if no active season teams
+                'team_count': team_counts.get(game_id, 0),
                 'is_member': game_id in user_memberships,
                 'is_game_manager': game['gm_id'] == user_id if game['gm_id'] else False
             }
