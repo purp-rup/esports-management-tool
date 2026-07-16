@@ -319,6 +319,7 @@ async function loadNextScheduledEvent(teamId, gameId) {
                         <h4>Next Scheduled Event</h4>
                     </div>
                     <div class="next-event-content">
+                        <div class="next-event-title">${event.name}</div>
                         <div class="next-event-meta">
                             <span class="next-event-time">
                                 ${event.is_all_day ?
@@ -330,7 +331,6 @@ async function loadNextScheduledEvent(teamId, gameId) {
                                 <i class="fas fa-calendar-day"></i> ${event.date}
                             </span>
                         </div>
-                        <div class="next-event-title">${event.name}</div>
                         <span class="next-event-type ${event.event_type.toLowerCase()}">${event.event_type}</span>
                     </div>
                 </div>
