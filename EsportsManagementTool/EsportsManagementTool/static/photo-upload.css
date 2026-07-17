@@ -516,13 +516,61 @@
 /* Landing gallery management modal (on admin panel) */
 .landing-gallery-admin-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(3, 110px);
+    justify-content: center;
+    gap: 0.6rem;
 }
 
 .landing-gallery-admin-grid .photo-manager-thumb {
-    width: 100%;
-    height: 100px;
+    width: 110px;
+    height: 60px;
+}
+
+/* Empty slot placeholder — silhouette of a photo tile for unused capacity */
+.landing-gallery-admin-grid .photo-manager-thumb--empty {
+    border: 1px dashed var(--stockton-blue);
+    background: transparent;
+}
+
+/* Subtitle + Add Photo button share a row instead of stacking full-width */
+.landing-gallery-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.landing-gallery-toolbar .modal-subtitle {
+    margin: 0;
+}
+
+/* "x / 12" indicator, right-aligned beneath the grid */
+.landing-gallery-count {
+    display: block;
+    text-align: right;
+    margin-top: 0.75rem;
+}
+
+/* Subtitle + primary action share a row instead of the action
+   stacking full-width beneath it */
+.landing-gallery-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.landing-gallery-toolbar .modal-subtitle {
+    margin: 0;
+}
+
+.landing-gallery-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
 }
 
 /* Community pages cropper modal */
@@ -581,6 +629,15 @@
     }
 
     .league-logo-upload {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .landing-gallery-admin-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .landing-gallery-toolbar {
         flex-direction: column;
         align-items: flex-start;
     }

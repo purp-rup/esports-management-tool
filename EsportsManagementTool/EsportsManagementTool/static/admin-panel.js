@@ -15,6 +15,9 @@
 //Currently selected user ID in the admin panel
 let selectedUserId = null;
 
+// Maximum photos allowed in the landing page gallery.
+const MAX_LANDING_PHOTOS = 12;
+
 // Initialize admin panel, refresh badges, and show user list once loaded
 async function initializeAdminPanel() {
     attachAdminEventListeners();
@@ -589,12 +592,10 @@ function closeManageLandingGalleryModal() {
 async function loadLandingGalleryAdmin() {
     const loading = document.getElementById('landingGalleryLoading');
     const grid    = document.getElementById('landingGalleryGrid');
-    const empty   = document.getElementById('landingGalleryEmpty');
-    if (!loading || !grid || !empty) return;
+    if (!loading || !grid) return;
 
     loading.style.display = 'block';
     grid.style.display    = 'none';
-    empty.style.display   = 'none';
 
     try {
         const res  = await fetch('/api/admin/landing-photos');
@@ -614,24 +615,22 @@ async function loadLandingGalleryAdmin() {
     }
 }
 
+// Updates the "X / 12" indicator
+function updateLandingGalleryCount() {
+    const counter = document.getElementById('landingGalleryCount');
+    if (!counter) return;
+    counter.textContent = `${landingGalleryPhotos.length} / ${MAX_LANDING_PHOTOS}`;
+}
+
 // Renders the frontend for the gallery admin modal
 function renderLandingGalleryAdminGrid() {
-    const grid  = document.getElementById('landingGalleryGrid');
-    const empty = document.getElementById('landingGalleryEmpty');
+    const grid = document.getElementById('landingGalleryGrid');
     if (!grid) return;
 
-    if (landingGalleryPhotos.length === 0) {
-        grid.style.display  = 'none';
-        empty.style.display = 'block';
-        return;
-    }
+    grid.style.display = 'grid';
+    updateLandingGalleryCount();
 
-    empty.style.display = 'none';
-    grid.style.display  = 'grid';
-
-    // Reuses the .photo-manager-thumb / .photo-manager-delete-btn styling
-    // already defined in communities.css for community photo management
-    grid.innerHTML = landingGalleryPhotos.map(p => `
+    const filledHtml = landingGalleryPhotos.map(p => `
         <div class="photo-manager-thumb" data-photo-id="${p.photo_id}">
             <img src="${p.photo_url}" alt="Landing gallery photo">
             <button class="photo-manager-delete-btn"
@@ -641,6 +640,11 @@ function renderLandingGalleryAdminGrid() {
             </button>
         </div>
     `).join('');
+
+    const emptySlots = Math.max(MAX_LANDING_PHOTOS - landingGalleryPhotos.length, 0);
+    const emptyHtml  = '<div class="photo-manager-thumb photo-manager-thumb--empty"></div>'.repeat(emptySlots);
+
+    grid.innerHTML = filledHtml + emptyHtml;
 }
 
 // ============================================

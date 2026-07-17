@@ -27,7 +27,6 @@
 .modal-content {
     background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
     border-radius: 16px;
-    width: 90%;
     max-width: 600px;
     max-height: 90vh;
     overflow-y: auto;
@@ -39,7 +38,7 @@
 }
 
 .modal-content-large {
-    max-width: 700px;
+    max-width: 600px;
 }
 
 .modal-subtitle {

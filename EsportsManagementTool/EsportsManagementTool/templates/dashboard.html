@@ -2127,22 +2127,21 @@
 
 <!-- Manage Landing Gallery Modal -->
 <div id="manageLandingGalleryModal" class="modal">
-    <div class="modal-content modal-content-large">
-        <div class="modal-header">
+    <div class="modal-content">
+        <div class="modal-header modal-header--compact">
             <h2>Landing Page Gallery</h2>
             <button class="modal-close" onclick="closeManageLandingGalleryModal()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <div class="modal-body">
-            <p class="modal-subtitle">Photos here rotate through the scrolling gallery on the public landing page</p>
-
-            <input type="file" id="landingGalleryFileInput" accept="image/*" style="display:none;">
-            <div class="form-actions" style="justify-content: flex-start; margin-bottom: 1.5rem;">
+            <div class="landing-gallery-toolbar">
+                <p class="modal-subtitle">Upload photos to show the wider community on the landing page</p>
                 <button type="button" class="btn btn-primary" onclick="document.getElementById('landingGalleryFileInput').click()">
-                    <i class="fas fa-plus"></i> Add Photo
+                    <i class="fas fa-plus"></i>
                 </button>
             </div>
+            <input type="file" id="landingGalleryFileInput" accept="image/*" style="display:none;">
 
             <div id="landingGalleryMessage" class="form-message" style="display: none;"></div>
 
@@ -2150,10 +2149,8 @@
                 <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
             </div>
 
-            <div id="landingGalleryGrid" class="landing-gallery-admin-grid" style="display: none;"></div>
-            <p id="landingGalleryEmpty" style="display: none; color: var(--text-secondary); text-align: center; padding: 2rem;">
-                No photos yet. Add one to get started.
-            </p>
+            <div id="landingGalleryGrid" class="landing-gallery-admin-grid"></div>
+            <span id="landingGalleryCount" class="char-counter landing-gallery-count"></span>
         </div>
     </div>
 </div>
