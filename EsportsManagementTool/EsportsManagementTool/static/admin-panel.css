@@ -401,15 +401,6 @@
   }
 }
 
-@media (max-width: 843px) {
-  .admin-btn-list {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      grid-template-rows: repeat(2, 1fr);
-      gap: 0.5rem;
-  }
-}
-
 /* Small screens (mobile landscape) */
 @media (max-width: 768px) {
   .admin-summary {

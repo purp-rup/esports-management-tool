@@ -167,11 +167,11 @@
                         <p>View and manage your account information</p>
                     </div>
                     <div class="filter-box">
-                        <button class="filter-box-btn profile-kebab-btn" type="button"
+                        <button class="filter-box-btn kebab-btn" type="button"
                                 onclick="toggleFilterBox('profileActionsPanel')">
-                            <i id="profileKebab" class="fas fa-ellipsis"></i>
+                            <i class="fas fa-ellipsis"></i>
                         </button>
-                        <div class="filter-box-panel" id="profileActionsPanel">
+                        <div class="filter-box-panel filter-box-panel--right" id="profileActionsPanel">
                             <div class="filter-box-item"
                                  onclick="openEditProfileModal(); closeAllFilterPanels();">
                                 <span>Edit Profile</span>
@@ -1362,24 +1362,21 @@
                     <p style="font-size: 88%; color: var(--text-secondary)">Manage users, roles, and permissions</p>
                 </div>
                 <div class="admin-btn-list">
-                    <button class="btn btn-primary" onclick="openManageLeaguesModal()">
-                        <i class="fas fa-trophy"></i> Leagues
-                    </button>
-                    <button class="btn btn-primary" onclick="openManageSeasonsModal()">
-                        <i class="fas fa-calendar-alt"></i> Seasons
-                    </button>
-                    <button class="btn btn-primary" onclick="openManageCommunitiesModal()">
-                        <i class="fas fa-cog"></i> Communities
-                    </button>
-                    <button class="btn btn-primary" onclick="openManageLandingGalleryModal()">
-                        <i class="fas fa-images"></i> Landing Gallery
-                    </button>
-                    <button class="btn btn-primary" onclick="openManageStreamsModal()">
-                        <i class="fas fa-video"></i> Streams
-                    </button>
                     <button class="btn btn-primary" onclick="window.location.href='/admin/statistics'">
                         <i class="fas fa-chart-line"></i> View Statistics
                     </button>
+                    <div class="filter-box">
+                        <button class="filter-box-btn kebab-btn" id="adminSettingsBtn" onclick="toggleFilterBox('adminSettingsPanel')">
+                            <i class="fas fa-ellipsis"></i>
+                        </button>
+                        <div class="filter-box-panel filter-box-panel--right" id="adminSettingsPanel">
+                            <div class="filter-box-item" onclick="openManageLeaguesModal(); closeAllFilterPanels();">Leagues</div>
+                            <div class="filter-box-item" onclick="openManageSeasonsModal(); closeAllFilterPanels();">Seasons</div>
+                            <div class="filter-box-item" onclick="openManageCommunitiesModal(); closeAllFilterPanels();">Communities</div>
+                            <div class="filter-box-item" onclick="openManageLandingGalleryModal(); closeAllFilterPanels();">Landing Gallery</div>
+                            <div class="filter-box-item" onclick="openManageStreamsModal(); closeAllFilterPanels();">Streams</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
