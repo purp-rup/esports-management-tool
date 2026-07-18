@@ -311,17 +311,17 @@ function updateTodayEvents() {
         const item = document.createElement('div');
         item.className = 'today-event-item';
 
+        const title = document.createElement('div');
+        title.className = 'today-event-title';
+        title.textContent = event.title;
+        item.appendChild(title);
+
         if (event.time) {
             const time = document.createElement('div');
             time.className = 'today-event-time';
             time.innerHTML = `<i class="fas fa-clock"></i> ${event.time}`;
             item.appendChild(time);
         }
-
-        const title = document.createElement('div');
-        title.className = 'today-event-title';
-        title.textContent = event.title;
-        item.appendChild(title);
 
         const type = document.createElement('div');
         type.className = `today-event-type ${event.event_type}`;

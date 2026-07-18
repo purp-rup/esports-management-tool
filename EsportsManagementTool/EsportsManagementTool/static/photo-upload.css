@@ -383,6 +383,44 @@
 
 .carousel-delete-btn:hover { background: rgba(180, 0, 0, 0.55); }
 
+/* Landing page photo gallery */
+.landing-gallery-strip {
+    --gallery-slide-height: 190px;
+    overflow: hidden;
+    width: 100%;
+    height: calc(var(--gallery-slide-height) + 3rem); /* slide height + top/bottom padding */
+    padding: 1.5rem 0;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    display: none; /* shown via JS once photos load */
+}
+
+.landing-gallery-track {
+    display: flex;
+    width: max-content;
+    animation: landingGalleryScroll 60s linear infinite;
+}
+
+.landing-gallery-strip:hover .landing-gallery-track {
+    animation-play-state: paused;
+}
+
+.landing-gallery-slide {
+    flex: 0 0 auto;
+    width: 300px;
+    height: 190px;
+    overflow: hidden;
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+}
+
+.landing-gallery-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 /* Photo Manager Popup */
 .photo-manager-popup {
     position: absolute;
@@ -475,6 +513,66 @@
 
 .photo-manager-delete-btn:hover { background: rgba(180, 0, 0, 0.8); }
 
+/* Landing gallery management modal (on admin panel) */
+.landing-gallery-admin-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 110px);
+    justify-content: center;
+    gap: 0.6rem;
+}
+
+.landing-gallery-admin-grid .photo-manager-thumb {
+    width: 110px;
+    height: 60px;
+}
+
+/* Empty slot placeholder — silhouette of a photo tile for unused capacity */
+.landing-gallery-admin-grid .photo-manager-thumb--empty {
+    border: 1px dashed var(--stockton-blue);
+    background: transparent;
+}
+
+/* Subtitle + Add Photo button share a row instead of stacking full-width */
+.landing-gallery-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.landing-gallery-toolbar .modal-subtitle {
+    margin: 0;
+}
+
+/* "x / 12" indicator, right-aligned beneath the grid */
+.landing-gallery-count {
+    display: block;
+    text-align: right;
+    margin-top: 0.75rem;
+}
+
+/* Subtitle + primary action share a row instead of the action
+   stacking full-width beneath it */
+.landing-gallery-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.landing-gallery-toolbar .modal-subtitle {
+    margin: 0;
+}
+
+.landing-gallery-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
 /* Community pages cropper modal */
 .cropper-container-wrapper {
     height: 300px;
@@ -514,6 +612,14 @@
     margin-bottom: 1rem;
 }
 
+/* ===========================
+   Animations
+   =========================== */
+@keyframes landingGalleryScroll {
+    from { transform: translateX(-50%); }
+    to   { transform: translateX(0%); }
+}
+
 /* ===================================
    Mobile friendliness
    =================================== */
@@ -525,6 +631,26 @@
     .league-logo-upload {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .landing-gallery-admin-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .landing-gallery-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 600px) {
+    .landing-gallery-strip {
+        --gallery-slide-height: 150px;
+    }
+
+    .landing-gallery-slide {
+        width: 240px;
+        height: 150px;
     }
 }
 
