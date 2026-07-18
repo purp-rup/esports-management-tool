@@ -6,8 +6,9 @@
 let currentDate = new Date();
 let calendarEventsData = {};  
 let isUserLoggedIn = false;
-let clickOutsideHandler = null; // Listens for clicks outside of popups
+let clickOutsideHandler = null; // Listens for clicks outside popups
 let activeAnchorElement = null;
+let currentFetchController = null; // AbortController for the in-flight event fetch
 
 window.currentEventId = null;
 window.currentEventData = null;
@@ -46,6 +47,13 @@ window.addEventListener('resize', () => {
 
 // Popup close function
 window.closeEventPopup = function() {
+    // Cancel any in-flight fetch so rapid clicks don't send concurrent
+    // requests to Flask's single-threaded dev server
+    if (currentFetchController) {
+        currentFetchController.abort();
+        currentFetchController = null;
+    }
+
     const existingPopup = document.getElementById('landingEventPopup');
     if (existingPopup) {
         existingPopup.remove();
@@ -159,6 +167,7 @@ function updateCalendarHeader() {
 }
 
 function renderCalendar() {
+    closeOverflowPanel();
     const grid = document.getElementById('calendarGrid');
     if (!grid) {
         console.error('Calendar grid element not found!');
@@ -204,13 +213,6 @@ function renderCalendar() {
         const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         eventsContainer.id = `events-${dateKey}`;
         cell.appendChild(eventsContainer);
-
-        cell.addEventListener('click', function() {
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                'July', 'August', 'September', 'October', 'November', 'December'];
-            const dateDisplay = `${monthNames[month]} ${day}, ${year}`;
-            openDayModal(dateKey, dateDisplay);
-        });
 
         grid.appendChild(cell);
     }
@@ -282,6 +284,11 @@ function displayEvents() {
             const overflow = document.createElement('div');
             overflow.className = 'event-overflow';
             overflow.textContent = `+${events.length - 3} more`;
+            const hiddenEvents = events.slice(3);
+            overflow.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleCellOverflow(overflow, hiddenEvents);
+            });
             container.appendChild(overflow);
         }
     });
@@ -356,53 +363,8 @@ function updateTodayEvents() {
         type.textContent = event.event_type;
         item.appendChild(type);
 
-        item.addEventListener('click', function() {
-            openCalendarEventModal(event.id);
-        });
-
         container.appendChild(item);
     });
-}
-
-function openCalendarEventModal(eventId) {
-    const modal = document.getElementById('eventDetailsModal');
-    const modalBody = document.getElementById('eventModalBody');
-
-    modal.style.display = 'block';
-    lockBodyScroll('calendarEventModal');
-    window.currentEventId = eventId;
-
-    modalBody.innerHTML = `
-        <div class="loading-spinner">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Loading event details...</p>
-        </div>
-    `;
-
-    fetch(`/api/events/${eventId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                modalBody.innerHTML = `
-                    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                        <i class="fas fa-exclamation-circle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                        <p>${data.error || 'Failed to load event details'}</p>
-                    </div>
-                `;
-            } else {
-                window.currentEventData = data;
-                displayEventDetails(data);
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching event:', error);
-            modalBody.innerHTML = `
-                <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                    <i class="fas fa-exclamation-circle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                    <p>Failed to load event details</p>
-                </div>
-            `;
-        });
 }
 
 function displayEventDetails(event) {
@@ -518,38 +480,6 @@ function displayEventDetails(event) {
     }
 }
 
-function openDayModal(dateKey, dateDisplay) {
-    const modal = document.getElementById('dayEventsModal');
-    const title = document.getElementById('dayModalTitle');
-    const body = document.getElementById('dayModalBody');
-
-    title.textContent = `Events on ${dateDisplay}`;
-    const events = calendarEventsData[dateKey] || [];
-
-    if (events.length === 0) {
-        body.innerHTML = '<p style="color: var(--text-secondary);">No events on this day</p>';
-    } else {
-        let html = '';
-        events.forEach(event => {
-            html += `
-                <div class="modal-event-item" onclick="closeDayModal(); openCalendarEventModal(${event.id});">
-                    ${event.time ? `<div class="modal-event-time">${event.time}</div>` : ''}
-                    <div class="modal-event-title">${event.title}</div>
-                    ${event.description ? `<div class="modal-event-description">${event.description}</div>` : ''}
-                    <div class="modal-event-meta">
-                        <span><i class="fas fa-tag"></i> ${event.event_type}</span>
-                        ${event.game_name ? `<span><i class="fas fa-gamepad"></i> ${event.game_name}</span>` : ''}
-                    </div>
-                </div>
-            `;
-        });
-        body.innerHTML = html;
-    }
-
-    modal.style.display = 'block';
-    lockBodyScroll('dayEventsModal');
-}
-
 function openEventPopup(event_id, clickedElement) {
     window.closeEventPopup();
     window.currentEventId = event_id;
@@ -601,9 +531,13 @@ function openEventPopup(event_id, clickedElement) {
         }, 50);
     }
 
-    fetch(`/api/events/${event_id}`)
+    const controller = new AbortController();
+    currentFetchController = controller;
+
+    fetch(`/api/events/${event_id}`, { signal: controller.signal })
         .then(response => response.json())
         .then(data => {
+            currentFetchController = null;
             if (data.error) {
                 popup.innerHTML = `<div class="popup-error">Failed to load details</div>`;
             } else {
@@ -612,6 +546,7 @@ function openEventPopup(event_id, clickedElement) {
             }
         })
         .catch(error => {
+            if (error.name === 'AbortError') return; // intentional cancel, not an error
             console.error('Error fetching event:', error);
             popup.innerHTML = `<div class="popup-error">Failed to load details</div>`;
         });
@@ -812,31 +747,91 @@ function capitalizeFirst(str) {
 }
 
 // ============================================
-// DAY MODAL (CALENDAR VIEW)
+// CELL OVERFLOW EXPANSION
 // ============================================
 
-// Create event item for day modal
-function createDayModalEventItem(event) {
-    const eventItem = document.createElement('div');
-    eventItem.className = 'modal-event-item';
-    eventItem.onclick = (e) => {
-        e.stopPropagation();
-        closeDayModal();
-        openEventModal(event.id);
-    };
+let _overflowPanel  = null;
+let _overflowCell   = null;
+let _overflowTrigger = null;
 
-    let eventHTML = '';
-    if (event.time) {
-        eventHTML += `<div class="modal-event-time"><i class="fas fa-clock"></i> ${event.time}</div>`;
-    }
-    eventHTML += `<div class="modal-event-title">${event.title}</div>`;
-    if (event.description) {
-        eventHTML += `<div class="modal-event-description">${event.description}</div>`;
+/**
+ * Toggle the overflow expansion panel for a day cell.
+ * Opens if closed, closes if the same cell is clicked again.
+ */
+function toggleCellOverflow(overflowEl, hiddenEvents) {
+    const cell = overflowEl.closest('.calendar-cell');
+
+    if (_overflowCell === cell) {
+        closeOverflowPanel();
+        return;
     }
 
-    eventItem.innerHTML = eventHTML;
-    return eventItem;
+    closeOverflowPanel();
+
+    // Build the panel and populate with the hidden events
+    const panel = document.createElement('div');
+    panel.className = 'calendar-overflow-panel';
+
+    const cellMirror = document.createElement('div');
+    cellMirror.className = 'calendar-cell calendar-overflow-inner';
+    hiddenEvents.forEach(event => cellMirror.appendChild(createEventElement(event)));
+    panel.appendChild(cellMirror);
+
+    document.body.appendChild(panel);
+    overflowEl.style.display = 'none';
+
+    positionOverflowPanel(panel, cell);
+    cell.classList.add('calendar-cell--expanded');
+
+    _overflowPanel   = panel;
+    _overflowCell    = cell;
+    _overflowTrigger = overflowEl;
 }
+
+/**
+ * Position the panel flush below the cell, overlapping by 1px
+ * to bridge the grid gap seamlessly.
+ */
+function positionOverflowPanel(panel, cell) {
+    requestAnimationFrame(() => {
+        const rect = cell.getBoundingClientRect();
+        panel.style.top   = `${rect.bottom - 8}px`;
+        panel.style.left  = `${rect.left}px`;
+        panel.style.width = `${rect.width}px`;
+    });
+}
+
+/**
+ * Close and remove the active overflow panel.
+ */
+function closeOverflowPanel() {
+    if (_overflowPanel && activeAnchorElement && _overflowPanel.contains(activeAnchorElement)) {
+        window.closeEventPopup();
+    }
+    if (_overflowPanel)   { _overflowPanel.remove();   _overflowPanel   = null; }
+    if (_overflowCell)    { _overflowCell.classList.remove('calendar-cell--expanded'); _overflowCell = null; }
+    if (_overflowTrigger) { _overflowTrigger.style.display = ''; _overflowTrigger = null; }
+}
+
+// Close when clicking outside the panel
+document.addEventListener('click', (e) => {
+    if (!_overflowPanel) return;
+    if (_overflowPanel.contains(e.target)) return;
+
+    const popup = document.getElementById('landingEventPopup');
+    if (popup && popup.contains(e.target)) return;
+
+    closeOverflowPanel();
+});
+
+// Reposition panel on scroll/resize so it follows the cell
+function handleOverflowReposition() {
+    if (!_overflowPanel || !_overflowCell) return;
+    positionOverflowPanel(_overflowPanel, _overflowCell);
+}
+
+window.addEventListener('scroll', handleOverflowReposition, { passive: true });
+window.addEventListener('resize', handleOverflowReposition);
 
 // ============================================
 // EVENT SUBSCRIPTION FUNCTIONS
@@ -902,20 +897,5 @@ async function toggleEventSubscription() {
     }
 }
 
-window.closeDayModal = function() {
-    const modal = document.getElementById('dayEventsModal');
-    if (modal) modal.style.display = 'none';
-    unlockBodyScroll('dayEventsModal');
-};
-
 function closeEventModal() { window.closeEventModal(); }
-function closeDayModal() { window.closeDayModal(); }
 function closeEventPopup() { window.closeEventPopup(); }
-
-window.openCalendarEventModal = openCalendarEventModal;
-window.openDayModal = openDayModal;
-window.closeDayModal = closeDayModal;
-
-if (typeof window.openEventModal !== 'function') {
-    window.openEventModal = openCalendarEventModal;
-}

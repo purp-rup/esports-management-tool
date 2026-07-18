@@ -16,8 +16,8 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='communities.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='communities-list.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='user-profiles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='photo-upload.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='updateProfile.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='scheduled-events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='teamstats.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='vods.css') }}">
@@ -111,10 +111,10 @@
                 </div>
             </div>
 
-            <!-- Sidebar with Legend -->
-            <div class="calendar-sidebar">
+            <!-- Calendar legend widget -->
+            <div class="widget-sidebar">
                 <!-- Event Type Legend Card -->
-                <div class="sidebar-card">
+                <div class="widget-card">
                     <h3><i class="fas fa-palette"></i> Event Types</h3>
                     <div class="legend-items">
                         <div class="legend-item">
@@ -144,7 +144,7 @@
                     </div>
                 </div>
                 <!-- Today's Events Card -->
-                <div class="sidebar-card">
+                <div class="widget-card">
                     <h3><i class="fas fa-calendar-day"></i> Today's Events</h3>
                     <div class="today-events-list" id="todayEventsList">
                         <p style="color: var(--text-secondary); font-size: 0.875rem;">No events today</p>   
@@ -364,20 +364,20 @@
                             <div class="toggle-info">
                                 <div class="notif-info-row">
                                     <h3>Enable Event Notifications</h3>
-                                    <div class="team-info-icon-wrapper">
-                                        <i class="fas fa-info-circle team-info-icon"></i>
-                                        <div class="team-info-tooltip">
-                                            <div class="team-info-tooltip-row">
-                                                <span class="team-info-tooltip-label">What</span>
-                                                <span class="team-info-tooltip-value">Receive reminders for events you're subscribed to</span>
+                                    <div class="info-icon-wrapper" data-info-title="Notification Settings">
+                                        <i class="fas fa-info-circle info-icon"></i>
+                                        <div class="info-tooltip">
+                                            <div class="info-tooltip-row">
+                                                <span class="info-tooltip-label">What</span>
+                                                <span class="info-tooltip-value">Receive reminders for events you're subscribed to</span>
                                             </div>
-                                            <div class="team-info-tooltip-row">
-                                                <span class="team-info-tooltip-label">Types</span>
-                                                <span class="team-info-tooltip-value">Choose which event types trigger notifications below</span>
+                                            <div class="info-tooltip-row">
+                                                <span class="info-tooltip-label">Types</span>
+                                                <span class="info-tooltip-value">Choose which event types trigger notifications below</span>
                                             </div>
-                                            <div class="team-info-tooltip-row">
-                                                <span class="team-info-tooltip-label">Timing</span>
-                                                <span class="team-info-tooltip-value">Set how many days and hours in advance you are notified</span>
+                                            <div class="info-tooltip-row">
+                                                <span class="info-tooltip-label">Timing</span>
+                                                <span class="info-tooltip-value">Set how many days and hours in advance you are notified</span>
                                             </div>
                                         </div>
                                     </div>
@@ -456,16 +456,16 @@
                 <div>
                     <div class="community-title-row">
                         <h2>Game Communities</h2>
-                        <div class="community-info-icon-wrapper" id="communityInfoIconWrapper">
-                            <i class="fas fa-info-circle community-info-icon" id="communityInfoIcon"></i>
-                            <div class="community-info-tooltip" id="communityInfoTooltip">
-                                <div class="community-info-tooltip-row">
-                                    <span class="community-info-tooltip-label">Joining</span>
-                                    <span class="community-info-tooltip-value">Get assigned to a team, view the game's schedule, and see exclusive events.</span>
+                        <div class="info-icon-wrapper" id="communityInfoIconWrapper" data-info-title="Community Info">
+                            <i class="fas fa-info-circle info-icon" id="communityInfoIcon"></i>
+                            <div class="info-tooltip" id="communityInfoTooltip">
+                                <div class="info-tooltip-row">
+                                    <span class="info-tooltip-label">Joining</span>
+                                    <span class="info-tooltip-value">Get assigned to a team, view the game's schedule, and see exclusive events.</span>
                                 </div>
-                                <div class="community-info-tooltip-row">
-                                    <span class="community-info-tooltip-label">Leaving</span>
-                                    <span class="community-info-tooltip-value">You'll lose team assignment, schedule, and event access until you rejoin.</span>
+                                <div class="info-tooltip-row">
+                                    <span class="info-tooltip-label">Leaving</span>
+                                    <span class="info-tooltip-value">You'll lose team assignment, schedule, and event access until you rejoin.</span>
                                 </div>
                             </div>
                         </div>
@@ -931,28 +931,28 @@
                                 <div class="team-title-row">
                                     <h1 id="teamDetailTitle">Team Name</h1>
                                     <!-- Info icon with hover tooltip -->
-                                    <div class="team-info-icon-wrapper">
-                                        <i class="fas fa-info-circle team-info-icon" id="teamInfoIcon"></i>
-                                        <div class="team-info-tooltip" id="teamInfoTooltip">
+                                    <div class="info-icon-wrapper">
+                                        <i class="fas fa-info-circle info-icon" id="teamInfoIcon"></i>
+                                        <div class="info-tooltip" id="teamInfoTooltip">
                                             <!-- Game — always shown -->
-                                            <div class="team-info-tooltip-row" id="tooltipGame">
-                                                <span class="team-info-tooltip-label">Game</span>
-                                                <span class="team-info-tooltip-value" id="tooltipGameValue">—</span>
+                                            <div class="info-tooltip-row" id="tooltipGame">
+                                                <span class="info-tooltip-label">Game</span>
+                                                <span class="info-tooltip-value" id="tooltipGameValue">—</span>
                                             </div>
                                             <!-- Division — shown only when present -->
-                                            <div class="team-info-tooltip-row" id="tooltipDivision" style="display: none;">
-                                                <span class="team-info-tooltip-label">Division</span>
-                                                <span class="team-info-tooltip-value" id="tooltipDivisionValue">—</span>
+                                            <div class="info-tooltip-row" id="tooltipDivision" style="display: none;">
+                                                <span class="info-tooltip-label">Division</span>
+                                                <span class="info-tooltip-value" id="tooltipDivisionValue">—</span>
                                             </div>
                                             <!-- League(s) — shown only when present -->
-                                            <div class="team-info-tooltip-row" id="tooltipLeagues" style="display: none;">
-                                                <span class="team-info-tooltip-label">League(s)</span>
-                                                <span class="team-info-tooltip-value" id="tooltipLeaguesValue">—</span>
+                                            <div class="info-tooltip-row" id="tooltipLeagues" style="display: none;">
+                                                <span class="info-tooltip-label">League(s)</span>
+                                                <span class="info-tooltip-value" id="tooltipLeaguesValue">—</span>
                                             </div>
                                             <!-- Season — shown only when present -->
-                                            <div class="team-info-tooltip-row" id="tooltipSeason" style="display: none;">
-                                                <span class="team-info-tooltip-label">Season</span>
-                                                <span class="team-info-tooltip-value" id="tooltipSeasonValue">—</span>
+                                            <div class="info-tooltip-row" id="tooltipSeason" style="display: none;">
+                                                <span class="info-tooltip-label">Season</span>
+                                                <span class="info-tooltip-value" id="tooltipSeasonValue">—</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1536,7 +1536,7 @@
 
             <div id="editProfileMessage" class="form-message" style="display: none;"></div>
 
-            <div class="modal-actions">
+            <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary">
                     <span id="saveProfileBtnText">Save Changes</span>
@@ -1594,7 +1594,7 @@
 
             <div id="changePasswordMessage" class="form-message" style="display: none;"></div>
 
-            <div class="modal-actions">
+            <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary">
                     <span id="changePasswordBtnText">Change Password</span>
@@ -1661,21 +1661,6 @@
                     Sync from Discord
                 </button>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Day Events Modal -->
-<div id="dayEventsModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="dayModalTitle"></h2>
-            <button class="modal-close" onclick="closeDayModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-body" id="dayModalBody">
-            <!-- Events will be populated here -->
         </div>
     </div>
 </div>
@@ -2075,12 +2060,12 @@
     </div>
 </div>
 
-<!-- Team info bottom sheet for mobile -->
-<div id="teamInfoSheet" class="team-info-sheet">
-    <h3 class="team-info-sheet-title" id="teamInfoSheetTitle"></h3>
-    <div id="teamInfoSheetContent"></div>
+<!-- Universal info bottom sheet for mobile -->
+<div id="infoSheet" class="info-sheet">
+    <h3 class="info-sheet-title" id="infoSheetTitle"></h3>
+    <div id="infoSheetContent"></div>
 </div>
-<div class="sheet-backdrop" id="teamInfoSheetBackdrop" onclick="closeTeamInfoSheet()"></div>
+<div class="sheet-backdrop" id="infoSheetBackdrop" onclick="closeInfoSheet()"></div>
 
 <!-- Manage Leagues Modal -->
 <div id="manageLeaguesModal" class="modal">
@@ -2238,7 +2223,7 @@
 <!-- Delete Modal js (must be called first) -->
 <script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
 <script src="{{ url_for('static', filename='modalDelete.js') }}"></script>
-<script src="{{ url_for('static', filename='image-cropper.js') }}"></script>
+<script src="{{ url_for('static', filename='photo-upload.js') }}"></script>
 <!-- Rest of js imports -->
 <script src="{{ url_for('static', filename='badges.js') }}"></script>
 <script src="{{ url_for('static', filename='user-profiles.js') }}"></script>

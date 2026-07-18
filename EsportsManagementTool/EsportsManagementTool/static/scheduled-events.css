@@ -832,15 +832,6 @@
 }
 
 /* --------------------------------------------
-   ANIMATIONS
-   Keyframe animations
-   -------------------------------------------- */
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-/* --------------------------------------------
    RESPONSIVE DESIGN
    Mobile and tablet adaptations
    -------------------------------------------- */

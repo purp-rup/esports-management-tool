@@ -274,6 +274,7 @@ textarea.panel-edit-input {
     gap: 1.25rem;
     align-items: start;
     min-height: 100%;
+    margin-top: 0.1rem;
 }
 
 .event-card {
@@ -750,20 +751,6 @@ select[multiple]:focus {
     gap: 0.2rem;
     align-items: center;
     flex-wrap: wrap;
-}
-
-/* ===============================
-   Animations
-   =============================== */
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    50% {
-        opacity: 0.7;
-        transform: scale(1.2);
-    }
 }
 
 /* ================================

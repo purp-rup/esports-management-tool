@@ -1,6 +1,7 @@
-/**
- * ===================================================
- * UNIVERSAL IMAGE CROPPER SYSTEM
+/* ===================================================
+ * Photo Upload logic
+ * - Universal image cropping
+ * - Upload to landing page photo gallery
  * ===================================================
  */
 
@@ -376,12 +377,3 @@ window.cropReset = cropReset;
 // Utility functions
 window.getCroppedImageBlob = getCroppedImageBlob;
 window.clearCroppedImageBlob = clearCroppedImageBlob;
-
-// Global state (for backwards compatibility)
-window.cropper = cropper;
-window.currentImageField = currentImageField;
-window.croppedImageBlob = croppedImageBlob;
-window.communityCroppedImageBlob = communityCroppedImageBlob;
-window.avatarCroppedImageBlob = avatarCroppedImageBlob;
-window.bannerCroppedImageBlob = bannerCroppedImageBlob;
-window.carouselCroppedImageBlob = carouselCroppedImageBlob;
