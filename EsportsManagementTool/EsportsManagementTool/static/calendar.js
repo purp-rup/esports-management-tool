@@ -12,12 +12,47 @@ let activeAnchorElement = null;
 window.currentEventId = null;
 window.currentEventData = null;
 
+const CALENDAR_MOBILE_BREAKPOINT = 768; // matches .mobile-sheet breakpoint in dashboard-base.css
+
+function isCalendarMobileView() {
+    return window.innerWidth <= CALENDAR_MOBILE_BREAKPOINT;
+}
+
+// Creates the shared backdrop for the mobile event popup sheet.
+// Reuses the same .sheet-backdrop class/behavior as the Events tab
+
+function ensureCalendarPopupBackdrop() {
+    let backdrop = document.getElementById('calendarPopupBackdrop');
+    if (!backdrop) {
+        backdrop = document.createElement('div');
+        backdrop.id = 'calendarPopupBackdrop';
+        backdrop.className = 'sheet-backdrop';
+        backdrop.addEventListener('click', () => window.closeEventPopup());
+        document.body.appendChild(backdrop);
+    }
+    return backdrop;
+}
+
+// If the viewport crosses the mobile breakpoint while a popup is open,
+// close it rather than leaving it in a mismatched state (sheet vs anchored popover)
+window.addEventListener('resize', () => {
+    const popup = document.getElementById('landingEventPopup');
+    if (!popup) return;
+    const isSheet = popup.classList.contains('mobile-sheet');
+    if (isSheet !== isCalendarMobileView()) {
+        window.closeEventPopup();
+    }
+});
+
 // Popup close function
 window.closeEventPopup = function() {
     const existingPopup = document.getElementById('landingEventPopup');
     if (existingPopup) {
         existingPopup.remove();
     }
+
+    document.getElementById('calendarPopupBackdrop')?.classList.remove('open');
+    unlockBodyScroll('calendarEventPopup');
 
     if (clickOutsideHandler) {
         document.removeEventListener('click', clickOutsideHandler);
@@ -520,37 +555,51 @@ function openEventPopup(event_id, clickedElement) {
     window.currentEventId = event_id;
     activeAnchorElement = clickedElement;
 
+    const mobileView = isCalendarMobileView();
+
     const popup = document.createElement('div');
     popup.id = 'landingEventPopup';
-    popup.className = 'popup-event-item';
-    popup.style.visibility = 'hidden'; // Hides popup until everything loads
+    popup.className = mobileView ? 'popup-event-item mobile-sheet' : 'popup-event-item';
+    // Sheet reveals immediately (CSS handles the slide-up transition);
+    // the anchored popover stays hidden until positionPopup() places it
+    popup.style.visibility = mobileView ? 'visible' : 'hidden';
 
     popup.innerHTML = `
         <div class="popup-arrow"></div>
     `;
 
-    const container = document.querySelector('.calendar-container') || document.body;
-    container.appendChild(popup);
+    if (mobileView) {
 
-    // Positions relative to the clicked event item
-    if (clickedElement) {
-        positionPopup(popup, clickedElement, false);
+        document.body.appendChild(popup);
+        const backdrop = ensureCalendarPopupBackdrop();
+        requestAnimationFrame(() => {
+            popup.classList.add('sheet-open');
+            backdrop.classList.add('open');
+        });
+        lockBodyScroll('calendarEventPopup');
+    } else {
+        const container = document.querySelector('.calendar-container') || document.body;
+        container.appendChild(popup);
+
+        // Positions relative to the clicked event item
+        if (clickedElement) {
+            positionPopup(popup, clickedElement, false);
+        }
+
+        clickOutsideHandler = function(e) {
+            if (!popup.contains(e.target) && (!clickedElement || !clickedElement.contains(e.target))) {
+                window.closeEventPopup();
+            }
+        };
+
+        setTimeout(() => {
+            if (window.currentEventId === event_id) {
+                document.addEventListener('click', clickOutsideHandler);
+                window.addEventListener('resize', handleDynamicReposition);
+                window.addEventListener('scroll', handleDynamicReposition, true);
+            }
+        }, 50);
     }
-
-    // Handles clicking outside or leaving the element to close it
-    clickOutsideHandler = function(e) {
-        if (!popup.contains(e.target) && (!clickedElement || !clickedElement.contains(e.target))) {
-            window.closeEventPopup();
-        }
-    };
-
-    setTimeout(() => {
-        if (window.currentEventId === event_id) {
-            document.addEventListener('click', clickOutsideHandler);
-            window.addEventListener('resize', handleDynamicReposition);
-            window.addEventListener('scroll', handleDynamicReposition, true);
-        }
-    }, 50);
 
     fetch(`/api/events/${event_id}`)
         .then(response => response.json())
@@ -559,7 +608,7 @@ function openEventPopup(event_id, clickedElement) {
                 popup.innerHTML = `<div class="popup-error">Failed to load details</div>`;
             } else {
                 window.currentEventData = data;
-                displayEventPopupDetails(data, popup, clickedElement);
+                displayEventPopupDetails(data, popup, mobileView ? null : clickedElement);
             }
         })
         .catch(error => {
@@ -674,13 +723,16 @@ function displayEventPopupDetails(data, popup, clickedElement){
         }
     }
 
-    // Adjust position after content loads in case width/height changed
+    // Adjust position after content loads in case width/height changed.
+    // No-ops on mobile since clickedElement is passed as null there.
     if (clickedElement) {
         positionPopup(popup, clickedElement, true);
     }
 }
 
 function positionPopup(popup, anchorElement, reveal) {
+    if (isCalendarMobileView()) return;
+
     const calendarContainer = document.querySelector('.calendar-container');
     if (!calendarContainer) return;
 
