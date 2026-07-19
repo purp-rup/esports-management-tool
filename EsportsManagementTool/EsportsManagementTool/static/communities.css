@@ -313,7 +313,7 @@
     text-decoration: none;
     font-size: 0.5rem;
     transition: all 0.2s;
-    width: auto;
+    width: 100%;
     line-height: 1.2;
 }
 
