@@ -47,9 +47,7 @@ body {
 
 /* Hero Section */
 .hero {
-    min-height: calc(100dvh - 73px - 238px); /* 238px = landing gallery strip height (190px slide + 3rem padding) */
-    display: flex;
-    flex-direction: column;
+    min-height: calc(100dvh - 73px - (var(--gallery-slide-height) + 3rem));
     align-items: center;
     justify-content: center;
     text-align: center;
@@ -58,7 +56,6 @@ body {
 }
 
 .hero-content {
-    max-width: 1200px;
     display: flex;
     gap: 3rem;
     align-items: center;
@@ -87,7 +84,6 @@ body {
     font-size: clamp(1rem, 2.5vw, 1.25rem);
     color: var(--text-secondary);
     max-width: 600px;
-    margin: 0 auto 2rem;
     line-height: 1.6;
 }
 
@@ -269,7 +265,6 @@ body {
    Mobile friendliness
    ========================= */
 @media (max-width: 768px) {
-
     .stat-item h3 {
         font-size: 2rem;
     }
@@ -281,8 +276,11 @@ body {
 
 @media (max-width: 600px) {
     .hero {
-        min-height: calc(100dvh - 73px - 198px); /* 198px = landing gallery strip height on mobile */
         padding-bottom: 5rem;
+    }
+
+    .hero p {
+        margin: 0 auto 2rem;
     }
 }
 
@@ -293,5 +291,9 @@ body {
 
     .hero-content {
         gap: 0.5rem;
+    }
+
+    .hero-actions {
+        margin-bottom: 2rem;
     }
 }
