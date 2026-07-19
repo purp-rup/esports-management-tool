@@ -37,6 +37,11 @@ const EventState = {
     gamesListCache: null,
     selectedGames: [],
 
+    // Partnerships cache and selection
+    partnershipsListCache: null,
+    selectedPartnerships: [],
+    selectedPartnershipFilter: null,
+
     // Calendar day modal data
     eventsData: {},
 
@@ -47,6 +52,7 @@ const EventState = {
         this.currentDeleteEventId = null;
         this.currentDeleteEventName = '';
         this.selectedGames = [];
+        this.selectedPartnerships = [];
         this.deletionSource = 'events';
     },
 
@@ -99,6 +105,7 @@ function attachEventListeners() {
     // Filter box flyouts
     initPastSeasonsFlyout();
     initGameFlyouts();
+    initPartnershipFilterFlyout();
     initFlyoutTriggers();
 }
 
@@ -206,6 +213,11 @@ function loadEventsForPastSeason() {
         const gameFilter = PastSeasonFilterState.selectedGame || document.getElementById('gameFilter')?.value;
         if (gameFilter) {
             queryParams += `&filter=game&game=${encodeURIComponent(gameFilter)}`;
+        }
+    } else if (secondaryFilter === 'partnership') {
+        const partnershipFilter = PastSeasonFilterState.selectedPartnership || document.getElementById('partnershipFilter')?.value;
+        if (partnershipFilter) {
+            queryParams += `&filter=partnership&partnership=${encodeURIComponent(partnershipFilter)}`;
         }
     } else {
         // "all" - just use season filter
@@ -356,6 +368,7 @@ function openCreateEventModal() {
     setElementDisplay(formMessage, 'none');
     setElementDisplay(leagueGroup, 'none');
     clearSelectedGames('create');
+    clearSelectedPartnerships('create');
 
     // Character Counter
     attachCharacterCounter('eventDescription', 250);
@@ -367,6 +380,7 @@ function openCreateEventModal() {
             enableDropdown(dropdown);
         }
         initializeGameTagSelector('create');
+        initializePartnershipTagSelector('create');
     }, 50);
 }
 
@@ -545,10 +559,11 @@ function togglePanelEditMode() {
 
     // Full ordered field list — Date is always present, skip Game for scheduled events
     const allRows = [
-        { label: 'Time',        icon: 'clock'          },
+        { label: 'Time',         icon: 'clock'          },
         ...(!event.is_scheduled ? [{ label: 'Game', icon: 'gamepad' }] : []),
-        { label: 'Location',    icon: 'map-marker-alt' },
-        { label: 'Description', icon: 'info-circle'    },
+        { label: 'Location',     icon: 'map-marker-alt' },
+        { label: 'Description',  icon: 'info-circle'    },
+        { label: 'Partnerships', icon: 'handshake'      },
     ];
 
     // Insert missing rows in order relative to existing ones
@@ -556,7 +571,7 @@ function togglePanelEditMode() {
         if (existingLabels.includes(label)) return;
 
         // Find the row that should come after this one, insert before it
-        const allLabels = ['Date', 'Time', 'Game', 'Location', 'Description'];
+        const allLabels = ['Date', 'Time', 'Game', 'Location', 'Description', 'Partnerships'];
         const afterIndex = allLabels.indexOf(label);
         let inserted = false;
 
@@ -590,7 +605,7 @@ function togglePanelEditMode() {
     // Transform all rows to editable inputs
     document.querySelectorAll('.events-detail-panel .events-detail-row').forEach(row => {
         const label = row.querySelector('h4')?.textContent?.trim();
-        const valueEl = row.querySelector('p');
+        const valueEl = row.querySelector('p') || row.querySelector('.partnership-flair-stage');
         if (!valueEl) return;
 
         switch (label) {
@@ -613,7 +628,7 @@ function togglePanelEditMode() {
                     <div>
                         <div id="editSelectedGamesContainer" class="selected-games-container"></div>
                         <select id="editGameDropdown" class="panel-edit-input">
-                            <option value="">+ Add a game</option>
+                            <option value="">+ Add game</option>
                         </select>
                         <div id="editGameLoadingIndicator" style="display:none; font-size:0.8125rem; color:var(--text-secondary); margin-top:0.5rem;">
                             <i class="fas fa-spinner fa-spin"></i> Loading games...
@@ -637,6 +652,31 @@ function togglePanelEditMode() {
                 valueEl.outerHTML = `<textarea id="panelEditDescription" class="panel-edit-input"
                                                rows="3">${event.description || ''}</textarea>`;
                 break;
+            case 'Partnerships':
+                valueEl.outerHTML = `
+                    <div>
+                        <div class="partnership-edit-row">
+                            <div class="partnership-edit-side">
+                                <input type="text" id="editCustomPartnership" class="panel-edit-input"
+                                       placeholder="New partnership">
+                                <button type="button" id="editAddCustomPartnershipBtn"
+                                        class="partnership-confirm-btn" title="Add partnership">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </div>
+                            <span class="partnership-edit-or">or</span>
+                            <div class="partnership-edit-side">
+                                <select id="editPartnershipDropdown" class="panel-edit-input">
+                                    <option value="">+ Add existing</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="editSelectedPartnershipsContainer" class="selected-games-container"
+                             data-empty-text="No partnerships selected" style="margin-top:0.5rem;"></div>
+                        <input type="hidden" id="editSelectedPartnershipsInput" name="partnerships" value="[]">
+                    </div>
+                `;
+                break;
         }
     });
 
@@ -644,6 +684,9 @@ function togglePanelEditMode() {
     if (!event.is_scheduled) {
         initializeGameTagSelector('edit', event.game);
     }
+
+    // Initialize partnership editable field
+    initializePartnershipTagSelector('edit', (event.partnerships || []).join(', '));
 
     //Attach description character counter
     attachCharacterCounter('panelEditDescription', 250);
@@ -690,6 +733,8 @@ async function submitPanelEdit() {
         event_type: EventState.currentEventData?.event_type,
         games: document.getElementById('editSelectedGamesInput')?.value ||
                 JSON.stringify(EventState.currentEventData?.game ? [EventState.currentEventData.game] : []),
+        partnerships: document.getElementById('editSelectedPartnershipsInput')?.value ||
+                JSON.stringify(EventState.currentEventData?.partnerships || []),
         event_date: document.getElementById('panelEditDate')?.value,
         start_time: document.getElementById('panelEditStartTime')?.value,
         end_time: document.getElementById('panelEditEndTime')?.value,
@@ -908,7 +953,7 @@ async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetc
         }
 
         if (event.game && event.game !== 'N/A') {
-            rows.push(detailRow('gamepad', 'Game', event.game));
+            rows.push(detailRow('gamepad', 'Game(s)', event.game));
         }
 
         if (event.event_type === 'Match' && event.league_name) {
@@ -921,6 +966,10 @@ async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetc
 
         if (event.description) {
             rows.push(detailRow('info-circle', 'Description', event.description));
+        }
+
+         if (event.partnerships && event.partnerships.length) {
+            rows.push(partnershipRow(event.partnerships));
         }
 
         // Fetch banner and event data concurrently
@@ -993,6 +1042,10 @@ async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetc
             startBannerSlideshow(document.getElementById('eventDetailBanner'))
         }
 
+        if (event.partnerships && event.partnerships.length) {
+            initPartnershipFlairStage(document.getElementById('partnershipFlairStage'));
+        }
+
     } catch (error) {
         console.error('Error loading event detail panel:', error);
         pane.innerHTML = `
@@ -1012,6 +1065,25 @@ function detailRow(icon, label, value) {
             <div class="events-detail-row-text">
                 <h4>${label}</h4>
                 <p>${value}</p>
+            </div>
+        </div>
+    `;
+}
+
+// Build a single partnership rows, including multiple partnerships if available
+function partnershipRow(partnerships) {
+    const flairs = partnerships.map((name, i) => `
+        <span class="partnership-flair${i === 0 ? ' active' : ''}">${name}</span>
+    `).join('');
+
+    return `
+        <div class="events-detail-row">
+            <div class="event-detail-icon"><i class="fas fa-handshake"></i></div>
+            <div class="events-detail-row-text">
+                <h4>Partnerships</h4>
+                <div class="partnership-flair-stage" id="partnershipFlairStage">
+                    ${flairs}
+                </div>
             </div>
         </div>
     `;
@@ -1053,6 +1125,12 @@ function buildEventFilterParams() {
         if (gameFilter) params += `&game=${encodeURIComponent(gameFilter)}`;
     }
 
+    // Add partnership filter if applicable
+    if (filterValue === 'partnership') {
+        const partnershipFilter = EventState.selectedPartnershipFilter;
+        if (partnershipFilter) params += `&partnership=${encodeURIComponent(partnershipFilter)}`;
+    }
+
     return params;
 }
 
@@ -1075,6 +1153,29 @@ async function loadGamesList() {
         }
     } catch (error) {
         console.error('Error fetching games list:', error);
+        return [];
+    }
+}
+
+// Loads the list of partnerships for events
+async function loadPartnershipsList() {
+    if (EventState.partnershipsListCache) {
+        return EventState.partnershipsListCache;
+    }
+
+    try {
+        const response = await fetch('/api/partnership-list');
+        const data = await response.json();
+
+        if (data.success && data.partnerships) {
+            EventState.partnershipsListCache = data.partnerships;
+            return EventState.partnershipsListCache;
+        } else {
+            console.error('Failed to load partnerships list');
+            return [];
+        }
+    } catch (error) {
+        console.error('Error fetching partnerships list:', error);
         return [];
     }
 }
@@ -1123,6 +1224,219 @@ async function loadGamesForFilter() {
     await populateGameDropdown('gameFilter', 'gameFilterLoadingIndicator');
 }
 
+/* ===============================
+   Partnership Dropdown Tag System
+   =============================== */
+const PartnershipTagConfig = {
+    create: {
+        dropdown: 'partnershipDropdown',
+        container: 'selectedPartnershipsContainer',
+        hiddenInput: 'selectedPartnershipsInput',
+        customGroup: 'customPartnershipGroup',
+        customInput: 'customPartnership',
+        customBtn: 'addCustomPartnershipBtn',
+        inlineCustomEntry: false
+    },
+    edit: {
+        dropdown: 'editPartnershipDropdown',
+        container: 'editSelectedPartnershipsContainer',
+        hiddenInput: 'editSelectedPartnershipsInput',
+        customGroup: null,
+        customInput: 'editCustomPartnership',
+        customBtn: 'editAddCustomPartnershipBtn',
+        inlineCustomEntry: true
+    }
+};
+
+// Initialize partnership tag selector for a specific context
+async function initializePartnershipTagSelector(context = 'create', preSelectedPartnerships = '') {
+    const config = PartnershipTagConfig[context];
+    if (!config) {
+        console.error(`Invalid context: ${context}`);
+        return;
+    }
+
+    const dropdown = document.getElementById(config.dropdown);
+    if (!dropdown) {
+        console.warn(`${config.dropdown} element not found`);
+        return;
+    }
+
+    try {
+        const partnerships = await loadPartnershipsList();
+
+        // Populate dropdown, keeping the "+ Add new partnership" option last
+        dropdown.innerHTML = '<option value="">+ Add partnership</option>';
+        partnerships.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.partnership_name;
+            option.textContent = p.partnership_name;
+            dropdown.appendChild(option);
+        });
+
+        if (!config.inlineCustomEntry) {
+            dropdown.innerHTML += '<option value="__new__">+ Add new partnership</option>';
+
+            if (partnerships.length === 0) {
+                setElementDisplay(document.getElementById(config.customGroup), 'block');
+            }
+        }
+
+        // Parse pre-selected partnerships (for edit mode, added later)
+        if (preSelectedPartnerships && preSelectedPartnerships !== 'N/A') {
+            EventState.selectedPartnerships = preSelectedPartnerships
+                .split(',')
+                .map(p => p.trim())
+                .filter(p => p);
+        } else {
+            EventState.selectedPartnerships = [];
+        }
+
+        updatePartnershipTagsDisplay(context);
+        updateHiddenPartnershipsInput(context);
+        attachPartnershipDropdownListener(dropdown, context);
+        attachCustomPartnershipListener(context);
+        updatePartnershipDropdownOptions(context);
+
+    } catch (error) {
+        console.error('Error initializing partnership tag selector:', error);
+        dropdown.innerHTML = '<option value="">Error loading partnerships</option>';
+    }
+}
+
+// Attach change listener for partnership dropdown
+function attachPartnershipDropdownListener(dropdown, context) {
+    const clone = dropdown.cloneNode(true);
+    dropdown.replaceWith(clone);
+
+    const config = PartnershipTagConfig[context];
+    const newDropdown = document.getElementById(config.dropdown);
+    if (!newDropdown) return;
+
+    newDropdown.addEventListener('change', function() {
+        if (this.value === '__new__') {
+            setElementDisplay(document.getElementById(config.customGroup), 'block');
+            this.value = '';
+            return;
+        }
+
+        const selected = this.value;
+        if (selected && !EventState.selectedPartnerships.includes(selected)) {
+            addPartnershipTag(selected, context);
+        }
+        this.value = '';
+    });
+}
+
+// Attach listener for the "Add" button next to the custom partnership input
+function attachCustomPartnershipListener(context) {
+    const config = PartnershipTagConfig[context];
+    const addBtn = document.getElementById(config.customBtn);
+    const customInput = document.getElementById(config.customInput);
+    if (!addBtn || !customInput) return;
+
+    const clone = addBtn.cloneNode(true);
+    addBtn.replaceWith(clone);
+    const newBtn = document.getElementById(config.customBtn);
+
+    newBtn.addEventListener('click', function() {
+        const name = customInput.value.trim();
+        if (!name || EventState.selectedPartnerships.includes(name)) return;
+
+        addPartnershipTag(name, context);
+        customInput.value = '';
+        if (config.customGroup) {
+            setElementDisplay(document.getElementById(config.customGroup), 'none');
+        }
+    });
+
+    customInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            newBtn.click();
+        }
+    });
+}
+
+// Add a tag to selected partnerships for an event
+function addPartnershipTag(name, context = 'create') {
+    if (EventState.selectedPartnerships.includes(name)) return;
+
+    EventState.selectedPartnerships.push(name);
+    updatePartnershipTagsDisplay(context);
+    updateHiddenPartnershipsInput(context);
+    updatePartnershipDropdownOptions(context);
+}
+
+// Remove a tag from the selected partnerships
+function removePartnershipTag(name, context = 'create') {
+    EventState.selectedPartnerships = EventState.selectedPartnerships.filter(p => p !== name);
+    updatePartnershipTagsDisplay(context);
+    updateHiddenPartnershipsInput(context);
+    updatePartnershipDropdownOptions(context);
+}
+
+// Update display of selected partnerships
+function updatePartnershipTagsDisplay(context = 'create') {
+    const config = PartnershipTagConfig[context];
+    const container = document.getElementById(config.container);
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    EventState.selectedPartnerships.forEach(name => {
+        const tag = document.createElement('div');
+        tag.className = 'game-tag';
+        tag.innerHTML = `
+            <i class="fas fa-handshake game-tag-icon"></i>
+            <span>${name}</span>
+            <button type="button"
+                    class="game-tag-remove"
+                    onclick="removePartnershipTag('${escapeQuotes(name)}', '${context}')"
+                    title="Remove ${name}">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(tag);
+    });
+}
+
+// Hide already-selected partnerships from the dropdown (leave "+ Add new" always visible)
+function updatePartnershipDropdownOptions(context = 'create') {
+    const config = PartnershipTagConfig[context];
+    const dropdown = document.getElementById(config.dropdown);
+    if (!dropdown) return;
+
+    Array.from(dropdown.options).forEach(option => {
+        if (option.value === '' || option.value === '__new__') return;
+
+        if (EventState.selectedPartnerships.includes(option.value)) {
+            option.style.display = 'none';
+            option.disabled = true;
+        } else {
+            option.style.display = '';
+            option.disabled = false;
+        }
+    });
+}
+
+// Sync hidden input as partnerships are selected or deselected
+function updateHiddenPartnershipsInput(context = 'create') {
+    const config = PartnershipTagConfig[context];
+    const hiddenInput = document.getElementById(config.hiddenInput);
+    if (hiddenInput) {
+        hiddenInput.value = JSON.stringify(EventState.selectedPartnerships);
+    }
+}
+
+// Clear all selected partnerships
+function clearSelectedPartnerships(context = 'create') {
+    EventState.selectedPartnerships = [];
+    updatePartnershipTagsDisplay(context);
+    updateHiddenPartnershipsInput(context);
+    updatePartnershipDropdownOptions(context);
+}
+
 /* =================================
    Filter UI
    ================================= */
@@ -1132,6 +1446,7 @@ function applyPrimaryFilter(value, label) {
     document.getElementById('filterBox1Label').textContent = label;
     document.getElementById('eventFilter').value = value;
     EventState.selectedGame = null;
+    EventState.selectedPartnershipFilter = null;
     closeAllFilterPanels();
 
     // Hide Box 2 and reset season state
@@ -1148,6 +1463,7 @@ function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, 
     document.getElementById('eventFilter').value = filterVal;
     document.getElementById(subSelectId).value = subVal;
     if (filterVal === 'game') EventState.selectedGame = subVal;
+    if (filterVal === 'partnership') EventState.selectedPartnershipFilter = subVal;
     closeAllFilterPanels();
 
     document.getElementById('filterBox2').style.display = 'none';
@@ -1156,6 +1472,8 @@ function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, 
 
     if (filterVal === 'game') {
         filterEventsByGame();
+    } else if (filterVal === 'partnership') {
+        filterEventsByPartnership();
     } else {
         handleTypeFilterChange();
     }
@@ -1187,6 +1505,7 @@ function applySecondaryFilter(value, label) {
     closeAllFilterPanels();
     PastSeasonFilterState.secondaryFilter = value;
     PastSeasonFilterState.selectedGame = null;
+    PastSeasonFilterState.selectedPartnership = null;
     loadEventsForPastSeason();
 }
 
@@ -1197,6 +1516,7 @@ function applySecondaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal
     document.getElementById(subSelectId).value = subVal;
     PastSeasonFilterState.secondaryFilter = filterVal;
     if (filterVal === 'game') PastSeasonFilterState.selectedGame = subVal;
+    if (filterVal === 'partnership') PastSeasonFilterState.selectedPartnership = subVal;
     closeAllFilterPanels();
     loadEventsForPastSeason();
 }
@@ -1226,6 +1546,8 @@ function initPastSeasonsFlyout() {
             }
         } catch {
             flyout.innerHTML = '<div class="filter-box-flyout-loading">Failed to load</div>';
+        } finally {
+            positionFlyout(trigger);
         }
     });
 }
@@ -1257,6 +1579,46 @@ function initGameFlyouts() {
                 }
             } catch {
                 flyout.innerHTML = '<div class="filter-box-flyout-loading">Failed to load</div>';
+            } finally {
+                positionFlyout(trigger);
+            }
+        });
+    });
+}
+
+// Populate the Partnerships filter flyouts (primary + past-season secondary) on hover
+function initPartnershipFilterFlyout() {
+    [
+        { triggerId: 'partnershipFilterFlyoutTrigger', flyoutId: 'partnershipFilterFlyout', isPrimary: true },
+        { triggerId: 'partnershipFilterFlyoutTrigger2', flyoutId: 'partnershipFilterFlyout2', isPrimary: false }
+    ].forEach(({ triggerId, flyoutId, isPrimary }) => {
+        const trigger = document.getElementById(triggerId);
+        const flyout = document.getElementById(flyoutId);
+        if (!trigger || !flyout) return;
+
+        let loaded = false;
+        trigger.addEventListener('mouseenter', async () => {
+            if (loaded) return;
+            loaded = true;
+            try {
+                const partnerships = await loadPartnershipsList();
+                if (partnerships?.length) {
+                    flyout.innerHTML = partnerships.map(p => `
+                        <div class="filter-box-flyout-item"
+                             onclick="${isPrimary
+                                ? `applyPrimaryFilterWithSub('partnership','Partnerships','partnershipFilter','${p.partnership_name.replace(/'/g, "\\'")}','${p.partnership_name.replace(/'/g, "\\'")}')`
+                                : `applySecondaryFilterWithSub('partnership','Partnerships','partnershipFilter','${p.partnership_name.replace(/'/g, "\\'")}','${p.partnership_name.replace(/'/g, "\\'")}')`
+                             }">
+                            ${p.partnership_name}
+                        </div>
+                    `).join('');
+                } else {
+                    flyout.innerHTML = '<div class="filter-box-flyout-loading">No partnerships found</div>';
+                }
+            } catch {
+                flyout.innerHTML = '<div class="filter-box-flyout-loading">Failed to load</div>';
+            } finally {
+                positionFlyout(trigger);
             }
         });
     });
@@ -1265,7 +1627,6 @@ function initGameFlyouts() {
 /* ===============================
    Event Filtering
    =============================== */
-// Filter events based on dropdown selection
 function filterEvents() {
     const filterSelect = document.getElementById('eventFilter');
     const filterValue = filterSelect?.value || 'all';
@@ -1274,6 +1635,7 @@ function filterEvents() {
     const typeFilterSelect = document.getElementById('eventTypeFilter');
     const gameFilterContainer = document.getElementById('gameFilterContainer');
     const gameFilterSelect = document.getElementById('gameFilter');
+    const partnershipFilterSelect = document.getElementById('partnershipFilter');
 
     // Past season-specific elements
     const pastSeasonSelectContainer = document.getElementById('pastSeasonSelectContainer');
@@ -1288,6 +1650,8 @@ function filterEvents() {
     // Reset secondary filters
     if (typeFilterSelect) typeFilterSelect.value = '';
     if (gameFilterSelect) gameFilterSelect.value = '';
+    if (partnershipFilterSelect) partnershipFilterSelect.value = '';
+    EventState.selectedPartnershipFilter = null;
 
     // Reset past season filter state
     PastSeasonFilterState.selectedSeasonId = null;
@@ -1351,6 +1715,14 @@ function filterEventsByGame() {
     }
 }
 
+// Filter events by partnership (called when a partnership is selected from the flyout)
+function filterEventsByPartnership() {
+    const partnershipFilterSelect = document.getElementById('partnershipFilter');
+    if (partnershipFilterSelect?.value || EventState.selectedPartnershipFilter) {
+        loadEvents();
+    }
+}
+
 /* ================================
     SEASON FILTERING
    ================================ */
@@ -1362,7 +1734,8 @@ const PastSeasonFilterState = {
     availablePastSeasons: [],
     secondaryFilter: 'all',
     isFilteringPastSeason: false,
-    selectedGame: null
+    selectedGame: null,
+    selectedPartnership: null
 };
 
 // Filter events by past season and secondary filter
@@ -1435,7 +1808,7 @@ async function initializeGameTagSelector(context = 'create', preSelectedGames = 
         const games = await loadGamesList();
 
         // Populate dropdown
-        dropdown.innerHTML = '<option value="">+ Add a game</option>';
+        dropdown.innerHTML = '<option value="">+ Add game</option>';
 
         if (games.length === 0) {
             dropdown.innerHTML += '<option value="" disabled>No games available</option>';
@@ -1783,6 +2156,26 @@ function startBannerSlideshow(bannerEl) {
         current = (current + 1) % slides.length;
         slides[current].classList.add('active');
     }, 3500);
+}
+
+// Starts the partnership slideshow if multiple present
+function initPartnershipFlairStage(stageEl) {
+    if (!stageEl) return;
+    const flairs = Array.from(stageEl.querySelectorAll('.partnership-flair'));
+    if (!flairs.length) return;
+
+    const maxWidth = Math.max(...flairs.map(f => f.offsetWidth));
+    stageEl.style.width = `${maxWidth}px`;
+
+    if (flairs.length > 1) {
+        let current = 0;
+        clearInterval(stageEl._flairInterval);
+        stageEl._flairInterval = setInterval(() => {
+            flairs[current].classList.remove('active');
+            current = (current + 1) % flairs.length;
+            flairs[current].classList.add('active');
+        }, 2500);
+    }
 }
 
 // ============================================

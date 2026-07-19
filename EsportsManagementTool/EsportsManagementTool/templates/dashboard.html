@@ -239,28 +239,28 @@
                     <p>Set your preferred tab to open when visiting the dashboard</p>
                 </div>
                 <div class="preferred-tab-buttons" id="preferredTabButtons">
-                    <button class="community-filter-btn {% if preferred_tab == 'calendar' %}active{% endif %}" data-tab-value="calendar">
+                    <button class="filter-btn {% if preferred_tab == 'calendar' %}active{% endif %}" data-tab-value="calendar">
                         <span class="filter-check"><i class="fas fa-check"></i></span>
                         Calendar
                     </button>
-                    <button class="community-filter-btn {% if preferred_tab == 'profile' %}active{% endif %}" data-tab-value="profile">
+                    <button class="filter-btn {% if preferred_tab == 'profile' %}active{% endif %}" data-tab-value="profile">
                         <span class="filter-check"><i class="fas fa-check"></i></span>
                         Profile
                     </button>
-                    <button class="community-filter-btn {% if preferred_tab == 'rosters' %}active{% endif %}" data-tab-value="rosters">
+                    <button class="filter-btn {% if preferred_tab == 'rosters' %}active{% endif %}" data-tab-value="rosters">
                         <span class="filter-check"><i class="fas fa-check"></i></span>
                         Communities
                     </button>
-                    <button class="community-filter-btn {% if preferred_tab == 'events' %}active{% endif %}" data-tab-value="events">
+                    <button class="filter-btn {% if preferred_tab == 'events' %}active{% endif %}" data-tab-value="events">
                         <span class="filter-check"><i class="fas fa-check"></i></span>
                         Events
                     </button>
-                    <button class="community-filter-btn {% if preferred_tab == 'teams' %}active{% endif %}" data-tab-value="teams">
+                    <button class="filter-btn {% if preferred_tab == 'teams' %}active{% endif %}" data-tab-value="teams">
                         <span class="filter-check"><i class="fas fa-check"></i></span>
                         Teams
                     </button>
                     {% if user.is_admin or user.is_developer %}
-                    <button class="community-filter-btn {% if preferred_tab == 'admin' %}active{% endif %}" data-tab-value="admin">
+                    <button class="filter-btn {% if preferred_tab == 'admin' %}active{% endif %}" data-tab-value="admin">
                         <span class="filter-check"><i class="fas fa-check"></i></span>
                         Admin
                     </button>
@@ -398,27 +398,27 @@
                             <p class="section-description">Event types to notify</p>
                             <div class="notif-type-buttons">
                                 <button type="button" data-notif-type="notify_practices"
-                                        class="community-filter-btn {% if not preferences or preferences.notify_practices %}active{% endif %}">
+                                        class="filter-btn {% if not preferences or preferences.notify_practices %}active{% endif %}">
                                     <span class="filter-check"><i class="fas fa-check"></i></span>
                                     Practices
                                 </button>
                                 <button type="button" data-notif-type="notify_matches"
-                                        class="community-filter-btn {% if not preferences or preferences.notify_matches %}active{% endif %}">
+                                        class="filter-btn {% if not preferences or preferences.notify_matches %}active{% endif %}">
                                     <span class="filter-check"><i class="fas fa-check"></i></span>
                                     Matches
                                 </button>
                                 <button type="button" data-notif-type="notify_tournaments"
-                                        class="community-filter-btn {% if not preferences or preferences.notify_tournaments %}active{% endif %}">
+                                        class="filter-btn {% if not preferences or preferences.notify_tournaments %}active{% endif %}">
                                     <span class="filter-check"><i class="fas fa-check"></i></span>
                                     Tournaments
                                 </button>
                                 <button type="button" data-notif-type="notify_events"
-                                        class="community-filter-btn {% if not preferences or preferences.notify_events %}active{% endif %}">
+                                        class="filter-btn {% if not preferences or preferences.notify_events %}active{% endif %}">
                                     <span class="filter-check"><i class="fas fa-check"></i></span>
                                     Events
                                 </button>
                                 <button type="button" data-notif-type="notify_misc"
-                                        class="community-filter-btn {% if not preferences or preferences.notify_misc %}active{% endif %}">
+                                        class="filter-btn {% if not preferences or preferences.notify_misc %}active{% endif %}">
                                     <span class="filter-check"><i class="fas fa-check"></i></span>
                                     Misc
                                 </button>
@@ -473,23 +473,23 @@
                     <p>Browse games and join communities</p>
                 </div>
                 <div class="communities-filter-container">
-                    <button class="community-filter-btn filter-all active" data-division="all">
+                    <button class="filter-btn filter-all active" data-division="all">
                         <span class="filter-check"><i class="fas fa-check"></i></span>
                         All
                     </button>
-                    <button class="community-filter-btn" data-division="Strategy">
+                    <button class="filter-btn" data-division="Strategy">
                         <span class="filter-check"><i class="fas fa-check"></i></span>
                         Strategy
                     </button>
-                    <button class="community-filter-btn" data-division="Shooter">
+                    <button class="filter-btn" data-division="Shooter">
                         <span class="filter-check"><i class="fas fa-check"></i></span>
                         Shooter
                     </button>
-                    <button class="community-filter-btn" data-division="Sports">
+                    <button class="filter-btn" data-division="Sports">
                         <span class="filter-check"><i class="fas fa-check"></i></span>
                         Sports
                     </button>
-                    <button class="community-filter-btn" data-division="Other">
+                    <button class="filter-btn" data-division="Other">
                         <span class="filter-check"><i class="fas fa-check"></i></span>
                         Other
                     </button>
@@ -581,6 +581,7 @@
                                 <option value="created_by_me">Created by Me</option>
                                 <option value="type">Type</option>
                                 <option value="game">Game</option>
+                                <option value="partnership">Partnership</option>
                             </select>
                             <select id="pastSeasonSelect" onchange="handlePastSeasonSelection()">
                                 <option value="">Select Past Season</option>
@@ -595,6 +596,9 @@
                             </select>
                             <select id="gameFilter" onchange="handleGameFilterChange()">
                                 <option value="">Select Game</option>
+                            </select>
+                            <select id="partnershipFilter">
+                                <option value="">Select Partnership</option>
                             </select>
                             <div id="gameFilterLoadingIndicator" style="display:none;"></div>
                             <div id="pastSeasonLoadingIndicator" style="display:none;"></div>
@@ -640,6 +644,12 @@
                                         <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
                                     </div>
                                 </div>
+                                <div class="filter-box-item filter-box-item--flyout" id="partnershipFilterFlyoutTrigger">
+                                    Partnerships <i class="fas fa-chevron-right"></i>
+                                    <div class="filter-box-flyout" id="partnershipFilterFlyout">
+                                        <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                                    </div>
+                                </div>
                                 {% if user.is_admin or user.is_developer %}
                                 <div class="filter-box-item filter-box-item--flyout" id="pastSeasonsFlyoutTrigger">
                                     Past Seasons <i class="fas fa-chevron-right"></i>
@@ -676,9 +686,14 @@
                                         <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
                                     </div>
                                 </div>
+                                <div class="filter-box-item filter-box-item--flyout" id="partnershipFilterFlyoutTrigger2">
+                                    Partnerships <i class="fas fa-chevron-right"></i>
+                                    <div class="filter-box-flyout" id="partnershipFilterFlyout2">
+                                        <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-
                     </div>
 
                     <!-- Create Event Button (stays in top right) -->
@@ -777,7 +792,7 @@
                             </div>
 
                             <!-- Selected games display area -->
-                            <div id="selectedGamesContainer" class="selected-games-container">
+                            <div id="selectedGamesContainer" class="selected-games-container" data-empty-text="No games selected">
                                 <!-- Selected game tags will appear here -->
                             </div>
 
@@ -793,6 +808,37 @@
 
                             <!-- Hidden input to store selected games as JSON -->
                             <input type="hidden" id="selectedGamesInput" name="games" value="[]">
+                        </div>
+
+                        <!-- Full-width partnership selection with tags -->
+                        <div class="form-group" id="partnershipFieldGroup">
+                            <label for="partnershipDropdown">Partnerships (Optional)</label>
+                            <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
+                                Select existing partnerships or add a new one - they'll appear as tags below
+                            </div>
+
+                            <!-- Selected partnerships display area -->
+                            <div id="selectedPartnershipsContainer" class="selected-games-container" data-empty-text="No partnerships selected">
+                                <!-- Selected partnership tags will appear here -->
+                            </div>
+
+                            <!-- Dropdown for selecting partnerships -->
+                            <select id="partnershipDropdown" class="game-dropdown-single">
+                                <option value="">+ Add a partnership</option>
+                                <!-- Partnerships will be loaded dynamically via JavaScript -->
+                                <option value="__new__">+ Add new partnership</option>
+                            </select>
+
+                            <!-- Custom partnership entry, shown when "__new__" is selected -->
+                            <div class="form-group" id="customPartnershipGroup" style="display: none; margin-top: 0.5rem;">
+                                <input type="text" id="customPartnership" placeholder="Enter new partnership name">
+                                <button type="button" id="addCustomPartnershipBtn" class="all-day-toggle-btn" style="margin-top: 0.5rem;">
+                                    Add
+                                </button>
+                            </div>
+
+                            <!-- Hidden input to store selected partnerships as JSON -->
+                            <input type="hidden" id="selectedPartnershipsInput" name="partnerships" value="[]">
                         </div>
 
                         <div class="form-group">
@@ -1375,6 +1421,12 @@
                             <div class="filter-box-item" onclick="openManageCommunitiesModal(); closeAllFilterPanels();">Communities</div>
                             <div class="filter-box-item" onclick="openManageLandingGalleryModal(); closeAllFilterPanels();">Landing Gallery</div>
                             <div class="filter-box-item" onclick="openManageStreamsModal(); closeAllFilterPanels();">Streams</div>
+                            <div class="filter-box-item filter-box-item--flyout" id="partnershipManagementFlyoutTrigger">
+                                Partnerships <i class="fas fa-chevron-right"></i>
+                                <div class="filter-box-flyout" id="partnershipManagementFlyout">
+                                    <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

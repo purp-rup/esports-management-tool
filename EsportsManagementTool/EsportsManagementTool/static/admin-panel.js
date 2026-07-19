@@ -23,6 +23,7 @@ async function initializeAdminPanel() {
     attachAdminEventListeners();
     await refreshUserListBadges();
     revealUserList();
+    initPartnershipManagementFlyout();
 }
 
 // Attach admin-related event listeners
@@ -37,6 +38,135 @@ function attachAdminEventListeners() {
                 await handleUserItemClick(this);
             });
         });
+    }
+}
+
+// Loads the partnership list into the admin kebab flyout on hover
+function initPartnershipManagementFlyout() {
+    const trigger = document.getElementById('partnershipManagementFlyoutTrigger');
+    if (!trigger) return;
+
+    trigger.addEventListener('mouseenter', async () => {
+        await loadPartnershipManagementList();
+        positionFlyout(trigger);
+    });
+}
+
+// Fetches and renders the current partnerships in the management flyout
+async function loadPartnershipManagementList() {
+    const flyout = document.getElementById('partnershipManagementFlyout');
+    if (!flyout) return;
+
+    if (!EventState.partnershipsListCache) {
+        flyout.innerHTML = '<div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    }
+
+    try {
+        const partnerships = await loadPartnershipsList();
+
+        if (partnerships?.length) {
+            flyout.innerHTML = partnerships.map(partnershipManageRow).join('');
+        } else {
+            flyout.innerHTML = '<div class="filter-box-flyout-loading">No partnerships yet</div>';
+        }
+    } catch {
+        flyout.innerHTML = '<div class="filter-box-flyout-loading">Failed to load</div>';
+    }
+}
+
+// Build a single row for the partnership management flyout, with edit/delete controls
+function partnershipManageRow(partnership) {
+    return `
+        <div class="partnership-manage-row" data-partnership-id="${partnership.partnership_id}">
+            <span class="partnership-manage-name">${escapeQuotes(partnership.partnership_name)}</span>
+            <div class="partnership-manage-actions">
+                <button type="button" class="partnership-manage-btn" title="Rename"
+                        onclick="event.stopPropagation(); startPartnershipRename(${partnership.partnership_id})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button type="button" class="partnership-manage-btn delete" title="Remove from future selection"
+                        onclick="event.stopPropagation(); deletePartnership(${partnership.partnership_id})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// Swaps a row into inline-edit mode: name becomes a text input and edit/delete buttons change to confirm/cancel
+function startPartnershipRename(partnershipId) {
+    const row = document.querySelector(`.partnership-manage-row[data-partnership-id="${partnershipId}"]`);
+    if (!row) return;
+    const currentName = row.querySelector('.partnership-manage-name').textContent;
+
+    row.innerHTML = `
+        <input type="text" class="partnership-manage-input" value="${escapeQuotes(currentName)}"
+               id="partnershipRenameInput${partnershipId}">
+        <div class="partnership-manage-actions">
+            <button type="button" class="partnership-confirm-btn" title="Save"
+                    onclick="event.stopPropagation(); submitPartnershipRename(${partnershipId})">
+                <i class="fas fa-check"></i>
+            </button>
+            <button type="button" class="partnership-confirm-btn deny" title="Cancel"
+                    onclick="event.stopPropagation(); loadPartnershipManagementList()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+
+    const input = document.getElementById(`partnershipRenameInput${partnershipId}`);
+    input?.focus();
+    input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submitPartnershipRename(partnershipId);
+        } else if (e.key === 'Escape') {
+            loadPartnershipManagementList();
+        }
+    });
+
+    positionFlyout(document.getElementById('partnershipManagementFlyoutTrigger'));
+}
+
+// Sends the renamed partnership to the server and refreshes the flyout list
+async function submitPartnershipRename(partnershipId) {
+    const input = document.getElementById(`partnershipRenameInput${partnershipId}`);
+    const newName = input?.value.trim();
+    if (!newName) return;
+
+    try {
+        const response = await fetch(`/api/partnership/${partnershipId}/rename`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            EventState.partnershipsListCache = null;
+            loadPartnershipManagementList();
+        } else {
+            alert(data.message || 'Failed to rename partnership');
+        }
+    } catch {
+        alert('Failed to rename partnership');
+    }
+}
+
+// Immediately removes a partnership from future selection (soft delete — existing events keep it)
+async function deletePartnership(partnershipId) {
+    try {
+        const response = await fetch(`/api/partnership/${partnershipId}/archive`, { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+            EventState.partnershipsListCache = null;
+            loadPartnershipManagementList();
+        } else {
+            alert(data.message || 'Failed to remove partnership');
+        }
+    } catch {
+        alert('Failed to remove partnership');
     }
 }
 
