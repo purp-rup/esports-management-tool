@@ -384,8 +384,11 @@
 .carousel-delete-btn:hover { background: rgba(180, 0, 0, 0.55); }
 
 /* Landing page photo gallery */
+:root {
+    --gallery-slide-height: clamp(120px, 18vh, 190px);
+}
+
 .landing-gallery-strip {
-    --gallery-slide-height: 190px;
     overflow: hidden;
     width: 100%;
     height: calc(var(--gallery-slide-height) + 3rem); /* slide height + top/bottom padding */
@@ -408,7 +411,7 @@
 .landing-gallery-slide {
     flex: 0 0 auto;
     width: 300px;
-    height: 190px;
+    height: var(--gallery-slide-height);
     overflow: hidden;
     border-left: 1px solid var(--border-color);
     border-right: 1px solid var(--border-color);
@@ -644,13 +647,8 @@
 }
 
 @media (max-width: 600px) {
-    .landing-gallery-strip {
-        --gallery-slide-height: 150px;
-    }
-
     .landing-gallery-slide {
         width: 240px;
-        height: 150px;
     }
 }
 
