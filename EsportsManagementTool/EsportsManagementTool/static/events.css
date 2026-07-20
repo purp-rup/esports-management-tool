@@ -308,32 +308,6 @@ textarea.panel-edit-input {
     box-shadow: 0 0 0 2px var(--event-match-light);
 }
 
-.partnership-edit-row {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-}
-
-.partnership-edit-side {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    flex: 1;
-    min-width: 0;
-}
-
-.partnership-edit-side .panel-edit-input {
-    flex: 1;
-    min-width: 0;
-}
-
-.partnership-edit-or {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    font-style: italic;
-    flex-shrink: 0;
-}
-
 .partnership-confirm-btn {
     width: 30px;
     height: 30px;
@@ -741,31 +715,183 @@ select[multiple]:focus {
 }
 
 /* All day event toggle */
-.all-day-toggle-btn {
-    padding: 0.5rem 1rem;
-    background-color: var(--stockton-blue);
-    color: black;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 750;
+.event-form-modal .time-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.event-form-modal .time-row .form-group {
+    flex: 0 0 auto;
+}
+
+.event-form-modal .time-row input[type="time"] {
+    width: auto;
+}
+
+.all-day-field {
+    display: flex;
+    align-items: center;
+    padding-bottom: 0.35rem;
+}
+
+.all-day-toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     cursor: pointer;
-    transition: all 0.3s ease;
+    user-select: none;
+    margin-top: 2rem;
+}
+
+.all-day-checkbox {
+    display: none;
+}
+
+.all-day-switch {
+    position: relative;
+    width: 34px;
+    height: 19px;
+    background: var(--dark-bg);
+    border-radius: 999px;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.all-day-switch::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 15px;
+    height: 15px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+
+.all-day-checkbox:checked + .all-day-switch {
+    background: var(--stockton-blue);
+}
+
+.all-day-checkbox:checked + .all-day-switch::before {
+    transform: translateX(15px);
+}
+
+.all-day-toggle-label {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
     white-space: nowrap;
-    min-width: 90px;
 }
 
-.all-day-toggle-btn:hover {
-    opacity: 0.9;
-    box-shadow: 0 0 8px rgba(0, 122, 204, 0.3);
+/* ===============================
+   Consolidated tag-select combobox (Games / Partnerships)
+   =============================== */
+.tag-select-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s;
 }
 
-.all-day-toggle-btn.active {
-    background-color: #4caf50;
+.tag-select-trigger.active {
+    border-color: var(--stockton-blue);
 }
 
-.all-day-toggle-btn.active:hover {
-    box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
+.tag-select-trigger .tag-select-tags {
+    flex: 1;
+    min-width: 0;
+    min-height: unset;
+    margin-bottom: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+.tag-select-arrow {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+
+.tag-select-trigger.active .tag-select-arrow {
+    transform: rotate(180deg);
+}
+
+.tag-select-panel {
+    width: 100%;
+    max-height: 220px;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.tag-select-panel .filter-box-item {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.tag-select-add-new {
+    color: var(--stockton-blue);
+    border-top: 1px solid var(--border-color);
+    margin-top: 0.25rem;
+    padding-top: 0.6rem;
+}
+
+.tag-select-custom-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem;
+}
+
+.tag-select-custom-entry input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.5rem 0.6rem;
+    background: var(--card-bg);
+    border: 1px solid var(--stockton-blue);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+}
+
+/* Location text area */
+.location-select-display {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.location-placeholder {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.location-selected-text {
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.location-custom-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    padding: 0;
+    outline: none;
 }
 
 /* Submission information messages */
@@ -810,23 +936,6 @@ select[multiple]:focus {
 }
 
 .events-empty-state p {
-    color: var(--text-secondary);
-    font-size: 1rem;
-}
-
-/* Events loading state */
-.events-loading {
-    text-align: center;
-    padding: 4rem 2rem;
-}
-
-.events-loading i {
-    font-size: 3rem;
-    color: var(--stockton-blue);
-    margin-bottom: 1rem;
-}
-
-.events-loading p {
     color: var(--text-secondary);
     font-size: 1rem;
 }

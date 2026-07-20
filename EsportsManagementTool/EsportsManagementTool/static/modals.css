@@ -175,8 +175,6 @@
 .form-actions {
     display: flex;
     gap: 1rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
     border-top: 1px solid var(--border-color);
 }
 
@@ -218,7 +216,6 @@
 .event-form-modal .form-group {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
     margin-bottom: 0;
 }
 
@@ -237,7 +234,6 @@
     font-weight: 600;
     font-size: 0.875rem;
     color: var(--text-primary);
-    display: block;
     margin-bottom: 0.25rem;
 }
 
@@ -246,7 +242,7 @@
 .event-form-modal select,
 .event-form-modal textarea {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.65rem;
     background: var(--dark-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -268,6 +264,12 @@
 .event-form-modal input::placeholder,
 .event-form-modal textarea::placeholder {
     color: var(--text-secondary);
+}
+
+.event-form-modal input[type="date"]::-webkit-calendar-picker-indicator,
+.event-form-modal input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
 }
 
 .event-form-modal textarea {
@@ -677,7 +679,6 @@
 @media (max-width: 768px) {
     .modal-content {
         width: 95%;
-        margin: 10% auto;
     }
 
     .modal-header {
@@ -724,7 +725,6 @@
 
     .modal-content {
         width: 95%;
-        margin: 1rem;
     }
 
     .modal-header {

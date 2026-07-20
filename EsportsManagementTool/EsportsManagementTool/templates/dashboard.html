@@ -755,12 +755,11 @@
                 <div class="modal-body">
 
                     <form id="createEventForm" class="event-form-modal">
-                        <div class="form-group">
-                            <label for="eventName">Event Name</label>
-                            <input type="text" id="eventName" name="eventName" placeholder="Enter event name" required>
-                        </div>
-
                         <div class="form-row">
+                            <div class="form-group">
+                                <label for="eventName">Event Name</label>
+                                <input type="text" id="eventName" name="eventName" placeholder="Enter event name" required>
+                            </div>
                             <div class="form-group">
                                 <label for="eventType">Event Type</label>
                                 <select id="eventType" name="eventType" required onchange="handleEventTypeChange()">
@@ -784,69 +783,85 @@
                             </small>
                         </div>
 
-                        <!-- Full-width game selection with tags -->
-                        <div class="form-group" id="gameFieldGroup">
-                            <label for="gameDropdown">Games (Optional)</label>
-                            <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
-                                Select games from the dropdown - they'll appear as tags below
+                        <div class="form-row">
+                            <!-- Game selection combobox -->
+                            <div class="form-group" id="gameFieldGroup">
+                                <label for="gameTagBox" class="tag-select-label">Games (Optional)</label>
+                                <div style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.35rem;">
+                                    Select games from the dropdown
+                                </div>
+
+                                <div class="filter-box tag-select-box" id="gameTagBox">
+                                    <div class="tag-select-trigger" onclick="toggleFilterBox('gameOptionsPanel')">
+                                        <div id="selectedGamesContainer" class="selected-games-container tag-select-tags" data-empty-text="No games selected">
+                                            <!-- Selected game tags will appear here -->
+                                        </div>
+                                        <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                    </div>
+                                    <div class="filter-box-panel tag-select-panel" id="gameOptionsPanel">
+                                        <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                                    </div>
+                                </div>
+
+                                <!-- Hidden input to store selected games as JSON -->
+                                <input type="hidden" id="selectedGamesInput" name="games" value="[]">
                             </div>
 
-                            <!-- Selected games display area -->
-                            <div id="selectedGamesContainer" class="selected-games-container" data-empty-text="No games selected">
-                                <!-- Selected game tags will appear here -->
+                            <!-- Partnership selection combobox -->
+                            <div class="form-group" id="partnershipFieldGroup">
+                                <label for="partnershipTagBox" class="tag-select-label">Partnerships (Optional)</label>
+                                <div style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.35rem;">
+                                    Select existing partnerships or add a new one
+                                </div>
+
+                                <div class="filter-box tag-select-box" id="partnershipTagBox">
+                                    <div class="tag-select-trigger" onclick="toggleFilterBox('partnershipOptionsPanel')">
+                                        <div id="selectedPartnershipsContainer" class="selected-games-container tag-select-tags" data-empty-text="No partnerships selected">
+                                            <!-- Selected partnership tags will appear here -->
+                                        </div>
+                                        <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                    </div>
+                                    <div class="filter-box-panel tag-select-panel" id="partnershipOptionsPanel">
+                                        <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                                    </div>
+                                </div>
+
+                                <!-- Hidden input to store selected partnerships as JSON -->
+                                <input type="hidden" id="selectedPartnershipsInput" name="partnerships" value="[]">
                             </div>
-
-                            <!-- Dropdown for selecting games -->
-                            <select id="gameDropdown" class="game-dropdown-single">
-                                <option value="">+ Add a game</option>
-                                <!-- Games will be loaded dynamically via JavaScript -->
-                            </select>
-
-                            <div id="gameLoadingIndicator" style="display: none; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-                                <i class="fas fa-spinner fa-spin"></i> Loading games...
-                            </div>
-
-                            <!-- Hidden input to store selected games as JSON -->
-                            <input type="hidden" id="selectedGamesInput" name="games" value="[]">
                         </div>
 
-                        <!-- Full-width partnership selection with tags -->
-                        <div class="form-group" id="partnershipFieldGroup">
-                            <label for="partnershipDropdown">Partnerships (Optional)</label>
-                            <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
-                                Select existing partnerships or add a new one - they'll appear as tags below
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="eventDate">Date</label>
+                                <input type="date" id="eventDate" name="eventDate" required>
                             </div>
 
-                            <!-- Selected partnerships display area -->
-                            <div id="selectedPartnershipsContainer" class="selected-games-container" data-empty-text="No partnerships selected">
-                                <!-- Selected partnership tags will appear here -->
+                            <div class="form-group">
+                                <label for="locationTagBox">Location</label>
+                                <div class="filter-box tag-select-box" id="locationTagBox">
+                                    <div class="tag-select-trigger" onclick="toggleFilterBox('locationOptionsPanel')">
+                                        <div id="locationSelectDisplay" class="location-select-display">
+                                            <span class="location-placeholder">Select location</span>
+                                        </div>
+                                        <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                    </div>
+                                    <div class="filter-box-panel tag-select-panel" id="locationOptionsPanel">
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('Campus Center')">Campus Center</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('Campus Center Coffee House')">Campus Center Coffee House</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('Campus Center Event Room')">Campus Center Event Room</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('D-108')">D-108</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('Esports Lab (Commons Building 80)')">Esports Lab (Commons Building 80)</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('Lakeside Lodge')">Lakeside Lodge</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('Online')">Online</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('other')">Other</div>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="eventLocation" name="eventLocation">
                             </div>
-
-                            <!-- Dropdown for selecting partnerships -->
-                            <select id="partnershipDropdown" class="game-dropdown-single">
-                                <option value="">+ Add a partnership</option>
-                                <!-- Partnerships will be loaded dynamically via JavaScript -->
-                                <option value="__new__">+ Add new partnership</option>
-                            </select>
-
-                            <!-- Custom partnership entry, shown when "__new__" is selected -->
-                            <div class="form-group" id="customPartnershipGroup" style="display: none; margin-top: 0.5rem;">
-                                <input type="text" id="customPartnership" placeholder="Enter new partnership name">
-                                <button type="button" id="addCustomPartnershipBtn" class="all-day-toggle-btn" style="margin-top: 0.5rem;">
-                                    Add
-                                </button>
-                            </div>
-
-                            <!-- Hidden input to store selected partnerships as JSON -->
-                            <input type="hidden" id="selectedPartnershipsInput" name="partnerships" value="[]">
                         </div>
 
-                        <div class="form-group">
-                            <label for="eventDate">Date</label>
-                            <input type="date" id="eventDate" name="eventDate" required>
-                        </div>
-
-                        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
+                        <div class="form-row time-row">
                             <div class="form-group" style="margin: 0;">
                                 <label for="startTime">Start Time</label>
                                 <input type="time" id="startTime" name="startTime" required>
@@ -857,36 +872,14 @@
                                 <input type="time" id="endTime" name="endTime" required>
                             </div>
 
-                            <div class="form-group" style="margin: 0; padding-bottom: 0.25rem;">
-                                <input type="checkbox" id="allDayEvent" name="allDayEvent" style="display: none;">
-                                <button type="button"
-                                        id="allDayButton"
-                                        class="all-day-toggle-btn"
-                                        onclick="toggleAllDayEvent()"
-                                        title="Set event to run from 12:00 AM to 11:59 PM">
-                                    ALL DAY?
-                                </button>
+                            <div class="form-group all-day-field" style="margin: 0;">
+                                <label class="all-day-toggle-wrapper" title="Set event to run from 12:00 AM to 11:59 PM">
+                                    <input type="checkbox" id="allDayEvent" name="allDayEvent"
+                                           class="all-day-checkbox" onchange="toggleAllDayEvent()">
+                                    <span class="all-day-switch"></span>
+                                    <span class="all-day-toggle-label">All Day</span>
+                                </label>
                             </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="eventLocation">Location</label>
-                            <select id="eventLocation" name="eventLocation" required>
-                                <option value="">Select location</option>
-                                <option>Campus Center</option>
-                                <option>Campus Center Coffee House</option>
-                                <option>Campus Center Event Room</option>
-                                <option>D-108</option>
-                                <option>Esports Lab (Commons Building 80)</option>
-                                <option>Lakeside Lodge</option>
-                                <option>Online</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group" id="customLocationGroup" style="display: none;">
-                            <label for="customLocation">Custom Location</label>
-                            <input type="text" id="customLocation" name="customLocation" placeholder="Enter custom location">
                         </div>
 
                         <div class="form-group">
