@@ -34,7 +34,7 @@ def create_message(community_id: int, user_id: int, content: str) -> dict:
         "user_id": user_id,
         "content": content,
         "created_at": created_at,
-        "is_deleted": False,    
+        "is_deleted": False,
         "deleted_at": None,
         "deleted_by": None,
     }
