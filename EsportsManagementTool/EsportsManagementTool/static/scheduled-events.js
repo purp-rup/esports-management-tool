@@ -731,19 +731,6 @@ function renderScheduleDetails(schedule) {
     `;
 }
 
-// Initialize league dropdown state BEFORE attaching event handler
-const leagueSelectInit = document.getElementById('editScheduleLeagueSelect');
-if (leagueSelectInit) {
-    // Ensure dropdown has proper initial state
-    if (schedule.event_type !== 'Match') {
-        leagueSelectInit.innerHTML = '<option value="">Select a league</option>';
-    } else {
-        // For Match events, load leagues immediately
-        leagueSelectInit.innerHTML = '<option value="">Loading leagues...</option>';
-        loadEditScheduleLeagues(teamId, schedule.league_id);
-    }
-}
-
 // Configure edit and delete buttons based on user permissions
 async function configureScheduleButtons(scheduleId) {
     const editBtn = document.getElementById('editScheduleBtn');
@@ -845,6 +832,7 @@ function openEditScheduleMode(scheduleId) {
     modalBody.innerHTML = `
         <form id="editScheduleForm" class="schedule-edit-form">
             <input type="hidden" id="editScheduleId" value="${scheduleId}">
+            <input type="hidden" id="editScheduleTeamId" value="${teamId}">
 
             <div class="form-group">
                 <label for="editScheduleName">Event Name *</label>
@@ -856,8 +844,8 @@ function openEditScheduleMode(scheduleId) {
             </div>
 
             <div class="form-group">
-                <label for="editScheduleType">Event Type *</label>
-                <select id="editScheduleType" name="event_type" required onchange="handleEditEventTypeChange()">
+                <label for="editScheduleType">Event Type (Cannot be changed)</label>
+                <select id="editScheduleType" name="event_type" required disabled>
                     <option value="Match" ${schedule.event_type === 'Match' ? 'selected' : ''}>Match</option>
                     <option value="Practice" ${schedule.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
                     <option value="Misc" ${schedule.event_type === 'Misc' ? 'selected' : ''}>Misc</option>
@@ -1064,6 +1052,7 @@ async function handleEditScheduleSubmit(event) {
     messageDiv.style.display = 'none';
 
     const scheduleId = document.getElementById('editScheduleId').value;
+    const teamId = document.getElementById('editScheduleTeamId').value;
     const locationSelect = document.getElementById('editScheduleLocation');
     const customLocationInput = document.getElementById('editCustomLocation');
     const location = locationSelect.value === 'other'
@@ -1072,6 +1061,7 @@ async function handleEditScheduleSubmit(event) {
 
     const formData = {
         schedule_id: scheduleId,
+        team_id: teamId,
         event_name: document.getElementById('editScheduleName').value,
         event_type: eventType,
         visibility: document.getElementById('editScheduleVisibility').value,

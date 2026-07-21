@@ -37,6 +37,11 @@ const EventState = {
     gamesListCache: null,
     selectedGames: [],
 
+    // Partnerships cache and selection
+    partnershipsListCache: null,
+    selectedPartnerships: [],
+    selectedPartnershipFilter: null,
+
     // Calendar day modal data
     eventsData: {},
 
@@ -47,6 +52,7 @@ const EventState = {
         this.currentDeleteEventId = null;
         this.currentDeleteEventName = '';
         this.selectedGames = [];
+        this.selectedPartnerships = [];
         this.deletionSource = 'events';
     },
 
@@ -90,15 +96,10 @@ function attachEventListeners() {
         createEventForm.addEventListener('submit', handleCreateEventSubmit);
     }
 
-    // Location dropdown handler
-    const locationSelect = document.getElementById('eventLocation');
-    if (locationSelect) {
-        locationSelect.addEventListener('change', handleLocationChange);
-    }
-
     // Filter box flyouts
     initPastSeasonsFlyout();
     initGameFlyouts();
+    initPartnershipFilterFlyout();
     initFlyoutTriggers();
 }
 
@@ -206,6 +207,11 @@ function loadEventsForPastSeason() {
         const gameFilter = PastSeasonFilterState.selectedGame || document.getElementById('gameFilter')?.value;
         if (gameFilter) {
             queryParams += `&filter=game&game=${encodeURIComponent(gameFilter)}`;
+        }
+    } else if (secondaryFilter === 'partnership') {
+        const partnershipFilter = PastSeasonFilterState.selectedPartnership || document.getElementById('partnershipFilter')?.value;
+        if (partnershipFilter) {
+            queryParams += `&filter=partnership&partnership=${encodeURIComponent(partnershipFilter)}`;
         }
     } else {
         // "all" - just use season filter
@@ -342,7 +348,6 @@ function showEventsError() {
 function openCreateEventModal() {
     const modal = document.getElementById('createEventModal');
     const form = document.getElementById('createEventForm');
-    const customLocationGroup = document.getElementById('customLocationGroup');
     const formMessage = document.getElementById('formMessage');
     const leagueGroup = document.getElementById('eventLeagueFieldGroup');
 
@@ -352,21 +357,19 @@ function openCreateEventModal() {
 
     // Reset form and state
     form.reset();
-    setElementDisplay(customLocationGroup, 'none');
+    resetLocationSelector();
     setElementDisplay(formMessage, 'none');
     setElementDisplay(leagueGroup, 'none');
     clearSelectedGames('create');
+    clearSelectedPartnerships('create');
 
     // Character Counter
     attachCharacterCounter('eventDescription', 250);
 
     // Load games after modal is rendered
     setTimeout(() => {
-        const dropdown = document.getElementById('gameDropdown');
-        if (dropdown) {
-            enableDropdown(dropdown);
-        }
         initializeGameTagSelector('create');
+        initializePartnershipTagSelector('create');
     }, 50);
 }
 
@@ -392,6 +395,46 @@ function handleLocationChange(e) {
     }
 }
 
+// Select a location: either a preset value, or "other" to switch the box into a text input
+function selectLocation(value) {
+    const hiddenInput = document.getElementById('eventLocation');
+    const displayArea = document.getElementById('locationSelectDisplay');
+    if (!hiddenInput || !displayArea) return;
+
+    if (value === 'other') {
+        hiddenInput.value = '';
+        displayArea.innerHTML = '';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.id = 'customLocationInput';
+        input.className = 'location-custom-input';
+        input.placeholder = 'Enter custom location';
+        input.addEventListener('click', (e) => e.stopPropagation());
+        input.addEventListener('input', () => {
+            hiddenInput.value = input.value;
+        });
+        displayArea.appendChild(input);
+        input.focus();
+    } else {
+        hiddenInput.value = value;
+        displayArea.innerHTML = '';
+        const span = document.createElement('span');
+        span.className = 'location-selected-text';
+        span.textContent = value;
+        displayArea.appendChild(span);
+    }
+
+    closeAllFilterPanels();
+}
+
+// Reset the location box back to its placeholder state
+function resetLocationSelector() {
+    const hiddenInput = document.getElementById('eventLocation');
+    const displayArea = document.getElementById('locationSelectDisplay');
+    if (hiddenInput) hiddenInput.value = '';
+    if (displayArea) displayArea.innerHTML = '<span class="location-placeholder">Select location</span>';
+}
+
 // Handle event type change - hide game field for Misc events
 function handleEventTypeChange() {
     const eventType = document.getElementById('eventType')?.value;
@@ -406,24 +449,16 @@ function handleEventTypeChange() {
     }
 }
 
-// Toggle all-day event button
+// React to the All Day switch being toggled (checkbox drives its own checked state now)
 function toggleAllDayEvent() {
     const allDayCheckbox = document.getElementById('allDayEvent');
-    const allDayButton = document.getElementById('allDayButton');
     const startTimeInput = document.getElementById('startTime');
     const endTimeInput = document.getElementById('endTime');
 
-    if (!allDayCheckbox || !allDayButton || !startTimeInput || !endTimeInput) return;
-
-    // Toggle checkbox state
-    allDayCheckbox.checked = !allDayCheckbox.checked;
+    if (!allDayCheckbox || !startTimeInput || !endTimeInput) return;
 
     if (allDayCheckbox.checked) {
         // Activate all-day mode
-        allDayButton.textContent = 'ALL DAY';
-        allDayButton.classList.add('active');
-
-        // Set all-day times
         startTimeInput.value = '00:00';
         endTimeInput.value = '23:59';
 
@@ -438,10 +473,6 @@ function toggleAllDayEvent() {
         endTimeInput.removeAttribute('required');
     } else {
         // Deactivate all-day mode
-        allDayButton.textContent = 'ALL DAY?';
-        allDayButton.classList.remove('active');
-
-        // Clear times
         startTimeInput.value = '';
         endTimeInput.value = '';
 
@@ -477,19 +508,21 @@ async function handleCreateEventSubmit(e) {
         return;
     }
 
+    // Validate location has been selected or entered
+    const locationValue = document.getElementById('eventLocation')?.value.trim();
+    if (!locationValue) {
+        formMessage.textContent = 'Please select or enter a location.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+        return;
+    }
+
     // Set loading state
     submitBtn.disabled = true;
     setElementDisplay(submitBtnText, 'none');
     setElementDisplay(submitBtnSpinner, 'inline-block');
 
     const formData = new FormData(e.target);
-
-    // Handle custom location
-    const location = formData.get('eventLocation');
-    if (location === 'other') {
-        formData.set('eventLocation', formData.get('customLocation'));
-    }
-    formData.delete('customLocation');
 
     try {
         const response = await fetch('/event-register', {
@@ -545,10 +578,11 @@ function togglePanelEditMode() {
 
     // Full ordered field list — Date is always present, skip Game for scheduled events
     const allRows = [
-        { label: 'Time',        icon: 'clock'          },
-        ...(!event.is_scheduled ? [{ label: 'Game', icon: 'gamepad' }] : []),
-        { label: 'Location',    icon: 'map-marker-alt' },
-        { label: 'Description', icon: 'info-circle'    },
+        { label: 'Time',         icon: 'clock'          },
+        ...(!event.is_scheduled ? [{ label: 'Game(s)', icon: 'gamepad' }] : []),
+        { label: 'Location',     icon: 'map-marker-alt' },
+        { label: 'Description',  icon: 'info-circle'    },
+        { label: 'Partnerships', icon: 'handshake'      },
     ];
 
     // Insert missing rows in order relative to existing ones
@@ -556,7 +590,7 @@ function togglePanelEditMode() {
         if (existingLabels.includes(label)) return;
 
         // Find the row that should come after this one, insert before it
-        const allLabels = ['Date', 'Time', 'Game', 'Location', 'Description'];
+        const allLabels = ['Date', 'Time', 'Game(s)', 'Location', 'Description', 'Partnerships'];
         const afterIndex = allLabels.indexOf(label);
         let inserted = false;
 
@@ -590,7 +624,7 @@ function togglePanelEditMode() {
     // Transform all rows to editable inputs
     document.querySelectorAll('.events-detail-panel .events-detail-row').forEach(row => {
         const label = row.querySelector('h4')?.textContent?.trim();
-        const valueEl = row.querySelector('p');
+        const valueEl = row.querySelector('p') || row.querySelector('.partnership-flair-stage');
         if (!valueEl) return;
 
         switch (label) {
@@ -607,16 +641,18 @@ function togglePanelEditMode() {
                            type="time" value="${event.end_time_raw}">
                 </div>`;
                 break;
-            case 'Game':
+            case 'Game(s)':
                 if (event.is_scheduled) break;
                 valueEl.outerHTML = `
                     <div>
-                        <div id="editSelectedGamesContainer" class="selected-games-container"></div>
-                        <select id="editGameDropdown" class="panel-edit-input">
-                            <option value="">+ Add a game</option>
-                        </select>
-                        <div id="editGameLoadingIndicator" style="display:none; font-size:0.8125rem; color:var(--text-secondary); margin-top:0.5rem;">
-                            <i class="fas fa-spinner fa-spin"></i> Loading games...
+                        <div class="filter-box tag-select-box" id="editGameTagBox">
+                            <div class="tag-select-trigger" onclick="toggleFilterBox('editGameOptionsPanel')">
+                                <div id="editSelectedGamesContainer" class="selected-games-container tag-select-tags" data-empty-text="No games selected"></div>
+                                <i class="fas fa-chevron-down tag-select-arrow"></i>
+                            </div>
+                            <div class="filter-box-panel tag-select-panel" id="editGameOptionsPanel">
+                                <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                            </div>
                         </div>
                         <input type="hidden" id="editSelectedGamesInput" name="games" value="[]">
                     </div>
@@ -637,6 +673,22 @@ function togglePanelEditMode() {
                 valueEl.outerHTML = `<textarea id="panelEditDescription" class="panel-edit-input"
                                                rows="3">${event.description || ''}</textarea>`;
                 break;
+            case 'Partnerships':
+                valueEl.outerHTML = `
+                    <div>
+                        <div class="filter-box tag-select-box" id="editPartnershipTagBox">
+                            <div class="tag-select-trigger" onclick="toggleFilterBox('editPartnershipOptionsPanel')">
+                                <div id="editSelectedPartnershipsContainer" class="selected-games-container tag-select-tags" data-empty-text="No partnerships selected"></div>
+                                <i class="fas fa-chevron-down tag-select-arrow"></i>
+                            </div>
+                            <div class="filter-box-panel tag-select-panel" id="editPartnershipOptionsPanel">
+                                <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="editSelectedPartnershipsInput" name="partnerships" value="[]">
+                    </div>
+                `;
+                break;
         }
     });
 
@@ -644,6 +696,9 @@ function togglePanelEditMode() {
     if (!event.is_scheduled) {
         initializeGameTagSelector('edit', event.game);
     }
+
+    // Initialize partnership editable field
+    initializePartnershipTagSelector('edit', (event.partnerships || []).join(', '));
 
     //Attach description character counter
     attachCharacterCounter('panelEditDescription', 250);
@@ -690,6 +745,8 @@ async function submitPanelEdit() {
         event_type: EventState.currentEventData?.event_type,
         games: document.getElementById('editSelectedGamesInput')?.value ||
                 JSON.stringify(EventState.currentEventData?.game ? [EventState.currentEventData.game] : []),
+        partnerships: document.getElementById('editSelectedPartnershipsInput')?.value ||
+                JSON.stringify(EventState.currentEventData?.partnerships || []),
         event_date: document.getElementById('panelEditDate')?.value,
         start_time: document.getElementById('panelEditStartTime')?.value,
         end_time: document.getElementById('panelEditEndTime')?.value,
@@ -908,7 +965,7 @@ async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetc
         }
 
         if (event.game && event.game !== 'N/A') {
-            rows.push(detailRow('gamepad', 'Game', event.game));
+            rows.push(detailRow('gamepad', 'Game(s)', event.game));
         }
 
         if (event.event_type === 'Match' && event.league_name) {
@@ -921,6 +978,10 @@ async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetc
 
         if (event.description) {
             rows.push(detailRow('info-circle', 'Description', event.description));
+        }
+
+         if (event.partnerships && event.partnerships.length) {
+            rows.push(partnershipRow(event.partnerships));
         }
 
         // Fetch banner and event data concurrently
@@ -993,6 +1054,10 @@ async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetc
             startBannerSlideshow(document.getElementById('eventDetailBanner'))
         }
 
+        if (event.partnerships && event.partnerships.length) {
+            initPartnershipFlairStage(document.getElementById('partnershipFlairStage'));
+        }
+
     } catch (error) {
         console.error('Error loading event detail panel:', error);
         pane.innerHTML = `
@@ -1012,6 +1077,25 @@ function detailRow(icon, label, value) {
             <div class="events-detail-row-text">
                 <h4>${label}</h4>
                 <p>${value}</p>
+            </div>
+        </div>
+    `;
+}
+
+// Build a single partnership rows, including multiple partnerships if available
+function partnershipRow(partnerships) {
+    const flairs = partnerships.map((name, i) => `
+        <span class="partnership-flair${i === 0 ? ' active' : ''}">${name}</span>
+    `).join('');
+
+    return `
+        <div class="events-detail-row">
+            <div class="event-detail-icon"><i class="fas fa-handshake"></i></div>
+            <div class="events-detail-row-text">
+                <h4>Partnerships</h4>
+                <div class="partnership-flair-stage" id="partnershipFlairStage">
+                    ${flairs}
+                </div>
             </div>
         </div>
     `;
@@ -1053,6 +1137,12 @@ function buildEventFilterParams() {
         if (gameFilter) params += `&game=${encodeURIComponent(gameFilter)}`;
     }
 
+    // Add partnership filter if applicable
+    if (filterValue === 'partnership') {
+        const partnershipFilter = EventState.selectedPartnershipFilter;
+        if (partnershipFilter) params += `&partnership=${encodeURIComponent(partnershipFilter)}`;
+    }
+
     return params;
 }
 
@@ -1075,6 +1165,29 @@ async function loadGamesList() {
         }
     } catch (error) {
         console.error('Error fetching games list:', error);
+        return [];
+    }
+}
+
+// Loads the list of partnerships for events
+async function loadPartnershipsList() {
+    if (EventState.partnershipsListCache) {
+        return EventState.partnershipsListCache;
+    }
+
+    try {
+        const response = await fetch('/api/partnership-list');
+        const data = await response.json();
+
+        if (data.success && data.partnerships) {
+            EventState.partnershipsListCache = data.partnerships;
+            return EventState.partnershipsListCache;
+        } else {
+            console.error('Failed to load partnerships list');
+            return [];
+        }
+    } catch (error) {
+        console.error('Error fetching partnerships list:', error);
         return [];
     }
 }
@@ -1123,6 +1236,197 @@ async function loadGamesForFilter() {
     await populateGameDropdown('gameFilter', 'gameFilterLoadingIndicator');
 }
 
+/* ===============================
+   Partnership Dropdown Tag System
+   =============================== */
+const PartnershipTagConfig = {
+    create: {
+        panel: 'partnershipOptionsPanel',
+        container: 'selectedPartnershipsContainer',
+        hiddenInput: 'selectedPartnershipsInput',
+        customInput: 'customPartnership'
+    },
+    edit: {
+        panel: 'editPartnershipOptionsPanel',
+        container: 'editSelectedPartnershipsContainer',
+        hiddenInput: 'editSelectedPartnershipsInput',
+        customInput: 'editCustomPartnership'
+    }
+};
+
+// Initialize partnership tag selector for a specific context
+async function initializePartnershipTagSelector(context = 'create', preSelectedPartnerships = '') {
+    const config = PartnershipTagConfig[context];
+    if (!config) {
+        console.error(`Invalid context: ${context}`);
+        return;
+    }
+
+    if (preSelectedPartnerships && preSelectedPartnerships !== 'N/A') {
+        EventState.selectedPartnerships = preSelectedPartnerships.split(',').map(p => p.trim()).filter(p => p);
+    } else {
+        EventState.selectedPartnerships = [];
+    }
+
+    const panel = document.getElementById(config.panel);
+    if (!panel) {
+        console.warn(`${config.panel} element not found`);
+        return;
+    }
+
+    panel.innerHTML = '<div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+
+    try {
+        const partnerships = await loadPartnershipsList();
+        renderPartnershipPanelItems(context, partnerships);
+        updatePartnershipTagsDisplay(context);
+        updateHiddenPartnershipsInput(context);
+    } catch (error) {
+        console.error('Error initializing partnership tag selector:', error);
+        panel.innerHTML = '<div class="filter-box-flyout-loading">Failed to load partnerships</div>';
+    }
+}
+
+// Renders the option list inside the consolidated partnership combobox
+function renderPartnershipPanelItems(context, partnerships) {
+    const config = PartnershipTagConfig[context];
+    const panel = document.getElementById(config.panel);
+    if (!panel) return;
+
+    const available = partnerships.filter(p => !EventState.selectedPartnerships.includes(p.partnership_name));
+
+    const itemsHtml = available.length
+        ? available.map(p => `
+            <div class="filter-box-item" onclick="event.stopPropagation(); addPartnershipTag('${escapeQuotes(p.partnership_name)}', '${context}')">
+                ${p.partnership_name}
+            </div>
+        `).join('')
+        : '<div class="filter-box-flyout-loading">All partnerships added</div>';
+
+    panel.innerHTML = itemsHtml + `
+        <div class="filter-box-item tag-select-add-new" onclick="event.stopPropagation(); showPartnershipCustomInput('${context}')">
+            <i class="fas fa-plus"></i> Add new partnership
+        </div>
+    `;
+}
+
+// Swaps the panel into an inline text-entry mode for adding a brand new partnership
+function showPartnershipCustomInput(context) {
+    const config = PartnershipTagConfig[context];
+    const panel = document.getElementById(config.panel);
+    if (!panel) return;
+
+    panel.innerHTML = `
+        <div class="tag-select-custom-entry">
+            <input type="text" id="${config.customInput}" placeholder="Enter new partnership name">
+            <button type="button" class="partnership-confirm-btn" title="Add"
+                    onclick="event.stopPropagation(); submitCustomPartnership('${context}')">
+                <i class="fas fa-check"></i>
+            </button>
+            <button type="button" class="partnership-confirm-btn deny" title="Cancel"
+                    onclick="event.stopPropagation(); cancelCustomPartnership('${context}')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+
+    const input = document.getElementById(config.customInput);
+    input?.focus();
+    input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submitCustomPartnership(context);
+        } else if (e.key === 'Escape') {
+            cancelCustomPartnership(context);
+        }
+    });
+}
+
+// Cancels custom-entry mode and rebuilds the normal option list
+async function cancelCustomPartnership(context) {
+    const partnerships = await loadPartnershipsList();
+    renderPartnershipPanelItems(context, partnerships);
+}
+
+// Adds the custom partnership as a tag, then rebuilds the panel's option list
+async function submitCustomPartnership(context) {
+    const config = PartnershipTagConfig[context];
+    const input = document.getElementById(config.customInput);
+    const name = input?.value.trim();
+    if (!name || EventState.selectedPartnerships.includes(name)) return;
+
+    addPartnershipTag(name, context);
+
+    const partnerships = await loadPartnershipsList();
+    renderPartnershipPanelItems(context, partnerships);
+}
+
+// Add a tag to selected partnerships for an event
+function addPartnershipTag(name, context = 'create') {
+    if (EventState.selectedPartnerships.includes(name)) return;
+
+    EventState.selectedPartnerships.push(name);
+    updatePartnershipTagsDisplay(context);
+    updateHiddenPartnershipsInput(context);
+    updatePartnershipDropdownOptions(context);
+}
+
+// Remove a tag from the selected partnerships
+function removePartnershipTag(name, context = 'create') {
+    EventState.selectedPartnerships = EventState.selectedPartnerships.filter(p => p !== name);
+    updatePartnershipTagsDisplay(context);
+    updateHiddenPartnershipsInput(context);
+    updatePartnershipDropdownOptions(context);
+}
+
+// Update display of selected partnerships
+function updatePartnershipTagsDisplay(context = 'create') {
+    const config = PartnershipTagConfig[context];
+    const container = document.getElementById(config.container);
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    EventState.selectedPartnerships.forEach(name => {
+        const tag = document.createElement('div');
+        tag.className = 'game-tag';
+        tag.innerHTML = `
+            <i class="fas fa-handshake game-tag-icon"></i>
+            <span>${name}</span>
+            <button type="button"
+                    class="game-tag-remove"
+                    onclick="event.stopPropagation(); removePartnershipTag('${escapeQuotes(name)}', '${context}')"
+                    title="Remove ${name}">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(tag);
+    });
+}
+
+// Hide already-selected partnerships from the dropdown (leave "+ Add new" always visible)
+async function updatePartnershipDropdownOptions(context = 'create') {
+    const partnerships = await loadPartnershipsList();
+    renderPartnershipPanelItems(context, partnerships);
+}
+
+// Sync hidden input as partnerships are selected or deselected
+function updateHiddenPartnershipsInput(context = 'create') {
+    const config = PartnershipTagConfig[context];
+    const hiddenInput = document.getElementById(config.hiddenInput);
+    if (hiddenInput) {
+        hiddenInput.value = JSON.stringify(EventState.selectedPartnerships);
+    }
+}
+
+// Clear all selected partnerships
+function clearSelectedPartnerships(context = 'create') {
+    EventState.selectedPartnerships = [];
+    updatePartnershipTagsDisplay(context);
+    updateHiddenPartnershipsInput(context);
+    updatePartnershipDropdownOptions(context);
+}
+
 /* =================================
    Filter UI
    ================================= */
@@ -1132,6 +1436,7 @@ function applyPrimaryFilter(value, label) {
     document.getElementById('filterBox1Label').textContent = label;
     document.getElementById('eventFilter').value = value;
     EventState.selectedGame = null;
+    EventState.selectedPartnershipFilter = null;
     closeAllFilterPanels();
 
     // Hide Box 2 and reset season state
@@ -1148,6 +1453,7 @@ function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, 
     document.getElementById('eventFilter').value = filterVal;
     document.getElementById(subSelectId).value = subVal;
     if (filterVal === 'game') EventState.selectedGame = subVal;
+    if (filterVal === 'partnership') EventState.selectedPartnershipFilter = subVal;
     closeAllFilterPanels();
 
     document.getElementById('filterBox2').style.display = 'none';
@@ -1156,6 +1462,8 @@ function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, 
 
     if (filterVal === 'game') {
         filterEventsByGame();
+    } else if (filterVal === 'partnership') {
+        filterEventsByPartnership();
     } else {
         handleTypeFilterChange();
     }
@@ -1187,6 +1495,7 @@ function applySecondaryFilter(value, label) {
     closeAllFilterPanels();
     PastSeasonFilterState.secondaryFilter = value;
     PastSeasonFilterState.selectedGame = null;
+    PastSeasonFilterState.selectedPartnership = null;
     loadEventsForPastSeason();
 }
 
@@ -1197,6 +1506,7 @@ function applySecondaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal
     document.getElementById(subSelectId).value = subVal;
     PastSeasonFilterState.secondaryFilter = filterVal;
     if (filterVal === 'game') PastSeasonFilterState.selectedGame = subVal;
+    if (filterVal === 'partnership') PastSeasonFilterState.selectedPartnership = subVal;
     closeAllFilterPanels();
     loadEventsForPastSeason();
 }
@@ -1226,6 +1536,8 @@ function initPastSeasonsFlyout() {
             }
         } catch {
             flyout.innerHTML = '<div class="filter-box-flyout-loading">Failed to load</div>';
+        } finally {
+            positionFlyout(trigger);
         }
     });
 }
@@ -1257,6 +1569,46 @@ function initGameFlyouts() {
                 }
             } catch {
                 flyout.innerHTML = '<div class="filter-box-flyout-loading">Failed to load</div>';
+            } finally {
+                positionFlyout(trigger);
+            }
+        });
+    });
+}
+
+// Populate the Partnerships filter flyouts (primary + past-season secondary) on hover
+function initPartnershipFilterFlyout() {
+    [
+        { triggerId: 'partnershipFilterFlyoutTrigger', flyoutId: 'partnershipFilterFlyout', isPrimary: true },
+        { triggerId: 'partnershipFilterFlyoutTrigger2', flyoutId: 'partnershipFilterFlyout2', isPrimary: false }
+    ].forEach(({ triggerId, flyoutId, isPrimary }) => {
+        const trigger = document.getElementById(triggerId);
+        const flyout = document.getElementById(flyoutId);
+        if (!trigger || !flyout) return;
+
+        let loaded = false;
+        trigger.addEventListener('mouseenter', async () => {
+            if (loaded) return;
+            loaded = true;
+            try {
+                const partnerships = await loadPartnershipsList();
+                if (partnerships?.length) {
+                    flyout.innerHTML = partnerships.map(p => `
+                        <div class="filter-box-flyout-item"
+                             onclick="${isPrimary
+                                ? `applyPrimaryFilterWithSub('partnership','Partnerships','partnershipFilter','${p.partnership_name.replace(/'/g, "\\'")}','${p.partnership_name.replace(/'/g, "\\'")}')`
+                                : `applySecondaryFilterWithSub('partnership','Partnerships','partnershipFilter','${p.partnership_name.replace(/'/g, "\\'")}','${p.partnership_name.replace(/'/g, "\\'")}')`
+                             }">
+                            ${p.partnership_name}
+                        </div>
+                    `).join('');
+                } else {
+                    flyout.innerHTML = '<div class="filter-box-flyout-loading">No partnerships found</div>';
+                }
+            } catch {
+                flyout.innerHTML = '<div class="filter-box-flyout-loading">Failed to load</div>';
+            } finally {
+                positionFlyout(trigger);
             }
         });
     });
@@ -1265,7 +1617,6 @@ function initGameFlyouts() {
 /* ===============================
    Event Filtering
    =============================== */
-// Filter events based on dropdown selection
 function filterEvents() {
     const filterSelect = document.getElementById('eventFilter');
     const filterValue = filterSelect?.value || 'all';
@@ -1274,6 +1625,7 @@ function filterEvents() {
     const typeFilterSelect = document.getElementById('eventTypeFilter');
     const gameFilterContainer = document.getElementById('gameFilterContainer');
     const gameFilterSelect = document.getElementById('gameFilter');
+    const partnershipFilterSelect = document.getElementById('partnershipFilter');
 
     // Past season-specific elements
     const pastSeasonSelectContainer = document.getElementById('pastSeasonSelectContainer');
@@ -1288,6 +1640,8 @@ function filterEvents() {
     // Reset secondary filters
     if (typeFilterSelect) typeFilterSelect.value = '';
     if (gameFilterSelect) gameFilterSelect.value = '';
+    if (partnershipFilterSelect) partnershipFilterSelect.value = '';
+    EventState.selectedPartnershipFilter = null;
 
     // Reset past season filter state
     PastSeasonFilterState.selectedSeasonId = null;
@@ -1351,6 +1705,14 @@ function filterEventsByGame() {
     }
 }
 
+// Filter events by partnership (called when a partnership is selected from the flyout)
+function filterEventsByPartnership() {
+    const partnershipFilterSelect = document.getElementById('partnershipFilter');
+    if (partnershipFilterSelect?.value || EventState.selectedPartnershipFilter) {
+        loadEvents();
+    }
+}
+
 /* ================================
     SEASON FILTERING
    ================================ */
@@ -1362,7 +1724,8 @@ const PastSeasonFilterState = {
     availablePastSeasons: [],
     secondaryFilter: 'all',
     isFilteringPastSeason: false,
-    selectedGame: null
+    selectedGame: null,
+    selectedPartnership: null
 };
 
 // Filter events by past season and secondary filter
@@ -1398,16 +1761,14 @@ function filterEventsByPastSeason() {
    =============================== */
 const GameTagConfig = {
     create: {
-        dropdown: 'gameDropdown',
+        panel: 'gameOptionsPanel',
         container: 'selectedGamesContainer',
-        hiddenInput: 'selectedGamesInput',
-        loadingIndicator: 'gameLoadingIndicator'
+        hiddenInput: 'selectedGamesInput'
     },
     edit: {
-        dropdown: 'editGameDropdown',
+        panel: 'editGameOptionsPanel',
         container: 'editSelectedGamesContainer',
-        hiddenInput: 'editSelectedGamesInput',
-        loadingIndicator: 'editGameLoadingIndicator'
+        hiddenInput: 'editSelectedGamesInput'
     }
 };
 
@@ -1419,80 +1780,55 @@ async function initializeGameTagSelector(context = 'create', preSelectedGames = 
         return;
     }
 
-    const dropdown = document.getElementById(config.dropdown);
-    const loadingIndicator = document.getElementById(config.loadingIndicator);
+    if (preSelectedGames && preSelectedGames !== 'N/A') {
+        EventState.selectedGames = preSelectedGames.split(',').map(g => g.trim()).filter(g => g);
+    } else {
+        EventState.selectedGames = [];
+    }
 
-    if (!dropdown) {
-        console.warn(`${config.dropdown} element not found`);
+    const panel = document.getElementById(config.panel);
+    if (!panel) {
+        console.warn(`${config.panel} element not found`);
         return;
     }
 
-    // Show loading indicator
-    setElementDisplay(loadingIndicator, 'block');
+    panel.innerHTML = '<div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
 
     try {
-        // Load games list
         const games = await loadGamesList();
-
-        // Populate dropdown
-        dropdown.innerHTML = '<option value="">+ Add a game</option>';
-
-        if (games.length === 0) {
-            dropdown.innerHTML += '<option value="" disabled>No games available</option>';
-        } else {
-            games.forEach(game => {
-                const option = document.createElement('option');
-                option.value = game.GameTitle;
-                option.textContent = game.GameTitle;
-                dropdown.appendChild(option);
-            });
-        }
-
-        // Parse and add pre-selected games (for edit mode)
-        if (preSelectedGames && preSelectedGames !== 'N/A') {
-            EventState.selectedGames = preSelectedGames
-                .split(',')
-                .map(g => g.trim())
-                .filter(g => g);
-        } else {
-            EventState.selectedGames = [];
-        }
-
-        // Update display
+        renderGamePanelItems(context, games);
         updateGameTagsDisplay(context);
         updateHiddenGamesInput(context);
-
-        // Attach change listener
-        attachGameDropdownListener(dropdown, context);
-        updateDropdownOptions(context);
-
     } catch (error) {
         console.error('Error initializing game tag selector:', error);
-        dropdown.innerHTML = '<option value="">Error loading games</option>';
-    } finally {
-        // Hide loading and ensure dropdown is enabled
-        setElementDisplay(loadingIndicator, 'none');
-        enableDropdown(dropdown);
+        panel.innerHTML = '<div class="filter-box-flyout-loading">Failed to load games</div>';
     }
 }
 
-// Attach change listeners for game dropdown
-function attachGameDropdownListener(dropdown, context) {
-    // Remove existing listener by cloning
-    const clone = dropdown.cloneNode(true);
-    dropdown.replaceWith(clone);
+// Renders the option list inside the consolidated game combobox, skipping already-selected games
+function renderGamePanelItems(context, games) {
+    const config = GameTagConfig[context];
+    const panel = document.getElementById(config.panel);
+    if (!panel) return;
 
-    // Get fresh reference
-    const newDropdown = document.getElementById(GameTagConfig[context].dropdown);
-    if (!newDropdown) return;
+    if (!games.length) {
+        panel.innerHTML = '<div class="filter-box-flyout-loading">No games available</div>';
+        return;
+    }
 
-    newDropdown.addEventListener('change', function() {
-        const selectedGame = this.value;
-        if (selectedGame && !EventState.selectedGames.includes(selectedGame)) {
-            addGameTag(selectedGame, context);
-        }
-        this.value = ''; // Reset to placeholder
-    });
+    const available = games.filter(g => !EventState.selectedGames.includes(g.GameTitle));
+
+    if (!available.length) {
+        panel.innerHTML = '<div class="filter-box-flyout-loading">All games added</div>';
+        return;
+    }
+
+    panel.innerHTML = available.map(g => `
+        <div class="filter-box-item" onclick="event.stopPropagation(); addGameTag('${escapeQuotes(g.GameTitle)}', '${context}')">
+            ${g.image_url ? `<img src="${g.image_url}" class="game-option-icon" alt="" onerror="handleGameIconError(this, 'game-option-icon-fallback')">` : `<i class="fas fa-gamepad game-option-icon-fallback"></i>`}
+            ${g.GameTitle}
+        </div>
+    `).join('');
 }
 
 // Add a tag to selected games for an event
@@ -1522,14 +1858,19 @@ function updateGameTagsDisplay(context = 'create') {
     container.innerHTML = '';
 
     EventState.selectedGames.forEach(game => {
+        const gameData = EventState.gamesListCache?.find(g => g.GameTitle === game);
+        const iconHtml = gameData?.image_url
+            ? `<img src="${gameData.image_url}" class="game-tag-icon-img" alt="" onerror="handleGameIconError(this, 'game-tag-icon')">`
+            : `<i class="fas fa-gamepad game-tag-icon"></i>`;
+
         const tag = document.createElement('div');
         tag.className = 'game-tag';
         tag.innerHTML = `
-            <i class="fas fa-gamepad game-tag-icon"></i>
+            ${iconHtml}
             <span>${game}</span>
             <button type="button"
                     class="game-tag-remove"
-                    onclick="removeGameTag('${escapeQuotes(game)}', '${context}')"
+                    onclick="event.stopPropagation(); removeGameTag('${escapeQuotes(game)}', '${context}')"
                     title="Remove ${game}">
                 <i class="fas fa-times"></i>
             </button>
@@ -1539,26 +1880,9 @@ function updateGameTagsDisplay(context = 'create') {
 }
 
 // Update dropdown when games are selected or deselected
-function updateDropdownOptions(context = 'create') {
-    const config = GameTagConfig[context];
-    const dropdown = document.getElementById(config.dropdown);
-    if (!dropdown) return;
-
-    // Get all options except the placeholder
-    const options = Array.from(dropdown.options);
-
-    options.forEach(option => {
-        if (option.value === '') return; // Skip placeholder
-
-        // Hide if already selected, show if not
-        if (EventState.selectedGames.includes(option.value)) {
-            option.style.display = 'none';
-            option.disabled = true;
-        } else {
-            option.style.display = '';
-            option.disabled = false;
-        }
-    });
+async function updateDropdownOptions(context = 'create') {
+    const games = await loadGamesList();
+    renderGamePanelItems(context, games);
 }
 
 // Update list of hidden games as games are selected or deselected
@@ -1783,6 +2107,33 @@ function startBannerSlideshow(bannerEl) {
         current = (current + 1) % slides.length;
         slides[current].classList.add('active');
     }, 3500);
+}
+
+// Starts the partnership slideshow if multiple present
+function initPartnershipFlairStage(stageEl) {
+    if (!stageEl) return;
+    const flairs = Array.from(stageEl.querySelectorAll('.partnership-flair'));
+    if (!flairs.length) return;
+
+    const maxWidth = Math.max(...flairs.map(f => f.offsetWidth));
+    stageEl.style.width = `${maxWidth}px`;
+
+    if (flairs.length > 1) {
+        let current = 0;
+        clearInterval(stageEl._flairInterval);
+        stageEl._flairInterval = setInterval(() => {
+            flairs[current].classList.remove('active');
+            current = (current + 1) % flairs.length;
+            flairs[current].classList.add('active');
+        }, 2500);
+    }
+}
+
+// Swaps a broken game image for the gamepad fallback icon
+function handleGameIconError(imgEl, fallbackClass) {
+    const fallback = document.createElement('i');
+    fallback.className = `fas fa-gamepad ${fallbackClass}`;
+    imgEl.replaceWith(fallback);
 }
 
 // ============================================

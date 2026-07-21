@@ -28,6 +28,86 @@
     align-items: center;
 }
 
+/* ===============================
+   Partnership Kebab Option
+   =============================== */
+.partnership-manage-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.2rem 0.3rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.partnership-manage-row:hover {
+    background: var(--hover-bg);
+}
+
+.partnership-manage-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.partnership-manage-actions {
+    display: flex;
+    gap: 0.3rem;
+    flex-shrink: 0;
+}
+
+.partnership-manage-btn {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.partnership-manage-btn:hover {
+    background: var(--card-bg);
+}
+
+.partnership-manage-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.25rem 0.4rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--stockton-blue);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+}
+
+/* Additional rules designed to override dashboard-base.css rules */
+.partnership-manage-actions .partnership-manage-btn i {
+    color: var(--text-secondary);
+}
+
+.partnership-manage-actions .partnership-manage-btn:hover i {
+    color: var(--stockton-blue);
+}
+
+.partnership-manage-actions .partnership-manage-btn.delete:hover i {
+    color: #ef4444;
+}
+
+.partnership-manage-actions .partnership-confirm-btn i {
+    color: var(--stockton-blue);
+}
+
+.partnership-manage-actions .partnership-confirm-btn.deny i {
+    color: #ef4444;
+}
+
 /* ========================================
    User Summary Cards
    ======================================== */

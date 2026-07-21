@@ -190,7 +190,7 @@ function initializePreferredTabSetting() {
     const container = document.getElementById('preferredTabButtons');
     if (!container) return;
 
-    const buttons = container.querySelectorAll('.community-filter-btn');
+    const buttons = container.querySelectorAll('.filter-btn');
     const message  = document.getElementById('preferredTabMessage');
 
     buttons.forEach(btn => {
