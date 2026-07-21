@@ -2,6 +2,11 @@ from EsportsManagementTool import mysql, app, roles_required
 from EsportsManagementTool.universal_helpers import format_time_raw
 from flask import jsonify, request, Response
 import MySQLdb.cursors
+from dotenv import load_dotenv
+load_dotenv()
+import os
+import time
+import requests as http_req
 
 
 # ============================================
@@ -272,3 +277,112 @@ def update_stream(stream_id):
         return jsonify({'success': False, 'message': 'Failed to update stream'}), 500
     finally:
         cursor.close()
+
+# ============================================
+# STREAM EMBED
+# ============================================
+
+_TWITCH_CHANNEL       = 'stocktonesports'
+_TWITCH_CLIENT_ID     = os.environ.get('TWITCH_CLIENT_ID')
+_TWITCH_CLIENT_SECRET = os.environ.get('TWITCH_CLIENT_SECRET')
+
+_token_cache   = {'value': None, 'expires_at': 0}
+_status_cache  = {'data':  None, 'expires_at': 0}
+_user_id_cache = {'value': None}
+
+
+def _get_twitch_token():
+    """Return a valid app-access token, refreshing only when expired."""
+    now = time.time()
+    if _token_cache['value'] and now < _token_cache['expires_at']:
+        return _token_cache['value']
+
+    resp = http_req.post('https://id.twitch.tv/oauth2/token', params={
+        'client_id':     _TWITCH_CLIENT_ID,
+        'client_secret': _TWITCH_CLIENT_SECRET,
+        'grant_type':    'client_credentials',
+    })
+    resp.raise_for_status()
+    body = resp.json()
+
+    _token_cache['value']      = body['access_token']
+    _token_cache['expires_at'] = now + body['expires_in'] - 60
+    return _token_cache['value']
+
+
+def _get_twitch_user_id(headers):
+    """Return the numeric Twitch user ID for the channel, cached after first fetch."""
+    if _user_id_cache['value']:
+        return _user_id_cache['value']
+
+    resp = http_req.get(
+        'https://api.twitch.tv/helix/users',
+        params={'login': _TWITCH_CHANNEL},
+        headers=headers
+    ).json()
+
+    if resp.get('data'):
+        _user_id_cache['value'] = resp['data'][0]['id']
+
+    return _user_id_cache['value']
+
+
+@app.route('/api/twitch-status')
+def twitch_status():
+    """
+    Returns whether the channel is live and which embed to show.
+    """
+    now = time.time()
+    if _status_cache['data'] and now < _status_cache['expires_at']:
+        return jsonify(_status_cache['data'])
+
+    try:
+        token = _get_twitch_token()
+        headers = {
+            'Client-ID':     _TWITCH_CLIENT_ID,
+            'Authorization': f'Bearer {token}',
+        }
+
+        # Check if live
+        stream = http_req.get(
+            'https://api.twitch.tv/helix/streams',
+            params={'user_login': _TWITCH_CHANNEL},
+            headers=headers
+        ).json()
+
+        if stream.get('data'):
+            result = {
+                'is_live':    True,
+                'embed_type': 'channel',
+                'embed_id':   _TWITCH_CHANNEL,
+            }
+        else:
+            # Try most recent highlight
+            user_id = _get_twitch_user_id(headers)
+            highlights = http_req.get(
+                'https://api.twitch.tv/helix/videos',
+                params={'user_id': user_id, 'type': 'highlight', 'first': 1},
+                headers=headers
+            ).json() if user_id else {'data': []}
+
+            if highlights.get('data'):
+                result = {
+                    'is_live':    False,
+                    'embed_type': 'video',
+                    'embed_id':   highlights['data'][0]['id'],
+                }
+            else:
+                # Fall back to channel offline page
+                result = {
+                    'is_live':    False,
+                    'embed_type': 'channel',
+                    'embed_id':   _TWITCH_CHANNEL,
+                }
+
+        _status_cache['data']       = result
+        _status_cache['expires_at'] = now + 120
+        return jsonify(result)
+
+    except Exception as e:
+        print(f'Twitch API error: {e}')
+        return jsonify({'is_live': False, 'embed_type': None, 'embed_id': None})
