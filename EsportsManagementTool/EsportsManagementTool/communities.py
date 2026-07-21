@@ -1222,8 +1222,16 @@ def get_game_list():
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         try:
-            cursor.execute("SELECT GameID, GameTitle, Abbreviation FROM games ORDER BY GameTitle ASC")
+            cursor.execute("""
+                SELECT GameID, GameTitle, Abbreviation,
+                       CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image
+                FROM games
+                ORDER BY GameTitle ASC
+            """)
             games = cursor.fetchall()
+
+            for game in games:
+                game['image_url'] = f'/game-image/{game["GameID"]}' if game['has_image'] else None
 
             return jsonify({'success': True, 'games': games}), 200
 
