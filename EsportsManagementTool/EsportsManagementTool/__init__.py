@@ -514,10 +514,9 @@ def logout():
     session.pop('loggedin', None)
     session.pop('id', None)
     session.pop('username', None)
-    flash('Successfully logged out.')
 
     # Clear remember cookie
-    response = make_response(redirect(url_for('login')))
+    response = make_response(redirect(url_for('login', message='Successfully logged out.')))
     response.set_cookie('remember_token', '', max_age=0)
     return response
 
