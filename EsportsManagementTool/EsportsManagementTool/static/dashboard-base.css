@@ -205,7 +205,6 @@ main {
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 0.375rem;
-    min-width: 180px;
     z-index: 200;
     box-shadow: 0 8px 24px rgba(0,0,0,0.3);
 }
@@ -536,6 +535,33 @@ main {
     color: var(--text-secondary);
 }
 
+/* ============================
+   Kebab settings buttons
+   ============================ */
+/* Icon-only "kebab" variant of filter-box-btn (round, ellipsis icon) */
+.kebab-btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    justify-content: center;
+}
+
+.kebab-btn i {
+    font-size: 1rem;
+}
+
+/* Kebab icon shouldn't rotate on open, unlike the chevron dropdowns */
+.kebab-btn.active i {
+    transform: none;
+}
+
+/* Anchors a filter-box-panel to the right edge of its button, so it
+   opens leftward instead of overflowing off-screen */
+.filter-box-panel--right {
+    left: auto;
+    right: 0;
+}
+
 /* ====================================
    Mobile Sheet View
    Shared dim backdrop + slide-up panel treatment.
@@ -598,10 +624,6 @@ main {
 @media (max-width: 1038px) {
   .card-header {
     flex-direction: column;
-  }
-
-  .card-header .btn {
-    width: 100%;
   }
 
   .dashboard-header {

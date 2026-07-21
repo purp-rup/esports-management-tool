@@ -462,6 +462,7 @@
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
+    text-align: left;
 }
 
 .today-event-item:hover {
@@ -484,7 +485,7 @@
 }
 
 .today-event-title {
-    font-size: 0.875rem;
+    font-size: 1rem;
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 0.4rem;

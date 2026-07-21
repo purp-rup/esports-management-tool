@@ -13,25 +13,25 @@ let cropper = null;
 /**
  * Current image field context
  * Determines which feature is using the cropper
- * @type {string|null} - 'league', 'community', 'avatar', etc.
  */
 let currentImageField = null;
 
+// Array of landing gallery photos loaded as empty initially
+let landingGalleryPhotos = [];
+
 /**
  * Cropped image blob storage
- * Different contexts use different variable names for backwards compatibility
+ * Different contexts use different variable names
  */
 let croppedImageBlob = null;           // Used by leagues
 let bannerCroppedImageBlob = null;     // Used by community banner
 let communityCroppedImageBlob = null;  // Used as community icon
 let avatarCroppedImageBlob = null;     // Used by profile avatar
-let carouselCroppedImageBlob = null;  // Used by community photo carousel
+let galleryCroppedImageBlob = null;    // Used by community photo carousel AND landing page gallery
 
 // ============================================
 // CROPPER MODAL - OPEN/CLOSE
 // ============================================
-
-// Open image cropper modal with file attached
 function openImageCropper(file, context = null) {
     const modal = document.getElementById('imageCropperModal');
     if (!modal) {
@@ -60,7 +60,7 @@ function openImageCropper(file, context = null) {
 
             cropper = new Cropper(imageElement, {
                 aspectRatio: currentImageField === 'banner'   ? 16 / 5  :
-                             currentImageField === 'carousel' ? 16 / 9  : 1,
+                             currentImageField === 'gallery' ? 16 / 9  : 1,
                 viewMode: 1,
                 dragMode: 'move',
                 autoCropArea: 0.8,
@@ -95,37 +95,27 @@ function closeImageCropper() {
 // CROPPER CONTROLS
 // ============================================
 
-/**
- * Zoom in on image
- */
+// Zoom in on image
 function cropZoomIn() {
     if (cropper) cropper.zoom(0.1);
 }
 
-/**
- * Zoom out on image
- */
+// Zoom out on image
 function cropZoomOut() {
     if (cropper) cropper.zoom(-0.1);
 }
 
-/**
- * Rotate image left (counter-clockwise)
- */
+// Rotate image left (counter-clockwise)
 function cropRotateLeft() {
     if (cropper) cropper.rotate(-90);
 }
 
-/**
- * Rotate image right (clockwise)
- */
+// Rotate image right (clockwise)
 function cropRotateRight() {
     if (cropper) cropper.rotate(90);
 }
 
-/**
- * Reset crop to original state
- */
+// Reset crop to original state
 function cropReset() {
     if (cropper) cropper.reset();
 }
@@ -134,9 +124,7 @@ function cropReset() {
 // APPLY CROP
 // ================================
 
-/**
- * Apply crop and route to correct handler based on context
- */
+// Apply crop and route to correct handler based on context
 function applyCrop() {
     if (!cropper) return;
 
@@ -162,8 +150,8 @@ function applyCrop() {
         case 'banner':
             handleBannerCrop(cropSettings);
             break;
-        case 'carousel':
-            handleCarouselCrop(cropSettings);
+        case 'gallery':
+            handleGalleryCrop(cropSettings);
             break;
         default:
             console.warn('Unknown image field type:', currentImageField);
@@ -172,10 +160,7 @@ function applyCrop() {
     }
 }
 
-/**
- * Handle crop for league logo
- * @param {Object} settings - Crop canvas settings
- */
+// Handle crop for league logo
 function handleLeagueCrop(settings) {
     cropper.getCroppedCanvas(settings).toBlob((blob) => {
         croppedImageBlob = blob;
@@ -270,34 +255,42 @@ function handleBannerCrop(settings) {
 }
 
 /**
- * Handle crop for community photo carousel.
+ * Handle crop for a 16:9 photo gallery — used by both the community photo
+ * carousel and the landing page gallery. The destination is determined by
+ * whether a #communityGameId element is present on the page
  * Output: 1280×720px PNG (16:9 aspect ratio)
  */
-function handleCarouselCrop(settings) {
-    const carouselSettings = {
+function handleGalleryCrop(settings) {
+    const gallerySettings = {
         width: 1280,
         height: 720,
         imageSmoothingEnabled: true,
         imageSmoothingQuality: 'high',
     };
 
-    cropper.getCroppedCanvas(carouselSettings).toBlob((blob) => {
-        carouselCroppedImageBlob = blob;
+    cropper.getCroppedCanvas(gallerySettings).toBlob((blob) => {
+        galleryCroppedImageBlob = blob;
         closeImageCropper();
 
         const gameIdEl = document.getElementById('communityGameId');
-        if (!gameIdEl) return;
+        const uploadUrl = gameIdEl
+            ? `/api/game/${gameIdEl.value}/photos`
+            : '/api/admin/landing-photos';
 
         const formData = new FormData();
         formData.append('photo', blob, 'photo.png');
 
-        fetch(`/api/game/${gameIdEl.value}/photos`, { method: 'POST', body: formData })
+        fetch(uploadUrl, { method: 'POST', body: formData })
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    carouselPhotos.push(data.photo);
-                    carouselIndex = carouselPhotos.length - 1;
-                    renderCarousel();
+                    if (gameIdEl) {
+                        carouselPhotos.push(data.photo);
+                        carouselIndex = carouselPhotos.length - 1;
+                        renderCarousel();
+                    } else {
+                        onLandingPhotoUploaded(data.photo);
+                    }
                 } else if (data.limit_reached) {
                     alert(data.message);
                 } else {
@@ -309,14 +302,109 @@ function handleCarouselCrop(settings) {
 }
 
 // ============================================
-// UTILITY - GET CROPPED BLOB
+// ADMIN — LANDING PAGE GALLERY MANAGEMENT
 // ============================================
 
-/**
- * Get the cropped image blob for a specific context
- * @param {string} context - Context identifier
- * @returns {Blob|null} Cropped image blob
- */
+// Confirms a photo will be removed
+function confirmDeleteLandingPhoto(photoId) {
+    openDeleteConfirmModal({
+        title: 'Delete Photo?',
+        message: 'Are you sure you want to permanently delete this photo from the landing gallery? This cannot be undone.',
+        buttonText: 'Delete Photo',
+        itemId: photoId,
+        onConfirm: async (id) => {
+            await executeLandingPhotoDelete(id);
+        }
+    });
+}
+
+// Removes a desired photo from the gallery
+async function executeLandingPhotoDelete(photoId) {
+    try {
+        const res  = await fetch(`/api/admin/landing-photos/${photoId}`, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (data.success) {
+            landingGalleryPhotos = landingGalleryPhotos.filter(p => p.photo_id !== photoId);
+            closeDeleteConfirmModal();
+            renderLandingGalleryAdminGrid();
+            showDeleteSuccessMessage('Photo deleted successfully.');
+        } else {
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage('Delete failed: ' + data.message);
+        }
+    } catch (e) {
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Delete failed. Please try again.');
+    }
+}
+
+// Displays an error if not rendered properly
+function showLandingGalleryError(message) {
+    const el = document.getElementById('landingGalleryMessage');
+    if (!el) return;
+    el.textContent = message;
+    el.className = 'form-message error';
+    el.style.display = 'block';
+}
+
+// Called directly from handleGalleryCrop() above after a successful landing page upload
+function onLandingPhotoUploaded(photo) {
+    landingGalleryPhotos.unshift(photo);
+    renderLandingGalleryAdminGrid();
+}
+
+// ============================================
+// PUBLIC — LANDING PAGE FILM-REEL MARQUEE
+// ============================================
+
+// Builds the landing page gallery
+async function initLandingGallery() {
+    const strip = document.getElementById('landingGalleryStrip');
+    const track = document.getElementById('landingGalleryTrack');
+    if (!strip || !track) return;
+
+    try {
+        const res  = await fetch('/api/landing/photos');
+        const data = await res.json();
+
+        if (!data.success || !data.photos.length) {
+            strip.style.display = 'none';
+            return;
+        }
+
+        const photos = data.photos;
+
+        // Duplicate the sequence so the strip can loop seamlessly
+        const slidesHtml = photos.map(p => `
+            <div class="landing-gallery-slide">
+                <img src="${p.photo_url}" alt="Stockton Esports community photo" loading="lazy">
+            </div>
+        `).join('');
+        track.innerHTML = slidesHtml + slidesHtml;
+
+        strip.style.display = 'block';
+        track.style.animationDuration = `${photos.length * 6}s`;
+    } catch (e) {
+        console.error('Failed to load landing gallery photos:', e);
+        strip.style.display = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // initFileInputCropper lives in communities.js, which isn't loaded
+    // on the public landing page — guard so this file works on both
+    if (typeof initFileInputCropper === 'function') {
+        initFileInputCropper('landingGalleryFileInput', 'gallery');
+    }
+    initLandingGallery();
+});
+
+// ============================================
+// UTILITIES
+// ============================================
+
+// Get a cropped image blob based on photo context
 function getCroppedImageBlob(context) {
     switch(context) {
         case 'league':
@@ -327,17 +415,14 @@ function getCroppedImageBlob(context) {
             return avatarCroppedImageBlob;
         case 'banner':
             return bannerCroppedImageBlob;
-        case 'carousel':
-            return carouselCroppedImageBlob;
+        case 'gallery':
+            return galleryCroppedImageBlob;
         default:
             return null;
     }
 }
 
-/**
- * Clear cropped image blob for a specific context
- * @param {string} context - Context identifier
- */
+// Clear cropped image blob for a specific context
 function clearCroppedImageBlob(context) {
     switch(context) {
         case 'league':
@@ -352,8 +437,8 @@ function clearCroppedImageBlob(context) {
         case 'banner':
             bannerCroppedImageBlob = null;
             break;
-        case 'carousel':
-            carouselCroppedImageBlob = null;
+        case 'gallery':
+            galleryCroppedImageBlob = null;
             break;
     }
 }
@@ -361,8 +446,6 @@ function clearCroppedImageBlob(context) {
 // ============================================
 // GLOBAL EXPORTS
 // ============================================
-
-// Core functions
 window.openImageCropper = openImageCropper;
 window.closeImageCropper = closeImageCropper;
 window.applyCrop = applyCrop;
@@ -377,3 +460,6 @@ window.cropReset = cropReset;
 // Utility functions
 window.getCroppedImageBlob = getCroppedImageBlob;
 window.clearCroppedImageBlob = clearCroppedImageBlob;
+
+// Landing gallery — admin management
+window.confirmDeleteLandingPhoto      = confirmDeleteLandingPhoto;

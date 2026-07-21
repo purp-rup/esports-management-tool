@@ -15,6 +15,9 @@
 //Currently selected user ID in the admin panel
 let selectedUserId = null;
 
+// Maximum photos allowed in the landing page gallery.
+const MAX_LANDING_PHOTOS = 12;
+
 // Initialize admin panel, refresh badges, and show user list once loaded
 async function initializeAdminPanel() {
     attachAdminEventListeners();
@@ -567,9 +570,88 @@ async function removeUser(userId, username, fullName) {
     }
 }
 
+/* ===================================
+   Landing gallery modal
+   =================================== */
+function openManageLandingGalleryModal() {
+    const modal = document.getElementById('manageLandingGalleryModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    lockBodyScroll('manageLandingGalleryModal');
+    loadLandingGalleryAdmin();
+}
+
+function closeManageLandingGalleryModal() {
+    const modal = document.getElementById('manageLandingGalleryModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    unlockBodyScroll('manageLandingGalleryModal');
+}
+
+// Loads the gallery management modal
+async function loadLandingGalleryAdmin() {
+    const loading = document.getElementById('landingGalleryLoading');
+    const grid    = document.getElementById('landingGalleryGrid');
+    if (!loading || !grid) return;
+
+    loading.style.display = 'block';
+    grid.style.display    = 'none';
+
+    try {
+        const res  = await fetch('/api/admin/landing-photos');
+        const data = await res.json();
+
+        if (data.success) {
+            landingGalleryPhotos = data.photos;
+            renderLandingGalleryAdminGrid();
+        } else {
+            showLandingGalleryError(data.message || 'Failed to load photos');
+        }
+    } catch (e) {
+        console.error('Error loading landing gallery:', e);
+        showLandingGalleryError('Failed to load photos. Please try again.');
+    } finally {
+        loading.style.display = 'none';
+    }
+}
+
+// Updates the "X / 12" indicator
+function updateLandingGalleryCount() {
+    const counter = document.getElementById('landingGalleryCount');
+    if (!counter) return;
+    counter.textContent = `${landingGalleryPhotos.length} / ${MAX_LANDING_PHOTOS}`;
+}
+
+// Renders the frontend for the gallery admin modal
+function renderLandingGalleryAdminGrid() {
+    const grid = document.getElementById('landingGalleryGrid');
+    if (!grid) return;
+
+    grid.style.display = 'grid';
+    updateLandingGalleryCount();
+
+    const filledHtml = landingGalleryPhotos.map(p => `
+        <div class="photo-manager-thumb" data-photo-id="${p.photo_id}">
+            <img src="${p.photo_url}" alt="Landing gallery photo">
+            <button class="photo-manager-delete-btn"
+                    onclick="confirmDeleteLandingPhoto(${p.photo_id})"
+                    title="Delete this photo">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+
+    const emptySlots = Math.max(MAX_LANDING_PHOTOS - landingGalleryPhotos.length, 0);
+    const emptyHtml  = '<div class="photo-manager-thumb photo-manager-thumb--empty"></div>'.repeat(emptySlots);
+
+    grid.innerHTML = filledHtml + emptyHtml;
+}
+
 // ============================================
 // EXPORT FUNCTIONS
 // ============================================
 window.initializeAdminPanel = initializeAdminPanel;
 window.filterUsers = filterUsers;
 window.closeRemoveUserModal = closeRemoveUserModal;
+window.openManageLandingGalleryModal  = openManageLandingGalleryModal;
+window.closeManageLandingGalleryModal = closeManageLandingGalleryModal;

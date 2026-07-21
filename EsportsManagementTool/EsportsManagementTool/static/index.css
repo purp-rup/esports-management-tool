@@ -4,7 +4,7 @@
 
 /* Calendar Section Styling */
 .calendar-section {
-    padding: 4rem 0;
+    padding: 1.5rem 0;
     background: var(--card-bg);
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
@@ -47,32 +47,19 @@ body {
 
 /* Hero Section */
 .hero {
-    min-height: calc(100dvh - 73px);
-    display: flex;
-    flex-direction: column;
+    min-height: calc(100dvh - 73px - (var(--gallery-slide-height) + 3rem));
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 2rem;
+    padding: 0.2rem 0 8rem;
     position: relative;
 }
 
 .hero-content {
-    max-width: 1200px;
     display: flex;
     gap: 3rem;
     align-items: center;
     flex-direction: column;
-}
-
-@media (max-width: 400px) {
-    .hero {
-        padding: 1rem;
-    }
-
-    .hero-content {
-        gap: 0.5rem;
-    }
 }
 
 .hero-top {
@@ -97,7 +84,6 @@ body {
     font-size: clamp(1rem, 2.5vw, 1.25rem);
     color: var(--text-secondary);
     max-width: 600px;
-    margin: 0 auto 2rem;
     line-height: 1.6;
 }
 
@@ -275,14 +261,39 @@ body {
     margin: 0 auto 2rem;
 }
 
-/* Responsive */
+/* =========================
+   Mobile friendliness
+   ========================= */
 @media (max-width: 768px) {
-
     .stat-item h3 {
         font-size: 2rem;
     }
 
     .scroll-indicator {
         bottom: 1rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .hero {
+        padding-bottom: 5rem;
+    }
+
+    .hero p {
+        margin: 0 auto 2rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .hero {
+        padding: 1rem 1rem 5rem;
+    }
+
+    .hero-content {
+        gap: 0.5rem;
+    }
+
+    .hero-actions {
+        margin-bottom: 2rem;
     }
 }
