@@ -12,7 +12,7 @@
 
 .calendar-section .features-header {
     text-align: center;
-    margin-bottom: 3rem;
+    margin-bottom: 1.5rem;
 }
 
 .calendar-section h2 {
@@ -47,20 +47,46 @@ body {
 
 /* Hero Section */
 .hero {
-    display: flex;
-    flex-direction: row;
     min-height: calc(100dvh - 73px - (var(--gallery-slide-height) + 3rem));
-    justify-content: start;
-    padding: 1rem 10rem;
-    position: relative;
+    padding: 2rem clamp(1rem, 10vw, 10rem);
+    justify-content: center;
+    align-content: center;
 }
 
 .hero-content {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 2rem;
+}
+
+.hero-content.has-embed {
+    grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+    justify-items: start;
+    align-items: center;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.hero-text {
     display: flex;
-    gap: 1rem;
-    align-items: start;
     flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+    text-align: center;
     justify-content: center;
+}
+
+.hero-content.has-embed .hero-text {
+    align-items: flex-start;
+    text-align: left;
+}
+
+@media (max-width: 400px) {
+    .hero-content {
+        gap: 0;
+    }
 }
 
 .hero-top {
@@ -72,7 +98,7 @@ body {
 }
 
 .hero h1 {
-    font-size: clamp(3rem, 5vw, 4rem);
+    font-size: clamp(2.5rem, 5vw, 4rem);
     line-height: 1.1;
 }
 
@@ -94,16 +120,21 @@ body {
     flex-wrap: wrap;
 }
 
-.hero-text {
-    flex: 1;
-    min-width: 300px;
-}
-
 .hero-twitch {
-    flex: 0 0 auto;
+    width: 100%;
 }
 
-.hero-twitch iframe {
+#twitchEmbed {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+}
+
+#twitchEmbed iframe {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
     border-radius: 12px;
     border: 2px solid var(--border-color);
 }
@@ -115,7 +146,7 @@ body {
 
 .scroll-indicator {
     position: absolute;
-    bottom: 2rem;
+    bottom: 0.5rem;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -146,19 +177,17 @@ body {
 
 /* Features Section */
 .features {
-    padding: 6rem 0;
-    background: var(--dark-bg);
-    border-bottom: 1px solid var(--border-color);
+    padding: 1.5rem 0 1rem 0;
+
 }
 
 .features-header {
     text-align: center;
-    margin-bottom: 4rem;
+    margin-bottom: 1.5rem;
 }
 
 .features-header h2 {
     font-size: clamp(2rem, 3vw, 2.5rem);
-    margin-bottom: 1rem;
 }
 
 .features-header p {
@@ -171,7 +200,7 @@ body {
 .features-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
+    gap: 1rem;
     max-width: 1200px;
     margin: 0 auto;
 }
@@ -211,13 +240,27 @@ body {
 /* Stats Section */
 .stats {
     background: var(--card-bg);
-    padding: 4rem 2rem;
-    border-bottom: 1px solid var(--border-color);
+    padding: 1.5rem 2rem;
+    border: 1px solid var(--border-color);
+    max-width: 1200px;
+    margin: 0 auto;
+    border-radius: 12px;
+}
+
+@media (max-width: 1300px) {
+    .stats {
+        max-width: none;
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+        border-left: none;
+        border-right: none;
+        border-radius: 0;
+    }
 }
 
 .stats h1 {
     text-align: center;
-    padding-bottom: 4rem;
+    margin-bottom: 1.5rem;
     font-size: clamp(2rem, 3vw, 2.5rem);
 }
 
@@ -231,7 +274,7 @@ body {
 }
 
 .stat-item h3 {
-    font-size: 3rem;
+    font-size: clamp(2rem, 3vw, 2.5rem);
     color: var(--stockton-blue);
     margin-bottom: 0.5rem;
 }
@@ -244,52 +287,45 @@ body {
 /* CTA Section */
 .cta {
     text-align: center;
-    padding: 6rem 2rem;
-    background: var(--dark-bg);
+    padding: 1.5rem 2rem;
     margin-bottom: 0;
 }
 
 .cta h2 {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
+    font-size: clamp(2rem, 3vw, 2.5rem);
 }
 
 .cta p {
     font-size: 1.125rem;
     color: var(--text-secondary);
     max-width: 600px;
-    margin: 0 auto 2rem;
+    margin: 0 auto 1rem;
 }
 
 /* =========================
    Mobile friendliness
    ========================= */
 @media (max-width: 768px) {
-    .stat-item h3 {
-        font-size: 2rem;
+    .scroll-arrow {
+        font-size: 1.75rem;
     }
 
     .scroll-indicator {
-        bottom: 1rem;
-    }
-}
-
-@media (max-width: 600px) {
-    .hero {
-        padding-bottom: 5rem;
-    }
-}
-
-@media (max-width: 400px) {
-    .hero {
-        padding: 1rem 1rem 5rem;
+        bottom: 0.25rem;
     }
 
-    .hero-content {
-        gap: 0.5rem;
+    .hero-content.has-embed {
+        grid-template-columns: 1fr;
+        justify-content: center;
+        align-content: center;
     }
 
-    .hero-actions {
-        margin-bottom: 2rem;
+    .hero-content.has-embed .hero-text {
+        text-align: center;
+        align-items: center;
+    }
+
+    #twitchContainer {
+        display: none !important;
     }
 }

@@ -21,30 +21,30 @@
 <!-- Hero Section -->
 <section class="hero">
     <div class="hero-content">
-        <h1>
-            Welcome to<br>
-            <span class="hero-gradient">Stockton Esports</span>
-        </h1>
-        <p>
-            Your centralized hub for competitive gaming, team management, and community engagement.
-            Join us in building the future of collegiate esports at Stockton University.
-        </p>
-        <div class="hero-twitch" id="twitchContainer">
-            <h3 class="live-indicator">Stockton Esports Twitch is LIVE!</h3>
+        <div class="hero-text">
+            <h1>
+                Welcome to<br>
+                <span class="hero-gradient">Stockton Esports</span>
+            </h1>
+            <p>
+                Your centralized hub for competitive gaming, team management, and community engagement.
+                Join us in building the future of collegiate esports at Stockton University.
+            </p>
+            <div class="hero-actions">
+                {% if session.loggedin %}
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-large">Go to Dashboard</a>
+                {% else %}
+                    <a href="{{ url_for('register') }}" class="btn btn-primary btn-large">Get Started</a>
+                    <a href="{{ url_for('login') }}" class="btn btn-secondary btn-large">Sign In</a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="hero-twitch" id="twitchContainer" style="display: none;">
+            <h3 class="live-indicator" id="twitchLiveIndicator">Stockton Esports Twitch is LIVE!</h3>
             <div id="twitchEmbed"></div>
         </div>
-        <div class="hero-actions">
-            {% if session.loggedin %}
-                <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-large">Go to Dashboard</a>
-            {% else %}
-                <a href="{{ url_for('register') }}" class="btn btn-primary btn-large">Get Started</a>
-                <a href="{{ url_for('login') }}" class="btn btn-secondary btn-large">Sign In</a>
-            {% endif %}
-        </div>
     </div>
-
     <div class="scroll-indicator">
-        <span>Scroll to explore</span>
         <div class="scroll-arrow">↓</div>
     </div>
 </section>
@@ -270,36 +270,5 @@
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <script src="{{ url_for('static', filename='stream-schedule.js') }}"></script>
 <script src="https://embed.twitch.tv/embed/v1.js"></script>
-<script>
-    async function checkEmbedder() {
-        const channelName = 'stocktonesports';
-        const container = document.getElementById('twitchContainer');
-
-        try {
-            const proxyUrl = 'https://corsproxy.io/?';
-            const targetUrl = encodeURIComponent(`https://www.twitch.tv/${channelName}`);
-
-            const response = await fetch(proxyUrl + targetUrl);
-            const html = await response.text();
-
-            if (html.includes('"isLiveBroadcast":true') || html.includes('isLiveBroadcast":true')) {
-                new Twitch.Embed("twitchEmbed", {
-                width: 400,
-                height: 225,
-                channel: channelName,
-                layout: "video",
-                parent: ["127.0.0.1", "localhost"]  // Add domain here when deployed
-            });
-                container.style.display = 'block';
-            } else {
-                container.style.display = 'none';
-            }
-        } catch (error) {
-            console.error('Error fetching Twitch status:', error);
-            container.style.display = 'none';
-        }
-    }
-
-    checkEmbedder();
-</script>
+<script src="{{ url_for('static', filename='stream-embed.js') }}"></script>
 {% endblock %}
