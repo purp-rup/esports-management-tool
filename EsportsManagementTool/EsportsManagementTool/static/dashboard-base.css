@@ -27,7 +27,6 @@ select.fa-icons, option.fa-icons {
    ==================================== */
 main {
     min-height: calc(100vh - 73px) !important;
-    padding: 1rem 0;
 }
 
 /* =====================================
@@ -36,11 +35,11 @@ main {
    ===================================== */
 .dashboard-header {
     margin-bottom: 1rem;
+    margin-top: 1rem;
 }
 
 .dashboard-header h1 {
     font-size: 2rem;
-    margin-bottom: 0.5rem;
 }
 
 .dashboard-header p {
@@ -686,6 +685,10 @@ main {
 
   .dashboard-header {
     display: none;
+  }
+
+  .tab-navigation {
+      margin-top: 1rem;
   }
 }
 
