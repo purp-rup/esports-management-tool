@@ -89,14 +89,6 @@ body {
     }
 }
 
-.hero-top {
-    display: flex;
-    gap: 3rem;
-    align-items: center;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
 .hero h1 {
     font-size: clamp(2.5rem, 5vw, 4rem);
     line-height: 1.1;
