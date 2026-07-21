@@ -30,7 +30,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
     padding: 1rem 1rem;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
