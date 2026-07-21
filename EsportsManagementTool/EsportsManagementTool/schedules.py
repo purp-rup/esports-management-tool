@@ -97,8 +97,8 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                         'message': 'You do not have permission to create schedules for this team'
                     }), 403
 
-                # Only store team_id for team-specific schedules
-                schedule_team_id = data['team_id'] if data['visibility'] == 'team' else None
+                # Always store the originating team_id, regardless of visibility. (Otherwise an error gets thrown)
+                schedule_team_id = data['team_id']
                 created_at = datetime.now(EST)
                 
                 # Insert scheduled event
@@ -216,6 +216,7 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                         'event_name': schedule['event_name'],
                         'event_type': schedule['event_type'],
                         'frequency': schedule['frequency'],
+                        'team_id': schedule.get('team_id'),
                         'league_id': schedule.get('league_id'),      
                         'league_name': schedule.get('league_name'),   
                         'day_of_week': schedule.get('day_of_week'),
@@ -363,15 +364,24 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                         'message': 'You do not have permission to edit this schedule'
                     }), 403
 
+                resolved_team_id = schedule['team_id'] or data.get('team_id')
+
                 league_id = data.get('league_id')
                 if data.get('event_type') == 'Match':
                     if not league_id:
                         return jsonify({'success': False, 'message': 'League selection is required for Match events'}), 400
+
+                    if not resolved_team_id:
+                        return jsonify({
+                            'success': False,
+                            'message': 'Unable to determine team for league validation'
+                        }), 400
+
                     cursor.execute("""
                         SELECT 1 
                         FROM team_leagues 
                         WHERE team_id = %s AND league_id = %s
-                    """, (schedule['team_id'], league_id))
+                    """, (resolved_team_id, league_id))
                     
                     if not cursor.fetchone():
                         return jsonify({
@@ -387,7 +397,8 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                         visibility = %s,
                         location = %s,
                         description = %s,
-                        league_id = %s
+                        league_id = %s,
+                        team_id = %s
                     WHERE schedule_id = %s
                 """, (
                     data['event_name'],
@@ -396,6 +407,7 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                     data['location'],
                     data.get('description', ''),
                     league_id,
+                    resolved_team_id,
                     schedule_id
                 ))
 
