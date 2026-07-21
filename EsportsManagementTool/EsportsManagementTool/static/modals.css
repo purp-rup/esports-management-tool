@@ -237,6 +237,11 @@
     margin-bottom: 0.25rem;
 }
 
+.event-form-modal label.required-field::after {
+    content: ' *';
+    color: #ef4444;
+}
+
 /* Form inputs */
 .event-form-modal input,
 .event-form-modal select,

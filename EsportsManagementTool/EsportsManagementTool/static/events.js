@@ -1825,6 +1825,7 @@ function renderGamePanelItems(context, games) {
 
     panel.innerHTML = available.map(g => `
         <div class="filter-box-item" onclick="event.stopPropagation(); addGameTag('${escapeQuotes(g.GameTitle)}', '${context}')">
+            ${g.image_url ? `<img src="${g.image_url}" class="game-option-icon" alt="" onerror="handleGameIconError(this, 'game-option-icon-fallback')">` : `<i class="fas fa-gamepad game-option-icon-fallback"></i>`}
             ${g.GameTitle}
         </div>
     `).join('');
@@ -1857,10 +1858,15 @@ function updateGameTagsDisplay(context = 'create') {
     container.innerHTML = '';
 
     EventState.selectedGames.forEach(game => {
+        const gameData = EventState.gamesListCache?.find(g => g.GameTitle === game);
+        const iconHtml = gameData?.image_url
+            ? `<img src="${gameData.image_url}" class="game-tag-icon-img" alt="" onerror="handleGameIconError(this, 'game-tag-icon')">`
+            : `<i class="fas fa-gamepad game-tag-icon"></i>`;
+
         const tag = document.createElement('div');
         tag.className = 'game-tag';
         tag.innerHTML = `
-            <i class="fas fa-gamepad game-tag-icon"></i>
+            ${iconHtml}
             <span>${game}</span>
             <button type="button"
                     class="game-tag-remove"
@@ -2121,6 +2127,13 @@ function initPartnershipFlairStage(stageEl) {
             flairs[current].classList.add('active');
         }, 2500);
     }
+}
+
+// Swaps a broken game image for the gamepad fallback icon
+function handleGameIconError(imgEl, fallbackClass) {
+    const fallback = document.createElement('i');
+    fallback.className = `fas fa-gamepad ${fallbackClass}`;
+    imgEl.replaceWith(fallback);
 }
 
 // ============================================

@@ -665,6 +665,34 @@ select[multiple]:focus {
     font-size: 0.75rem;
 }
 
+.game-tag-icon-img {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.game-option-icon,
+.game-option-icon-fallback {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    object-fit: cover;
+    flex-shrink: 0;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+}
+
+.game-option-icon-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--dark-bg);
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+}
+
 .game-tag-remove {
     background: none;
     border: none;
@@ -1145,5 +1173,57 @@ select[multiple]:focus {
 
     .btn-delete span {
         display: none;
+    }
+}
+
+@media (max-width: 640px) {
+    /* Time row reformatted in create event modal */
+    .event-form-modal .time-row {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 1rem;
+        row-gap: 0.75rem;
+    }
+
+    .all-day-toggle-wrapper {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        margin-top: 1rem;
+    }
+
+    .all-day-toggle-label {
+        order: -1;
+    }
+}
+
+@media (max-width: 400px) {
+    /* Time row for very small screens */
+    .event-form-modal .time-row {
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+    }
+
+    .event-form-modal .time-row input[type="time"] {
+        padding: 0.5rem 0.4rem;
+        font-size: 0.8rem;
+    }
+
+    .all-day-switch {
+        width: 28px;
+        height: 16px;
+    }
+
+    .all-day-switch::before {
+        width: 12px;
+        height: 12px;
+    }
+
+    .all-day-checkbox:checked + .all-day-switch::before {
+        transform: translateX(12px);
+    }
+
+    .all-day-toggle-label {
+        font-size: 0.7rem;
     }
 }
