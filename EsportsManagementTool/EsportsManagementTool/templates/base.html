@@ -150,14 +150,14 @@
         }
 
         .btn-secondary {
-            background: transparent;
+            background: var(--dark-bg);
             color: var(--text-secondary);
             border: 1px solid var(--border-color);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         .btn-secondary:hover {
-            background: var(--hover-bg);
+            background: black;
             color: var(--text-primary);
         }
 
@@ -198,7 +198,6 @@
         /* Main Content */
         main {
             min-height: calc(100vh - 200px);
-            padding: 1rem 0;
         }
 
         /* Footer */
@@ -331,15 +330,9 @@
     {% endif %}
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-messages">
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">
-                        <span>{{ message }}</span>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
+    {% if messages %}
+    <script>window._flashMessages = {{ messages | tojson }};</script>
+    {% endif %}
     {% endwith %}
 
     <main>
@@ -438,6 +431,20 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='modalDelete.js') }}"></script>
     {% block extra_js %}{% endblock %}
+    <script>
+        (function () {
+            const msgs = window._flashMessages;
+            if (!msgs || !msgs.length) return;
+            msgs.forEach(function (pair) {
+                const category = pair[0];
+                const message  = pair[1];
+                if (category === 'error')        showDeleteErrorMessage(message);
+                else if (category === 'success') showDeleteSuccessMessage(message);
+                else                             showInfoMessage(message);
+            });
+        })();
+    </script>
 </body>
 </html>

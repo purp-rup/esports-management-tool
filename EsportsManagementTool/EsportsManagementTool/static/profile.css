@@ -188,31 +188,11 @@
     font-size: 0.95rem;
 }
 
-.profile-kebab-btn {
-    width: 38px;
-    height: 38px;
-    padding: 0;
-    justify-content: center;
-}
-
-#profileKebab {
-    font-size: 1rem;
-}
-
-#profileActionsPanel {
-    left: auto;
-    right: 0;
-}
-
 /* Preferred tab button row */
 .preferred-tab-buttons {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-}
-
-.profile-kebab-btn.active i {
-    transform: none;
 }
 
 /* Auto-save confirmation indicator */

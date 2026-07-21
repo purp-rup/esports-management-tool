@@ -27,7 +27,6 @@ select.fa-icons, option.fa-icons {
    ==================================== */
 main {
     min-height: calc(100vh - 73px) !important;
-    padding: 1rem 0;
 }
 
 /* =====================================
@@ -36,11 +35,11 @@ main {
    ===================================== */
 .dashboard-header {
     margin-bottom: 1rem;
+    margin-top: 1rem;
 }
 
 .dashboard-header h1 {
     font-size: 2rem;
-    margin-bottom: 0.5rem;
 }
 
 .dashboard-header p {
@@ -158,7 +157,7 @@ main {
 }
 
 /* ====================================
-   DROPDOWN / FILTER BOX
+   DROPDOWN / FILTERS
    ==================================== */
 .filter-box {
     position: relative;
@@ -205,7 +204,6 @@ main {
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 0.375rem;
-    min-width: 180px;
     z-index: 200;
     box-shadow: 0 8px 24px rgba(0,0,0,0.3);
 }
@@ -243,6 +241,64 @@ main {
     background: var(--hover-bg);
     color: var(--stockton-blue);
     font-weight: 600;
+}
+
+/* Universal filter buttons
+   Used for communities tab and profile tab */
+.filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.375rem 0.75rem;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.filter-btn:hover {
+    border-color: var(--stockton-blue);
+    color: var(--stockton-blue);
+}
+
+.filter-check {
+    width: 13px;
+    height: 13px;
+    border: 2px solid currentColor;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.filter-check i {
+    font-size: 0.45rem;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+/* Active state */
+.filter-btn.active {
+    border-color: var(--stockton-blue);
+    background: rgba(121, 189, 233, 0.12);
+    color: var(--stockton-blue);
+}
+
+.filter-btn.active .filter-check {
+    background: var(--stockton-blue);
+    border-color: var(--stockton-blue);
+}
+
+.filter-btn.active .filter-check i {
+    opacity: 1;
 }
 
 /* ====================================
@@ -536,6 +592,33 @@ main {
     color: var(--text-secondary);
 }
 
+/* ============================
+   Kebab settings buttons
+   ============================ */
+/* Icon-only "kebab" variant of filter-box-btn (round, ellipsis icon) */
+.kebab-btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    justify-content: center;
+}
+
+.kebab-btn i {
+    font-size: 1rem;
+}
+
+/* Kebab icon shouldn't rotate on open, unlike the chevron dropdowns */
+.kebab-btn.active i {
+    transform: none;
+}
+
+/* Anchors a filter-box-panel to the right edge of its button, so it
+   opens leftward instead of overflowing off-screen */
+.filter-box-panel--right {
+    left: auto;
+    right: 0;
+}
+
 /* ====================================
    Mobile Sheet View
    Shared dim backdrop + slide-up panel treatment.
@@ -600,12 +683,12 @@ main {
     flex-direction: column;
   }
 
-  .card-header .btn {
-    width: 100%;
-  }
-
   .dashboard-header {
     display: none;
+  }
+
+  .tab-navigation {
+      margin-top: 1rem;
   }
 }
 

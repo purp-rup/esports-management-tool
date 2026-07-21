@@ -27,6 +27,7 @@ def register_event_routes(app, mysql, login_required, roles_required):
             endTime = request.form.get('endTime', '').strip()
             eventDescription = request.form.get('eventDescription', '').strip()
             location = request.form.get('eventLocation', '').strip()
+            partnerships_json = request.form.get('partnerships', '[]')
 
             if eventName and eventDate and eventType and startTime and endTime and eventDescription:
                 cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -56,6 +57,11 @@ def register_event_routes(app, mysql, login_required, roles_required):
                     # Insert games into event_games table
                     if selected_games:
                         sync_event_games(cursor, event_id, selected_games)
+
+                    # Insert partnerships into event_partnerships table
+                    selected_partnerships = json.loads(partnerships_json)
+                    if selected_partnerships:
+                        sync_event_partnerships(cursor, event_id, selected_partnerships)
 
                     mysql.connection.commit()
                     msg = 'Event Registered!\nYou have 24 hours to delete this event.'
@@ -100,6 +106,7 @@ def register_event_routes(app, mysql, login_required, roles_required):
             event_filter = request.args.get('filter', 'all')
             event_type_filter = request.args.get('event_type', '').lower()
             game_filter = request.args.get('game', '')
+            partnership_filter = request.args.get('partnership', '')
             season_id = request.args.get('season_id', '')
 
             # Get current date and time
@@ -157,13 +164,29 @@ def register_event_routes(app, mysql, login_required, roles_required):
                 if game_result:
                     game_id = game_result['gameID']
                     conditions.append("""
-                        ge.EventID IN (
-                            SELECT eg.event_id 
-                            FROM event_games eg 
-                            WHERE eg.game_id = %s
-                        )
-                    """)
+                                        ge.EventID IN (
+                                            SELECT eg.event_id 
+                                            FROM event_games eg 
+                                            WHERE eg.game_id = %s
+                                        )
+                                    """)
                     params.append(game_id)
+            elif event_filter == 'partnership' and partnership_filter:
+                # Get partnership_id from partnership name
+                cursor.execute('SELECT partnership_id FROM partnerships WHERE partnership_name = %s',
+                               (partnership_filter,))
+                partnership_result = cursor.fetchone()
+
+                if partnership_result:
+                    partnership_id = partnership_result['partnership_id']
+                    conditions.append("""
+                                        ge.EventID IN (
+                                            SELECT ep.event_id
+                                            FROM event_partnerships ep
+                                            WHERE ep.partnership_id = %s
+                                        )
+                                    """)
+                    params.append(partnership_id)
 
             # Build WHERE clause
             where_clause = " AND ".join(conditions) if conditions else "1=1"
@@ -295,6 +318,15 @@ def register_event_routes(app, mysql, login_required, roles_required):
             if not event:
                 return jsonify({'error': 'Event not found'}), 404
 
+            cursor.execute("""
+                            SELECT p.partnership_name
+                            FROM event_partnerships ep
+                            JOIN partnerships p ON ep.partnership_id = p.partnership_id
+                            WHERE ep.event_id = %s
+                            ORDER BY p.partnership_name
+                        """, (event_id,))
+            partnerships = [row['partnership_name'] for row in cursor.fetchall()]
+
             event_data = {
                 'id': event['EventID'],
                 'name': event['EventName'],
@@ -314,7 +346,8 @@ def register_event_routes(app, mysql, login_required, roles_required):
                 'league_id': event.get('league_id'),
                 'league_name': event.get('league_name'),
                 'is_scheduled': bool(event.get('is_scheduled', False)),
-                'schedule_id': event.get('schedule_id')
+                'schedule_id': event.get('schedule_id'),
+                'partnerships': partnerships
             }
 
             return jsonify(event_data)
@@ -347,6 +380,64 @@ def register_event_routes(app, mysql, login_required, roles_required):
                 games = cursor.fetchall()
 
             return jsonify({'success': True, 'games': games or []})
+        finally:
+            cursor.close()
+
+    @app.route('/api/partnership-list')
+    @login_required
+    def api_partnership_list():
+        """Get all active partnerships, for populating the create/edit event dropdown"""
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            cursor.execute(
+                'SELECT partnership_id, partnership_name FROM partnerships WHERE is_active = 1 ORDER BY partnership_name')
+            partnerships = cursor.fetchall()
+            return jsonify({'success': True, 'partnerships': partnerships or []})
+        finally:
+            cursor.close()
+
+    @app.route('/api/partnership/<int:partnership_id>/rename', methods=['POST'])
+    @roles_required('admin', 'developer')
+    def api_partnership_rename(partnership_id):
+        """Permanently rename a partnership"""
+        data = request.get_json()
+        new_name = (data.get('name') or '').strip()
+
+        if not new_name:
+            return jsonify({'success': False, 'message': 'Name cannot be empty'}), 400
+
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            cursor.execute(
+                'SELECT partnership_id FROM partnerships WHERE partnership_name = %s AND partnership_id != %s',
+                (new_name, partnership_id))
+            if cursor.fetchone():
+                return jsonify({'success': False, 'message': 'A partnership with that name already exists'}), 400
+
+            cursor.execute('UPDATE partnerships SET partnership_name = %s WHERE partnership_id = %s',
+                           (new_name, partnership_id))
+            mysql.connection.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            mysql.connection.rollback()
+            print(f"Error renaming partnership: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to rename partnership'}), 500
+        finally:
+            cursor.close()
+
+    @app.route('/api/partnership/<int:partnership_id>/archive', methods=['POST'])
+    @roles_required('admin', 'developer')
+    def api_partnership_archive(partnership_id):
+        """Remove a partnership from future selection without deleting it from the database"""
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            cursor.execute('UPDATE partnerships SET is_active = 0 WHERE partnership_id = %s', (partnership_id,))
+            mysql.connection.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            mysql.connection.rollback()
+            print(f"Error archiving partnership: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to remove partnership'}), 500
         finally:
             cursor.close()
 
@@ -401,6 +492,10 @@ def register_event_routes(app, mysql, login_required, roles_required):
             games_json = data.get('games', '[]')
             selected_games = json.loads(games_json) if isinstance(games_json, str) else games_json
 
+            # Parse partnerships JSON
+            partnerships_json = data.get('partnerships', '[]')
+            selected_partnerships = json.loads(partnerships_json) if isinstance(partnerships_json, str) else partnerships_json
+
             # Build game display string
             game_display = ', '.join(selected_games) if selected_games else None
 
@@ -442,6 +537,15 @@ def register_event_routes(app, mysql, login_required, roles_required):
             # Insert new game associations
             if selected_games:
                 sync_event_games(cursor, event_id, selected_games)
+
+            # Delete existing partnership associations
+            cursor.execute('DELETE FROM event_partnerships WHERE event_id = %s', (event_id,))
+
+            # Insert new partnership associations
+            if selected_partnerships:
+                sync_event_partnerships(cursor, event_id, selected_partnerships)
+
+            mysql.connection.commit()
 
             mysql.connection.commit()
             cursor.close()
@@ -785,6 +889,45 @@ def sync_event_games(cursor, event_id, selected_games):
                 'INSERT IGNORE INTO event_games (event_id, game_id) VALUES (%s, %s)',
                 (event_id, result['gameID'])
             )
+
+def sync_event_games(cursor, event_id, selected_games):
+    """Insert game associations for an event, looking up IDs by title."""
+    for game_title in selected_games:
+        cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (game_title,))
+        result = cursor.fetchone()
+        if result:
+            cursor.execute(
+                'INSERT IGNORE INTO event_games (event_id, game_id) VALUES (%s, %s)',
+                (event_id, result['gameID'])
+            )
+
+def sync_event_partnerships(cursor, event_id, partnership_names):
+    """
+    Insert partnership associations for an event.
+    Looks up each name in the partnerships table; if it doesn't exist yet
+    (i.e. a custom entry), creates it so it's reusable for future events.
+    Reactivates the partnership if it was previously removed from selection.
+    """
+    for name in partnership_names:
+        name = name.strip()
+        if not name:
+            continue
+
+        cursor.execute('SELECT partnership_id, is_active FROM partnerships WHERE partnership_name = %s', (name,))
+        result = cursor.fetchone()
+
+        if result:
+            partnership_id = result['partnership_id']
+            if not result['is_active']:
+                cursor.execute('UPDATE partnerships SET is_active = 1 WHERE partnership_id = %s', (partnership_id,))
+        else:
+            cursor.execute('INSERT INTO partnerships (partnership_name) VALUES (%s)', (name,))
+            partnership_id = cursor.lastrowid
+
+        cursor.execute(
+            'INSERT IGNORE INTO event_partnerships (event_id, partnership_id) VALUES (%s, %s)',
+            (event_id, partnership_id)
+        )
 
 def can_delete_event(cursor, event_id, user_id, is_developer, is_admin):
     """
