@@ -761,13 +761,21 @@
                                 <input type="text" id="eventName" name="eventName" placeholder="Enter event name" required>
                             </div>
                             <div class="form-group">
-                                <label for="eventType" class="required-field">Event Type</label>
-                                <select id="eventType" name="eventType" required onchange="handleEventTypeChange()">
-                                    <option value="">Select type</option>
-                                    <option value="Event">Event</option>
-                                    <option value="Tournament">Tournament</option>
-                                    <option value="Misc">Misc</option>
-                                </select>
+                                <label for="eventTypeTagBox" class="required-field">Event Type</label>
+                                <div class="filter-box tag-select-box" id="eventTypeTagBox">
+                                    <div class="tag-select-trigger" onclick="toggleFilterBox('eventTypeOptionsPanel')">
+                                        <div id="eventTypeSelectDisplay" class="combo-select-display">
+                                            <span class="combo-placeholder">Select type</span>
+                                        </div>
+                                        <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                    </div>
+                                    <div class="filter-box-panel tag-select-panel" id="eventTypeOptionsPanel">
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('eventType', 'Event')">Event</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('eventType', 'Tournament')">Tournament</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('eventType', 'Misc')">Misc</div>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="eventType" name="eventType">
                             </div>
                         </div>
 
@@ -841,20 +849,20 @@
                                 <label for="locationTagBox" class="required-field">Location</label>
                                 <div class="filter-box tag-select-box" id="locationTagBox">
                                     <div class="tag-select-trigger" onclick="toggleFilterBox('locationOptionsPanel')">
-                                        <div id="locationSelectDisplay" class="location-select-display">
-                                            <span class="location-placeholder">Select location</span>
+                                        <div id="locationSelectDisplay" class="combo-select-display">
+                                            <span class="combo-placeholder">Select location</span>
                                         </div>
                                         <i class="fas fa-chevron-down tag-select-arrow"></i>
                                     </div>
                                     <div class="filter-box-panel tag-select-panel" id="locationOptionsPanel">
-                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('Campus Center')">Campus Center</div>
-                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('Campus Center Coffee House')">Campus Center Coffee House</div>
-                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('Campus Center Event Room')">Campus Center Event Room</div>
-                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('D-108')">D-108</div>
-                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('Esports Lab (Commons Building 80)')">Esports Lab (Commons Building 80)</div>
-                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('Lakeside Lodge')">Lakeside Lodge</div>
-                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('Online')">Online</div>
-                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectLocation('other')">Other</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('location', 'Campus Center')">Campus Center</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('location', 'Campus Center Coffee House')">Campus Center Coffee House</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('location', 'Campus Center Event Room')">Campus Center Event Room</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('location', 'D-108')">D-108</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('location', 'Esports Lab (Commons Building 80)')">Esports Lab (Commons Building 80)</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('location', 'Lakeside Lodge')">Lakeside Lodge</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('location', 'Online')">Online</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('location', 'other')">Other</div>
                                     </div>
                                 </div>
                                 <input type="hidden" id="eventLocation" name="eventLocation">
