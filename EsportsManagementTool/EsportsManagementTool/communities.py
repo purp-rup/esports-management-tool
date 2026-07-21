@@ -1,4 +1,4 @@
-from EsportsManagementTool import app, login_required, roles_required, mysql, EST, season_roles, forum_db
+from EsportsManagementTool import app, login_required, roles_required, mysql, EST, season_roles, forum_db, typing_status
 from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr, is_all_day_event, build_member_profile, attach_profile_extras
 from flask import request, render_template, redirect, url_for, session, flash, jsonify
 from datetime import datetime, timedelta
@@ -6,6 +6,7 @@ import MySQLdb.cursors
 import json
 import cloudinary
 import cloudinary.uploader
+import time
 
 # ======================================
 # COMMUNITY MANAGEMENT MODAL
@@ -1146,6 +1147,75 @@ def delete_community_message(game_id, message_id):
         print(f"Error deleting community message: {str(e)}")
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
+@app.route('/api/game/<int:game_id>/messages/new', methods=['GET'])
+@login_required
+def get_new_community_messages(game_id):
+    """
+    Returns new messages, who's typing, and any
+    messages that were deleted since the last check.
+    """
+    after_id = request.args.get('after', default='', type=str)
+    deleted_after = request.args.get('deleted_after', default=0, type=int)
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        items = forum_db.get_new_messages(community_id=game_id, after_message_id=after_id)
+        typing_user_ids = typing_status.get_typing_users(game_id, exclude_user_id=session['id'])
+        deleted_ids = forum_db.get_recently_deleted(community_id=game_id, since_timestamp=deleted_after)
+        next_deleted_after = int(time.time())  # cursor for the client's next poll
+
+        messages = []
+        if items:
+            user_ids = sorted({item['user_id'] for item in items})
+            placeholders = ','.join(['%s'] * len(user_ids))
+            cursor.execute(
+                f"SELECT id, username, firstname, lastname, profile_picture FROM users WHERE id IN ({placeholders})",
+                user_ids
+            )
+            users_by_id = {row['id']: row for row in cursor.fetchall()}
+
+            for item in items:
+                user = users_by_id.get(item['user_id'], {})
+                messages.append({
+                    'message_id': item['message_id'],
+                    'user_id': item['user_id'],
+                    'username': user.get('username', 'Unknown'),
+                    'full_name': f"{user.get('firstname', '')} {user.get('lastname', '')}".strip() or 'Unknown User',
+                    'profile_picture': user.get('profile_picture'),
+                    'content': item['content'],
+                    'created_at': datetime.fromtimestamp(item['created_at'], EST).isoformat()
+                })
+
+        typing_names = []
+        if typing_user_ids:
+            placeholders = ','.join(['%s'] * len(typing_user_ids))
+            cursor.execute(
+                f"SELECT firstname FROM users WHERE id IN ({placeholders})",
+                typing_user_ids
+            )
+            typing_names = [row['firstname'] for row in cursor.fetchall()]
+
+        return jsonify({
+            'success': True,
+            'messages': messages,
+            'typing_users': typing_names,
+            'deleted_message_ids': deleted_ids,
+            'deleted_after': next_deleted_after
+        }), 200
+
+    except Exception as e:
+        print(f"Error fetching new community messages: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to load new messages'}), 500
+
+    finally:
+        cursor.close()
+
+@app.route('/api/game/<int:game_id>/typing', methods=['POST'])
+@login_required
+def set_user_typing(game_id):
+    """Mark the current user as currently typing in this community's forum chat."""
+    typing_status.set_typing(game_id, session['id'])
+    return jsonify({'success': True}), 200
 
 # ===================================
 # COMMUNITY TAB
