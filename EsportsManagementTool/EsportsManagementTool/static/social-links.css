@@ -1,0 +1,219 @@
+/* ============================================
+ * SOCIALS LINKS
+ * ============================================
+ *
+ * - Socials modal on the admin panel
+ * - Socials cards on landing page
+ */
+
+.social-links-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.social-link-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    background:
+        linear-gradient(var(--dark-bg), var(--dark-bg)) padding-box,
+        conic-gradient(from var(--social-angle),
+            var(--social-c1),
+            var(--social-c2),
+            var(--social-c3, var(--social-c1)),
+            var(--social-c4, var(--social-c1)),
+            var(--social-c1)
+        ) border-box;
+    animation: social-border-spin 6s linear infinite;
+}
+
+.social-link-icon {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--social-accent, var(--stockton-blue)) 15%, transparent);
+    color: var(--social-accent, var(--stockton-blue));
+    font-size: 1rem;
+}
+
+.social-link-name {
+    font-weight: 700;
+    color: var(--social-accent, var(--text-primary));
+    min-width: 90px;
+    flex-shrink: 0;
+}
+
+.social-link-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.social-link-custom-form {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    align-items: center;
+}
+
+/* Icon coloring for the add/remove/delete buttons inside a social link row.
+   These live outside .partnership-manage-actions, so they need their own rules
+   rather than relying on the ones already defined for that wrapper. */
+.social-link-input-group .partnership-manage-btn i,
+.social-link-custom-form .partnership-manage-btn i {
+    color: var(--text-secondary);
+}
+
+.social-link-input-group .partnership-manage-btn:hover i,
+.social-link-custom-form .partnership-manage-btn:hover i {
+    color: var(--stockton-blue);
+}
+
+.social-link-input-group .partnership-manage-btn.confirm i,
+.social-link-custom-form .partnership-manage-btn.confirm i {
+    color: #2ecc71;
+}
+
+.social-link-input-group .partnership-manage-btn.confirm:hover i,
+.social-link-custom-form .partnership-manage-btn.confirm:hover i {
+    color: #29b765;
+}
+
+.social-link-input-group .partnership-manage-btn.delete i,
+.social-link-custom-form .partnership-manage-btn.delete i {
+    color: #ef4444;
+}
+
+.social-link-input-group .partnership-manage-btn.delete:hover i,
+.social-link-custom-form .partnership-manage-btn.delete:hover i {
+    color: #ff1f1f;
+}
+
+/* ============================================
+   LANDING PAGE SOCIAL LINKS STRIP
+   Sits below the hero scroll indicator, above the calendar section.
+   Static row on larger screens; swipeable horizontal scroll on mobile.
+   ============================================ */
+.social-links-strip {
+    padding: 1.5rem 0;
+    background: var(--dark-bg);
+}
+
+.social-links-track {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+.social-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border: 3px solid transparent;
+    border-radius: 14px;
+    background:
+        linear-gradient(var(--card-bg), var(--card-bg)) padding-box,
+        conic-gradient(from var(--social-angle),
+            var(--social-c1),
+            var(--social-c2),
+            var(--social-c3, var(--social-c1)),
+            var(--social-c4, var(--social-c1)),
+            var(--social-c1)
+        ) border-box;
+    animation: social-border-spin 6s linear infinite;
+    text-decoration: none;
+    transition: transform 0.2s ease;
+    flex: 0 0 auto;
+    min-width: 200px;
+}
+
+.social-card:hover {
+    transform: translateY(-3px);
+}
+
+.social-card-icon {
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--social-accent, var(--stockton-blue)) 15%, transparent);
+    color: var(--social-accent, var(--stockton-blue));
+    font-size: 1.6rem;
+}
+
+.social-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.social-card-name {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--social-accent, var(--text-primary));
+}
+
+.social-card-cta {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+/* ============================
+   Mobile Integration
+   ============================ */
+/* Desktop: the duplicated second set of cards (added for the mobile marquee loop)
+   stays hidden so the static row only shows each link once */
+@media (min-width: 769px) {
+    .social-card--duplicate {
+        display: none;
+    }
+}
+
+/* Mobile: continuously auto-scrolling marquee, same technique as
+   .landing-gallery-track in photo-upload.css — duplicated content,
+   looped via translateX, paused on hover/touch */
+@media (max-width: 768px) {
+    .social-links-strip {
+        overflow: hidden;
+    }
+
+    .social-links-track {
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        width: max-content;
+        padding: 0 1rem;
+        animation: socialLinksMarquee 20s linear infinite;
+    }
+
+    .social-links-strip:hover .social-links-track {
+        animation-play-state: paused;
+    }
+
+    .social-card {
+        min-width: 220px;
+    }
+}
+
+@keyframes socialLinksMarquee {
+    from { transform: translateX(-50%); }
+    to   { transform: translateX(0%); }
+}

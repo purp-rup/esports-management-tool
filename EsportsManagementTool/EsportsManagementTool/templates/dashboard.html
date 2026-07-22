@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='vods.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='seasons.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='leagues.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='social-links.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='manage-communities.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='playoffs.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='stream-schedule.css') }}">
@@ -1419,6 +1420,7 @@
                             <div class="filter-box-item" onclick="openManageCommunitiesModal(); closeAllFilterPanels();">Communities</div>
                             <div class="filter-box-item" onclick="openManageLandingGalleryModal(); closeAllFilterPanels();">Landing Gallery</div>
                             <div class="filter-box-item" onclick="openManageStreamsModal(); closeAllFilterPanels();">Streams</div>
+                            <div class="filter-box-item" onclick="openManageSocialsModal(); closeAllFilterPanels();">Socials</div>
                             <div class="filter-box-item filter-box-item--flyout" id="partnershipManagementFlyoutTrigger">
                                 Partnerships <i class="fas fa-chevron-right"></i>
                                 <div class="filter-box-flyout" id="partnershipManagementFlyout">
@@ -2205,6 +2207,44 @@
     </div>
 </div>
 
+<!-- Manage Socials Modal -->
+<div id="manageSocialsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Social Media Links</h2>
+            <button class="modal-close" onclick="closeManageSocialsModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">Add links to our other platforms!</p>
+
+            <div id="socialLinksMessage" class="form-message" style="display: none;"></div>
+
+            <div id="socialLinksLoading" style="display: block; text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+            </div>
+
+            <div id="socialLinksList" class="social-links-list" style="display: none;"></div>
+
+            <div id="socialLinkCustomForm" class="social-link-custom-form" style="display: none;">
+                <input type="text" id="socialLinkCustomName" class="partnership-manage-input" placeholder="Link name (e.g. Discord Server)">
+                <input type="text" id="socialLinkCustomUrl" class="partnership-manage-input" placeholder="https://...">
+                <button class="partnership-manage-btn confirm" onclick="submitCustomSocialLink()" title="Save">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button class="partnership-manage-btn delete" onclick="cancelAddCustomSocialLink()" title="Cancel">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <button id="socialLinkAddCustomBtn" type="button" class="btn btn-secondary" style="width: 100%; margin-top: 1rem;" onclick="openAddCustomSocialForm()">
+                <i class="fas fa-plus"></i> Add Custom Socials Link
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Add VOD Modal -->
 <div id="addVodModal" class="modal" style="display:none;">
     <div class="modal-content">
@@ -2322,6 +2362,7 @@
 <script src="{{ url_for('static', filename='vods.js') }}"></script>
 <script src="{{ url_for('static', filename='seasons.js') }}"></script>
 <script src="{{ url_for('static', filename='leagues.js') }}"></script>
+<script src="{{ url_for('static', filename='social-links.js') }}"></script>
 <script src="{{ url_for('static', filename='manage-communities.js') }}"></script>
 <script src="{{ url_for('static', filename='playoffs-results.js') }}"></script>
 <script src="{{ url_for('static', filename='stream-schedule.js') }}"></script>

@@ -646,6 +646,7 @@ from EsportsManagementTool import teams
 from EsportsManagementTool import vods
 from EsportsManagementTool import seasons
 from EsportsManagementTool import leagues
+from EsportsManagementTool import social_links
 from EsportsManagementTool import statistics
 from EsportsManagementTool import photo_upload
 from EsportsManagementTool import index
@@ -663,6 +664,9 @@ seasons.initialize_season_scheduler(app, mysql)
 
 # Register League Routes
 leagues.register_league_routes(app, mysql, login_required, roles_required)
+
+# Register Social Link Routes
+social_links.register_social_link_routes(app, mysql, login_required, roles_required)
 
 # Register team statistics routes
 from EsportsManagementTool import team_stats
