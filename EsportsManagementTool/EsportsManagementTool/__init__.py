@@ -830,7 +830,11 @@ def get_event_details(event_id: int) -> tuple[Response, int] | Response:
     try:
         # Fetch event from generalevents table
         cursor.execute("""
-            SELECT * FROM generalevents WHERE EventID = %s
+            SELECT ge.*, t.teamName as team_name
+            FROM generalevents ge
+            LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
+            LEFT JOIN teams t ON se.team_id = t.TeamID
+            WHERE ge.EventID = %s
         """, (event_id,))
 
         event = cursor.fetchone()
@@ -864,7 +868,9 @@ def get_event_details(event_id: int) -> tuple[Response, int] | Response:
             'end_time': end_time_str,
             'location': event.get('Location', ''),
             'event_type': event.get('EventType', 'event').lower(),
-            'game_name': event.get('Game', None)
+            'game_name': event.get('Game', None),
+            'team_name': event.get('team_name'),
+            'is_scheduled': event.get('is_scheduled', False)
         }
 
         return jsonify(event_data)
