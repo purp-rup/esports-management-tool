@@ -1038,6 +1038,8 @@ def get_community_messages(game_id):
                     'created_at': datetime.fromtimestamp(item['created_at'], EST).isoformat()
                 })
 
+            attach_role_badges(cursor, messages, game_id)
+
             return jsonify({'success': True, 'messages': messages, 'has_more': has_more}), 200
 
         finally:
@@ -1216,6 +1218,8 @@ def get_new_community_messages(game_id):
                     'created_at': datetime.fromtimestamp(item['created_at'], EST).isoformat()
                 })
 
+        attach_role_badges(cursor, messages, game_id) 
+
         typing_names = []
         if typing_user_ids:
             placeholders = ','.join(['%s'] * len(typing_user_ids))
@@ -1301,6 +1305,38 @@ def set_user_typing(game_id):
     """Mark the current user as currently typing in this community's forum chat."""
     typing_status.set_typing(game_id, session['id'])
     return jsonify({'success': True}), 200
+
+def attach_role_badges(cursor, messages, game_id):
+    """
+    Attach role badge fields to each message, scoped to this community.
+    is_gm is scoped to game_id (only the assigned GM for this game gets the badge).
+    """
+    if not messages:
+        return messages
+
+    user_ids = sorted({m['user_id'] for m in messages})
+    placeholders = ','.join(['%s'] * len(user_ids))
+
+    cursor.execute(
+        f"SELECT userid, is_admin, is_developer, is_player FROM permissions WHERE userid IN ({placeholders})",
+        user_ids
+    )
+    perms_by_user = {row['userid']: row for row in cursor.fetchall()}
+
+    cursor.execute("SELECT gm_id, GameImage FROM games WHERE GameID = %s", (game_id,))
+    game = cursor.fetchone()
+    gm_id = game['gm_id'] if game else None
+    gm_icon = f'/game-image/{game_id}' if game and game.get('GameImage') else None
+
+    for msg in messages:
+        perms = perms_by_user.get(msg['user_id'], {})
+        msg['is_dev'] = bool(perms.get('is_developer'))
+        msg['is_admin'] = bool(perms.get('is_admin'))
+        msg['is_gm'] = (msg['user_id'] == gm_id)
+        msg['gm_icon'] = gm_icon if msg['is_gm'] else None
+        msg['is_player'] = bool(perms.get('is_player'))
+
+    return messages
 
 # ===================================
 # COMMUNITY TAB

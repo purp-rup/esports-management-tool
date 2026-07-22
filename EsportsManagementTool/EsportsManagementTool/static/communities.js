@@ -308,12 +308,21 @@ function buildForumMessageHtml(msg, isNewBlock, canDelete) {
             ? `<img src="${msg.profile_picture}" alt="${escapeHtml(msg.username)}" class="forum-message-avatar">`
             : `<div class="forum-message-avatar-initials">${escapeHtml(forumInitials(msg.full_name))}</div>`;
 
+        const badge = getHighestRoleBadge(msg);
+        const badgeHtml = badge
+            ? `<span class="role-badge ${badge.class}">
+                   ${badge.icon ? `<img src="${badge.icon}" alt="">` : ''}
+                   ${escapeHtml(badge.label)}
+               </span>`
+            : '';
+
         return `
             <div class="forum-message-block" data-message-id="${msg.message_id}">
                 ${avatarHtml}
                 <div class="forum-message-block-content">
                     <div class="forum-message-block-header">
                         <span class="forum-message-username">${escapeHtml(msg.username)}</span>
+                        ${badgeHtml}
                         <span class="forum-message-timestamp">${time}</span>
                     </div>
                     <div class="forum-message-text-row">
@@ -348,6 +357,14 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function getHighestRoleBadge(msg) {
+    if (msg.is_dev)  return { label: 'DEV',   class: 'dev' };
+    if (msg.is_admin) return { label: 'ADMIN', class: 'admin' };
+    if (msg.is_gm)   return { label: 'GM',    class: 'gm', icon: msg.gm_icon };
+    if (msg.is_player) return { label: 'PLAYER', class: 'player' };
+    return null;
 }
 
 function formatForumTimestamp(isoString) {

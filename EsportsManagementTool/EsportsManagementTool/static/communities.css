@@ -326,7 +326,7 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 0rem;
 }
 
 .community-forum-body::-webkit-scrollbar { width: 8px; }
@@ -365,8 +365,9 @@
 .forum-message-block {
     display: flex;
     gap: 0.75rem;
-    padding: 0.1rem 0.5rem;
+    padding: 0.02rem 0.5rem;
     border-radius: 8px;
+    margin-top: 0.5rem;
 }
 
 .forum-message-block-content {
@@ -375,20 +376,20 @@
 }
 
 .forum-message-avatar {
-    width: 40px;
-    height: 40px;       
+    width: 30px;
+    height: 30px;       
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: 6px;
 }
 
 .forum-message-avatar-initials {
-    width: 40px;
-    height: 40px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -411,6 +412,10 @@
     color: var(--text-stockton-white);
 }
 
+.forum-message-block-header .role-badge {
+    align-self: center;
+}
+
 .forum-message-timestamp {
     font-size: 0.7rem;
     color: var(--text-secondary);
@@ -420,14 +425,13 @@
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
-    padding: 0.05rem 0.5rem;
+    padding: 0.02rem 0.5rem;
 }
 
 .forum-message-continuation-time {
-    width: 40px;
+    width: 30px;
     flex-shrink: 0;
 }
-
 
 .forum-message-text-row {
     display: flex;
