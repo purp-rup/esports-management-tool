@@ -77,37 +77,34 @@
             <p style="margin-top: 0.75rem; font-size: 0.9rem;">Loading calendar...</p>
         </div>
         <div class="calendar-container" style="visibility: hidden;">
+            <!-- Calendar Navigation -->
+            <div class="calendar-navigation">
+                <button class="nav-button" id="prevMonth">
+                    <i class="fas fa-chevron-left"></i>
+                    <span>Previous</span>
+                </button>
+                <h2 class="calendar-month-year" id="currentMonthYear"></h2>
+                <button class="nav-button" id="nextMonth">
+                    <span>Next</span>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
             <!-- Main Calendar Section -->
             <div class="calendar-main">
-                <div class="calendar-wrapper">
-                    <!-- Calendar Navigation -->
-                    <div class="calendar-navigation">
-                        <button class="nav-button" id="prevMonth">
-                            <i class="fas fa-chevron-left"></i>
-                            <span>Previous</span>
-                        </button>
-                        <h2 class="calendar-month-year" id="currentMonthYear"></h2>
-                        <button class="nav-button" id="nextMonth">
-                            <span>Next</span>
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
-                    </div>
+                <!-- Days of week header -->
+                <div class="calendar-header">
+                    <div class="calendar-day-name">SUN</div>
+                    <div class="calendar-day-name">MON</div>
+                    <div class="calendar-day-name">TUES</div>
+                    <div class="calendar-day-name">WED</div>
+                    <div class="calendar-day-name">THURS</div>
+                    <div class="calendar-day-name">FRI</div>
+                    <div class="calendar-day-name">SAT</div>
+                </div>
 
-                    <!-- Days of week header -->
-                    <div class="calendar-header">
-                        <div class="calendar-day-name">SUN</div>
-                        <div class="calendar-day-name">MON</div>
-                        <div class="calendar-day-name">TUES</div>
-                        <div class="calendar-day-name">WED</div>
-                        <div class="calendar-day-name">THURS</div>
-                        <div class="calendar-day-name">FRI</div>
-                        <div class="calendar-day-name">SAT</div>
-                    </div>
-
-                    <!-- Calendar grid -->
-                    <div class="calendar-grid" id="calendarGrid">
-                        <!-- Populated by calendar.js -->
-                    </div>
+                <!-- Calendar grid -->
+                <div class="calendar-grid" id="calendarGrid">
+                    <!-- Populated by calendar.js -->
                 </div>
             </div>
 
