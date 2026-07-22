@@ -1411,6 +1411,7 @@
                             <div class="filter-box-item" onclick="openManageCommunitiesModal(); closeAllFilterPanels();">Communities</div>
                             <div class="filter-box-item" onclick="openManageLandingGalleryModal(); closeAllFilterPanels();">Landing Gallery</div>
                             <div class="filter-box-item" onclick="openManageStreamsModal(); closeAllFilterPanels();">Streams</div>
+                            <div class="filter-box-item" onclick="openAuditLogModal(); closeAllFilterPanels();">Audit Log</div>
                             <div class="filter-box-item filter-box-item--flyout" id="partnershipManagementFlyoutTrigger">
                                 Partnerships <i class="fas fa-chevron-right"></i>
                                 <div class="filter-box-flyout" id="partnershipManagementFlyout">
@@ -2193,6 +2194,38 @@
 
             <div id="landingGalleryGrid" class="landing-gallery-admin-grid"></div>
             <span id="landingGalleryCount" class="char-counter landing-gallery-count"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Audit Log Modal -->
+<div id="auditLogModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <div class="modal-header modal-header--compact">
+            <h2>Profanity Audit Log</h2>
+            <button class="modal-close" onclick="closeAuditLogModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="audit-log-filters">
+                <select id="auditLogCommunityFilter" onchange="applyAuditLogFilters()">
+                    <option value="">All Communities</option>
+                </select>
+                <select id="auditLogUserFilter" onchange="applyAuditLogFilters()">
+                    <option value="">All Users</option>
+                </select>
+            </div>
+
+            <div id="auditLogLoading" style="display: block; text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
+            </div>
+
+            <div id="auditLogEmpty" class="forum-empty" style="display:none;">
+                <i class="fas fa-check-circle"></i> No flagged messages found.
+            </div>
+
+            <div id="auditLogList" class="audit-log-list"></div>
         </div>
     </div>
 </div>

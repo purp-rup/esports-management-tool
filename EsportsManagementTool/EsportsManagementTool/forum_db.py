@@ -24,7 +24,7 @@ def _clean(item: dict) -> dict:
     }
 
 
-def create_message(community_id: int, user_id: int, content: str) -> dict:
+def create_message(community_id: int, user_id: int, content: str, is_profane: bool) -> dict:
     message_id = str(ULID())
     created_at = int(time.time())
 
@@ -37,6 +37,7 @@ def create_message(community_id: int, user_id: int, content: str) -> dict:
         "is_deleted": False,
         "deleted_at": None,
         "deleted_by": None,
+        "is_profane": is_profane,
     }
 
     _table.put_item(Item=item)
@@ -123,3 +124,29 @@ def get_recently_deleted(community_id: int, since_timestamp: int, limit: int = 1
     )
     items = [_clean(item) for item in response.get("Items", [])]
     return [item["message_id"] for item in items]
+
+def get_profane_messages(limit: int = 500):
+    """
+    Returns all messages flagged as profane (is_profane = True), across every
+    community, sorted newest first.
+    """
+    collected = []
+    exclusive_start_key = None
+
+    while True:
+        scan_kwargs = {
+            "FilterExpression": Attr("is_profane").eq(True),
+        }
+        if exclusive_start_key:
+            scan_kwargs["ExclusiveStartKey"] = exclusive_start_key
+
+        response = _table.scan(**scan_kwargs)
+        collected.extend(response.get("Items", []))
+        exclusive_start_key = response.get("LastEvaluatedKey")
+
+        if not exclusive_start_key or len(collected) >= limit:
+            break
+
+    items = [_clean(item) for item in collected[:limit]]
+    items.sort(key=lambda i: i["created_at"], reverse=True)
+    return items

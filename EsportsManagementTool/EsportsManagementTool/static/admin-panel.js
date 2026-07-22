@@ -778,6 +778,126 @@ function renderLandingGalleryAdminGrid() {
 }
 
 // ============================================
+// PROFANITY AUDIT LOG
+// ============================================
+
+let auditLogEntries = [];
+
+function openAuditLogModal() {
+    const modal = document.getElementById('auditLogModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    lockBodyScroll('auditLogModal');
+    loadAuditLog();
+}
+
+function closeAuditLogModal() {
+    const modal = document.getElementById('auditLogModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    unlockBodyScroll('auditLogModal');
+}
+
+async function loadAuditLog() {
+    const loading = document.getElementById('auditLogLoading');
+    const empty   = document.getElementById('auditLogEmpty');
+    const list    = document.getElementById('auditLogList');
+    if (!loading || !empty || !list) return;
+
+    loading.style.display = 'block';
+    empty.style.display   = 'none';
+    list.innerHTML        = '';
+
+    try {
+        const res  = await fetch('/api/admin/audit-log/profanity');
+        const data = await res.json();
+
+        if (data.success) {
+            auditLogEntries = data.entries;
+            populateAuditLogFilters();
+            renderAuditLogList(auditLogEntries);
+        } else {
+            list.innerHTML = `<div class="audit-log-row">${data.message || 'Failed to load audit log'}</div>`;
+        }
+    } catch (e) {
+        console.error('Error loading audit log:', e);
+        list.innerHTML = '<div class="audit-log-row">Failed to load audit log. Please try again.</div>';
+    } finally {
+        loading.style.display = 'none';
+    }
+}
+
+// Builds the filter dropdowns from the distinct communities/users
+function populateAuditLogFilters() {
+    const communitySelect = document.getElementById('auditLogCommunityFilter');
+    const userSelect      = document.getElementById('auditLogUserFilter');
+    if (!communitySelect || !userSelect) return;
+
+    const communities = new Map();
+    const users = new Map();
+
+    auditLogEntries.forEach(e => {
+        communities.set(e.community_id, e.community_name);
+        users.set(e.user_id, e.full_name || e.username);
+    });
+
+    communitySelect.innerHTML = '<option value="">All Communities</option>' +
+        Array.from(communities.entries())
+            .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
+            .join('');
+
+    userSelect.innerHTML = '<option value="">All Users</option>' +
+        Array.from(users.entries())
+            .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
+            .join('');
+}
+
+function applyAuditLogFilters() {
+    const communityId = document.getElementById('auditLogCommunityFilter')?.value;
+    const userId      = document.getElementById('auditLogUserFilter')?.value;
+
+    let filtered = auditLogEntries;
+    if (communityId) {
+        filtered = filtered.filter(e => String(e.community_id) === communityId);
+    }
+    if (userId) {
+        filtered = filtered.filter(e => String(e.user_id) === userId);
+    }
+
+    renderAuditLogList(filtered);
+}
+
+function renderAuditLogList(entries) {
+    const list  = document.getElementById('auditLogList');
+    const empty = document.getElementById('auditLogEmpty');
+    if (!list || !empty) return;
+
+    if (entries.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+
+    empty.style.display = 'none';
+
+    list.innerHTML = entries.map(e => `
+        <div class="audit-log-row">
+            <div class="audit-log-row-meta">
+                <span class="audit-log-row-user">${escapeHtml(e.full_name || e.username)}</span>
+                <span class="audit-log-row-community">${escapeHtml(e.community_name)}</span>
+                <span class="audit-log-row-time">${formatAuditLogTime(e.created_at)}</span>
+            </div>
+            <div class="audit-log-row-content">${escapeHtml(e.content)}</div>
+        </div>
+    `).join('');
+}
+
+function formatAuditLogTime(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// ============================================
 // EXPORT FUNCTIONS
 // ============================================
 window.initializeAdminPanel = initializeAdminPanel;
@@ -785,3 +905,5 @@ window.filterUsers = filterUsers;
 window.closeRemoveUserModal = closeRemoveUserModal;
 window.openManageLandingGalleryModal  = openManageLandingGalleryModal;
 window.closeManageLandingGalleryModal = closeManageLandingGalleryModal;
+window.openAuditLogModal  = openAuditLogModal;
+window.closeAuditLogModal = closeAuditLogModal;

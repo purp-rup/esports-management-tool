@@ -7,6 +7,7 @@ import json
 import cloudinary
 import cloudinary.uploader
 import time
+import requests
 
 # ======================================
 # COMMUNITY MANAGEMENT MODAL
@@ -988,6 +989,7 @@ def get_next_community_event(game_id):
 # COMMUNITY FORUM
 # ===================================
 FORUM_PAGE_SIZE = 30
+PROFANITY_API_URL = "https://vector.profanity.dev"
 
 @app.route('/api/game/<int:game_id>/messages', methods=['GET'])
 @login_required
@@ -1045,6 +1047,22 @@ def get_community_messages(game_id):
         print(f"Error fetching community messages: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load messages'}), 500
 
+def check_message_profanity(content: str) -> bool:
+    """
+    Calls the profanity.dev API. Returns True if the message is flagged.
+    Fails open (returns False) if the API errors out or times out.
+    """
+    try:
+        response = requests.post(
+            PROFANITY_API_URL,
+            json={"message": content},
+            timeout=3,
+        )
+        response.raise_for_status()
+        return bool(response.json().get("isProfanity", False))
+    except Exception as e:
+        print(f"Profanity check failed, allowing message through: {str(e)}")
+        return False
 
 @app.route('/api/game/<int:game_id>/messages', methods=['POST'])
 @login_required
@@ -1067,10 +1085,22 @@ def post_community_message(game_id):
             if len(content) > 2000:
                 return jsonify({'success': False, 'message': 'Message is too long (2000 character limit)'}), 400
 
+            is_profane = check_message_profanity(content)
+
             # community_id/user_id from MySQL
             item = forum_db.create_message(
-                community_id=game_id, user_id=session['id'], content=content
+                community_id=game_id, user_id=session['id'], content=content, is_profane=is_profane
             )
+
+            if is_profane:
+                forum_db.soft_delete_message(
+                    community_id=game_id, message_id=item['message_id'], deleted_by=session['id']
+                )
+                return jsonify({
+                    'success': False,
+                    'blocked': True,
+                    'message': 'Your message was not sent because it contains inappropriate language.'
+                }), 200
 
             cursor.execute(
                 "SELECT username, firstname, lastname, profile_picture FROM users WHERE id = %s",
@@ -1209,6 +1239,61 @@ def get_new_community_messages(game_id):
 
     finally:
         cursor.close()
+
+@app.route('/api/admin/audit-log/profanity', methods=['GET'])
+@roles_required('admin', 'developer')
+def get_profanity_audit_log():
+    """
+    Returns every message flagged as profane, across all communities, for
+    the admin audit log.
+    """
+    try:
+        entries = forum_db.get_profane_messages()
+
+        if not entries:
+            return jsonify({'success': True, 'entries': []}), 200
+
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            user_ids = list({e['user_id'] for e in entries})
+            community_ids = list({e['community_id'] for e in entries})
+
+            user_placeholders = ','.join(['%s'] * len(user_ids))
+            cursor.execute(
+                f"SELECT id, username, firstname, lastname FROM users WHERE id IN ({user_placeholders})",
+                tuple(user_ids)
+            )
+            users_by_id = {u['id']: u for u in cursor.fetchall()}
+
+            game_placeholders = ','.join(['%s'] * len(community_ids))
+            cursor.execute(
+                f"SELECT GameID, GameTitle FROM games WHERE GameID IN ({game_placeholders})",
+                tuple(community_ids)
+            )
+            games_by_id = {g['GameID']: g['GameTitle'] for g in cursor.fetchall()}
+
+            result = []
+            for e in entries:
+                user = users_by_id.get(e['user_id'])
+                result.append({
+                    'message_id': e['message_id'],
+                    'community_id': e['community_id'],
+                    'community_name': games_by_id.get(e['community_id'], f"Community #{e['community_id']}"),
+                    'user_id': e['user_id'],
+                    'username': user['username'] if user else 'Unknown user',
+                    'full_name': f"{user['firstname']} {user['lastname']}" if user else 'Unknown user',
+                    'content': e['content'],
+                    'created_at': datetime.fromtimestamp(e['created_at'], EST).isoformat(),
+                })
+
+            return jsonify({'success': True, 'entries': result}), 200
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error fetching profanity audit log: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to load audit log'}), 500
 
 @app.route('/api/game/<int:game_id>/typing', methods=['POST'])
 @login_required

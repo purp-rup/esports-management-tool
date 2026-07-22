@@ -400,8 +400,12 @@ async function sendForumMessage() {
 
             const empty = document.getElementById('forumEmpty');
             if (empty) empty.style.display = 'none';
+        } else if (data.blocked) {
+            input.value = '';
+            input.style.height = 'auto';
+            openWarningPopup(data.message || 'Your message was not sent because it contains inappropriate language.');
         } else {
-            alert(data.message || 'Failed to send message');
+            openWarningPopup(data.message || 'Failed to send message');
         }
     } catch (e) {
         console.error('Failed to send forum message:', e);

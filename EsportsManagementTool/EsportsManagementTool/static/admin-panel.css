@@ -445,6 +445,81 @@
   opacity: 0.6;
 }
 
+/* ============================================
+   PROFANITY AUDIT LOG
+   ============================================ */
+.audit-log-filters {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.audit-log-filters select {
+  flex: 1;
+  min-width: 180px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.audit-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.audit-log-row {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  background: var(--dark-bg);
+}
+
+.audit-log-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.audit-log-row-user {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.audit-log-row-community {
+  font-size: 0.75rem;
+  color: var(--stockton-blue);
+  background: rgba(121, 189, 233, 0.12);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.audit-log-row-time {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.audit-log-row-content {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  background: rgba(239, 68, 68, 0.08);
+  border-left: 3px solid #ef4444;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
 /* ================================
    Mobile responsiveness
    ================================ */

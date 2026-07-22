@@ -36,6 +36,12 @@ const MODAL_CLOSE_HANDLERS = {
     // Universal delete confirmation modal
     'deleteConfirmModal': () => closeDeleteConfirmModal(),
 
+    // Universal warning popup modal
+    'warningPopupModal': () => closeWarningPopup(),
+
+    // Universal profanity audit log modal
+    'auditLogModal': () => closeAuditLogModal(),
+
     // Event-related modals
     'dayEventsModal': () => closeDayModal(),
     'createEventModal': () => closeCreateEventModal(),
@@ -100,7 +106,8 @@ function initializeClickOutsideHandler() {
         // Check if the clicked element is a modal background
         // Support both .modal and .delete-confirmation-modal classes
         if (event.target.classList.contains('modal') ||
-            event.target.classList.contains('delete-confirmation-modal')) {
+            event.target.classList.contains('delete-confirmation-modal') ||
+            event.target.classList.contains('warning-popup-modal')) {
             const modalId = event.target.id;
 
             // Look up and execute the appropriate close handler
@@ -126,7 +133,7 @@ function initializeEscapeKeyHandler() {
             // Find all currently visible modals
             // Supports both display:block, display:flex, and .active class
             const visibleModals = document.querySelectorAll(
-                '.modal[style*="display: block"], .modal[style*="display: flex"], .modal.active, .delete-confirmation-modal.active'
+                '.modal[style*="display: block"], .modal[style*="display: flex"], .modal.active, .delete-confirmation-modal.active, .warning-popup-modal.active'
             );
 
             // Close all visible modals

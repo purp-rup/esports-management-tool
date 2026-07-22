@@ -194,6 +194,16 @@
     </div>
 </div>
 
+<div id="warningPopupModal" class="warning-popup-modal">
+    <div class="warning-popup-content">
+        <h3>Warning</h3>
+        <div id="warningPopupMessage" class="warning-popup-message"></div>
+        <div class="warning-popup-actions">
+            <button class="btn btn-warning-ok" onclick="closeWarningPopup()">Ok</button>
+        </div>
+    </div>
+</div>
+
 {% if can_edit_banner %}
     <input type="file" id="photoFileInput" accept="image/*" style="display:none;">
 {% endif %}
