@@ -2,10 +2,12 @@ from EsportsManagementTool import app, login_required, roles_required, mysql, ES
 from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr, is_all_day_event, build_member_profile, attach_profile_extras
 from flask import request, render_template, redirect, url_for, session, flash, jsonify
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 import MySQLdb.cursors
 import json
 import cloudinary
 import cloudinary.uploader
+import requests
 
 
 # ======================================
@@ -23,6 +25,7 @@ def create_community():
         description = request.form.get('gameDescription', '').strip()
         team_sizes_json = request.form.get('team_sizes', '[]')
         division = request.form.get('division', 'Other').strip()
+        discord_link = request.form.get('discord_link', '').strip()
 
         team_sizes = json.loads(team_sizes_json)
 
@@ -54,12 +57,14 @@ def create_community():
                 public_id = upload_result.get('public_id')
 
         cursor.execute(
-            "INSERT INTO games (GameTitle, Abbreviation, Description, TeamSizes, Division, GameImage, cloudinary_public_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (game_title, abbreviation, description, team_sizes_str, division, image_url, public_id)
+            "INSERT INTO games (GameTitle, Abbreviation, Description, TeamSizes, Division, GameImage, cloudinary_public_id, discord_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            (game_title, abbreviation, description, team_sizes_str, division, image_url, public_id, discord_link if discord_link else None)
         )
 
         game_id = cursor.lastrowid
         mysql.connection.commit()
+
+        sync_discord_icon(game_id, discord_link)
 
         return jsonify(
             {'success': True, 'message': f'Game "{game_title}" created successfully', 'game_id': game_id}), 200
@@ -311,6 +316,7 @@ def get_all_games_for_management():
                 g.TeamSizes,
                 g.gm_id,
                 g.hidden,
+                g.discord_link,
                 CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image,
                 u.username as gm_username,
                 u.firstname as gm_firstname,
@@ -364,7 +370,8 @@ def get_all_games_for_management():
                 'member_count': member_counts.get(game_id, 0),
                 'team_count': team_counts.get(game_id, 0),
                 'current_gm': gm_info,
-                'hidden': bool(game['hidden'])
+                'hidden': bool(game['hidden']),
+                'discord_link': game['discord_link']
             })
 
         return jsonify({'success': True, 'games': games_data}), 200
@@ -396,6 +403,7 @@ def update_game_details(game_id):
         abbreviation = request.form.get('abbreviation', '').strip().upper()
         description = request.form.get('description', '').strip()
         division = request.form.get('division', '').strip()
+        discord_link = request.form.get('discord_link', '').strip()
         team_sizes_json = request.form.get('team_sizes', '[]')
 
         team_sizes = json.loads(team_sizes_json)
@@ -447,23 +455,25 @@ def update_game_details(game_id):
         # Update database
         if public_id:
             cursor.execute("""
-                UPDATE games 
-                SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, 
-                    TeamSizes = %s, GameImage = %s, cloudinary_public_id = %s
-                WHERE GameID = %s
-            """, (game_title, abbreviation, description, division, team_sizes_str, image_url, public_id, game_id))
+               UPDATE games 
+               SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, 
+                   TeamSizes = %s, GameImage = %s, cloudinary_public_id = %s, discord_link = %s
+               WHERE GameID = %s
+           """, (game_title, abbreviation, description, division, team_sizes_str, image_url, public_id, discord_link if discord_link else None, game_id))
         else:
             cursor.execute("""
-                UPDATE games 
-                SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, TeamSizes = %s
-                WHERE GameID = %s
-            """, (game_title, abbreviation, description, division, team_sizes_str, game_id))
+               UPDATE games 
+               SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, TeamSizes = %s, discord_link = %s
+               WHERE GameID = %s
+           """, (game_title, abbreviation, description, division, team_sizes_str, discord_link if discord_link else None, game_id))
 
         mysql.connection.commit()
 
+        sync_discord_icon(game_id, discord_link)
+
         return jsonify({
             'success': True,
-            'message': f'Game "{game_title}" updated successfully',
+            'message': f'"{game_title}" community updated successfully',
             'game_id': game_id
         }), 200
 
@@ -601,12 +611,13 @@ def community_page(game_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         cursor.execute("""
-            SELECT GameID, GameTitle, Description, Division, gm_id,
-                   CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image,
-                   GameBanner
-            FROM games
-            WHERE GameID = %s AND hidden = 0
-        """, (game_id,))
+           SELECT g.GameID, g.GameTitle, g.Abbreviation, g.Description, g.Division, g.gm_id,
+                  CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image,
+                  g.GameBanner, g.discord_link, di.icon_url as discord_icon_url
+           FROM games g
+           LEFT JOIN game_discord_info di ON di.game_id = g.GameID
+           WHERE g.GameID = %s AND g.hidden = 0
+       """, (game_id,))
         game = cursor.fetchone()
 
         if not game:
@@ -800,53 +811,6 @@ def game_image(game_id):
     except Exception as e:
         print(f"Error serving game image: {str(e)}")
         return jsonify({'error': 'Error loading image'}), 500
-
-    finally:
-        cursor.close()
-
-
-@app.route('/api/game/<int:game_id>/current-leagues', methods=['GET'])
-@login_required
-def get_current_game_leagues(game_id):
-    """Get all leagues associated with this game's current season teams"""
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    try:
-        # Get current active season
-        cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
-        active_season = cursor.fetchone()
-
-        if not active_season:
-            return jsonify({'success': True, 'leagues': []})
-
-        active_season_id = active_season['season_id']
-
-        # Get unique leagues from teams in current season for this game
-        cursor.execute("""
-            SELECT DISTINCT l.id, l.name, l.website_url,
-                   l.logo,
-                   COUNT(DISTINCT tl.team_id) as team_count
-            FROM league l
-            INNER JOIN team_leagues tl ON l.id = tl.league_id
-            INNER JOIN teams t ON tl.team_id = t.TeamID
-            WHERE t.gameID = %s
-            AND t.season_id = %s
-            GROUP BY l.id, l.name, l.website_url, l.logo
-            ORDER BY l.name ASC
-        """, (game_id, active_season_id))
-
-        leagues = cursor.fetchall()
-
-        # Calls from cloudinary
-        for league in leagues:
-            if 'has_logo' in league:
-                del league['has_logo']
-
-        return jsonify({'success': True, 'leagues': leagues}), 200
-
-    except Exception as e:
-        print(f"Error fetching game current leagues: {e}")
-        return jsonify({'success': False, 'message': 'Failed to fetch leagues'}), 500
 
     finally:
         cursor.close()
@@ -1290,3 +1254,69 @@ def get_game_stats(cursor, game_ids):
     team_counts = {row['gameID']: row['team_count'] for row in cursor.fetchall()}
 
     return member_counts, team_counts
+
+
+def _extract_discord_invite_code(discord_link):
+    path = urlparse(discord_link).path.strip('/')
+    return path.split('/')[-1] if path else None
+
+
+def _resolve_discord_invite(discord_link):
+    """Resolve a Discord invite link to its guild icon. Returns
+    (guild_id, icon_hash, icon_url) or None if it can't be resolved."""
+    code = _extract_discord_invite_code(discord_link)
+    if not code:
+        return None
+
+    try:
+        resp = requests.get(f'https://discord.com/api/v10/invites/{code}', timeout=5)
+        if resp.status_code != 200:
+            return None
+
+        guild = resp.json().get('guild')
+        if not guild or not guild.get('icon'):
+            return None
+
+        guild_id = guild['id']
+        icon_hash = guild['icon']
+        ext = 'gif' if icon_hash.startswith('a_') else 'png'
+        icon_url = f'https://cdn.discordapp.com/icons/{guild_id}/{icon_hash}.{ext}'
+
+        return guild_id, icon_hash, icon_url
+
+    except requests.RequestException as e:
+        print(f"Error resolving Discord invite: {e}")
+        return None
+
+
+def sync_discord_icon(game_id, discord_link):
+    """Refresh the cached Discord guild icon for a game. Safe to call with an
+    empty/invalid discord_link — it just clears the cached row. Runs in its
+    own cursor/transaction so a Discord API hiccup never blocks community
+    create/update."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        resolved = _resolve_discord_invite(discord_link) if discord_link else None
+
+        if resolved:
+            guild_id, icon_hash, icon_url = resolved
+            cursor.execute("""
+                INSERT INTO game_discord_info (game_id, guild_id, icon_hash, icon_url)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    guild_id = VALUES(guild_id),
+                    icon_hash = VALUES(icon_hash),
+                    icon_url = VALUES(icon_url),
+                    fetched_at = CURRENT_TIMESTAMP
+            """, (game_id, guild_id, icon_hash, icon_url))
+        else:
+            cursor.execute("DELETE FROM game_discord_info WHERE game_id = %s", (game_id,))
+
+        mysql.connection.commit()
+
+    except Exception as e:
+        print(f"Error syncing Discord icon for game {game_id}: {e}")
+        mysql.connection.rollback()
+
+    finally:
+        cursor.close()

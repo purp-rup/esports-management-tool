@@ -325,18 +325,16 @@ main {
 }
 
 .info-tooltip {
-    position: absolute;
-    left: calc(100% + 12px);
-    top: 50%;
-    transform: translateY(-50%) translateX(-4px);
+    position: fixed;
+    width: 260px;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 0.75rem 1rem;
-    min-width: 260px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     opacity: 0;
     pointer-events: none;
+    transform: translateX(-4px);
     transition: opacity 0.15s ease, transform 0.15s ease;
     z-index: 200;
     white-space: nowrap;
@@ -367,8 +365,7 @@ main {
 .info-tooltip.info-tooltip--visible {
     opacity: 1;
     pointer-events: auto;
-    transform: translateY(-50%) translateX(0);
-    overflow: visible;
+    transform: translateX(0);
 }
 
 /* Rows inside the tooltip */
@@ -408,9 +405,7 @@ main {
 
 /* Left-opening variant */
 .info-tooltip--left {
-    left: auto;
-    right: calc(100% + 12px);
-    transform: translateY(-50%) translateX(4px);
+    transform: translateX(4px);
 }
 
 .info-tooltip--left::before {

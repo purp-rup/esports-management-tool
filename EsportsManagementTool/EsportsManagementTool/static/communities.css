@@ -172,14 +172,10 @@
 }
 
 .community-card-stat-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    justify-content: center;
     gap: 0.75rem;
-    margin-left: auto;
-}
-
-.community-card-stat-row.has-leagues {
-    grid-template-columns: 1fr 1fr 1fr;
+    flex: 1;
 }
 
 .community-page-stat-box {
@@ -188,6 +184,8 @@
     border-radius: 8px;
     padding: 0.5rem 0.25rem;
     text-align: center;
+    width: 5.5rem;
+    flex-shrink: 0;
 }
 
  /* ── Member list ── */
@@ -300,57 +298,43 @@
     color: var(--border-color);
 }
 
-/* -- League Badges -- */
-.game-league-badge {
-    display: inline-flex;
+/* Community Discord box */
+.community-discord-box {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.25rem 0.5rem;
-    background: rgba(121, 189, 233, 0.1);
-    border: 1px solid rgba(121, 189, 233, 0.3);
-    border-radius: 4px;
-    color: var(--stockton-blue);
+    justify-content: center;
+    gap: 0.25rem;
     text-decoration: none;
-    font-size: 0.5rem;
+    color: var(--text-primary);
     transition: all 0.2s;
-    width: 100%;
-    line-height: 1.2;
 }
 
-.game-league-badge:hover {
-    background: rgba(121, 189, 233, 0.2);
-    border-color: var(--stockton-blue);
+.community-discord-box:hover {
+    border-color: #5865F2;
+    background: rgba(88, 101, 242, 0.1);
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(121, 189, 233, 0.3);
 }
 
-.game-league-badge-logo {
-    width: 18px;
-    height: 18px;
+.community-discord-icon {
+    font-size: 1.25rem;
+    color: #5865F2;
+    margin: 0.2rem;
+}
+
+.community-discord-icon-img {
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: 50%;
     object-fit: cover;
-    flex-shrink: 0;
 }
 
-.game-league-badge-icon {
-    font-size: 0.5rem;
-    color: var(--stockton-blue);
-    width: 12px;
-    text-align: center;
-}
-
-.game-league-badge-name {
-    font-size: 0.65rem;
+.community-discord-text {
+    font-size: 0.6rem;
     font-weight: 500;
-}
-
-.game-league-badge-external {
-    opacity: 0.7;
-    flex-shrink: 0;
-}
-
-.game-league-badge:hover .game-league-badge-external {
-    opacity: 1;
+    line-height: 1.2;
+    color: var(--text-secondary);
+    letter-spacing: 0.05em;
 }
 
 /* -- Next Scheduled Event Card -- */

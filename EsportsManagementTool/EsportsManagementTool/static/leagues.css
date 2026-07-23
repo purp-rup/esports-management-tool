@@ -89,6 +89,16 @@
     text-decoration: underline;
 }
 
+/* League link inside the team info tooltip */
+.tooltip-league-link {
+    color: var(--stockton-blue);
+    text-decoration: none;
+}
+
+.tooltip-league-link:hover {
+    text-decoration: underline;
+}
+
 .league-card-actions {
     display: flex;
     gap: 0.5rem;

@@ -251,6 +251,26 @@
     transform: scale(1.05);
 }
 
+/* Discord indicator on manage community cards */
+.community-action-btn.discord-indicator {
+    cursor: default;
+}
+
+.community-action-btn.discord-indicator:hover {
+    background: transparent;
+    transform: none;
+}
+
+.community-action-btn.discord-indicator.has-discord {
+    border-color: #4CAF50;
+    color: #4CAF50;
+}
+
+.community-action-btn.discord-indicator.no-discord {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
 /* View community button */
 .community-action-btn:has(.fa-eye) {
     border-color: var(--stockton-blue);

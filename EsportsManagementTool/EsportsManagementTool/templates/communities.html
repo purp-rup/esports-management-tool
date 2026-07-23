@@ -67,17 +67,29 @@
                 <!-- Divider -->
                 <div class="community-card-divider"></div>
 
-                <!-- Stats and member list button -->
+                <!-- Members list button, Discord link (if added), and community stats -->
                 <div class="community-card-stats-and-btn">
                     <button class="community-member-list-btn" id="memberListBtn"
                             onclick="toggleMemberListPopup()">
                         <i class="fas fa-list"></i>
                         <span>Members</span>
                     </button>
-                    <div class="community-card-stat-row">
-                        <div class="community-page-stat-box" id="communityLeaguesBox" style="display:none;">
-                            <div class="game-leagues-badges" id="communityLeaguesBadges"></div>
-                        </div>
+                    <div class="community-card-stat-row{% if game.discord_link %} has-discord{% endif %}">
+                        {% if game.discord_link %}
+                            <a class="community-page-stat-box community-discord-box"
+                               href="{{ game.discord_link }}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               title="Join the {{ game.Abbreviation }} Discord">
+                                <span class="community-discord-text">Join the {{ game.Abbreviation }}</span>
+                                {% if game.discord_icon_url %}
+                                    <img src="{{ game.discord_icon_url }}" alt="{{ game.GameTitle }} Discord icon" class="community-discord-icon-img">
+                                {% else %}
+                                    <i class="fab fa-discord community-discord-icon"></i>
+                                {% endif %}
+                                <span class="community-discord-text">Discord here!</span>
+                            </a>
+                        {% endif %}
                         <div class="community-page-stat-box">
                             <i class="fas fa-users community-card-stat-icon"></i>
                             <div class="community-card-stat-number">{{ game.member_count }}</div>

@@ -156,6 +156,10 @@ function renderCommunitiesGrid() {
         const hideButtonHtml = (isAdmin || isDeveloper) ? `
             <div class="community-header-right">
                 <div class="community-header-actions">
+                    <div class="community-action-btn discord-indicator ${community.discord_link ? 'has-discord' : 'no-discord'}"
+                         title="${community.discord_link ? 'Discord linked' : 'No Discord linked'}">
+                        <i class="fab fa-discord"></i>
+                    </div>
                     <button class="community-action-btn"
                             onclick="window.location.href='/community/${community.id}'; event.stopPropagation();"
                             title="View community">
@@ -325,6 +329,16 @@ function showCommunityForm(community = null) {
             </div>
 
             <div class="community-form-group">
+                <label for="communityDiscordLink">Discord Invite Link</label>
+                <input type="url"
+                       id="communityDiscordLink"
+                       name="discord_link"
+                       placeholder="https://discord.gg/..."
+                       value="${community && community.discord_link ? escapeHtml(community.discord_link) : ''}">
+                <small>Optional. Shown to members as a quick-join link.</small>
+            </div>
+
+            <div class="community-form-group">
                 <label>Game Icon/Image</label>
                 <div class="community-image-upload">
                     <div class="community-image-preview" id="communityImagePreview">
@@ -403,6 +417,7 @@ async function submitCommunityForm(event) {
     const abbreviation = form.querySelector('#communityAbbreviation').value.toUpperCase();
     const division = form.querySelector('#communityDivision').value;
     const description = form.querySelector('#communityDescription').value;
+    const discordLink = form.querySelector('#communityDiscordLink').value.trim();
 
     // Get selected team sizes
     const teamSizeCheckboxes = form.querySelectorAll('input[name="teamSize"]:checked');
@@ -416,20 +431,20 @@ async function submitCommunityForm(event) {
     const isEditing = currentEditingCommunity !== null;
 
     // Use the correct keys that match the backend
-    if (isEditing) {
-        // Update route expects: title, description, division, team_sizes, image
+     if (isEditing) {
         formData.append('title', title);
         formData.append('abbreviation', abbreviation);
         formData.append('description', description);
         formData.append('division', division);
         formData.append('team_sizes', JSON.stringify(teamSizes));
+        formData.append('discord_link', discordLink);
     } else {
-        // Create route expects: gameTitle, gameDescription, division, team_sizes, gameImage
         formData.append('gameTitle', title);
         formData.append('abbreviation', abbreviation);
         formData.append('gameDescription', description);
         formData.append('division', division);
         formData.append('team_sizes', JSON.stringify(teamSizes));
+        formData.append('discord_link', discordLink);
     }
 
     // Handle image with correct key based on operation
