@@ -339,6 +339,43 @@ async function executeLandingPhotoDelete(photoId) {
     }
 }
 
+// Confirms a community photo will be removed (Communities tab of the landing gallery modal)
+function confirmDeleteCommunityPhoto(gameId, photoId) {
+    openDeleteConfirmModal({
+        title: 'Delete Photo?',
+        message: 'Are you sure you want to permanently delete this photo from the community? This cannot be undone.',
+        buttonText: 'Delete Photo',
+        itemId: photoId,
+        onConfirm: async (id) => {
+            await executeCommunityPhotoDelete(gameId, id);
+        }
+    });
+}
+
+// Removes a photo from a specific community, reusing the existing per-game delete route
+async function executeCommunityPhotoDelete(gameId, photoId) {
+    try {
+        const res  = await fetch(`/api/game/${gameId}/photos/${photoId}`, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (data.success) {
+            const community = landingGalleryCommunities.find(c => c.game_id === gameId);
+            if (community) {
+                community.photos = community.photos.filter(p => p.photo_id !== photoId);
+            }
+            closeDeleteConfirmModal();
+            renderLandingGalleryCommunities();
+            showDeleteSuccessMessage('Photo deleted successfully.');
+        } else {
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage('Delete failed: ' + data.message);
+        }
+    } catch (e) {
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Delete failed. Please try again.');
+    }
+}
+
 // Displays an error if not rendered properly
 function showLandingGalleryError(message) {
     const el = document.getElementById('landingGalleryMessage');
@@ -463,3 +500,4 @@ window.clearCroppedImageBlob = clearCroppedImageBlob;
 
 // Landing gallery — admin management
 window.confirmDeleteLandingPhoto      = confirmDeleteLandingPhoto;
+window.confirmDeleteCommunityPhoto    = confirmDeleteCommunityPhoto;

@@ -19,6 +19,13 @@ let selectedUserId = null;
 // Maximum photos allowed in the landing page gallery.
 const MAX_LANDING_PHOTOS = 12;
 
+// Maximum photos allowed per community (mirrors PHOTO_LIMIT in photo_upload.py).
+const MAX_COMMUNITY_PHOTOS = 6;
+
+// Cache of community photo data for the Communities tab, populated on first view.
+let landingGalleryCommunities = [];
+let landingGalleryCommunitiesLoaded = false;
+
 // Initialize admin panel, refresh badges, and show user list once loaded
 async function initializeAdminPanel() {
     attachAdminEventListeners();
@@ -709,7 +716,81 @@ function openManageLandingGalleryModal() {
     if (!modal) return;
     modal.style.display = 'flex';
     lockBodyScroll('manageLandingGalleryModal');
+    switchLandingGalleryTab('admin');
     loadLandingGalleryAdmin();
+}
+
+// Switches between the Admin and Communities tabs in the landing gallery modal
+function switchLandingGalleryTab(tab) {
+    document.querySelectorAll('#manageLandingGalleryModal .modal-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    document.getElementById('landingGalleryAdminPanel').classList.toggle('active', tab === 'admin');
+    document.getElementById('landingGalleryCommunitiesPanel').classList.toggle('active', tab === 'communities');
+
+    if (tab === 'communities' && !landingGalleryCommunitiesLoaded) {
+        loadLandingGalleryCommunities();
+    }
+}
+
+// Loads every community's photos for the Communities tab
+async function loadLandingGalleryCommunities() {
+    const loading = document.getElementById('landingGalleryCommunitiesLoading');
+    const list    = document.getElementById('landingGalleryCommunitiesList');
+    if (!loading || !list) return;
+
+    loading.style.display = 'block';
+    list.style.display    = 'none';
+
+    try {
+        const res  = await fetch('/api/admin/landing-photos/communities');
+        const data = await res.json();
+
+        if (data.success) {
+            landingGalleryCommunities = data.communities;
+            landingGalleryCommunitiesLoaded = true;
+            renderLandingGalleryCommunities();
+        } else {
+            showLandingGalleryError(data.message || 'Failed to load community photos');
+        }
+    } catch (e) {
+        console.error('Error loading community photos:', e);
+        showLandingGalleryError('Failed to load community photos. Please try again.');
+    } finally {
+        loading.style.display = 'none';
+        list.style.display    = 'block';
+    }
+}
+
+// Renders one card per community, each with a 6-slot photo grid
+function renderLandingGalleryCommunities() {
+    const list = document.getElementById('landingGalleryCommunitiesList');
+    if (!list) return;
+
+    list.innerHTML = landingGalleryCommunities.map(community => {
+        const filledHtml = community.photos.map(p => `
+            <div class="photo-manager-thumb" data-photo-id="${p.photo_id}">
+                <img src="${p.photo_url}" alt="${community.game_title} photo">
+                <button class="photo-manager-delete-btn"
+                        onclick="confirmDeleteCommunityPhoto(${community.game_id}, ${p.photo_id})"
+                        title="Delete this photo">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+
+        const emptySlots = Math.max(MAX_COMMUNITY_PHOTOS - community.photos.length, 0);
+        const emptyHtml  = '<div class="photo-manager-thumb photo-manager-thumb--empty"></div>'.repeat(emptySlots);
+
+        return `
+            <div class="landing-gallery-community-card">
+                <p class="landing-gallery-community-name">${community.game_title}</p>
+                <div class="landing-gallery-admin-grid">
+                    ${filledHtml}${emptyHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function closeManageLandingGalleryModal() {
@@ -786,3 +867,5 @@ window.filterUsers = filterUsers;
 window.closeRemoveUserModal = closeRemoveUserModal;
 window.openManageLandingGalleryModal  = openManageLandingGalleryModal;
 window.closeManageLandingGalleryModal = closeManageLandingGalleryModal;
+window.switchLandingGalleryTab        = switchLandingGalleryTab;
+window.renderLandingGalleryCommunities = renderLandingGalleryCommunities;

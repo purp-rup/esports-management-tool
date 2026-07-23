@@ -200,6 +200,50 @@ def get_landing_photos_admin():
     finally:
         cursor.close()
 
+@app.route('/api/admin/landing-photos/communities', methods=['GET'])
+@login_required
+def get_landing_photos_by_community():
+    """Admin-only: list every community alongside its uploaded photos, for the
+    Communities tab of the landing gallery management modal."""
+    permissions = get_user_permissions(session['id'])
+    if not (permissions['is_admin'] or permissions['is_developer']):
+        return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT g.GameID AS game_id, g.GameTitle AS game_title,
+                   p.photo_id, p.photo_url
+            FROM games g
+            LEFT JOIN photo_upload p ON p.community_id = g.GameID
+            ORDER BY g.GameTitle ASC, p.uploaded_at ASC
+        """)
+        rows = cursor.fetchall()
+
+        communities = {}
+        for row in rows:
+            gid = row['game_id']
+            if gid not in communities:
+                communities[gid] = {
+                    'game_id': gid,
+                    'game_title': row['game_title'],
+                    'photos': []
+                }
+            if row['photo_id'] is not None:
+                communities[gid]['photos'].append({
+                    'photo_id': row['photo_id'],
+                    'photo_url': row['photo_url']
+                })
+
+        return jsonify({'success': True, 'communities': list(communities.values())}), 200
+
+    except Exception as e:
+        print(f"Error fetching community photos: {str(e)}")
+        return jsonify({'success': False, 'message': f'Failed to fetch photos: {str(e)}'}), 500
+
+    finally:
+        cursor.close()
+
 
 @app.route('/api/admin/landing-photos', methods=['POST'])
 @login_required

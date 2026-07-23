@@ -535,6 +535,31 @@
     background: transparent;
 }
 
+/* Narrower modal so the 3-column grid isn't swimming in side padding */
+#manageLandingGalleryModal .modal-content {
+    max-width: 420px;
+}
+
+/* Communities tab — one card per community, each with its own 6-slot grid */
+#landingGalleryCommunitiesList {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.landing-gallery-community-card {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1rem;
+}
+
+.landing-gallery-community-name {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
 /* Subtitle + Add Photo button share a row instead of stacking full-width */
 .landing-gallery-toolbar {
     display: flex;

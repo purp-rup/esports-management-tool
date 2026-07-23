@@ -664,6 +664,55 @@
     color: var(--event-misc);
 }
 
+/* ========================================
+   Generic modal tab switcher
+   ======================================== */
+.modal-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    padding: 0 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-tab-btn {
+    background: none;
+    border: none;
+    padding: 0.75rem 0.25rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s ease;
+}
+
+.modal-tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.modal-tab-btn.active {
+    color: var(--stockton-blue);
+}
+
+.modal-tab-btn.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: var(--stockton-blue);
+}
+
+.modal-tab-panel {
+    display: none;
+}
+
+.modal-tab-panel.active {
+    display: block;
+}
+
 /* =====================================
    Modal animations
    ===================================== */
