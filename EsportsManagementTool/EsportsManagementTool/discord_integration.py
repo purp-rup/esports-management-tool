@@ -51,7 +51,7 @@ def find_discord_by_id(discord_id, exclude_userid=None):
     
     # Decrypt and compare each discord_id
     for record in all_records:
-        decrypted_id = decrypt_token(record['discord_id'])
+        decrypted_id = decrypt_token(record['discord_id'], record['userid'])
         if decrypted_id == discord_id:
             return record
     
@@ -152,9 +152,9 @@ def discord_callback():
         discord_avatar = discord_user.get('avatar')
         
         # Encrypt all sensitive data and decode to string for VARCHAR storage
-        encrypted_discord_id = encrypt_token(discord_id).decode('utf-8')
-        encrypted_access_token = encrypt_token(access_token).decode('utf-8')
-        encrypted_refresh_token = encrypt_token(refresh_token).decode('utf-8') if refresh_token else None
+        encrypted_discord_id = encrypt_token(discord_id, session['id'])
+        encrypted_access_token = encrypt_token(access_token, session['id'])
+        encrypted_refresh_token = encrypt_token(refresh_token, session['id']) if refresh_token else None
         
         # Check if Discord account is already linked to another user
         existing = find_discord_by_id(discord_id, exclude_userid=session['id'])
@@ -245,7 +245,7 @@ def get_discord_info():
         
         if discord_data:
             # Decrypt the discord_id for use in avatar URL
-            decrypted_discord_id = decrypt_token(discord_data['discord_id'])
+            decrypted_discord_id = decrypt_token(discord_data['discord_id'], session['id'])
             
             if not decrypted_discord_id:
                 return jsonify({'success': False, 'message': 'Failed to decrypt Discord data'}), 500
@@ -293,8 +293,8 @@ def sync_discord_avatar():
         discord_data = cursor.fetchone()
         
         # Decrypt access token
-        access_token = decrypt_token(discord_data['access_token'])
-        decrypted_discord_id = decrypt_token(discord_data['discord_id'])
+        access_token = decrypt_token(discord_data['access_token'], session['id'])
+        decrypted_discord_id = decrypt_token(discord_data['discord_id'], session['id'])
 
         # FETCH FRESH USER DATA FROM DISCORD - gets CURRENT avatar hash
         user_headers = {'Authorization': f'Bearer {access_token}'}
