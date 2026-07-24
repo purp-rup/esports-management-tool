@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='scheduled-events.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='stream-schedule.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='social-links.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -47,6 +48,13 @@
     </div>
     <div class="scroll-indicator">
         <div class="scroll-arrow">↓</div>
+    </div>
+</section>
+
+<!-- Social Links Strip -->
+<section class="social-links-strip" id="socialLinksStrip">
+    <div class="social-links-track" id="socialLinksTrack">
+        <!-- Populated by social-links.js -->
     </div>
 </section>
 
@@ -270,6 +278,7 @@
 <!-- Then load modals.js which references those handlers -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <script src="{{ url_for('static', filename='stream-schedule.js') }}"></script>
+<script src="{{ url_for('static', filename='social-links.js') }}"></script>
 <script src="https://embed.twitch.tv/embed/v1.js"></script>
 <script src="{{ url_for('static', filename='stream-embed.js') }}"></script>
 {% endblock %}

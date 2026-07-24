@@ -141,6 +141,24 @@ function initFlyoutTriggers(scope = document) {
     });
 }
 
+/* Shared platform metadata for social media link behavior
+ *
+ * Used by social-links.js
+ */
+const SOCIAL_PLATFORM_META = {
+    discord:   { icon: 'fa-brands fa-discord',   slug: 'discord' },
+    instagram: { icon: 'fa-brands fa-instagram', slug: 'instagram' },
+    youtube:   { icon: 'fa-brands fa-youtube',   slug: 'youtube' },
+    twitch:    { icon: 'fa-brands fa-twitch',    slug: 'twitch' },
+    twitter:   { icon: 'fa-brands fa-twitter',   slug: 'twitter' },
+    tiktok:    { icon: 'fa-brands fa-tiktok',    slug: 'tiktok' }
+};
+
+function getSocialPlatformMeta(linkName) {
+    const key = linkName.trim().toLowerCase();
+    return SOCIAL_PLATFORM_META[key] || { icon: 'fa-solid fa-link', slug: 'custom' };
+}
+
 /**
  * Universal dropdown enabler (removes all disabled states)
  * Used by teams.js, game.js, leagues.js, & events.js
@@ -427,6 +445,7 @@ window.closeAllFilterPanels = closeAllFilterPanels;
 window.positionFlyout = positionFlyout;
 window.initFlyoutTriggers = initFlyoutTriggers;
 window.enableDropdown = enableDropdown;
+window.getSocialPlatformMeta = getSocialPlatformMeta;
 window.attachCharacterCounter = attachCharacterCounter;
 window.navigateToEvent = navigateToEvent;
 window.createMemberPill = createMemberPill;
