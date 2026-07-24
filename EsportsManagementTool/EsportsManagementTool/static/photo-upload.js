@@ -305,6 +305,29 @@ function handleGalleryCrop(settings) {
 // ADMIN — LANDING PAGE GALLERY MANAGEMENT
 // ============================================
 
+/* Toggles whether a community photo is hidden from the landing page gallery.
+ * The photo remains visible on the community's own page either way.
+ */
+async function toggleCommunityPhotoHidden(gameId, photoId) {
+    try {
+        const res  = await fetch(`/api/game/${gameId}/photos/${photoId}/hide`, { method: 'PATCH' });
+        const data = await res.json();
+
+        if (data.success) {
+            const community = landingGalleryCommunities.find(c => c.game_id === gameId);
+            if (community) {
+                const photo = community.photos.find(p => p.photo_id === photoId);
+                if (photo) photo.is_hidden = data.is_hidden;
+            }
+            renderLandingGalleryCommunities();
+        } else {
+            alert('Failed to update photo visibility: ' + data.message);
+        }
+    } catch (e) {
+        alert('Failed to update photo visibility. Please try again.');
+    }
+}
+
 // Confirms a photo will be removed
 function confirmDeleteLandingPhoto(photoId) {
     openDeleteConfirmModal({
@@ -501,3 +524,4 @@ window.clearCroppedImageBlob = clearCroppedImageBlob;
 // Landing gallery — admin management
 window.confirmDeleteLandingPhoto      = confirmDeleteLandingPhoto;
 window.confirmDeleteCommunityPhoto    = confirmDeleteCommunityPhoto;
+window.toggleCommunityPhotoHidden     = toggleCommunityPhotoHidden;

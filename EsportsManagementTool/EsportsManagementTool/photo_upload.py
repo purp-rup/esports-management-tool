@@ -143,6 +143,7 @@ def get_landing_photos():
         cursor.execute("""
             SELECT photo_id, photo_url
             FROM photo_upload
+            WHERE is_hidden = 0
             ORDER BY uploaded_at ASC
         """)
         photos = cursor.fetchall()
@@ -212,8 +213,8 @@ def get_landing_photos_by_community():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         cursor.execute("""
-            SELECT g.GameID AS game_id, g.GameTitle AS game_title,
-                   p.photo_id, p.photo_url
+            SELECT g.GameID AS game_id, g.GameTitle AS game_title, g.GameImage AS game_image,
+                   p.photo_id, p.photo_url, p.is_hidden
             FROM games g
             LEFT JOIN photo_upload p ON p.community_id = g.GameID
             ORDER BY g.GameTitle ASC, p.uploaded_at ASC
@@ -227,12 +228,14 @@ def get_landing_photos_by_community():
                 communities[gid] = {
                     'game_id': gid,
                     'game_title': row['game_title'],
+                    'game_image': row['game_image'],
                     'photos': []
                 }
             if row['photo_id'] is not None:
                 communities[gid]['photos'].append({
                     'photo_id': row['photo_id'],
-                    'photo_url': row['photo_url']
+                    'photo_url': row['photo_url'],
+                    'is_hidden': bool(row['is_hidden'])
                 })
 
         return jsonify({'success': True, 'communities': list(communities.values())}), 200
@@ -319,6 +322,43 @@ def delete_landing_photo(photo_id):
         mysql.connection.rollback()
         print(f"Error deleting landing photo: {str(e)}")
         return jsonify({'success': False, 'message': f'Delete failed: {str(e)}'}), 500
+
+    finally:
+        cursor.close()
+
+
+@app.route('/api/game/<int:game_id>/photos/<int:photo_id>/hide', methods=['PATCH'])
+@login_required
+def toggle_community_photo_hidden(game_id, photo_id):
+    """Toggle whether a community photo is hidden from the landing page gallery.
+    The photo stays visible on the community's own page either way."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        allowed, _ = _can_edit(game_id, cursor)
+        if not allowed:
+            return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+        cursor.execute(
+            "SELECT is_hidden FROM photo_upload WHERE photo_id = %s AND community_id = %s",
+            (photo_id, game_id)
+        )
+        photo = cursor.fetchone()
+        if not photo:
+            return jsonify({'success': False, 'message': 'Photo not found'}), 404
+
+        new_hidden = not photo['is_hidden']
+        cursor.execute(
+            "UPDATE photo_upload SET is_hidden = %s WHERE photo_id = %s",
+            (new_hidden, photo_id)
+        )
+        mysql.connection.commit()
+
+        return jsonify({'success': True, 'is_hidden': new_hidden}), 200
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error toggling photo visibility: {str(e)}")
+        return jsonify({'success': False, 'message': f'Update failed: {str(e)}'}), 500
 
     finally:
         cursor.close()

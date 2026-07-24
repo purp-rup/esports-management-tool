@@ -548,16 +548,106 @@
 }
 
 .landing-gallery-community-card {
+    background: var(--dark-bg);
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.landing-gallery-community-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
+}
+
+.landing-gallery-community-icon {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.landing-gallery-community-icon--placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    color: white;
+    font-size: 0.875rem;
 }
 
 .landing-gallery-community-name {
-    margin: 0 0 0.75rem 0;
+    margin: 0;
     font-size: 0.9375rem;
     font-weight: 600;
     color: var(--text-primary);
+}
+
+/* Narrowed photo cards in the communities tab of the modal */
+.landing-gallery-community-card .landing-gallery-admin-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.landing-gallery-community-card .photo-manager-thumb {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+}
+
+/* Hide button on community photo thumbs (Communities tab only) */
+.photo-manager-hide-btn {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ff9800;
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    padding: 0;
+    line-height: 1;
+}
+
+.photo-manager-hide-btn:hover { background: rgba(255, 152, 0, 0.35); }
+
+.photo-manager-hide-btn.hidden-active {
+    background: #ff9800;
+    color: white;
+}
+
+/* Hidden-photo appearance */
+.photo-manager-thumb.photo-hidden img {
+    opacity: 0.5;
+    filter: grayscale(0.3);
+}
+
+.photo-manager-thumb.photo-hidden::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(255, 152, 0, 0.05) 10px,
+        rgba(255, 152, 0, 0.05) 20px
+    );
+    pointer-events: none;
+    border-radius: inherit;
 }
 
 /* Subtitle + Add Photo button share a row instead of stacking full-width */
@@ -578,20 +668,6 @@
     display: block;
     text-align: right;
     margin-top: 0.75rem;
-}
-
-/* Subtitle + primary action share a row instead of the action
-   stacking full-width beneath it */
-.landing-gallery-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
-}
-
-.landing-gallery-toolbar .modal-subtitle {
-    margin: 0;
 }
 
 .landing-gallery-toolbar-actions {
@@ -663,11 +739,28 @@
 
     .landing-gallery-admin-grid {
         grid-template-columns: repeat(2, 1fr);
+        gap: 0.45rem;
+    }
+
+    .landing-gallery-admin-grid .photo-manager-thumb {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 16 / 9;
     }
 
     .landing-gallery-toolbar {
-        flex-direction: column;
         align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .landing-gallery-toolbar .modal-subtitle {
+        flex: 1 1 auto;
+        min-width: 0;
+        font-size: 0.8125rem;
+    }
+
+    .landing-gallery-toolbar .btn-primary {
+        flex-shrink: 0;
     }
 }
 

@@ -769,8 +769,13 @@ function renderLandingGalleryCommunities() {
 
     list.innerHTML = landingGalleryCommunities.map(community => {
         const filledHtml = community.photos.map(p => `
-            <div class="photo-manager-thumb" data-photo-id="${p.photo_id}">
+            <div class="photo-manager-thumb${p.is_hidden ? ' photo-hidden' : ''}" data-photo-id="${p.photo_id}">
                 <img src="${p.photo_url}" alt="${community.game_title} photo">
+                <button class="photo-manager-hide-btn${p.is_hidden ? ' hidden-active' : ''}"
+                        onclick="toggleCommunityPhotoHidden(${community.game_id}, ${p.photo_id})"
+                        title="${p.is_hidden ? 'Unhide from landing gallery' : 'Hide from landing gallery'}">
+                    <i class="fas ${p.is_hidden ? 'fa-eye' : 'fa-eye-slash'}"></i>
+                </button>
                 <button class="photo-manager-delete-btn"
                         onclick="confirmDeleteCommunityPhoto(${community.game_id}, ${p.photo_id})"
                         title="Delete this photo">
@@ -782,9 +787,16 @@ function renderLandingGalleryCommunities() {
         const emptySlots = Math.max(MAX_COMMUNITY_PHOTOS - community.photos.length, 0);
         const emptyHtml  = '<div class="photo-manager-thumb photo-manager-thumb--empty"></div>'.repeat(emptySlots);
 
+        const iconHtml = community.game_image
+            ? `<img class="landing-gallery-community-icon" src="${community.game_image}" alt="${community.game_title} icon">`
+            : `<div class="landing-gallery-community-icon landing-gallery-community-icon--placeholder"><i class="fas fa-gamepad"></i></div>`;
+
         return `
             <div class="landing-gallery-community-card">
-                <p class="landing-gallery-community-name">${community.game_title}</p>
+                <div class="landing-gallery-community-header">
+                    ${iconHtml}
+                    <p class="landing-gallery-community-name">${community.game_title}</p>
+                </div>
                 <div class="landing-gallery-admin-grid">
                     ${filledHtml}${emptyHtml}
                 </div>

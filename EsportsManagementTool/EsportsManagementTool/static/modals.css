@@ -66,7 +66,7 @@
 
 /* Body with content scrolling */
 .modal-body {
-    padding: 1.5rem 2rem 2rem;
+    padding: 1rem 2rem 2rem;
     max-height: 60vh;
     overflow-y: auto;
     overflow-x: hidden;
@@ -672,7 +672,6 @@
     justify-content: center;
     gap: 2rem;
     padding: 0 1.5rem;
-    border-bottom: 1px solid var(--border-color);
 }
 
 .modal-tab-btn {
