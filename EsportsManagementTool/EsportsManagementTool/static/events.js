@@ -357,19 +357,20 @@ function openCreateEventModal() {
 
     // Reset form and state
     form.reset();
-    resetLocationSelector();
+    resetComboSelector('eventType');
+    resetComboSelector('location');
     setElementDisplay(formMessage, 'none');
     setElementDisplay(leagueGroup, 'none');
-    clearSelectedGames('create');
-    clearSelectedPartnerships('create');
+    clearSelectedTags('games', 'create');
+    clearSelectedTags('partnerships', 'create');
 
     // Character Counter
     attachCharacterCounter('eventDescription', 250);
 
     // Load games after modal is rendered
     setTimeout(() => {
-        initializeGameTagSelector('create');
-        initializePartnershipTagSelector('create');
+        initializeTagSelector('games', 'create');
+        initializeTagSelector('partnerships', 'create');
     }, 50);
 }
 
@@ -380,61 +381,6 @@ function closeCreateEventModal() {
     unlockBodyScroll('createEventModal');
 }
 
-// Handle location dropdown change
-function handleLocationChange(e) {
-    const customLocationGroup = document.getElementById('customLocationGroup');
-    const customLocationInput = document.getElementById('customLocation');
-
-    if (e.target.value === 'other') {
-        setElementDisplay(customLocationGroup, 'block');
-        customLocationInput.required = true;
-    } else {
-        setElementDisplay(customLocationGroup, 'none');
-        customLocationInput.required = false;
-        customLocationInput.value = '';
-    }
-}
-
-// Select a location: either a preset value, or "other" to switch the box into a text input
-function selectLocation(value) {
-    const hiddenInput = document.getElementById('eventLocation');
-    const displayArea = document.getElementById('locationSelectDisplay');
-    if (!hiddenInput || !displayArea) return;
-
-    if (value === 'other') {
-        hiddenInput.value = '';
-        displayArea.innerHTML = '';
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.id = 'customLocationInput';
-        input.className = 'location-custom-input';
-        input.placeholder = 'Enter custom location';
-        input.addEventListener('click', (e) => e.stopPropagation());
-        input.addEventListener('input', () => {
-            hiddenInput.value = input.value;
-        });
-        displayArea.appendChild(input);
-        input.focus();
-    } else {
-        hiddenInput.value = value;
-        displayArea.innerHTML = '';
-        const span = document.createElement('span');
-        span.className = 'location-selected-text';
-        span.textContent = value;
-        displayArea.appendChild(span);
-    }
-
-    closeAllFilterPanels();
-}
-
-// Reset the location box back to its placeholder state
-function resetLocationSelector() {
-    const hiddenInput = document.getElementById('eventLocation');
-    const displayArea = document.getElementById('locationSelectDisplay');
-    if (hiddenInput) hiddenInput.value = '';
-    if (displayArea) displayArea.innerHTML = '<span class="location-placeholder">Select location</span>';
-}
-
 // Handle event type change - hide game field for Misc events
 function handleEventTypeChange() {
     const eventType = document.getElementById('eventType')?.value;
@@ -443,7 +389,7 @@ function handleEventTypeChange() {
     // Handle game field visibility for Misc events
     if (eventType === 'Misc') {
         setElementDisplay(gameFieldGroup, 'none');
-        clearSelectedGames('create');
+        clearSelectedTags('games', 'create');
     } else {
         setElementDisplay(gameFieldGroup, 'block');
     }
@@ -497,12 +443,10 @@ async function handleCreateEventSubmit(e) {
     const submitBtnSpinner = document.getElementById('submitBtnSpinner');
     const formMessage = document.getElementById('formMessage');
 
-    // Validate league for Match events
+    // Validate event type has been selected
     const eventType = document.getElementById('eventType')?.value;
-    const leagueDropdown = document.getElementById('eventLeagueDropdown');
-
-    if (eventType === 'Match' && (!leagueDropdown?.value)) {
-        formMessage.textContent = 'Please select a league for Match events.';
+    if (!eventType) {
+        formMessage.textContent = 'Please select an event type.';
         formMessage.className = 'form-message error';
         formMessage.style.display = 'block';
         return;
@@ -512,6 +456,16 @@ async function handleCreateEventSubmit(e) {
     const locationValue = document.getElementById('eventLocation')?.value.trim();
     if (!locationValue) {
         formMessage.textContent = 'Please select or enter a location.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+        return;
+    }
+
+    // Validate league for Match events
+    const leagueDropdown = document.getElementById('eventLeagueDropdown');
+
+    if (eventType === 'Match' && (!leagueDropdown?.value)) {
+        formMessage.textContent = 'Please select a league for Match events.';
         formMessage.className = 'form-message error';
         formMessage.style.display = 'block';
         return;
@@ -534,12 +488,20 @@ async function handleCreateEventSubmit(e) {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            // Direct manipulation
-            formMessage.innerHTML = (data.message || 'Event created successfully! Refreshing calendar...').replace(/\n/g, '<br>');
-            formMessage.className = 'form-message success';
-            formMessage.style.display = 'block';
+            const [successMsg, deletionMsg] = (data.message || 'Event created successfully!').split('\n');
 
-            setTimeout(() => window.location.reload(), 350);
+            showDeleteSuccessMessage(successMsg || 'Event created successfully!');
+
+            // Developers have no deletion time limit, so they never get this reminder.
+            const showDeletionReminder = deletionMsg && !window.userPermissions?.is_developer;
+            let reloadDelay = 900;
+
+            if (showDeletionReminder) {
+                setTimeout(() => showInfoMessage(deletionMsg), 700);
+                reloadDelay = 1800;
+            }
+
+            setTimeout(() => window.location.reload(), reloadDelay);
         } else {
             throw new Error(data.message || 'Failed to create event');
         }
@@ -694,11 +656,11 @@ function togglePanelEditMode() {
 
     // Initialize game editable field if not scheduled event
     if (!event.is_scheduled) {
-        initializeGameTagSelector('edit', event.game);
+        initializeTagSelector('games', 'edit', event.game);
     }
 
     // Initialize partnership editable field
-    initializePartnershipTagSelector('edit', (event.partnerships || []).join(', '));
+    initializeTagSelector('partnerships', 'edit', (event.partnerships || []).join(', '));
 
     //Attach description character counter
     attachCharacterCounter('panelEditDescription', 250);
@@ -1236,197 +1198,6 @@ async function loadGamesForFilter() {
     await populateGameDropdown('gameFilter', 'gameFilterLoadingIndicator');
 }
 
-/* ===============================
-   Partnership Dropdown Tag System
-   =============================== */
-const PartnershipTagConfig = {
-    create: {
-        panel: 'partnershipOptionsPanel',
-        container: 'selectedPartnershipsContainer',
-        hiddenInput: 'selectedPartnershipsInput',
-        customInput: 'customPartnership'
-    },
-    edit: {
-        panel: 'editPartnershipOptionsPanel',
-        container: 'editSelectedPartnershipsContainer',
-        hiddenInput: 'editSelectedPartnershipsInput',
-        customInput: 'editCustomPartnership'
-    }
-};
-
-// Initialize partnership tag selector for a specific context
-async function initializePartnershipTagSelector(context = 'create', preSelectedPartnerships = '') {
-    const config = PartnershipTagConfig[context];
-    if (!config) {
-        console.error(`Invalid context: ${context}`);
-        return;
-    }
-
-    if (preSelectedPartnerships && preSelectedPartnerships !== 'N/A') {
-        EventState.selectedPartnerships = preSelectedPartnerships.split(',').map(p => p.trim()).filter(p => p);
-    } else {
-        EventState.selectedPartnerships = [];
-    }
-
-    const panel = document.getElementById(config.panel);
-    if (!panel) {
-        console.warn(`${config.panel} element not found`);
-        return;
-    }
-
-    panel.innerHTML = '<div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
-
-    try {
-        const partnerships = await loadPartnershipsList();
-        renderPartnershipPanelItems(context, partnerships);
-        updatePartnershipTagsDisplay(context);
-        updateHiddenPartnershipsInput(context);
-    } catch (error) {
-        console.error('Error initializing partnership tag selector:', error);
-        panel.innerHTML = '<div class="filter-box-flyout-loading">Failed to load partnerships</div>';
-    }
-}
-
-// Renders the option list inside the consolidated partnership combobox
-function renderPartnershipPanelItems(context, partnerships) {
-    const config = PartnershipTagConfig[context];
-    const panel = document.getElementById(config.panel);
-    if (!panel) return;
-
-    const available = partnerships.filter(p => !EventState.selectedPartnerships.includes(p.partnership_name));
-
-    const itemsHtml = available.length
-        ? available.map(p => `
-            <div class="filter-box-item" onclick="event.stopPropagation(); addPartnershipTag('${escapeQuotes(p.partnership_name)}', '${context}')">
-                ${p.partnership_name}
-            </div>
-        `).join('')
-        : '<div class="filter-box-flyout-loading">All partnerships added</div>';
-
-    panel.innerHTML = itemsHtml + `
-        <div class="filter-box-item tag-select-add-new" onclick="event.stopPropagation(); showPartnershipCustomInput('${context}')">
-            <i class="fas fa-plus"></i> Add new partnership
-        </div>
-    `;
-}
-
-// Swaps the panel into an inline text-entry mode for adding a brand new partnership
-function showPartnershipCustomInput(context) {
-    const config = PartnershipTagConfig[context];
-    const panel = document.getElementById(config.panel);
-    if (!panel) return;
-
-    panel.innerHTML = `
-        <div class="tag-select-custom-entry">
-            <input type="text" id="${config.customInput}" placeholder="Enter new partnership name">
-            <button type="button" class="partnership-confirm-btn" title="Add"
-                    onclick="event.stopPropagation(); submitCustomPartnership('${context}')">
-                <i class="fas fa-check"></i>
-            </button>
-            <button type="button" class="partnership-confirm-btn deny" title="Cancel"
-                    onclick="event.stopPropagation(); cancelCustomPartnership('${context}')">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
-
-    const input = document.getElementById(config.customInput);
-    input?.focus();
-    input?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            submitCustomPartnership(context);
-        } else if (e.key === 'Escape') {
-            cancelCustomPartnership(context);
-        }
-    });
-}
-
-// Cancels custom-entry mode and rebuilds the normal option list
-async function cancelCustomPartnership(context) {
-    const partnerships = await loadPartnershipsList();
-    renderPartnershipPanelItems(context, partnerships);
-}
-
-// Adds the custom partnership as a tag, then rebuilds the panel's option list
-async function submitCustomPartnership(context) {
-    const config = PartnershipTagConfig[context];
-    const input = document.getElementById(config.customInput);
-    const name = input?.value.trim();
-    if (!name || EventState.selectedPartnerships.includes(name)) return;
-
-    addPartnershipTag(name, context);
-
-    const partnerships = await loadPartnershipsList();
-    renderPartnershipPanelItems(context, partnerships);
-}
-
-// Add a tag to selected partnerships for an event
-function addPartnershipTag(name, context = 'create') {
-    if (EventState.selectedPartnerships.includes(name)) return;
-
-    EventState.selectedPartnerships.push(name);
-    updatePartnershipTagsDisplay(context);
-    updateHiddenPartnershipsInput(context);
-    updatePartnershipDropdownOptions(context);
-}
-
-// Remove a tag from the selected partnerships
-function removePartnershipTag(name, context = 'create') {
-    EventState.selectedPartnerships = EventState.selectedPartnerships.filter(p => p !== name);
-    updatePartnershipTagsDisplay(context);
-    updateHiddenPartnershipsInput(context);
-    updatePartnershipDropdownOptions(context);
-}
-
-// Update display of selected partnerships
-function updatePartnershipTagsDisplay(context = 'create') {
-    const config = PartnershipTagConfig[context];
-    const container = document.getElementById(config.container);
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    EventState.selectedPartnerships.forEach(name => {
-        const tag = document.createElement('div');
-        tag.className = 'game-tag';
-        tag.innerHTML = `
-            <i class="fas fa-handshake game-tag-icon"></i>
-            <span>${name}</span>
-            <button type="button"
-                    class="game-tag-remove"
-                    onclick="event.stopPropagation(); removePartnershipTag('${escapeQuotes(name)}', '${context}')"
-                    title="Remove ${name}">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        container.appendChild(tag);
-    });
-}
-
-// Hide already-selected partnerships from the dropdown (leave "+ Add new" always visible)
-async function updatePartnershipDropdownOptions(context = 'create') {
-    const partnerships = await loadPartnershipsList();
-    renderPartnershipPanelItems(context, partnerships);
-}
-
-// Sync hidden input as partnerships are selected or deselected
-function updateHiddenPartnershipsInput(context = 'create') {
-    const config = PartnershipTagConfig[context];
-    const hiddenInput = document.getElementById(config.hiddenInput);
-    if (hiddenInput) {
-        hiddenInput.value = JSON.stringify(EventState.selectedPartnerships);
-    }
-}
-
-// Clear all selected partnerships
-function clearSelectedPartnerships(context = 'create') {
-    EventState.selectedPartnerships = [];
-    updatePartnershipTagsDisplay(context);
-    updateHiddenPartnershipsInput(context);
-    updatePartnershipDropdownOptions(context);
-}
-
 /* =================================
    Filter UI
    ================================= */
@@ -1756,35 +1527,141 @@ function filterEventsByPastSeason() {
     loadEventsForPastSeason();
 }
 
-/* ===============================
-   Game Dropdown Tag System
-   =============================== */
-const GameTagConfig = {
-    create: {
-        panel: 'gameOptionsPanel',
-        container: 'selectedGamesContainer',
-        hiddenInput: 'selectedGamesInput'
+/* ================================
+   Single select dropdown system
+   Will likely move to universal-helpers.js at some point
+   ================================ */
+const SingleSelectConfig = {
+    eventType: {
+        hiddenInput: 'eventType',
+        display: 'eventTypeSelectDisplay',
+        placeholder: 'Select type',
+        allowCustom: false,
+        onSelect: () => handleEventTypeChange()
     },
-    edit: {
-        panel: 'editGameOptionsPanel',
-        container: 'editSelectedGamesContainer',
-        hiddenInput: 'editSelectedGamesInput'
+    location: {
+        hiddenInput: 'eventLocation',
+        display: 'locationSelectDisplay',
+        placeholder: 'Select location',
+        allowCustom: true,
+        customPlaceholder: 'Enter custom location'
     }
 };
 
-// Initialize game tag selector for a specific context
-async function initializeGameTagSelector(context = 'create', preSelectedGames = '') {
-    const config = GameTagConfig[context];
+// Select a value in any single-select combobox registered in SingleSelectConfig
+function selectComboValue(key, value) {
+    const config = SingleSelectConfig[key];
+    if (!config) {
+        console.error(`Invalid combo key: ${key}`);
+        return;
+    }
+
+    const hiddenInput = document.getElementById(config.hiddenInput);
+    const displayArea = document.getElementById(config.display);
+    if (!hiddenInput || !displayArea) return;
+
+    if (config.allowCustom && value === 'other') {
+        hiddenInput.value = '';
+        displayArea.innerHTML = '';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'combo-custom-input';
+        input.placeholder = config.customPlaceholder || 'Enter custom value';
+        input.addEventListener('click', (e) => e.stopPropagation());
+        input.addEventListener('input', () => {
+            hiddenInput.value = input.value;
+        });
+
+        displayArea.appendChild(input);
+        input.focus();
+    } else {
+        hiddenInput.value = value;
+        displayArea.innerHTML = '';
+
+        const span = document.createElement('span');
+        span.className = 'combo-selected-text';
+        span.textContent = value;
+        displayArea.appendChild(span);
+    }
+
+    closeAllFilterPanels();
+    config.onSelect?.(value);
+}
+
+// Reset any single-select combobox registered in SingleSelectConfig back to its placeholder
+function resetComboSelector(key) {
+    const config = SingleSelectConfig[key];
+    if (!config) return;
+
+    const hiddenInput = document.getElementById(config.hiddenInput);
+    const displayArea = document.getElementById(config.display);
+
+    if (hiddenInput) hiddenInput.value = '';
+    if (displayArea) displayArea.innerHTML = `<span class="combo-placeholder">${config.placeholder}</span>`;
+}
+
+/* ===============================
+   Multi-tag select system
+   =============================== */
+const TagSelectRegistry = {
+    games: {
+        stateKey: 'selectedGames',
+        cacheKey: 'gamesListCache',
+        loadList: loadGamesList,
+        getValue: (item) => item.GameTitle,
+        allowCustomEntry: false,
+        emptyOptionsText: 'No games available',
+        allAddedText: 'All games added',
+        renderOptionIcon: (item) => item.image_url
+            ? `<img src="${item.image_url}" class="game-option-icon" alt="" onerror="handleGameIconError(this, 'game-option-icon-fallback')">`
+            : `<i class="fas fa-gamepad game-option-icon-fallback"></i>`,
+        renderTagIcon: (value, list) => {
+            const item = list?.find(g => g.GameTitle === value);
+            return item?.image_url
+                ? `<img src="${item.image_url}" class="game-tag-icon-img" alt="" onerror="handleGameIconError(this, 'game-tag-icon')">`
+                : `<i class="fas fa-gamepad game-tag-icon"></i>`;
+        },
+        contexts: {
+            create: { panel: 'gameOptionsPanel', container: 'selectedGamesContainer', hiddenInput: 'selectedGamesInput' },
+            edit: { panel: 'editGameOptionsPanel', container: 'editSelectedGamesContainer', hiddenInput: 'editSelectedGamesInput' }
+        }
+    },
+    partnerships: {
+        stateKey: 'selectedPartnerships',
+        cacheKey: 'partnershipsListCache',
+        loadList: loadPartnershipsList,
+        getValue: (item) => item.partnership_name,
+        allowCustomEntry: true,
+        singularLabel: 'partnership',
+        emptyOptionsText: 'No partnerships available',
+        allAddedText: 'All partnerships added',
+        renderOptionIcon: () => '',
+        renderTagIcon: () => `<i class="fas fa-handshake game-tag-icon"></i>`,
+        contexts: {
+            create: { panel: 'partnershipOptionsPanel', container: 'selectedPartnershipsContainer', hiddenInput: 'selectedPartnershipsInput', customInput: 'customPartnership' },
+            edit: { panel: 'editPartnershipOptionsPanel', container: 'editSelectedPartnershipsContainer', hiddenInput: 'editSelectedPartnershipsInput', customInput: 'editCustomPartnership' }
+        }
+    }
+};
+
+// Initialize a multi-select tag combobox for a given field ('games' or 'partnerships') and context
+async function initializeTagSelector(field, context = 'create', preSelected = '') {
+    const registry = TagSelectRegistry[field];
+    if (!registry) {
+        console.error(`Invalid tag field: ${field}`);
+        return;
+    }
+
+    const config = registry.contexts[context];
     if (!config) {
         console.error(`Invalid context: ${context}`);
         return;
     }
 
-    if (preSelectedGames && preSelectedGames !== 'N/A') {
-        EventState.selectedGames = preSelectedGames.split(',').map(g => g.trim()).filter(g => g);
-    } else {
-        EventState.selectedGames = [];
-    }
+    EventState[registry.stateKey] = (preSelected && preSelected !== 'N/A')
+        ? preSelected.split(',').map(v => v.trim()).filter(v => v)
+        : [];
 
     const panel = document.getElementById(config.panel);
     if (!panel) {
@@ -1795,83 +1672,144 @@ async function initializeGameTagSelector(context = 'create', preSelectedGames = 
     panel.innerHTML = '<div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
 
     try {
-        const games = await loadGamesList();
-        renderGamePanelItems(context, games);
-        updateGameTagsDisplay(context);
-        updateHiddenGamesInput(context);
+        const items = await registry.loadList();
+        renderTagPanelItems(field, context, items);
+        updateTagsDisplay(field, context);
+        updateHiddenTagInput(field, context);
     } catch (error) {
-        console.error('Error initializing game tag selector:', error);
-        panel.innerHTML = '<div class="filter-box-flyout-loading">Failed to load games</div>';
+        console.error(`Error initializing ${field} tag selector:`, error);
+        panel.innerHTML = `<div class="filter-box-flyout-loading">Failed to load ${field}</div>`;
     }
 }
 
-// Renders the option list inside the consolidated game combobox, skipping already-selected games
-function renderGamePanelItems(context, games) {
-    const config = GameTagConfig[context];
+// Renders the option list inside a consolidated tag combobox, skipping already-selected values
+function renderTagPanelItems(field, context, items) {
+    const registry = TagSelectRegistry[field];
+    const config = registry.contexts[context];
     const panel = document.getElementById(config.panel);
     if (!panel) return;
 
-    if (!games.length) {
-        panel.innerHTML = '<div class="filter-box-flyout-loading">No games available</div>';
-        return;
-    }
+    const selected = EventState[registry.stateKey];
+    const available = items.filter(item => !selected.includes(registry.getValue(item)));
 
-    const available = games.filter(g => !EventState.selectedGames.includes(g.GameTitle));
+    const itemsHtml = available.length
+        ? available.map(item => {
+            const value = registry.getValue(item);
+            return `
+                <div class="filter-box-item" onclick="event.stopPropagation(); addTagValue('${field}', '${escapeQuotes(value)}', '${context}')">
+                    ${registry.renderOptionIcon(item)}
+                    ${value}
+                </div>
+            `;
+        }).join('')
+        : `<div class="filter-box-flyout-loading">${items.length ? registry.allAddedText : registry.emptyOptionsText}</div>`;
 
-    if (!available.length) {
-        panel.innerHTML = '<div class="filter-box-flyout-loading">All games added</div>';
-        return;
-    }
+    const customEntryHtml = registry.allowCustomEntry
+        ? `
+            <div class="filter-box-item tag-select-add-new" onclick="event.stopPropagation(); showTagCustomInput('${field}', '${context}')">
+                <i class="fas fa-plus"></i> Add new ${registry.singularLabel}
+            </div>
+        `
+        : '';
 
-    panel.innerHTML = available.map(g => `
-        <div class="filter-box-item" onclick="event.stopPropagation(); addGameTag('${escapeQuotes(g.GameTitle)}', '${context}')">
-            ${g.image_url ? `<img src="${g.image_url}" class="game-option-icon" alt="" onerror="handleGameIconError(this, 'game-option-icon-fallback')">` : `<i class="fas fa-gamepad game-option-icon-fallback"></i>`}
-            ${g.GameTitle}
+    panel.innerHTML = itemsHtml + customEntryHtml;
+}
+
+// Swaps the panel into inline text-entry mode for adding a brand-new value (custom-entry fields only)
+function showTagCustomInput(field, context) {
+    const registry = TagSelectRegistry[field];
+    const config = registry.contexts[context];
+    const panel = document.getElementById(config.panel);
+    if (!panel || !config.customInput) return;
+
+    panel.innerHTML = `
+        <div class="tag-select-custom-entry">
+            <input type="text" id="${config.customInput}" placeholder="Enter new ${registry.singularLabel} name">
+            <button type="button" class="partnership-confirm-btn" title="Add"
+                    onclick="event.stopPropagation(); submitTagCustomValue('${field}', '${context}')">
+                <i class="fas fa-check"></i>
+            </button>
+            <button type="button" class="partnership-confirm-btn deny" title="Cancel"
+                    onclick="event.stopPropagation(); cancelTagCustomValue('${field}', '${context}')">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
-    `).join('');
+    `;
+
+    const input = document.getElementById(config.customInput);
+    input?.focus();
+    input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submitTagCustomValue(field, context);
+        } else if (e.key === 'Escape') {
+            cancelTagCustomValue(field, context);
+        }
+    });
 }
 
-// Add a tag to selected games for an event
-function addGameTag(gameTitle, context = 'create') {
-    if (EventState.selectedGames.includes(gameTitle)) return;
-
-    EventState.selectedGames.push(gameTitle);
-    updateGameTagsDisplay(context);
-    updateHiddenGamesInput(context);
-    updateDropdownOptions(context);
+// Cancels custom-entry mode and rebuilds the normal option list
+async function cancelTagCustomValue(field, context) {
+    const registry = TagSelectRegistry[field];
+    const items = await registry.loadList();
+    renderTagPanelItems(field, context, items);
 }
 
-// Remove a tag from the selected games
-function removeGameTag(gameTitle, context = 'create') {
-    EventState.selectedGames = EventState.selectedGames.filter(game => game !== gameTitle);
-    updateGameTagsDisplay(context);
-    updateHiddenGamesInput(context);
-    updateDropdownOptions(context);
+// Adds the custom value as a tag, then rebuilds the panel's option list
+async function submitTagCustomValue(field, context) {
+    const registry = TagSelectRegistry[field];
+    const config = registry.contexts[context];
+    const input = document.getElementById(config.customInput);
+    const value = input?.value.trim();
+    if (!value || EventState[registry.stateKey].includes(value)) return;
+
+    addTagValue(field, value, context);
+
+    const items = await registry.loadList();
+    renderTagPanelItems(field, context, items);
 }
 
-// Update display of selected games
-function updateGameTagsDisplay(context = 'create') {
-    const config = GameTagConfig[context];
+// Add a value to the selected tags for a field
+function addTagValue(field, value, context = 'create') {
+    const registry = TagSelectRegistry[field];
+    const selected = EventState[registry.stateKey];
+    if (selected.includes(value)) return;
+
+    selected.push(value);
+    updateTagsDisplay(field, context);
+    updateHiddenTagInput(field, context);
+    refreshTagPanelOptions(field, context);
+}
+
+// Remove a value from the selected tags for a field
+function removeTagValue(field, value, context = 'create') {
+    const registry = TagSelectRegistry[field];
+    EventState[registry.stateKey] = EventState[registry.stateKey].filter(v => v !== value);
+    updateTagsDisplay(field, context);
+    updateHiddenTagInput(field, context);
+    refreshTagPanelOptions(field, context);
+}
+
+// Update the display of selected tag chips
+function updateTagsDisplay(field, context = 'create') {
+    const registry = TagSelectRegistry[field];
+    const config = registry.contexts[context];
     const container = document.getElementById(config.container);
     if (!container) return;
 
     container.innerHTML = '';
+    const cachedList = EventState[registry.cacheKey];
 
-    EventState.selectedGames.forEach(game => {
-        const gameData = EventState.gamesListCache?.find(g => g.GameTitle === game);
-        const iconHtml = gameData?.image_url
-            ? `<img src="${gameData.image_url}" class="game-tag-icon-img" alt="" onerror="handleGameIconError(this, 'game-tag-icon')">`
-            : `<i class="fas fa-gamepad game-tag-icon"></i>`;
-
+    EventState[registry.stateKey].forEach(value => {
         const tag = document.createElement('div');
         tag.className = 'game-tag';
         tag.innerHTML = `
-            ${iconHtml}
-            <span>${game}</span>
+            ${registry.renderTagIcon(value, cachedList)}
+            <span>${value}</span>
             <button type="button"
                     class="game-tag-remove"
-                    onclick="event.stopPropagation(); removeGameTag('${escapeQuotes(game)}', '${context}')"
-                    title="Remove ${game}">
+                    onclick="event.stopPropagation(); removeTagValue('${field}', '${escapeQuotes(value)}', '${context}')"
+                    title="Remove ${value}">
                 <i class="fas fa-times"></i>
             </button>
         `;
@@ -1879,27 +1817,30 @@ function updateGameTagsDisplay(context = 'create') {
     });
 }
 
-// Update dropdown when games are selected or deselected
-async function updateDropdownOptions(context = 'create') {
-    const games = await loadGamesList();
-    renderGamePanelItems(context, games);
+// Refresh a tag combobox's option list (e.g. after a selection changes what's available)
+async function refreshTagPanelOptions(field, context = 'create') {
+    const registry = TagSelectRegistry[field];
+    const items = await registry.loadList();
+    renderTagPanelItems(field, context, items);
 }
 
-// Update list of hidden games as games are selected or deselected
-function updateHiddenGamesInput(context = 'create') {
-    const config = GameTagConfig[context];
+// Sync the hidden input as tags are selected or deselected
+function updateHiddenTagInput(field, context = 'create') {
+    const registry = TagSelectRegistry[field];
+    const config = registry.contexts[context];
     const hiddenInput = document.getElementById(config.hiddenInput);
     if (hiddenInput) {
-        hiddenInput.value = JSON.stringify(EventState.selectedGames);
+        hiddenInput.value = JSON.stringify(EventState[registry.stateKey]);
     }
 }
 
-// Clear all selected games
-function clearSelectedGames(context = 'create') {
-    EventState.selectedGames = [];
-    updateGameTagsDisplay(context);
-    updateHiddenGamesInput(context);
-    updateDropdownOptions(context);
+// Clear all selected tags for a field
+function clearSelectedTags(field, context = 'create') {
+    const registry = TagSelectRegistry[field];
+    EventState[registry.stateKey] = [];
+    updateTagsDisplay(field, context);
+    updateHiddenTagInput(field, context);
+    refreshTagPanelOptions(field, context);
 }
 
 /* ==============================
