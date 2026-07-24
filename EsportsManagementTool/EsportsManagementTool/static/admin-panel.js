@@ -911,6 +911,11 @@ function renderAuditLogList(entries) {
                 <span class="audit-log-row-time">${formatAuditLogTime(e.created_at)}</span>
             </div>
             <div class="audit-log-row-content">${escapeHtml(e.content)}</div>
+            <div class="audit-log-row-flag">
+                ${e.was_manually_reported
+                    ? `Flagged by ${escapeHtml(e.reported_by_user || 'Unknown user')}${e.deleted_at ? ` &middot; ${formatAuditLogTime(e.deleted_at)}` : ''}`
+                    : `Auto-detected${e.deleted_at ? ` &middot; ${formatAuditLogTime(e.deleted_at)}` : ''}`}
+            </div>
         </div>
     `).join('');
 }

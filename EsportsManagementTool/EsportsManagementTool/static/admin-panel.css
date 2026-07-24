@@ -526,12 +526,30 @@
   white-space: pre-wrap;
 }
 
+.audit-log-row-flag {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.audit-log-row-flag i {
+  color: var(--stockton-blue);
+  font-size: 0.7rem;
+}
+
 .audit-log-filters .filter-box-panel.filter-box-panel--fixed {
   position: fixed;
   max-height: 260px;
   overflow-y: auto;
   z-index: 9999;
+}
 
+#auditLogModal .modal-body {
+  max-height: none;
+  overflow-y: visible;
 }
 
 /* ================================

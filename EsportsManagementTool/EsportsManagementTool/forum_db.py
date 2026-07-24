@@ -103,6 +103,27 @@ def soft_delete_message(community_id: int, message_id: str, deleted_by: int) -> 
         return None
 
 
+def report_message(community_id: int, message_id: str, reported_by: int) -> dict | None:
+    """
+    Manually flag a message as profane and soft-delete it. Only for dev/admin/GM of that community.
+    """
+    try:
+        response = _table.update_item(
+            Key={"community_id": community_id, "message_id": message_id},
+            UpdateExpression="SET is_profane = :true, is_deleted = :true, deleted_at = :dt, deleted_by = :db",
+            ConditionExpression="attribute_exists(message_id)",
+            ExpressionAttributeValues={
+                ":true": True,
+                ":dt": int(time.time()),
+                ":db": reported_by,
+            },
+            ReturnValues="ALL_NEW",
+        )
+        return _clean(response.get("Attributes"))
+    except _dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
+        return None
+
+
 def get_new_messages(community_id: int, after_message_id: str, limit: int = 50):
     """
     Returns messages newer than after_message_id

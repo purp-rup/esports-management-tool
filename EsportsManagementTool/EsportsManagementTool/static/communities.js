@@ -301,6 +301,11 @@ function renderForumMessages() {
 function buildForumMessageHtml(msg, isNewBlock, canDelete, canModerate) {
     const time = formatForumTimestamp(msg.created_at);
     const isPinned = !!(forumPinnedMessage && String(forumPinnedMessage.message_id) === String(msg.message_id));
+    const reportBtn = canModerate
+        ? `<button class="forum-message-report" onclick="confirmReportForumMessage('${escapeHtml(String(msg.message_id))}')" title="Report message">
+               <i class="fas fa-flag"></i>
+           </button>`
+        : '';
 
     const pinBtn = canModerate
         ? `<button class="forum-message-pin ${isPinned ? 'is-pinned' : ''}"
@@ -342,6 +347,7 @@ function buildForumMessageHtml(msg, isNewBlock, canDelete, canModerate) {
                     </div>
                     <div class="forum-message-text-row">
                         <p class="forum-message-text">${escapeHtml(msg.content)}</p>
+                        ${reportBtn}
                         ${pinBtn}
                         ${deleteBtn}
                     </div>
@@ -355,6 +361,7 @@ function buildForumMessageHtml(msg, isNewBlock, canDelete, canModerate) {
             <span class="forum-message-continuation-time"></span>
             <div class="forum-message-text-row">
                 <p class="forum-message-text">${escapeHtml(msg.content)}</p>
+                ${reportBtn}
                 ${pinBtn}
                 ${deleteBtn}
             </div>
@@ -505,6 +512,44 @@ async function executeForumMessageDelete(messageId) {
     } catch (e) {
         closeDeleteConfirmModal();
         showDeleteErrorMessage('Delete failed. Please try again.');
+    }
+}
+
+function confirmReportForumMessage(messageId) {
+    openDeleteConfirmModal({
+        title: 'Report Message?',
+        message: 'This will flag the message as inappropriate and remove it from the chat immediately. This cannot be undone.',
+        buttonText: 'Report Message',
+        itemId: messageId,
+        onConfirm: async (id) => {
+            await executeReportForumMessage(id);
+        }
+    });
+}
+
+async function executeReportForumMessage(messageId) {
+    const gameId = document.getElementById('communityGameId')?.value;
+
+    try {
+        const res = await fetch(`/api/game/${gameId}/messages/${messageId}/report`, { method: 'POST' });
+        const data = await res.json();
+
+        if (data.success) {
+            forumMessages = forumMessages.filter(m => m.message_id !== messageId);
+            if (forumPinnedMessage && String(forumPinnedMessage.message_id) === String(messageId)) {
+                forumPinnedMessage = null;
+                renderPinnedBanner();
+            }
+            renderForumMessages();
+            closeDeleteConfirmModal();
+            showDeleteSuccessMessage('Message reported and removed.');
+        } else {
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage(data.message || 'Failed to report message.');
+        }
+    } catch (e) {
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Failed to report message. Please try again.');
     }
 }
 
@@ -1167,6 +1212,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Community Forum
 window.sendForumMessage          = sendForumMessage;
 window.confirmDeleteForumMessage = confirmDeleteForumMessage;
+window.confirmReportForumMessage = confirmReportForumMessage;
 window.handlePinForumMessage     = handlePinForumMessage;
 window.confirmUnpinForumMessage  = confirmUnpinForumMessage;
 window.scrollToForumMessage      = scrollToForumMessage;

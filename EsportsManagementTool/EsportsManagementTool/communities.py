@@ -1273,6 +1273,63 @@ def delete_community_message(game_id, message_id):
         print(f"Error deleting community message: {str(e)}")
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
+@app.route('/api/game/<int:game_id>/messages/<message_id>/report', methods=['POST'])
+@login_required
+def report_community_message(game_id, message_id):
+    """
+    Manually report a message that the automatic profanity filter missed.
+    Marks it is_profane + soft-deletes it. Allowed for admins, developers, and the community's GM.
+    """
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute("SELECT gm_id FROM games WHERE GameID = %s", (game_id,))
+            game = cursor.fetchone()
+
+            if not game:
+                return jsonify({'success': False, 'message': 'Community not found'}), 404
+
+            permissions = get_user_permissions(session['id'])
+            can_moderate = (
+                permissions['is_admin'] or
+                permissions['is_developer'] or
+                game['gm_id'] == session['id']
+            )
+
+            if not can_moderate:
+                return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+            message = forum_db.get_message(community_id=game_id, message_id=message_id)
+            if not message:
+                return jsonify({'success': False, 'message': 'Message not found'}), 404
+
+            if message.get('is_deleted'):
+                return jsonify({'success': False, 'message': 'Message has already been removed'}), 400
+
+            updated = forum_db.report_message(
+                community_id=game_id, message_id=message_id, reported_by=session['id']
+            )
+            if not updated:
+                return jsonify({'success': False, 'message': 'Message not found'}), 404
+
+            existing_pin = forum_db.get_pinned_message_id(game_id)
+            if existing_pin and existing_pin['pinned_message_id'] == message_id:
+                forum_db.clear_pinned_message(game_id)
+
+            return jsonify({'success': True, 'message': 'Message reported and removed'}), 200
+
+        except Exception as e:
+            print(f"Error reporting community message: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to report message'}), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error reporting community message: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
 @app.route('/api/game/<int:game_id>/messages/new', methods=['GET'])
 @login_required
 def get_new_community_messages(game_id):
@@ -1362,7 +1419,7 @@ def get_profanity_audit_log():
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            user_ids = list({e['user_id'] for e in entries})
+            user_ids = list({e['user_id'] for e in entries} | {e['deleted_by'] for e in entries if e.get('deleted_by')})
             community_ids = list({e['community_id'] for e in entries})
 
             user_placeholders = ','.join(['%s'] * len(user_ids))
@@ -1382,6 +1439,10 @@ def get_profanity_audit_log():
             result = []
             for e in entries:
                 user = users_by_id.get(e['user_id'])
+                deleted_by_id = e.get('deleted_by')
+                was_reported = bool(deleted_by_id) and deleted_by_id != e['user_id']
+                reporter = users_by_id.get(deleted_by_id) if was_reported else None
+
                 result.append({
                     'message_id': e['message_id'],
                     'community_id': e['community_id'],
@@ -1391,6 +1452,9 @@ def get_profanity_audit_log():
                     'full_name': f"{user['firstname']} {user['lastname']}" if user else 'Unknown user',
                     'content': e['content'],
                     'created_at': datetime.fromtimestamp(e['created_at'], EST).isoformat(),
+                    'deleted_at': datetime.fromtimestamp(e['deleted_at'], EST).isoformat() if e.get('deleted_at') else None,
+                    'was_manually_reported': was_reported,
+                    'reported_by_user': f"{reporter['firstname']} {reporter['lastname']}" if reporter else None,
                 })
 
             return jsonify({'success': True, 'entries': result}), 200
