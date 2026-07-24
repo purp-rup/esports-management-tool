@@ -320,6 +320,76 @@
     font-size: 1.125rem;
 }
 
+.forum-pinned-banner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0.5rem 1rem 0;
+    padding: 0.45rem 0.75rem;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--stockton-blue);
+    flex-shrink: 0;
+}
+
+.forum-pin-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.forum-pin-banner-icon {
+    color: var(--stockton-blue);
+    flex-shrink: 0;
+    font-size: 0.85rem;
+}
+
+.forum-pin-banner-text {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.forum-pin-banner-username {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-stockton-white);
+    flex-shrink: 0;
+}
+
+.forum-pin-banner-message {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.forum-pin-banner-unpin {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.2rem 0.4rem;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.forum-pin-banner-unpin:hover {
+    color: var(--event-match-hover);
+}
+
 .community-forum-body {
     flex: 1;
     min-height: 0;
@@ -436,13 +506,15 @@
 .forum-message-text-row {
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 0.5rem;
     flex: 1;
     min-width: 0;
 }
 
 .forum-message-text {
+    flex: 1;
+    min-width: 0;
     margin: 0;
     color: var(--text-primary);
     font-size: 0.9rem;
@@ -461,9 +533,43 @@
     padding: 0.2rem 0.3rem;
 }
 
-.forum-message-block:hover .forum-message-delete,
-.forum-message-continuation:hover .forum-message-delete {
+.forum-message-pin {
+    opacity: 0;
+    transition: opacity 0.15s;
+    color: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    padding: 0.2rem 0.3rem;
+}
+
+.forum-message-pin.is-pinned {
     opacity: 1;
+    color: var(--stockton-blue);
+    border-color: var(--stockton-blue);
+}
+
+.forum-message-block:hover .forum-message-delete,
+.forum-message-continuation:hover .forum-message-delete,
+.forum-message-block:hover .forum-message-pin,
+.forum-message-continuation:hover .forum-message-pin {
+    opacity: 1;
+}
+
+.forum-message-block.is-pinned-message,
+.forum-message-continuation.is-pinned-message {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
+}
+
+.forum-message-highlight {
+    animation: forumPinHighlight 1.5s ease;
+    border-radius: 6px;
+}
+
+@keyframes forumPinHighlight {
+    0%   { background: rgba(255, 255, 255, 0.12); }
+    100% { background: transparent; }
 }
 
 /* ── Forum Textbox ── */

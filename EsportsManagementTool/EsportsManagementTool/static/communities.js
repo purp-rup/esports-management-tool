@@ -20,6 +20,7 @@ let forumDeletedAfter = Math.floor(Date.now() / 1000);
 let forumPollTimer = null;
 let forumIsPolling = false;
 let forumSendCooldownActive = false;
+let forumPinnedMessage = null;
 const FORUM_SEND_COOLDOWN_MS = 2000; // min time between sent messages
 const FORUM_POLL_INTERVAL_MS = 2000;
 const FORUM_GROUP_GAP_MS = 5 * 60 * 1000; // messages within 5 min of the same user group together
@@ -228,12 +229,14 @@ async function loadForumMessages(gameId) {
 
         forumMessages = data.messages;
         forumHasMoreOlder = data.has_more;
+        forumPinnedMessage = data.pinned_message || null;
 
         if (forumMessages.length) {
             forumLastMessageId = forumMessages[forumMessages.length - 1].message_id;
         }
 
         renderForumMessages();
+        renderPinnedBanner();
         if (forumMessages.length === 0 && empty) empty.style.display = 'flex';
         scrollForumToBottom();
     } catch (e) {
@@ -291,17 +294,29 @@ function renderForumMessages() {
         const isOwnMessage = msg.username?.toLowerCase() === currentUsername;
         const canDelete = isOwnMessage || canModerate;
 
-        return buildForumMessageHtml(msg, isNewBlock, canDelete);
+        return buildForumMessageHtml(msg, isNewBlock, canDelete, canModerate);
     }).join('');
 }
 
-function buildForumMessageHtml(msg, isNewBlock, canDelete) {
+function buildForumMessageHtml(msg, isNewBlock, canDelete, canModerate) {
     const time = formatForumTimestamp(msg.created_at);
+    const isPinned = !!(forumPinnedMessage && String(forumPinnedMessage.message_id) === String(msg.message_id));
+
+    const pinBtn = canModerate
+        ? `<button class="forum-message-pin ${isPinned ? 'is-pinned' : ''}"
+                   onclick="handlePinForumMessage('${escapeHtml(String(msg.message_id))}')"
+                   title="${isPinned ? 'Unpin message' : 'Pin message'}">
+               <i class="fas fa-thumbtack"></i>
+           </button>`
+        : '';
+
     const deleteBtn = canDelete
         ? `<button class="forum-message-delete" onclick="confirmDeleteForumMessage('${escapeHtml(String(msg.message_id))}')" title="Delete message">
                <i class="fas fa-trash"></i>
            </button>`
         : '';
+
+    const pinnedClass = isPinned ? ' is-pinned-message' : '';
 
     if (isNewBlock) {
         const avatarHtml = msg.profile_picture
@@ -317,7 +332,7 @@ function buildForumMessageHtml(msg, isNewBlock, canDelete) {
             : '';
 
         return `
-            <div class="forum-message-block" data-message-id="${msg.message_id}">
+            <div class="forum-message-block${pinnedClass}" data-message-id="${msg.message_id}">
                 ${avatarHtml}
                 <div class="forum-message-block-content">
                     <div class="forum-message-block-header">
@@ -327,6 +342,7 @@ function buildForumMessageHtml(msg, isNewBlock, canDelete) {
                     </div>
                     <div class="forum-message-text-row">
                         <p class="forum-message-text">${escapeHtml(msg.content)}</p>
+                        ${pinBtn}
                         ${deleteBtn}
                     </div>
                 </div>
@@ -335,10 +351,11 @@ function buildForumMessageHtml(msg, isNewBlock, canDelete) {
     }
 
     return `
-        <div class="forum-message-continuation" data-message-id="${msg.message_id}">
+        <div class="forum-message-continuation${pinnedClass}" data-message-id="${msg.message_id}">
             <span class="forum-message-continuation-time"></span>
             <div class="forum-message-text-row">
                 <p class="forum-message-text">${escapeHtml(msg.content)}</p>
+                ${pinBtn}
                 ${deleteBtn}
             </div>
         </div>
@@ -386,6 +403,17 @@ function scrollForumToBottom() {
     if (body) body.scrollTop = body.scrollHeight;
 }
 
+// Collapses runs of blank lines (e.g. from repeated Shift+Enter) down to
+// a single blank line, so a message can have at most one empty line in a row.
+function normalizeMessageContent(text) {
+    return text
+        .split('\n')
+        .map(line => (line.trim() === '' ? '' : line))
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
 async function sendForumMessage() {
     if (forumSendCooldownActive) return;
 
@@ -394,7 +422,7 @@ async function sendForumMessage() {
     const sendBtn = document.getElementById('forumSendBtn');
     if (!gameId || !input) return;
 
-    const content = input.value.trim();
+    const content = normalizeMessageContent(input.value);
     if (!content) return;
 
     input.disabled = true;
@@ -480,6 +508,130 @@ async function executeForumMessageDelete(messageId) {
     }
 }
 
+function renderPinnedBanner() {
+    const banner = document.getElementById('forumPinnedBanner');
+    if (!banner) return;
+
+    if (!forumPinnedMessage) {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+        return;
+    }
+
+    const canModerate = document.getElementById('canModerateForum')?.value === 'true';
+    const unpinBtn = canModerate
+        ? `<button class="forum-pin-banner-unpin" onclick="confirmUnpinForumMessage()" title="Unpin message">
+               <i class="fas fa-times"></i>
+           </button>`
+        : '';
+
+    banner.innerHTML = `
+        <div class="forum-pin-banner-content" onclick="scrollToForumMessage('${escapeHtml(String(forumPinnedMessage.message_id))}')">
+            <i class="fas fa-thumbtack forum-pin-banner-icon"></i>
+            <div class="forum-pin-banner-text">
+                <span class="forum-pin-banner-username">${escapeHtml(forumPinnedMessage.username)}</span>
+                <span class="forum-pin-banner-message">${escapeHtml(forumPinnedMessage.content)}</span>
+            </div>
+        </div>
+        ${unpinBtn}
+    `;
+    banner.style.display = 'flex';
+}
+
+function scrollToForumMessage(messageId) {
+    const el = document.querySelector(`.forum-message-block[data-message-id="${messageId}"], .forum-message-continuation[data-message-id="${messageId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('forum-message-highlight');
+    setTimeout(() => el.classList.remove('forum-message-highlight'), 1500);
+}
+
+function handlePinForumMessage(messageId) {
+    const isPinned = forumPinnedMessage && String(forumPinnedMessage.message_id) === String(messageId);
+    if (isPinned) {
+        confirmUnpinForumMessage();
+        return;
+    }
+    executePinForumMessage(messageId, false);
+}
+
+async function executePinForumMessage(messageId, force) {
+    const gameId = document.getElementById('communityGameId')?.value;
+
+    try {
+        const res = await fetch(`/api/game/${gameId}/messages/${messageId}/pin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ force: !!force })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            forumPinnedMessage = data.pinned_message;
+            renderPinnedBanner();
+            renderForumMessages();
+            if (typeof closeDeleteConfirmModal === 'function') closeDeleteConfirmModal();
+        } else if (data.already_pinned && !force) {
+            promptReplacePinnedMessage(messageId, data.current_pinned_message);
+        } else {
+            if (typeof closeDeleteConfirmModal === 'function') closeDeleteConfirmModal();
+            openWarningPopup(data.message || 'Failed to pin message.');
+        }
+    } catch (e) {
+        if (typeof closeDeleteConfirmModal === 'function') closeDeleteConfirmModal();
+        openWarningPopup('Failed to pin message. Please try again.');
+    }
+}
+
+function promptReplacePinnedMessage(newMessageId, currentPinned) {
+    const pinnedByLabel = currentPinned?.username ? `by ${escapeHtml(currentPinned.username)}` : '';
+    openDeleteConfirmModal({
+        title: 'Replace Pinned Message?',
+        message: `A message ${pinnedByLabel} is already pinned in this chat. Unpin it and pin this message instead?`,
+        buttonText: 'Replace Pin',
+        itemId: newMessageId,
+        onConfirm: async (id) => {
+            await executePinForumMessage(id, true);
+        }
+    });
+}
+
+function confirmUnpinForumMessage() {
+    if (!forumPinnedMessage) return;
+    openDeleteConfirmModal({
+        title: 'Unpin Message?',
+        message: 'This message will no longer be shown at the top of the chat.',
+        buttonText: 'Unpin Message',
+        itemId: forumPinnedMessage.message_id,
+        onConfirm: async () => {
+            await executeUnpinForumMessage();
+        }
+    });
+}
+
+async function executeUnpinForumMessage() {
+    const gameId = document.getElementById('communityGameId')?.value;
+
+    try {
+        const res = await fetch(`/api/game/${gameId}/messages/pin`, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (data.success) {
+            forumPinnedMessage = null;
+            renderPinnedBanner();
+            renderForumMessages();
+            closeDeleteConfirmModal();
+            showDeleteSuccessMessage('Message unpinned.');
+        } else {
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage(data.message || 'Failed to unpin message.');
+        }
+    } catch (e) {
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Failed to unpin message. Please try again.');
+    }
+}
+
 function startForumPoll(gameId) {
     if (forumPollTimer) clearInterval(forumPollTimer);
     forumPollTimer = setInterval(() => pollForumUpdates(gameId), FORUM_POLL_INTERVAL_MS);
@@ -523,6 +675,14 @@ async function pollForumUpdates(gameId) {
             changed = true;
         }
         forumDeletedAfter = data.deleted_after;
+
+        const incomingPinnedId = data.pinned_message ? data.pinned_message.message_id : null;
+        const currentPinnedId = forumPinnedMessage ? forumPinnedMessage.message_id : null;
+        if (String(incomingPinnedId) !== String(currentPinnedId)) {
+            forumPinnedMessage = data.pinned_message || null;
+            renderPinnedBanner();
+            changed = true;
+        }
 
         if (changed) {
             const wasAtBottom = isForumScrolledToBottom();
@@ -1007,6 +1167,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // Community Forum
 window.sendForumMessage          = sendForumMessage;
 window.confirmDeleteForumMessage = confirmDeleteForumMessage;
+window.handlePinForumMessage     = handlePinForumMessage;
+window.confirmUnpinForumMessage  = confirmUnpinForumMessage;
+window.scrollToForumMessage      = scrollToForumMessage;
 
 // Photo Carousel
 window.carouselNext        = carouselNext;

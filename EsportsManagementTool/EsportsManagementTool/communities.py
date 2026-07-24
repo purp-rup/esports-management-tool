@@ -1014,8 +1014,10 @@ def get_community_messages(game_id):
             )
             items.reverse()  # ascending message order
 
+            pinned_message = get_pinned_message_data(cursor, game_id) if not before_id else None
+
             if not items:
-                return jsonify({'success': True, 'messages': [], 'has_more': has_more}), 200
+                return jsonify({'success': True, 'messages': [], 'has_more': has_more, 'pinned_message': pinned_message}), 200
 
             user_ids = sorted({item['user_id'] for item in items})
             placeholders = ','.join(['%s'] * len(user_ids))
@@ -1040,7 +1042,7 @@ def get_community_messages(game_id):
 
             attach_role_badges(cursor, messages, game_id)
 
-            return jsonify({'success': True, 'messages': messages, 'has_more': has_more}), 200
+            return jsonify({'success': True, 'messages': messages, 'has_more': has_more, 'pinned_message': pinned_message}), 200
 
         finally:
             cursor.close()
@@ -1048,23 +1050,6 @@ def get_community_messages(game_id):
     except Exception as e:
         print(f"Error fetching community messages: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load messages'}), 500
-
-def check_message_profanity(content: str) -> bool:
-    """
-    Calls the profanity.dev API. Returns True if the message is flagged.
-    Fails open (returns False) if the API errors out or times out.
-    """
-    try:
-        response = requests.post(
-            PROFANITY_API_URL,
-            json={"message": content},
-            timeout=3,
-        )
-        response.raise_for_status()
-        return bool(response.json().get("isProfanity", False))
-    except Exception as e:
-        print(f"Profanity check failed, allowing message through: {str(e)}")
-        return False
 
 @app.route('/api/game/<int:game_id>/messages', methods=['POST'])
 @login_required
@@ -1131,6 +1116,111 @@ def post_community_message(game_id):
         print(f"Error posting community message: {str(e)}")
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
+@app.route('/api/game/<int:game_id>/messages/<message_id>/pin', methods=['POST'])
+@login_required
+def pin_community_message(game_id, message_id):
+    """
+    Pin a message to the top of the community chat. Only one message may be
+    pinned at a time. Allowed for admins, developers, and the community's GM.
+    """
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute("SELECT gm_id FROM games WHERE GameID = %s", (game_id,))
+            game = cursor.fetchone()
+
+            if not game:
+                return jsonify({'success': False, 'message': 'Community not found'}), 404
+
+            permissions = get_user_permissions(session['id'])
+            can_moderate = (
+                permissions['is_admin'] or
+                permissions['is_developer'] or
+                game['gm_id'] == session['id']
+            )
+
+            if not can_moderate:
+                return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+            message = forum_db.get_message(community_id=game_id, message_id=message_id)
+            if not message:
+                return jsonify({'success': False, 'message': 'Message not found'}), 404
+
+            data = request.get_json(silent=True) or {}
+            force = bool(data.get('force'))
+
+            existing_pin = forum_db.get_pinned_message_id(game_id)
+            existing_pinned_id = existing_pin['pinned_message_id'] if existing_pin else None
+
+            if existing_pinned_id and existing_pinned_id != message_id and not force:
+                current_pinned_message = get_pinned_message_data(cursor, game_id)
+                return jsonify({
+                    'success': False,
+                    'already_pinned': True,
+                    'message': 'A message is already pinned in this community.',
+                    'current_pinned_message': current_pinned_message
+                }), 409
+
+            forum_db.set_pinned_message(community_id=game_id, message_id=message_id, pinned_by=session['id'])
+
+            pinned_message = get_pinned_message_data(cursor, game_id)
+
+            return jsonify({'success': True, 'pinned_message': pinned_message}), 200
+
+        except Exception as e:
+            print(f"Error pinning community message: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to pin message'}), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error pinning community message: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+@app.route('/api/game/<int:game_id>/messages/pin', methods=['DELETE'])
+@login_required
+def unpin_community_message(game_id):
+    """Unpin whatever message is currently pinned for this community."""
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute("SELECT gm_id FROM games WHERE GameID = %s", (game_id,))
+            game = cursor.fetchone()
+
+            if not game:
+                return jsonify({'success': False, 'message': 'Community not found'}), 404
+
+            permissions = get_user_permissions(session['id'])
+            can_moderate = (
+                permissions['is_admin'] or
+                permissions['is_developer'] or
+                game['gm_id'] == session['id']
+            )
+
+            if not can_moderate:
+                return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+            existing_pin = forum_db.get_pinned_message_id(game_id)
+            if not existing_pin:
+                return jsonify({'success': False, 'message': 'No message is currently pinned'}), 400
+
+            forum_db.clear_pinned_message(game_id)
+
+            return jsonify({'success': True, 'message': 'Message unpinned'}), 200
+
+        except Exception as e:
+            print(f"Error unpinning community message: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to unpin message'}), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error unpinning community message: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
 @app.route('/api/game/<int:game_id>/messages/<message_id>', methods=['DELETE'])
 @login_required
@@ -1165,6 +1255,10 @@ def delete_community_message(game_id, message_id):
             )
             if not updated:
                 return jsonify({'success': False, 'message': 'Message not found'}), 404
+
+            existing_pin = forum_db.get_pinned_message_id(game_id)
+            if existing_pin and existing_pin['pinned_message_id'] == message_id:
+                forum_db.clear_pinned_message(game_id)
 
             return jsonify({'success': True, 'message': 'Message deleted'}), 200
 
@@ -1217,13 +1311,16 @@ def get_new_community_messages(game_id):
                     'created_at': datetime.fromtimestamp(item['created_at'], EST).isoformat()
                 })
 
-        attach_role_badges(cursor, messages, game_id) 
+        attach_role_badges(cursor, messages, game_id)
+
+        pinned_message = get_pinned_message_data(cursor, game_id)
 
         return jsonify({
             'success': True,
             'messages': messages,
             'deleted_message_ids': deleted_ids,
-            'deleted_after': next_deleted_after
+            'deleted_after': next_deleted_after,
+            'pinned_message': pinned_message
         }), 200
 
     except Exception as e:
@@ -1232,6 +1329,23 @@ def get_new_community_messages(game_id):
 
     finally:
         cursor.close()
+
+def check_message_profanity(content: str) -> bool:
+    """
+    Calls the profanity.dev API. Returns True if the message is flagged.
+    Fails open (returns False) if the API errors out or times out.
+    """
+    try:
+        response = requests.post(
+            PROFANITY_API_URL,
+            json={"message": content},
+            timeout=3,
+        )
+        response.raise_for_status()
+        return bool(response.json().get("isProfanity", False))
+    except Exception as e:
+        print(f"Profanity check failed, allowing message through: {str(e)}")
+        return False
 
 @app.route('/api/admin/audit-log/profanity', methods=['GET'])
 @roles_required('admin', 'developer')
@@ -1319,6 +1433,44 @@ def attach_role_badges(cursor, messages, game_id):
         msg['is_player'] = bool(perms.get('is_player'))
 
     return messages
+
+def get_pinned_message_data(cursor, game_id):
+    """
+    Fetch the currently pinned message (if any) for a community, along with
+    its author info.
+    """
+    pin = forum_db.get_pinned_message_id(game_id)
+    if not pin:
+        return None
+
+    message = forum_db.get_message(community_id=game_id, message_id=pin['pinned_message_id'])
+    if not message or message.get('is_deleted'):
+        forum_db.clear_pinned_message(game_id)
+        return None
+
+    cursor.execute(
+        "SELECT username, firstname, lastname, profile_picture FROM users WHERE id = %s",
+        (message['user_id'],)
+    )
+    user = cursor.fetchone() or {}
+
+    pinned_by_username = None
+    if pin.get('pinned_by'):
+        cursor.execute("SELECT username FROM users WHERE id = %s", (pin['pinned_by'],))
+        pinned_by_row = cursor.fetchone()
+        pinned_by_username = pinned_by_row['username'] if pinned_by_row else None
+
+    return {
+        'message_id': message['message_id'],
+        'user_id': message['user_id'],
+        'username': user.get('username', 'Unknown'),
+        'full_name': f"{user.get('firstname', '')} {user.get('lastname', '')}".strip() or 'Unknown User',
+        'profile_picture': user.get('profile_picture'),
+        'content': message['content'],
+        'created_at': datetime.fromtimestamp(message['created_at'], EST).isoformat(),
+        'pinned_at': datetime.fromtimestamp(pin['pinned_at'], EST).isoformat() if pin.get('pinned_at') else None,
+        'pinned_by': pinned_by_username
+    }
 
 # ===================================
 # COMMUNITY TAB

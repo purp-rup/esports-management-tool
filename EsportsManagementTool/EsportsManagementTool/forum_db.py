@@ -11,6 +11,8 @@ AWS_REGION = os.environ.get("AWS_REGION", "us-east-2")
 _dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
 _table = _dynamodb.Table(TABLE_NAME)
 
+PINNED_SENTINEL_ID = "__PINNED__"  # reserved message_id used to store the pin state
+
 
 def _clean(item: dict) -> dict:
     """
@@ -100,6 +102,7 @@ def soft_delete_message(community_id: int, message_id: str, deleted_by: int) -> 
     except _dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
         return None
 
+
 def get_new_messages(community_id: int, after_message_id: str, limit: int = 50):
     """
     Returns messages newer than after_message_id
@@ -113,6 +116,7 @@ def get_new_messages(community_id: int, after_message_id: str, limit: int = 50):
     response = _table.query(**query_kwargs)
     return [_clean(item) for item in response.get("Items", [])]
 
+
 def get_recently_deleted(community_id: int, since_timestamp: int, limit: int = 100):
     """
     Updates recently deleted messages with the live functionality
@@ -124,6 +128,7 @@ def get_recently_deleted(community_id: int, since_timestamp: int, limit: int = 1
     )
     items = [_clean(item) for item in response.get("Items", [])]
     return [item["message_id"] for item in items]
+
 
 def get_profane_messages(limit: int = 500):
     """
@@ -150,3 +155,29 @@ def get_profane_messages(limit: int = 500):
     items = [_clean(item) for item in collected[:limit]]
     items.sort(key=lambda i: i["created_at"], reverse=True)
     return items
+
+
+def set_pinned_message(community_id: int, message_id: str, pinned_by: int) -> dict:
+    """
+    Marks a message as pinned for a community. Only one message can be
+    pinned at a time which overwrites whatever was pinned before.
+    """
+    item = {
+        "community_id": community_id,
+        "message_id": PINNED_SENTINEL_ID,
+        "pinned_message_id": message_id,
+        "pinned_by": pinned_by,
+        "pinned_at": int(time.time()),
+        "is_deleted": True,
+    }
+    _table.put_item(Item=item)
+    return item
+
+
+def get_pinned_message_id(community_id: int) -> dict | None:
+    response = _table.get_item(Key={"community_id": community_id, "message_id": PINNED_SENTINEL_ID})
+    return _clean(response.get("Item"))
+
+
+def clear_pinned_message(community_id: int) -> None:
+    _table.delete_item(Key={"community_id": community_id, "message_id": PINNED_SENTINEL_ID})
