@@ -148,7 +148,7 @@ function renderLeagueGrid() {
                 </div>
             </div>
             <div class="league-card-actions">
-                <button class="btn btn-secondary" onclick="editLeague(${league.id}); event.stopPropagation();">
+                <button class="btn btn-secondary btn-league-edit" onclick="editLeague(${league.id}); event.stopPropagation();">
                     <i class="fas fa-edit"></i> Edit
                 </button>
                 ${deleteButtonHtml}

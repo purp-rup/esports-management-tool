@@ -4,6 +4,7 @@
  * - User management and search
  * - Role assignment and removal
  * - Game creation and deletion
+ * - socials links/ socials modal
  * - Suspension management integration
  * ============================================================================
  */

@@ -112,6 +112,7 @@
     display: block;
     flex-display: column;
     margin-top: 1rem;
+    min-width: 0;   
 }
 
 .nav-bar {
@@ -142,6 +143,7 @@
     display: flex;
     position: relative;
     flex: 1;
+    min-width: 0;   
 }
 
 .community-description-text {
@@ -167,6 +169,7 @@
 .community-card-stats-and-btn {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;   
     gap: 0.75rem;
     margin-top: auto;
     position: relative;
@@ -177,6 +180,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
     margin-left: auto;
+    min-width: 0; 
 }
 
 .community-card-stat-row.has-leagues {
