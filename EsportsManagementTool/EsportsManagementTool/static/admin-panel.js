@@ -782,6 +782,8 @@ function renderLandingGalleryAdminGrid() {
 // ============================================
 
 let auditLogEntries = [];
+let auditLogSelectedCommunity = '';
+let auditLogSelectedUser = '';
 
 function openAuditLogModal() {
     const modal = document.getElementById('auditLogModal');
@@ -827,11 +829,15 @@ async function loadAuditLog() {
     }
 }
 
-// Builds the filter dropdowns from the distinct communities/users
 function populateAuditLogFilters() {
-    const communitySelect = document.getElementById('auditLogCommunityFilter');
-    const userSelect      = document.getElementById('auditLogUserFilter');
-    if (!communitySelect || !userSelect) return;
+    const communityPanel = document.getElementById('auditCommunityFilterPanel');
+    const userPanel       = document.getElementById('auditUserFilterPanel');
+    if (!communityPanel || !userPanel) return;
+
+    auditLogSelectedCommunity = '';
+    auditLogSelectedUser = '';
+    document.getElementById('auditCommunityFilterLabel').textContent = 'All Communities';
+    document.getElementById('auditUserFilterLabel').textContent = 'All Users';
 
     const communities = new Map();
     const users = new Map();
@@ -841,27 +847,44 @@ function populateAuditLogFilters() {
         users.set(e.user_id, e.full_name || e.username);
     });
 
-    communitySelect.innerHTML = '<option value="">All Communities</option>' +
+    communityPanel.innerHTML = '<div class="filter-box-item active" data-value="" onclick="applyAuditCommunityFilter(\'\', \'All Communities\')">All Communities</div>' +
         Array.from(communities.entries())
-            .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
+            .map(([id, name]) => `<div class="filter-box-item" data-value="${id}" onclick="applyAuditCommunityFilter('${id}', '${escapeQuotes(name)}')">${escapeHtml(name)}</div>`)
             .join('');
 
-    userSelect.innerHTML = '<option value="">All Users</option>' +
+    userPanel.innerHTML = '<div class="filter-box-item active" data-value="" onclick="applyAuditUserFilter(\'\', \'All Users\')">All Users</div>' +
         Array.from(users.entries())
-            .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
+            .map(([id, name]) => `<div class="filter-box-item" data-value="${id}" onclick="applyAuditUserFilter('${id}', '${escapeQuotes(name)}')">${escapeHtml(name)}</div>`)
             .join('');
 }
 
-function applyAuditLogFilters() {
-    const communityId = document.getElementById('auditLogCommunityFilter')?.value;
-    const userId      = document.getElementById('auditLogUserFilter')?.value;
+function applyAuditCommunityFilter(value, label) {
+    auditLogSelectedCommunity = value;
+    document.getElementById('auditCommunityFilterLabel').textContent = label;
+    document.querySelectorAll('#auditCommunityFilterPanel .filter-box-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === value);
+    });
+    closeAllFilterPanels();
+    applyAuditLogFilters();
+}
 
+function applyAuditUserFilter(value, label) {
+    auditLogSelectedUser = value;
+    document.getElementById('auditUserFilterLabel').textContent = label;
+    document.querySelectorAll('#auditUserFilterPanel .filter-box-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === value);
+    });
+    closeAllFilterPanels();
+    applyAuditLogFilters();
+}
+
+function applyAuditLogFilters() {
     let filtered = auditLogEntries;
-    if (communityId) {
-        filtered = filtered.filter(e => String(e.community_id) === communityId);
+    if (auditLogSelectedCommunity) {
+        filtered = filtered.filter(e => String(e.community_id) === auditLogSelectedCommunity);
     }
-    if (userId) {
-        filtered = filtered.filter(e => String(e.user_id) === userId);
+    if (auditLogSelectedUser) {
+        filtered = filtered.filter(e => String(e.user_id) === auditLogSelectedUser);
     }
 
     renderAuditLogList(filtered);
@@ -897,6 +920,21 @@ function formatAuditLogTime(isoString) {
     return date.toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+function toggleAuditFilterBox(panelId) {
+    toggleFilterBox(panelId);
+
+    const panel = document.getElementById(panelId);
+    if (!panel || !panel.classList.contains('open')) return;
+
+    const btn = panel.previousElementSibling;
+    if (!btn) return;
+
+    const rect = btn.getBoundingClientRect();
+    panel.style.top = `${rect.bottom + 4}px`;
+    panel.style.left = `${rect.left}px`;
+}
+
+
 // ============================================
 // EXPORT FUNCTIONS
 // ============================================
@@ -907,3 +945,4 @@ window.openManageLandingGalleryModal  = openManageLandingGalleryModal;
 window.closeManageLandingGalleryModal = closeManageLandingGalleryModal;
 window.openAuditLogModal  = openAuditLogModal;
 window.closeAuditLogModal = closeAuditLogModal;
+window.toggleAuditFilterBox = toggleAuditFilterBox;

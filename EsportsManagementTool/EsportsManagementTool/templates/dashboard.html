@@ -2209,12 +2209,25 @@
         </div>
         <div class="modal-body">
             <div class="audit-log-filters">
-                <select id="auditLogCommunityFilter" onchange="applyAuditLogFilters()">
-                    <option value="">All Communities</option>
-                </select>
-                <select id="auditLogUserFilter" onchange="applyAuditLogFilters()">
-                    <option value="">All Users</option>
-                </select>
+                <div class="filter-box" id="auditCommunityFilterBox">
+                    <button class="filter-box-btn" onclick="toggleAuditFilterBox('auditCommunityFilterPanel')">
+                        <span id="auditCommunityFilterLabel">All Communities</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="filter-box-panel filter-box-panel--fixed" id="auditCommunityFilterPanel">
+                        <div class="filter-box-item active" data-value="" onclick="applyAuditCommunityFilter('', 'All Communities')">All Communities</div>
+                    </div>
+                </div>
+
+                <div class="filter-box" id="auditUserFilterBox">
+                    <button class="filter-box-btn" onclick="toggleAuditFilterBox('auditUserFilterPanel')">
+                        <span id="auditUserFilterLabel">All Users</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="filter-box-panel filter-box-panel--fixed" id="auditUserFilterPanel">
+                        <div class="filter-box-item active" data-value="" onclick="applyAuditUserFilter('', 'All Users')">All Users</div>
+                    </div>
+                </div>
             </div>
 
             <div id="auditLogLoading" style="display: block; text-align: center; padding: 2rem;">

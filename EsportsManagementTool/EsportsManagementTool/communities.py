@@ -1,4 +1,4 @@
-from EsportsManagementTool import app, login_required, roles_required, mysql, EST, season_roles, forum_db, typing_status
+from EsportsManagementTool import app, login_required, roles_required, mysql, EST, season_roles, forum_db
 from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr, is_all_day_event, build_member_profile, attach_profile_extras
 from flask import request, render_template, redirect, url_for, session, flash, jsonify
 from datetime import datetime, timedelta
@@ -1192,7 +1192,6 @@ def get_new_community_messages(game_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         items = forum_db.get_new_messages(community_id=game_id, after_message_id=after_id)
-        typing_user_ids = typing_status.get_typing_users(game_id, exclude_user_id=session['id'])
         deleted_ids = forum_db.get_recently_deleted(community_id=game_id, since_timestamp=deleted_after)
         next_deleted_after = int(time.time())  # cursor for the client's next poll
 
@@ -1220,19 +1219,9 @@ def get_new_community_messages(game_id):
 
         attach_role_badges(cursor, messages, game_id) 
 
-        typing_names = []
-        if typing_user_ids:
-            placeholders = ','.join(['%s'] * len(typing_user_ids))
-            cursor.execute(
-                f"SELECT firstname FROM users WHERE id IN ({placeholders})",
-                typing_user_ids
-            )
-            typing_names = [row['firstname'] for row in cursor.fetchall()]
-
         return jsonify({
             'success': True,
             'messages': messages,
-            'typing_users': typing_names,
             'deleted_message_ids': deleted_ids,
             'deleted_after': next_deleted_after
         }), 200
@@ -1298,13 +1287,6 @@ def get_profanity_audit_log():
     except Exception as e:
         print(f"Error fetching profanity audit log: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load audit log'}), 500
-
-@app.route('/api/game/<int:game_id>/typing', methods=['POST'])
-@login_required
-def set_user_typing(game_id):
-    """Mark the current user as currently typing in this community's forum chat."""
-    typing_status.set_typing(game_id, session['id'])
-    return jsonify({'success': True}), 200
 
 def attach_role_badges(cursor, messages, game_id):
     """

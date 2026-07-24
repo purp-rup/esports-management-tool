@@ -18,9 +18,10 @@ let forumIsLoadingOlder  = false;
 let forumLastMessageId = '';          
 let forumDeletedAfter = Math.floor(Date.now() / 1000);
 let forumPollTimer = null;
-let forumLastTypingSentAt = 0;
+let forumIsPolling = false;
+let forumSendCooldownActive = false;
+const FORUM_SEND_COOLDOWN_MS = 2000; // min time between sent messages
 const FORUM_POLL_INTERVAL_MS = 2000;
-const FORUM_TYPING_SEND_INTERVAL_MS = 2000;
 const FORUM_GROUP_GAP_MS = 5 * 60 * 1000; // messages within 5 min of the same user group together
 
 // Initialize photo carousel elements
@@ -209,7 +210,6 @@ async function initForum() {
             input.style.height = 'auto';
             input.style.height = Math.min(input.scrollHeight, 120) + 'px';
 
-            notifyForumTyping(gameId);
         });
     }
 }
@@ -387,6 +387,8 @@ function scrollForumToBottom() {
 }
 
 async function sendForumMessage() {
+    if (forumSendCooldownActive) return;
+
     const gameId = document.getElementById('communityGameId')?.value;
     const input = document.getElementById('forumMessageInput');
     const sendBtn = document.getElementById('forumSendBtn');
@@ -397,6 +399,7 @@ async function sendForumMessage() {
 
     input.disabled = true;
     if (sendBtn) sendBtn.disabled = true;
+    forumSendCooldownActive = true;
 
     try {
         const res  = await fetch(`/api/game/${gameId}/messages`, {
@@ -407,19 +410,25 @@ async function sendForumMessage() {
         const data = await res.json();
 
         if (data.success) {
-            forumMessages.push(data.message);
+            if (!forumMessages.some(m => m.message_id === data.message.message_id)) {
+                forumMessages.push(data.message);
+            }
             forumLastMessageId = data.message.message_id;
             renderForumMessages();
             scrollForumToBottom();
 
             input.value = '';
             input.style.height = 'auto';
+            input.dispatchEvent(new Event('input'));
+
 
             const empty = document.getElementById('forumEmpty');
             if (empty) empty.style.display = 'none';
         } else if (data.blocked) {
             input.value = '';
             input.style.height = 'auto';
+            input.dispatchEvent(new Event('input'));
+
             openWarningPopup(data.message || 'Your message was not sent because it contains inappropriate language.');
         } else {
             openWarningPopup(data.message || 'Failed to send message');
@@ -428,9 +437,12 @@ async function sendForumMessage() {
         console.error('Failed to send forum message:', e);
         alert('Failed to send message. Please try again.');
     } finally {
-        input.disabled = false;
-        if (sendBtn) sendBtn.disabled = false;
-        input.focus();
+        setTimeout(() => {
+             input.disabled = false;
+             if (sendBtn) sendBtn.disabled = false;
+             forumSendCooldownActive = false;
+             input.focus();
+        }, FORUM_SEND_COOLDOWN_MS);
     }
 }
 
@@ -480,6 +492,9 @@ function isForumScrolledToBottom() {
 }
 
 async function pollForumUpdates(gameId) {
+     if (forumIsPolling) return; 
+     forumIsPolling = true;
+    
     try {
         const url = `/api/game/${gameId}/messages/new`
             + `?after=${encodeURIComponent(forumLastMessageId)}`
@@ -491,10 +506,16 @@ async function pollForumUpdates(gameId) {
         let changed = false;
 
         if (data.messages.length) {
-            forumMessages.push(...data.messages);
-            forumLastMessageId = data.messages[data.messages.length - 1].message_id;
-            changed = true;
-        }
+             const existingIds = new Set(forumMessages.map(m => m.message_id));
+             const newMessages = data.messages.filter(m => !existingIds.has(m.message_id));
+
+             if (newMessages.length) {
+                 forumMessages.push(...newMessages);
+                 changed = true;
+             }
+
+             forumLastMessageId = data.messages[data.messages.length - 1].message_id;
+          }
 
         if (data.deleted_message_ids && data.deleted_message_ids.length) {
             const deletedSet = new Set(data.deleted_message_ids);
@@ -512,43 +533,10 @@ async function pollForumUpdates(gameId) {
             if (wasAtBottom) scrollForumToBottom();
         }
 
-        renderForumTypingIndicator(data.typing_users || []);
     } catch (e) {
+    } finally {
+        forumIsPolling = false;
     }
-}
-
-function notifyForumTyping(gameId) {
-    const now = Date.now();
-    if (now - forumLastTypingSentAt < FORUM_TYPING_SEND_INTERVAL_MS) return;
-    forumLastTypingSentAt = now;
-
-    fetch(`/api/game/${gameId}/typing`, { method: 'POST' }).catch(() => {});
-}
-
-function renderForumTypingIndicator(names) {
-    const indicator = document.getElementById('forumTypingIndicator');
-    if (!indicator) return;
-
-    if (names.length === 0) {
-        indicator.style.display = 'none';
-        indicator.innerHTML = '';
-        return;
-    }
-
-    let text;
-    if (names.length === 1) {
-        text = `${escapeHtml(names[0])} is typing`;
-    } else if (names.length === 2) {
-        text = `${escapeHtml(names[0])} and ${escapeHtml(names[1])} are typing`;
-    } else {
-        text = 'Several people are typing';
-    }
-
-    indicator.innerHTML = `
-        ${text}
-        <span class="forum-typing-dots"><span></span><span></span><span></span></span>
-    `;
-    indicator.style.display = 'flex';
 }
 
 // Fetch photos for this community and boot the carousel

@@ -452,18 +452,23 @@
 .audit-log-filters {
   display: flex;
   gap: 1rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   margin-bottom: 1rem;
+  padding: 0.5rem 0rem 0.5rem 0.1rem; 
 }
 
-.audit-log-filters select {
-  flex: 1;
+.audit-log-filters .filter-box {
+  flex: 0 0 auto;
+}
+
+.audit-log-filters .filter-box-btn {
   min-width: 180px;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--card-bg);
-  color: var(--text-primary);
+}
+
+.audit-log-filters .filter-box-panel {
+  max-height: 260px;
+  overflow-y: auto;
 }
 
 .audit-log-list {
@@ -519,6 +524,14 @@
   border-radius: 4px;
   word-break: break-word;
   white-space: pre-wrap;
+}
+
+.audit-log-filters .filter-box-panel.filter-box-panel--fixed {
+  position: fixed;
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 9999;
+
 }
 
 /* ================================
