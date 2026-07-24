@@ -113,24 +113,6 @@
     font-size: 0.875rem;
 }
 
-.btn-league-delete {
-    background: #ef4444;
-    color: black;
-}
-
-.btn-league-delete:hover {
-    background: #a00000;
-}
-
-.btn-league-edit {
-    background: var(--stockton-blue);
-    color: black;
-}
-
-.btn-league-edit:hover {
-    background: #5aabdd;
-}
-
 /* Empty state */
 .league-empty-state {
     text-align: center;

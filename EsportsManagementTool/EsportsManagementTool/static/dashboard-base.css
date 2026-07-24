@@ -83,6 +83,27 @@ main {
     font-size: 0.875rem;
 }
 
+/* ============================================
+   Universal modal edit/delete buttons
+   ============================================ */
+.modal-edit-btn {
+    background: var(--stockton-blue);
+    color: black;
+}
+
+.modal-edit-btn:hover {
+    background: #5aabdd;
+}
+
+.modal-delete-btn {
+    background: #ef4444;
+    color: black;
+}
+
+.modal-delete-btn:hover {
+    background: #a00000;
+}
+
 /* Event type colors - used across calendar, events, and schedules */
 :root {
     --event-tournament: #8b5cf6;

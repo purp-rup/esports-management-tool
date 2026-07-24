@@ -132,7 +132,7 @@ function renderLeagueGrid() {
 
         // Only show delete button if user is developer
         const deleteButtonHtml = isDeveloper
-            ? `<button class="btn btn-secondary btn-league-delete" onclick="confirmDeleteLeague(${league.id}); event.stopPropagation();">
+            ? `<button class="btn btn-secondary modal-delete-btn" onclick="confirmDeleteLeague(${league.id}); event.stopPropagation();">
                     <i class="fas fa-trash"></i> Delete
                </button>`
             : '';
@@ -148,7 +148,7 @@ function renderLeagueGrid() {
                 </div>
             </div>
             <div class="league-card-actions">
-                <button class="btn btn-secondary btn-league-edit" onclick="editLeague(${league.id}); event.stopPropagation();">
+                <button class="btn btn-secondary modal-edit-btn" onclick="editLeague(${league.id}); event.stopPropagation();">
                     <i class="fas fa-edit"></i> Edit
                 </button>
                 ${deleteButtonHtml}

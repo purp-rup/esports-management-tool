@@ -39,6 +39,7 @@
 
 .modal-content-large {
     max-width: 600px;
+    width: 100%;
 }
 
 .modal-subtitle {
@@ -234,7 +235,7 @@
     font-weight: 600;
     font-size: 0.875rem;
     color: var(--text-primary);
-    margin-bottom: 0.25rem;
+    margin-bottom: 0;
 }
 
 .event-form-modal label.required-field::after {
