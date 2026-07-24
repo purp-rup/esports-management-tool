@@ -878,6 +878,18 @@ def get_primary_game_id(cursor, selected_games):
     result = cursor.fetchone()
     return result['gameID'] if result else None
 
+
+def sync_event_games(cursor, event_id, selected_games):
+    """Insert game associations for an event, looking up IDs by title."""
+    for game_title in selected_games:
+        cursor.execute('SELECT gameID FROM games WHERE GameTitle = %s', (game_title,))
+        result = cursor.fetchone()
+        if result:
+            cursor.execute(
+                'INSERT IGNORE INTO event_games (event_id, game_id) VALUES (%s, %s)',
+                (event_id, result['gameID'])
+            )
+
 def sync_event_games(cursor, event_id, selected_games):
     """Insert game associations for an event, looking up IDs by title."""
     for game_title in selected_games:

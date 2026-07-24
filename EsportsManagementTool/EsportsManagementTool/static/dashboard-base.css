@@ -619,67 +619,6 @@ main {
     right: 0;
 }
 
-/* ============================================
-   SHARED SOCIAL LINK COLOR SCHEMES
-   Used by .social-link-row (admin Socials modal) and .social-card (landing page strip).
-   ============================================ */
-@property --social-angle {
-    syntax: '<angle>';
-    initial-value: 0deg;
-    inherits: false;
-}
-
-@keyframes social-border-spin {
-    to { --social-angle: 360deg; }
-}
-
-[data-platform="discord"] {
-    --social-c1: #5865F2;
-    --social-c2: #7C3AED;
-    --social-accent: #5865F2;
-}
-
-[data-platform="instagram"] {
-    --social-c1: #F56040;
-    --social-c2: #C13584;
-    --social-c3: #833AB4;
-    --social-c4: #FEDA77;
-    --social-accent: #C13584;
-}
-
-[data-platform="youtube"] {
-    --social-c1: #FF0000;
-    --social-c2: #8B0000;
-    --social-accent: #FF0000;
-}
-
-[data-platform="twitch"] {
-    --social-c1: #9146FF;
-    --social-c2: #00CCFF;
-    --social-accent: #9146FF;
-}
-
-[data-platform="twitter"] {
-    --social-c1: #1DA1F2;
-    --social-c2: #003366;
-    --social-accent: #1DA1F2;
-}
-
-[data-platform="tiktok"] {
-    --social-c1: #FE2C55;
-    --social-c2: #25F4EE;
-    --social-c3: #FFFFFF;
-    --social-accent: #FFFFFF;
-}
-
-[data-platform="custom"] {
-    --social-c1: #E63946;
-    --social-c2: #FFFFFF;
-    --social-c3: #9CA3AF;
-    --social-c4: #457B9D;
-    --social-accent: #79bde9;
-}
-
 /* ====================================
    Mobile Sheet View
    Shared dim backdrop + slide-up panel treatment.

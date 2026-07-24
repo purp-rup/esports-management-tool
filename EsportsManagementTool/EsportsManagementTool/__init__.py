@@ -646,7 +646,6 @@ from EsportsManagementTool import teams
 from EsportsManagementTool import vods
 from EsportsManagementTool import seasons
 from EsportsManagementTool import leagues
-from EsportsManagementTool import social_links
 from EsportsManagementTool import statistics
 from EsportsManagementTool import photo_upload
 from EsportsManagementTool import index
@@ -664,9 +663,6 @@ seasons.initialize_season_scheduler(app, mysql)
 
 # Register League Routes
 leagues.register_league_routes(app, mysql, login_required, roles_required)
-
-# Register Social Link Routes
-social_links.register_social_link_routes(app, mysql, login_required, roles_required)
 
 # Register team statistics routes
 from EsportsManagementTool import team_stats
@@ -830,11 +826,7 @@ def get_event_details(event_id: int) -> tuple[Response, int] | Response:
     try:
         # Fetch event from generalevents table
         cursor.execute("""
-            SELECT ge.*, t.teamName as team_name
-            FROM generalevents ge
-            LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
-            LEFT JOIN teams t ON se.team_id = t.TeamID
-            WHERE ge.EventID = %s
+            SELECT * FROM generalevents WHERE EventID = %s
         """, (event_id,))
 
         event = cursor.fetchone()
@@ -868,9 +860,7 @@ def get_event_details(event_id: int) -> tuple[Response, int] | Response:
             'end_time': end_time_str,
             'location': event.get('Location', ''),
             'event_type': event.get('EventType', 'event').lower(),
-            'game_name': event.get('Game', None),
-            'team_name': event.get('team_name'),
-            'is_scheduled': event.get('is_scheduled', False)
+            'game_name': event.get('Game', None)
         }
 
         return jsonify(event_data)

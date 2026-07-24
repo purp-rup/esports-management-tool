@@ -899,20 +899,20 @@ select[multiple]:focus {
     font-size: 0.8125rem;
 }
 
-/* Event type dropdown */
-.combo-select-display {
+/* Location text area */
+.location-select-display {
     flex: 1;
     min-width: 0;
     display: flex;
     align-items: center;
 }
 
-.combo-placeholder {
+.location-placeholder {
     color: var(--text-secondary);
     font-size: 0.875rem;
 }
 
-.combo-selected-text {
+.location-selected-text {
     color: var(--text-primary);
     font-size: 0.875rem;
     overflow: hidden;
@@ -920,7 +920,7 @@ select[multiple]:focus {
     white-space: nowrap;
 }
 
-.combo-custom-input {
+.location-custom-input {
     width: 100%;
     border: none;
     background: transparent;
