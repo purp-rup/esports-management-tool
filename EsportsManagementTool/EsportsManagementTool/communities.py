@@ -1,4 +1,4 @@
-from EsportsManagementTool import app, login_required, roles_required, mysql, EST, season_roles
+from EsportsManagementTool import app, login_required, roles_required, mysql, EST, season_roles, forum_db
 from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr, is_all_day_event, build_member_profile, attach_profile_extras
 from flask import request, render_template, redirect, url_for, session, flash, jsonify
 from datetime import datetime, timedelta
@@ -6,7 +6,8 @@ import MySQLdb.cursors
 import json
 import cloudinary
 import cloudinary.uploader
-
+import time
+import requests
 
 # ======================================
 # COMMUNITY MANAGEMENT MODAL
@@ -983,6 +984,558 @@ def get_next_community_event(game_id):
             'message': f'Failed to load next event: {str(e)}'
         }), 500
 
+
+# ===================================
+# COMMUNITY FORUM
+# ===================================
+FORUM_PAGE_SIZE = 30
+PROFANITY_API_URL = "https://vector.profanity.dev"
+
+@app.route('/api/game/<int:game_id>/messages', methods=['GET'])
+@login_required
+def get_community_messages(game_id):
+    """
+    Fetch a page of community forum messages, cursor-paginated by message_id.
+    Pass ?before=<message_id> to fetch the next chunk older than that message.
+    Anyone who can view the community page can read its forum.
+    """
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute("SELECT GameID FROM games WHERE GameID = %s AND hidden = 0", (game_id,))
+            if not cursor.fetchone():
+                return jsonify({'success': False, 'message': 'Community not found'}), 404
+
+            before_id = request.args.get('before', type=str)
+
+            items, has_more = forum_db.get_messages_page(
+                community_id=game_id, before=before_id, limit=FORUM_PAGE_SIZE
+            )
+            items.reverse()  # ascending message order
+
+            pinned_message = get_pinned_message_data(cursor, game_id) if not before_id else None
+
+            if not items:
+                return jsonify({'success': True, 'messages': [], 'has_more': has_more, 'pinned_message': pinned_message}), 200
+
+            user_ids = sorted({item['user_id'] for item in items})
+            placeholders = ','.join(['%s'] * len(user_ids))
+            cursor.execute(
+                f"SELECT id, username, firstname, lastname, profile_picture FROM users WHERE id IN ({placeholders})",
+                user_ids
+            )
+            users_by_id = {row['id']: row for row in cursor.fetchall()}
+
+            messages = []
+            for item in items:
+                user = users_by_id.get(item['user_id'], {})
+                messages.append({
+                    'message_id': item['message_id'],
+                    'user_id': item['user_id'],
+                    'username': user.get('username', 'Unknown'),
+                    'full_name': f"{user.get('firstname', '')} {user.get('lastname', '')}".strip() or 'Unknown User',
+                    'profile_picture': user.get('profile_picture'),
+                    'content': item['content'],
+                    'created_at': datetime.fromtimestamp(item['created_at'], EST).isoformat()
+                })
+
+            attach_role_badges(cursor, messages, game_id)
+
+            return jsonify({'success': True, 'messages': messages, 'has_more': has_more, 'pinned_message': pinned_message}), 200
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error fetching community messages: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to load messages'}), 500
+
+@app.route('/api/game/<int:game_id>/messages', methods=['POST'])
+@login_required
+def post_community_message(game_id):
+    """Post a new message to a community's forum. Requires community membership."""
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute("SELECT 1 FROM in_communities WHERE user_id = %s AND game_id = %s",
+                           (session['id'], game_id))
+            if not cursor.fetchone():
+                return jsonify({'success': False, 'message': 'You must be a member of this community to post'}), 403
+
+            data = request.get_json(silent=True) or {}
+            content = (data.get('content') or '').strip()
+
+            if not content:
+                return jsonify({'success': False, 'message': 'Message cannot be empty'}), 400
+            if len(content) > 2000:
+                return jsonify({'success': False, 'message': 'Message is too long (2000 character limit)'}), 400
+
+            is_profane = check_message_profanity(content)
+
+            # community_id/user_id from MySQL
+            item = forum_db.create_message(
+                community_id=game_id, user_id=session['id'], content=content, is_profane=is_profane
+            )
+
+            if is_profane:
+                forum_db.soft_delete_message(
+                    community_id=game_id, message_id=item['message_id'], deleted_by=session['id']
+                )
+                return jsonify({
+                    'success': False,
+                    'blocked': True,
+                    'message': 'Your message was not sent because it contains inappropriate language.'
+                }), 200
+
+            cursor.execute(
+                "SELECT username, firstname, lastname, profile_picture FROM users WHERE id = %s",
+                (session['id'],)
+            )
+            user = cursor.fetchone()
+
+            return jsonify({'success': True, 'message': {
+                'message_id': item['message_id'],
+                'user_id': session['id'],
+                'username': user['username'],
+                'full_name': f"{user['firstname']} {user['lastname']}",
+                'profile_picture': user['profile_picture'],
+                'content': content,
+                'created_at': datetime.fromtimestamp(item['created_at'], EST).isoformat()
+            }}), 200
+
+        except Exception as e:
+            print(f"Error posting community message: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to send message'}), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error posting community message: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+@app.route('/api/game/<int:game_id>/messages/<message_id>/pin', methods=['POST'])
+@login_required
+def pin_community_message(game_id, message_id):
+    """
+    Pin a message to the top of the community chat. Only one message may be
+    pinned at a time. Allowed for admins, developers, and the community's GM.
+    """
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute("SELECT gm_id FROM games WHERE GameID = %s", (game_id,))
+            game = cursor.fetchone()
+
+            if not game:
+                return jsonify({'success': False, 'message': 'Community not found'}), 404
+
+            permissions = get_user_permissions(session['id'])
+            can_moderate = (
+                permissions['is_admin'] or
+                permissions['is_developer'] or
+                game['gm_id'] == session['id']
+            )
+
+            if not can_moderate:
+                return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+            message = forum_db.get_message(community_id=game_id, message_id=message_id)
+            if not message:
+                return jsonify({'success': False, 'message': 'Message not found'}), 404
+
+            data = request.get_json(silent=True) or {}
+            force = bool(data.get('force'))
+
+            existing_pin = forum_db.get_pinned_message_id(game_id)
+            existing_pinned_id = existing_pin['pinned_message_id'] if existing_pin else None
+
+            if existing_pinned_id and existing_pinned_id != message_id and not force:
+                current_pinned_message = get_pinned_message_data(cursor, game_id)
+                return jsonify({
+                    'success': False,
+                    'already_pinned': True,
+                    'message': 'A message is already pinned in this community.',
+                    'current_pinned_message': current_pinned_message
+                }), 409
+
+            forum_db.set_pinned_message(community_id=game_id, message_id=message_id, pinned_by=session['id'])
+
+            pinned_message = get_pinned_message_data(cursor, game_id)
+
+            return jsonify({'success': True, 'pinned_message': pinned_message}), 200
+
+        except Exception as e:
+            print(f"Error pinning community message: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to pin message'}), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error pinning community message: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+@app.route('/api/game/<int:game_id>/messages/pin', methods=['DELETE'])
+@login_required
+def unpin_community_message(game_id):
+    """Unpin whatever message is currently pinned for this community."""
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute("SELECT gm_id FROM games WHERE GameID = %s", (game_id,))
+            game = cursor.fetchone()
+
+            if not game:
+                return jsonify({'success': False, 'message': 'Community not found'}), 404
+
+            permissions = get_user_permissions(session['id'])
+            can_moderate = (
+                permissions['is_admin'] or
+                permissions['is_developer'] or
+                game['gm_id'] == session['id']
+            )
+
+            if not can_moderate:
+                return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+            existing_pin = forum_db.get_pinned_message_id(game_id)
+            if not existing_pin:
+                return jsonify({'success': False, 'message': 'No message is currently pinned'}), 400
+
+            forum_db.clear_pinned_message(game_id)
+
+            return jsonify({'success': True, 'message': 'Message unpinned'}), 200
+
+        except Exception as e:
+            print(f"Error unpinning community message: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to unpin message'}), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error unpinning community message: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+@app.route('/api/game/<int:game_id>/messages/<message_id>', methods=['DELETE'])
+@login_required
+def delete_community_message(game_id, message_id):
+    """
+    Allowed for the message's author or anyone with permissions (admins, developers, GMs).
+    """
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            message = forum_db.get_message(community_id=game_id, message_id=message_id)
+            if not message:
+                return jsonify({'success': False, 'message': 'Message not found'}), 404
+
+            cursor.execute("SELECT gm_id FROM games WHERE GameID = %s", (game_id,))
+            game = cursor.fetchone()
+
+            permissions = get_user_permissions(session['id'])
+            can_moderate = (
+                message['user_id'] == session['id'] or
+                permissions['is_admin'] or
+                permissions['is_developer'] or
+                (game and game['gm_id'] == session['id'])
+            )
+
+            if not can_moderate:
+                return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+            updated = forum_db.soft_delete_message(
+                community_id=game_id, message_id=message_id, deleted_by=session['id']
+            )
+            if not updated:
+                return jsonify({'success': False, 'message': 'Message not found'}), 404
+
+            existing_pin = forum_db.get_pinned_message_id(game_id)
+            if existing_pin and existing_pin['pinned_message_id'] == message_id:
+                forum_db.clear_pinned_message(game_id)
+
+            return jsonify({'success': True, 'message': 'Message deleted'}), 200
+
+        except Exception as e:
+            print(f"Error deleting community message: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to delete message'}), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error deleting community message: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+@app.route('/api/game/<int:game_id>/messages/<message_id>/report', methods=['POST'])
+@login_required
+def report_community_message(game_id, message_id):
+    """
+    Manually report a message that the automatic profanity filter missed.
+    Marks it is_profane + soft-deletes it. Allowed for admins, developers, and the community's GM.
+    """
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute("SELECT gm_id FROM games WHERE GameID = %s", (game_id,))
+            game = cursor.fetchone()
+
+            if not game:
+                return jsonify({'success': False, 'message': 'Community not found'}), 404
+
+            permissions = get_user_permissions(session['id'])
+            can_moderate = (
+                permissions['is_admin'] or
+                permissions['is_developer'] or
+                game['gm_id'] == session['id']
+            )
+
+            if not can_moderate:
+                return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+            message = forum_db.get_message(community_id=game_id, message_id=message_id)
+            if not message:
+                return jsonify({'success': False, 'message': 'Message not found'}), 404
+
+            if message.get('is_deleted'):
+                return jsonify({'success': False, 'message': 'Message has already been removed'}), 400
+
+            updated = forum_db.report_message(
+                community_id=game_id, message_id=message_id, reported_by=session['id']
+            )
+            if not updated:
+                return jsonify({'success': False, 'message': 'Message not found'}), 404
+
+            existing_pin = forum_db.get_pinned_message_id(game_id)
+            if existing_pin and existing_pin['pinned_message_id'] == message_id:
+                forum_db.clear_pinned_message(game_id)
+
+            return jsonify({'success': True, 'message': 'Message reported and removed'}), 200
+
+        except Exception as e:
+            print(f"Error reporting community message: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to report message'}), 500
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error reporting community message: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+@app.route('/api/game/<int:game_id>/messages/new', methods=['GET'])
+@login_required
+def get_new_community_messages(game_id):
+    """
+    Returns new messages, who's typing, and any
+    messages that were deleted since the last check.
+    """
+    after_id = request.args.get('after', default='', type=str)
+    deleted_after = request.args.get('deleted_after', default=0, type=int)
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        items = forum_db.get_new_messages(community_id=game_id, after_message_id=after_id)
+        deleted_ids = forum_db.get_recently_deleted(community_id=game_id, since_timestamp=deleted_after)
+        next_deleted_after = int(time.time())  # cursor for the client's next poll
+
+        messages = []
+        if items:
+            user_ids = sorted({item['user_id'] for item in items})
+            placeholders = ','.join(['%s'] * len(user_ids))
+            cursor.execute(
+                f"SELECT id, username, firstname, lastname, profile_picture FROM users WHERE id IN ({placeholders})",
+                user_ids
+            )
+            users_by_id = {row['id']: row for row in cursor.fetchall()}
+
+            for item in items:
+                user = users_by_id.get(item['user_id'], {})
+                messages.append({
+                    'message_id': item['message_id'],
+                    'user_id': item['user_id'],
+                    'username': user.get('username', 'Unknown'),
+                    'full_name': f"{user.get('firstname', '')} {user.get('lastname', '')}".strip() or 'Unknown User',
+                    'profile_picture': user.get('profile_picture'),
+                    'content': item['content'],
+                    'created_at': datetime.fromtimestamp(item['created_at'], EST).isoformat()
+                })
+
+        attach_role_badges(cursor, messages, game_id)
+
+        pinned_message = get_pinned_message_data(cursor, game_id)
+
+        return jsonify({
+            'success': True,
+            'messages': messages,
+            'deleted_message_ids': deleted_ids,
+            'deleted_after': next_deleted_after,
+            'pinned_message': pinned_message
+        }), 200
+
+    except Exception as e:
+        print(f"Error fetching new community messages: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to load new messages'}), 500
+
+    finally:
+        cursor.close()
+
+def check_message_profanity(content: str) -> bool:
+    """
+    Calls the profanity.dev API. Returns True if the message is flagged.
+    Fails open (returns False) if the API errors out or times out.
+    """
+    try:
+        response = requests.post(
+            PROFANITY_API_URL,
+            json={"message": content},
+            timeout=3,
+        )
+        response.raise_for_status()
+        return bool(response.json().get("isProfanity", False))
+    except Exception as e:
+        print(f"Profanity check failed, allowing message through: {str(e)}")
+        return False
+
+@app.route('/api/admin/audit-log/profanity', methods=['GET'])
+@roles_required('admin', 'developer')
+def get_profanity_audit_log():
+    """
+    Returns every message flagged as profane, across all communities, for
+    the admin audit log.
+    """
+    try:
+        entries = forum_db.get_profane_messages()
+
+        if not entries:
+            return jsonify({'success': True, 'entries': []}), 200
+
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            user_ids = list({e['user_id'] for e in entries} | {e['deleted_by'] for e in entries if e.get('deleted_by')})
+            community_ids = list({e['community_id'] for e in entries})
+
+            user_placeholders = ','.join(['%s'] * len(user_ids))
+            cursor.execute(
+                f"SELECT id, username, firstname, lastname FROM users WHERE id IN ({user_placeholders})",
+                tuple(user_ids)
+            )
+            users_by_id = {u['id']: u for u in cursor.fetchall()}
+
+            game_placeholders = ','.join(['%s'] * len(community_ids))
+            cursor.execute(
+                f"SELECT GameID, GameTitle FROM games WHERE GameID IN ({game_placeholders})",
+                tuple(community_ids)
+            )
+            games_by_id = {g['GameID']: g['GameTitle'] for g in cursor.fetchall()}
+
+            result = []
+            for e in entries:
+                user = users_by_id.get(e['user_id'])
+                deleted_by_id = e.get('deleted_by')
+                was_reported = bool(deleted_by_id) and deleted_by_id != e['user_id']
+                reporter = users_by_id.get(deleted_by_id) if was_reported else None
+
+                result.append({
+                    'message_id': e['message_id'],
+                    'community_id': e['community_id'],
+                    'community_name': games_by_id.get(e['community_id'], f"Community #{e['community_id']}"),
+                    'user_id': e['user_id'],
+                    'username': user['username'] if user else 'Unknown user',
+                    'full_name': f"{user['firstname']} {user['lastname']}" if user else 'Unknown user',
+                    'content': e['content'],
+                    'created_at': datetime.fromtimestamp(e['created_at'], EST).isoformat(),
+                    'deleted_at': datetime.fromtimestamp(e['deleted_at'], EST).isoformat() if e.get('deleted_at') else None,
+                    'was_manually_reported': was_reported,
+                    'reported_by_user': f"{reporter['firstname']} {reporter['lastname']}" if reporter else None,
+                })
+
+            return jsonify({'success': True, 'entries': result}), 200
+
+        finally:
+            cursor.close()
+
+    except Exception as e:
+        print(f"Error fetching profanity audit log: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to load audit log'}), 500
+
+def attach_role_badges(cursor, messages, game_id):
+    """
+    Attach role badge fields to each message, scoped to this community.
+    is_gm is scoped to game_id (only the assigned GM for this game gets the badge).
+    """
+    if not messages:
+        return messages
+
+    user_ids = sorted({m['user_id'] for m in messages})
+    placeholders = ','.join(['%s'] * len(user_ids))
+
+    cursor.execute(
+        f"SELECT userid, is_admin, is_developer, is_player FROM permissions WHERE userid IN ({placeholders})",
+        user_ids
+    )
+    perms_by_user = {row['userid']: row for row in cursor.fetchall()}
+
+    cursor.execute("SELECT gm_id, GameImage FROM games WHERE GameID = %s", (game_id,))
+    game = cursor.fetchone()
+    gm_id = game['gm_id'] if game else None
+    gm_icon = f'/game-image/{game_id}' if game and game.get('GameImage') else None
+
+    for msg in messages:
+        perms = perms_by_user.get(msg['user_id'], {})
+        msg['is_dev'] = bool(perms.get('is_developer'))
+        msg['is_admin'] = bool(perms.get('is_admin'))
+        msg['is_gm'] = (msg['user_id'] == gm_id)
+        msg['gm_icon'] = gm_icon if msg['is_gm'] else None
+        msg['is_player'] = bool(perms.get('is_player'))
+
+    return messages
+
+def get_pinned_message_data(cursor, game_id):
+    """
+    Fetch the currently pinned message (if any) for a community, along with
+    its author info.
+    """
+    pin = forum_db.get_pinned_message_id(game_id)
+    if not pin:
+        return None
+
+    message = forum_db.get_message(community_id=game_id, message_id=pin['pinned_message_id'])
+    if not message or message.get('is_deleted'):
+        forum_db.clear_pinned_message(game_id)
+        return None
+
+    cursor.execute(
+        "SELECT username, firstname, lastname, profile_picture FROM users WHERE id = %s",
+        (message['user_id'],)
+    )
+    user = cursor.fetchone() or {}
+
+    pinned_by_username = None
+    if pin.get('pinned_by'):
+        cursor.execute("SELECT username FROM users WHERE id = %s", (pin['pinned_by'],))
+        pinned_by_row = cursor.fetchone()
+        pinned_by_username = pinned_by_row['username'] if pinned_by_row else None
+
+    return {
+        'message_id': message['message_id'],
+        'user_id': message['user_id'],
+        'username': user.get('username', 'Unknown'),
+        'full_name': f"{user.get('firstname', '')} {user.get('lastname', '')}".strip() or 'Unknown User',
+        'profile_picture': user.get('profile_picture'),
+        'content': message['content'],
+        'created_at': datetime.fromtimestamp(message['created_at'], EST).isoformat(),
+        'pinned_at': datetime.fromtimestamp(pin['pinned_at'], EST).isoformat() if pin.get('pinned_at') else None,
+        'pinned_by': pinned_by_username
+    }
+
 # ===================================
 # COMMUNITY TAB
 # ===================================
@@ -999,7 +1552,7 @@ def view_communities():
     try:
         user_id = session['id']
 
-        # Step 1: Get all games with basic info
+        # Get all games with basic info
         cursor.execute("""
             SELECT 
                 GameID,
@@ -1020,11 +1573,11 @@ def view_communities():
         if not games:
             return jsonify({'success': True, 'games': []})
 
-        # Step 2: Get member counts for each game
+        # Get member counts for each game
         game_ids = [game['GameID'] for game in games]
         member_counts, team_counts = get_game_stats(cursor, game_ids)
 
-        # Step 3: Get current user's memberships
+        # Get current user's memberships
         placeholders = ','.join(['%s'] * len(game_ids))
         cursor.execute(f"""
             SELECT game_id
@@ -1034,7 +1587,7 @@ def view_communities():
 
         user_memberships = {row['game_id'] for row in cursor.fetchall()}
 
-        # Step 4: Build full response
+        # Build full response
         games_with_details = []
         for game in games:
             game_id = game['GameID']
@@ -1048,7 +1601,7 @@ def view_communities():
                 'ImageURL': f'/game-image/{game_id}' if game['has_image'] else None,
                 'GameBanner': game['GameBanner'],
                 'member_count': member_counts.get(game_id, 0),
-                'team_count': team_counts.get(game_id, 0),  # Will be 0 if no active season teams
+                'team_count': team_counts.get(game_id, 0),
                 'is_member': game_id in user_memberships,
                 'is_game_manager': game['gm_id'] == user_id if game['gm_id'] else False
             }

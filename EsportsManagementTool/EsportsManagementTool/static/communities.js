@@ -11,6 +11,20 @@
 // Currently selected game ID for GM assignment operations
 let currentGameIdForGM = null;
 
+// Forum state
+let forumMessages        = [];
+let forumHasMoreOlder    = false;
+let forumIsLoadingOlder  = false;
+let forumLastMessageId = '';          
+let forumDeletedAfter = Math.floor(Date.now() / 1000);
+let forumPollTimer = null;
+let forumIsPolling = false;
+let forumSendCooldownActive = false;
+let forumPinnedMessage = null;
+const FORUM_SEND_COOLDOWN_MS = 2000; // min time between sent messages
+const FORUM_POLL_INTERVAL_MS = 2000;
+const FORUM_GROUP_GAP_MS = 5 * 60 * 1000; // messages within 5 min of the same user group together
+
 // Initialize photo carousel elements
 let carouselPhotos  = [];
 let carouselIndex   = 0;
@@ -160,6 +174,573 @@ async function initCommunityStats(gameId) {
         leaguesBox.closest('.community-card-stat-row')?.classList.add('has-leagues');
     } catch (e) {
         console.error('Error loading community leagues:', e);
+    }
+}
+
+// ============================================
+// COMMUNITY FORUM
+// ============================================
+
+// Awaits message send and allows multiline messages
+async function initForum() {
+    const gameId = document.getElementById('communityGameId')?.value;
+    const body   = document.getElementById('forumBody');
+    if (!gameId || !body) return;
+
+    await loadForumMessages(gameId);
+    startForumPoll(gameId);
+
+    body.addEventListener('scroll', () => {
+        if (body.scrollTop === 0 && forumHasMoreOlder && !forumIsLoadingOlder) {
+            loadOlderForumMessages(gameId);
+        }
+    });
+
+    const input = document.getElementById('forumMessageInput');
+    if (input) {
+        attachCharacterCounter('forumMessageInput', 250);
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendForumMessage();
+            }
+        });
+
+        input.addEventListener('input', () => {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+
+        });
+    }
+}
+
+// Initial messages upon page load
+async function loadForumMessages(gameId) {
+    const loading = document.getElementById('forumLoading');
+    const empty = document.getElementById('forumEmpty');
+    if (loading) loading.style.display = 'flex';
+
+    try {
+        const res = await fetch(`/api/game/${gameId}/messages`);
+        const data = await res.json();
+        if (loading) loading.style.display = 'none';
+        if (!data.success) return;
+
+        forumMessages = data.messages;
+        forumHasMoreOlder = data.has_more;
+        forumPinnedMessage = data.pinned_message || null;
+
+        if (forumMessages.length) {
+            forumLastMessageId = forumMessages[forumMessages.length - 1].message_id;
+        }
+
+        renderForumMessages();
+        renderPinnedBanner();
+        if (forumMessages.length === 0 && empty) empty.style.display = 'flex';
+        scrollForumToBottom();
+    } catch (e) {
+        if (loading) loading.style.display = 'none';
+        console.error('Failed to load forum messages:', e);
+    }
+}
+
+// Messages if user scrolls up
+async function loadOlderForumMessages(gameId) {
+    if (!forumMessages.length) return;
+    forumIsLoadingOlder = true;
+
+    const loadOlder = document.getElementById('forumLoadOlder');
+    const body = document.getElementById('forumBody');
+    if (loadOlder) loadOlder.style.display = 'flex';
+
+    const prevScrollHeight = body.scrollHeight;
+
+    try {
+        const oldestId = forumMessages[0].message_id;
+        const res = await fetch(`/api/game/${gameId}/messages?before=${oldestId}`);
+        const data = await res.json();
+
+        if (data.success && data.messages.length) {
+            forumMessages = [...data.messages, ...forumMessages];
+            forumHasMoreOlder = data.has_more;
+            renderForumMessages();
+
+            body.scrollTop = body.scrollHeight - prevScrollHeight;
+        } else {
+            forumHasMoreOlder = false;
+        }
+    } catch (e) {
+        console.error('Failed to load older forum messages:', e);
+    } finally {
+        if (loadOlder) loadOlder.style.display = 'none';
+        forumIsLoadingOlder = false;
+    }
+}
+
+function renderForumMessages() {
+    const container = document.getElementById('forumMessagesList');
+    if (!container) return;
+
+    const currentUsername = document.getElementById('currentUsername')?.value?.toLowerCase();
+    const canModerate = document.getElementById('canModerateForum')?.value === 'true';
+
+    container.innerHTML = forumMessages.map((msg, i) => {
+        const prev = forumMessages[i - 1];
+        const isNewBlock = !prev
+            || prev.user_id !== msg.user_id
+            || (new Date(msg.created_at) - new Date(prev.created_at)) > FORUM_GROUP_GAP_MS;
+
+        const isOwnMessage = msg.username?.toLowerCase() === currentUsername;
+        const canDelete = isOwnMessage || canModerate;
+
+        return buildForumMessageHtml(msg, isNewBlock, canDelete, canModerate);
+    }).join('');
+}
+
+function buildForumMessageHtml(msg, isNewBlock, canDelete, canModerate) {
+    const time = formatForumTimestamp(msg.created_at);
+    const isPinned = !!(forumPinnedMessage && String(forumPinnedMessage.message_id) === String(msg.message_id));
+    const reportBtn = canModerate
+        ? `<button class="forum-message-report" onclick="confirmReportForumMessage('${escapeHtml(String(msg.message_id))}')" title="Report message">
+               <i class="fas fa-flag"></i>
+           </button>`
+        : '';
+
+    const pinBtn = canModerate
+        ? `<button class="forum-message-pin ${isPinned ? 'is-pinned' : ''}"
+                   onclick="handlePinForumMessage('${escapeHtml(String(msg.message_id))}')"
+                   title="${isPinned ? 'Unpin message' : 'Pin message'}">
+               <i class="fas fa-thumbtack"></i>
+           </button>`
+        : '';
+
+    const deleteBtn = canDelete
+        ? `<button class="forum-message-delete" onclick="confirmDeleteForumMessage('${escapeHtml(String(msg.message_id))}')" title="Delete message">
+               <i class="fas fa-trash"></i>
+           </button>`
+        : '';
+
+    const pinnedClass = isPinned ? ' is-pinned-message' : '';
+
+    if (isNewBlock) {
+        const avatarHtml = msg.profile_picture
+            ? `<img src="${msg.profile_picture}" alt="${escapeHtml(msg.username)}" class="forum-message-avatar">`
+            : `<div class="forum-message-avatar-initials">${escapeHtml(forumInitials(msg.full_name))}</div>`;
+
+        const badge = getHighestRoleBadge(msg);
+        const badgeHtml = badge
+            ? `<span class="role-badge ${badge.class}">
+                   ${badge.icon ? `<img src="${badge.icon}" alt="">` : ''}
+                   ${escapeHtml(badge.label)}
+               </span>`
+            : '';
+
+        return `
+            <div class="forum-message-block${pinnedClass}" data-message-id="${msg.message_id}">
+                ${avatarHtml}
+                <div class="forum-message-block-content">
+                    <div class="forum-message-block-header">
+                        <span class="forum-message-username">${escapeHtml(msg.username)}</span>
+                        ${badgeHtml}
+                        <span class="forum-message-timestamp">${time}</span>
+                    </div>
+                    <div class="forum-message-text-row">
+                        <p class="forum-message-text">${escapeHtml(msg.content)}</p>
+                        ${reportBtn}
+                        ${pinBtn}
+                        ${deleteBtn}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="forum-message-continuation${pinnedClass}" data-message-id="${msg.message_id}">
+            <span class="forum-message-continuation-time"></span>
+            <div class="forum-message-text-row">
+                <p class="forum-message-text">${escapeHtml(msg.content)}</p>
+                ${reportBtn}
+                ${pinBtn}
+                ${deleteBtn}
+            </div>
+        </div>
+    `;
+}
+
+function forumInitials(fullName) {
+    return (fullName || '').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase();
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getHighestRoleBadge(msg) {
+    if (msg.is_dev)  return { label: 'DEV',   class: 'dev' };
+    if (msg.is_admin) return { label: 'ADMIN', class: 'admin' };
+    if (msg.is_gm)   return { label: 'GM',    class: 'gm', icon: msg.gm_icon };
+    if (msg.is_player) return { label: 'PLAYER', class: 'player' };
+    return null;
+}
+
+function formatForumTimestamp(isoString) {
+    const date = new Date(isoString);
+    const now = new Date();
+    const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+    if (date.toDateString() === now.toDateString()) return `Today at ${timeStr}`;
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return `Yesterday at ${timeStr}`;
+
+    return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${timeStr}`;
+}
+
+function scrollForumToBottom() {
+    const body = document.getElementById('forumBody');
+    if (body) body.scrollTop = body.scrollHeight;
+}
+
+// Collapses runs of blank lines (e.g. from repeated Shift+Enter) down to
+// a single blank line, so a message can have at most one empty line in a row.
+function normalizeMessageContent(text) {
+    return text
+        .split('\n')
+        .map(line => (line.trim() === '' ? '' : line))
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+async function sendForumMessage() {
+    if (forumSendCooldownActive) return;
+
+    const gameId = document.getElementById('communityGameId')?.value;
+    const input = document.getElementById('forumMessageInput');
+    const sendBtn = document.getElementById('forumSendBtn');
+    if (!gameId || !input) return;
+
+    const content = normalizeMessageContent(input.value);
+    if (!content) return;
+
+    input.disabled = true;
+    if (sendBtn) sendBtn.disabled = true;
+    forumSendCooldownActive = true;
+
+    try {
+        const res  = await fetch(`/api/game/${gameId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            if (!forumMessages.some(m => m.message_id === data.message.message_id)) {
+                forumMessages.push(data.message);
+            }
+            forumLastMessageId = data.message.message_id;
+            renderForumMessages();
+            scrollForumToBottom();
+
+            input.value = '';
+            input.style.height = 'auto';
+            input.dispatchEvent(new Event('input'));
+
+
+            const empty = document.getElementById('forumEmpty');
+            if (empty) empty.style.display = 'none';
+        } else if (data.blocked) {
+            input.value = '';
+            input.style.height = 'auto';
+            input.dispatchEvent(new Event('input'));
+
+            openWarningPopup(data.message || 'Your message was not sent because it contains inappropriate language.');
+        } else {
+            openWarningPopup(data.message || 'Failed to send message');
+        }
+    } catch (e) {
+        console.error('Failed to send forum message:', e);
+        alert('Failed to send message. Please try again.');
+    } finally {
+        setTimeout(() => {
+             input.disabled = false;
+             if (sendBtn) sendBtn.disabled = false;
+             forumSendCooldownActive = false;
+             input.focus();
+        }, FORUM_SEND_COOLDOWN_MS);
+    }
+}
+
+function confirmDeleteForumMessage(messageId) {
+    openDeleteConfirmModal({
+        title: 'Delete Message?',
+        message: 'Are you sure you want to delete this message? This cannot be undone.',
+        buttonText: 'Delete Message',
+        itemId: messageId,
+        onConfirm: async (id) => {
+            await executeForumMessageDelete(id);
+        }
+    });
+}
+
+async function executeForumMessageDelete(messageId) {
+    const gameId = document.getElementById('communityGameId')?.value;
+
+    try {
+        const res = await fetch(`/api/game/${gameId}/messages/${messageId}`, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (data.success) {
+            forumMessages = forumMessages.filter(m => m.message_id !== messageId);
+            renderForumMessages();
+            closeDeleteConfirmModal();
+            showDeleteSuccessMessage('Message deleted.');
+        } else {
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage('Delete failed: ' + data.message);
+        }
+    } catch (e) {
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Delete failed. Please try again.');
+    }
+}
+
+function confirmReportForumMessage(messageId) {
+    openDeleteConfirmModal({
+        title: 'Report Message?',
+        message: 'This will flag the message as inappropriate and remove it from the chat immediately. This cannot be undone.',
+        buttonText: 'Report Message',
+        itemId: messageId,
+        onConfirm: async (id) => {
+            await executeReportForumMessage(id);
+        }
+    });
+}
+
+async function executeReportForumMessage(messageId) {
+    const gameId = document.getElementById('communityGameId')?.value;
+
+    try {
+        const res = await fetch(`/api/game/${gameId}/messages/${messageId}/report`, { method: 'POST' });
+        const data = await res.json();
+
+        if (data.success) {
+            forumMessages = forumMessages.filter(m => m.message_id !== messageId);
+            if (forumPinnedMessage && String(forumPinnedMessage.message_id) === String(messageId)) {
+                forumPinnedMessage = null;
+                renderPinnedBanner();
+            }
+            renderForumMessages();
+            closeDeleteConfirmModal();
+            showDeleteSuccessMessage('Message reported and removed.');
+        } else {
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage(data.message || 'Failed to report message.');
+        }
+    } catch (e) {
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Failed to report message. Please try again.');
+    }
+}
+
+function renderPinnedBanner() {
+    const banner = document.getElementById('forumPinnedBanner');
+    if (!banner) return;
+
+    if (!forumPinnedMessage) {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+        return;
+    }
+
+    const canModerate = document.getElementById('canModerateForum')?.value === 'true';
+    const unpinBtn = canModerate
+        ? `<button class="forum-pin-banner-unpin" onclick="confirmUnpinForumMessage()" title="Unpin message">
+               <i class="fas fa-times"></i>
+           </button>`
+        : '';
+
+    banner.innerHTML = `
+        <div class="forum-pin-banner-content" onclick="scrollToForumMessage('${escapeHtml(String(forumPinnedMessage.message_id))}')">
+            <i class="fas fa-thumbtack forum-pin-banner-icon"></i>
+            <div class="forum-pin-banner-text">
+                <span class="forum-pin-banner-username">${escapeHtml(forumPinnedMessage.username)}</span>
+                <span class="forum-pin-banner-message">${escapeHtml(forumPinnedMessage.content)}</span>
+            </div>
+        </div>
+        ${unpinBtn}
+    `;
+    banner.style.display = 'flex';
+}
+
+function scrollToForumMessage(messageId) {
+    const el = document.querySelector(`.forum-message-block[data-message-id="${messageId}"], .forum-message-continuation[data-message-id="${messageId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('forum-message-highlight');
+    setTimeout(() => el.classList.remove('forum-message-highlight'), 1500);
+}
+
+function handlePinForumMessage(messageId) {
+    const isPinned = forumPinnedMessage && String(forumPinnedMessage.message_id) === String(messageId);
+    if (isPinned) {
+        confirmUnpinForumMessage();
+        return;
+    }
+    executePinForumMessage(messageId, false);
+}
+
+async function executePinForumMessage(messageId, force) {
+    const gameId = document.getElementById('communityGameId')?.value;
+
+    try {
+        const res = await fetch(`/api/game/${gameId}/messages/${messageId}/pin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ force: !!force })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            forumPinnedMessage = data.pinned_message;
+            renderPinnedBanner();
+            renderForumMessages();
+            if (typeof closeDeleteConfirmModal === 'function') closeDeleteConfirmModal();
+        } else if (data.already_pinned && !force) {
+            promptReplacePinnedMessage(messageId, data.current_pinned_message);
+        } else {
+            if (typeof closeDeleteConfirmModal === 'function') closeDeleteConfirmModal();
+            openWarningPopup(data.message || 'Failed to pin message.');
+        }
+    } catch (e) {
+        if (typeof closeDeleteConfirmModal === 'function') closeDeleteConfirmModal();
+        openWarningPopup('Failed to pin message. Please try again.');
+    }
+}
+
+function promptReplacePinnedMessage(newMessageId, currentPinned) {
+    const pinnedByLabel = currentPinned?.username ? `by ${escapeHtml(currentPinned.username)}` : '';
+    openDeleteConfirmModal({
+        title: 'Replace Pinned Message?',
+        message: `A message ${pinnedByLabel} is already pinned in this chat. Unpin it and pin this message instead?`,
+        buttonText: 'Replace Pin',
+        itemId: newMessageId,
+        onConfirm: async (id) => {
+            await executePinForumMessage(id, true);
+        }
+    });
+}
+
+function confirmUnpinForumMessage() {
+    if (!forumPinnedMessage) return;
+    openDeleteConfirmModal({
+        title: 'Unpin Message?',
+        message: 'This message will no longer be shown at the top of the chat.',
+        buttonText: 'Unpin Message',
+        itemId: forumPinnedMessage.message_id,
+        onConfirm: async () => {
+            await executeUnpinForumMessage();
+        }
+    });
+}
+
+async function executeUnpinForumMessage() {
+    const gameId = document.getElementById('communityGameId')?.value;
+
+    try {
+        const res = await fetch(`/api/game/${gameId}/messages/pin`, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (data.success) {
+            forumPinnedMessage = null;
+            renderPinnedBanner();
+            renderForumMessages();
+            closeDeleteConfirmModal();
+            showDeleteSuccessMessage('Message unpinned.');
+        } else {
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage(data.message || 'Failed to unpin message.');
+        }
+    } catch (e) {
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Failed to unpin message. Please try again.');
+    }
+}
+
+function startForumPoll(gameId) {
+    if (forumPollTimer) clearInterval(forumPollTimer);
+    forumPollTimer = setInterval(() => pollForumUpdates(gameId), FORUM_POLL_INTERVAL_MS);
+}
+
+function isForumScrolledToBottom() {
+    const body = document.getElementById('forumBody');
+    if (!body) return true;
+    return body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+}
+
+async function pollForumUpdates(gameId) {
+     if (forumIsPolling) return; 
+     forumIsPolling = true;
+    
+    try {
+        const url = `/api/game/${gameId}/messages/new`
+            + `?after=${encodeURIComponent(forumLastMessageId)}`
+            + `&deleted_after=${forumDeletedAfter}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.success) return;
+
+        let changed = false;
+
+        if (data.messages.length) {
+             const existingIds = new Set(forumMessages.map(m => m.message_id));
+             const newMessages = data.messages.filter(m => !existingIds.has(m.message_id));
+
+             if (newMessages.length) {
+                 forumMessages.push(...newMessages);
+                 changed = true;
+             }
+
+             forumLastMessageId = data.messages[data.messages.length - 1].message_id;
+          }
+
+        if (data.deleted_message_ids && data.deleted_message_ids.length) {
+            const deletedSet = new Set(data.deleted_message_ids);
+            forumMessages = forumMessages.filter(m => !deletedSet.has(m.message_id));
+            changed = true;
+        }
+        forumDeletedAfter = data.deleted_after;
+
+        const incomingPinnedId = data.pinned_message ? data.pinned_message.message_id : null;
+        const currentPinnedId = forumPinnedMessage ? forumPinnedMessage.message_id : null;
+        if (String(incomingPinnedId) !== String(currentPinnedId)) {
+            forumPinnedMessage = data.pinned_message || null;
+            renderPinnedBanner();
+            changed = true;
+        }
+
+        if (changed) {
+            const wasAtBottom = isForumScrolledToBottom();
+            const empty = document.getElementById('forumEmpty');
+
+            renderForumMessages();
+            if (empty) empty.style.display = forumMessages.length === 0 ? 'flex' : 'none';
+            if (wasAtBottom) scrollForumToBottom();
+        }
+
+    } catch (e) {
+    } finally {
+        forumIsPolling = false;
     }
 }
 
@@ -616,7 +1197,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Community page
     initCarousel();
     initFileInputCropper('bannerFileInput', 'banner');
-    initFileInputCropper('photoFileInput', 'gallery');
+    initFileInputCropper('photoFileInput', 'carousel');
+    initForum();
 
     if (gameId) {
         loadNextCommunityEvent(gameId);
@@ -627,6 +1209,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 // EXPORT FUNCTIONS
 // ============================================
+// Community Forum
+window.sendForumMessage          = sendForumMessage;
+window.confirmDeleteForumMessage = confirmDeleteForumMessage;
+window.confirmReportForumMessage = confirmReportForumMessage;
+window.handlePinForumMessage     = handlePinForumMessage;
+window.confirmUnpinForumMessage  = confirmUnpinForumMessage;
+window.scrollToForumMessage      = scrollToForumMessage;
 
 // Photo Carousel
 window.carouselNext        = carouselNext;

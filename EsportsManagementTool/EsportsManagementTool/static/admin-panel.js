@@ -4,7 +4,6 @@
  * - User management and search
  * - Role assignment and removal
  * - Game creation and deletion
- * - socials links/ socials modal
  * - Suspension management integration
  * ============================================================================
  */
@@ -779,6 +778,169 @@ function renderLandingGalleryAdminGrid() {
 }
 
 // ============================================
+// PROFANITY AUDIT LOG
+// ============================================
+
+let auditLogEntries = [];
+let auditLogSelectedCommunity = '';
+let auditLogSelectedUser = '';
+
+function openAuditLogModal() {
+    const modal = document.getElementById('auditLogModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    lockBodyScroll('auditLogModal');
+    loadAuditLog();
+}
+
+function closeAuditLogModal() {
+    const modal = document.getElementById('auditLogModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    unlockBodyScroll('auditLogModal');
+}
+
+async function loadAuditLog() {
+    const loading = document.getElementById('auditLogLoading');
+    const empty   = document.getElementById('auditLogEmpty');
+    const list    = document.getElementById('auditLogList');
+    if (!loading || !empty || !list) return;
+
+    loading.style.display = 'block';
+    empty.style.display   = 'none';
+    list.innerHTML        = '';
+
+    try {
+        const res  = await fetch('/api/admin/audit-log/profanity');
+        const data = await res.json();
+
+        if (data.success) {
+            auditLogEntries = data.entries;
+            populateAuditLogFilters();
+            renderAuditLogList(auditLogEntries);
+        } else {
+            list.innerHTML = `<div class="audit-log-row">${data.message || 'Failed to load audit log'}</div>`;
+        }
+    } catch (e) {
+        console.error('Error loading audit log:', e);
+        list.innerHTML = '<div class="audit-log-row">Failed to load audit log. Please try again.</div>';
+    } finally {
+        loading.style.display = 'none';
+    }
+}
+
+function populateAuditLogFilters() {
+    const communityPanel = document.getElementById('auditCommunityFilterPanel');
+    const userPanel       = document.getElementById('auditUserFilterPanel');
+    if (!communityPanel || !userPanel) return;
+
+    auditLogSelectedCommunity = '';
+    auditLogSelectedUser = '';
+    document.getElementById('auditCommunityFilterLabel').textContent = 'All Communities';
+    document.getElementById('auditUserFilterLabel').textContent = 'All Users';
+
+    const communities = new Map();
+    const users = new Map();
+
+    auditLogEntries.forEach(e => {
+        communities.set(e.community_id, e.community_name);
+        users.set(e.user_id, e.full_name || e.username);
+    });
+
+    communityPanel.innerHTML = '<div class="filter-box-item active" data-value="" onclick="applyAuditCommunityFilter(\'\', \'All Communities\')">All Communities</div>' +
+        Array.from(communities.entries())
+            .map(([id, name]) => `<div class="filter-box-item" data-value="${id}" onclick="applyAuditCommunityFilter('${id}', '${escapeQuotes(name)}')">${escapeHtml(name)}</div>`)
+            .join('');
+
+    userPanel.innerHTML = '<div class="filter-box-item active" data-value="" onclick="applyAuditUserFilter(\'\', \'All Users\')">All Users</div>' +
+        Array.from(users.entries())
+            .map(([id, name]) => `<div class="filter-box-item" data-value="${id}" onclick="applyAuditUserFilter('${id}', '${escapeQuotes(name)}')">${escapeHtml(name)}</div>`)
+            .join('');
+}
+
+function applyAuditCommunityFilter(value, label) {
+    auditLogSelectedCommunity = value;
+    document.getElementById('auditCommunityFilterLabel').textContent = label;
+    document.querySelectorAll('#auditCommunityFilterPanel .filter-box-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === value);
+    });
+    closeAllFilterPanels();
+    applyAuditLogFilters();
+}
+
+function applyAuditUserFilter(value, label) {
+    auditLogSelectedUser = value;
+    document.getElementById('auditUserFilterLabel').textContent = label;
+    document.querySelectorAll('#auditUserFilterPanel .filter-box-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === value);
+    });
+    closeAllFilterPanels();
+    applyAuditLogFilters();
+}
+
+function applyAuditLogFilters() {
+    let filtered = auditLogEntries;
+    if (auditLogSelectedCommunity) {
+        filtered = filtered.filter(e => String(e.community_id) === auditLogSelectedCommunity);
+    }
+    if (auditLogSelectedUser) {
+        filtered = filtered.filter(e => String(e.user_id) === auditLogSelectedUser);
+    }
+
+    renderAuditLogList(filtered);
+}
+
+function renderAuditLogList(entries) {
+    const list  = document.getElementById('auditLogList');
+    const empty = document.getElementById('auditLogEmpty');
+    if (!list || !empty) return;
+
+    if (entries.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+
+    empty.style.display = 'none';
+
+    list.innerHTML = entries.map(e => `
+        <div class="audit-log-row">
+            <div class="audit-log-row-meta">
+                <span class="audit-log-row-user">${escapeHtml(e.full_name || e.username)}</span>
+                <span class="audit-log-row-community">${escapeHtml(e.community_name)}</span>
+                <span class="audit-log-row-time">${formatAuditLogTime(e.created_at)}</span>
+            </div>
+            <div class="audit-log-row-content">${escapeHtml(e.content)}</div>
+            <div class="audit-log-row-flag">
+                ${e.was_manually_reported
+                    ? `Flagged by ${escapeHtml(e.reported_by_user || 'Unknown user')}${e.deleted_at ? ` &middot; ${formatAuditLogTime(e.deleted_at)}` : ''}`
+                    : `Auto-detected${e.deleted_at ? ` &middot; ${formatAuditLogTime(e.deleted_at)}` : ''}`}
+            </div>
+        </div>
+    `).join('');
+}
+
+function formatAuditLogTime(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function toggleAuditFilterBox(panelId) {
+    toggleFilterBox(panelId);
+
+    const panel = document.getElementById(panelId);
+    if (!panel || !panel.classList.contains('open')) return;
+
+    const btn = panel.previousElementSibling;
+    if (!btn) return;
+
+    const rect = btn.getBoundingClientRect();
+    panel.style.top = `${rect.bottom + 4}px`;
+    panel.style.left = `${rect.left}px`;
+}
+
+
+// ============================================
 // EXPORT FUNCTIONS
 // ============================================
 window.initializeAdminPanel = initializeAdminPanel;
@@ -786,3 +948,6 @@ window.filterUsers = filterUsers;
 window.closeRemoveUserModal = closeRemoveUserModal;
 window.openManageLandingGalleryModal  = openManageLandingGalleryModal;
 window.closeManageLandingGalleryModal = closeManageLandingGalleryModal;
+window.openAuditLogModal  = openAuditLogModal;
+window.closeAuditLogModal = closeAuditLogModal;
+window.toggleAuditFilterBox = toggleAuditFilterBox;

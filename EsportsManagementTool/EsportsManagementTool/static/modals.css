@@ -44,7 +44,7 @@
 .modal-subtitle {
     color: var(--text-secondary);
     font-size: 0.875rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1.5rem;
 }
 
 .modal-close {
@@ -443,6 +443,74 @@
   padding: 1rem;
   margin-bottom: 1rem;
   border-radius: 4px;
+}
+
+/* ============================================
+   WARNING POPUP MODAL
+   Single-button acknowledgement modal for
+   non-destructive warnings
+   ============================================ */
+.warning-popup-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 10002;
+    justify-content: center;
+    align-items: center;
+}
+
+.warning-popup-modal.active {
+    display: flex;
+}
+
+.warning-popup-content {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 450px;
+    width: 90%;
+}
+
+.warning-popup-content h3 {
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    margin: 0 0 1rem 0;
+}
+
+.warning-popup-message {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+.warning-popup-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.warning-popup-actions .btn-warning-ok {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    background: var(--event-match);
+    color: white;
+    border: none;
+}
+
+.warning-popup-actions .btn-warning-ok:hover {
+    background: var(--event-match-hover);
+}
+
+.delete-confirmation-content {
+        margin: 1rem;
+    }
+
+.warning-popup-content {
+    margin: 1rem;
 }
 
 /* ================================

@@ -109,9 +109,9 @@
 }
 
 .community-col-left {
-    display: flex;
+    display: block;
+    flex-display: column;
     margin-top: 1rem;
-    min-width: 0;   
 }
 
 .nav-bar {
@@ -142,7 +142,6 @@
     display: flex;
     position: relative;
     flex: 1;
-    min-width: 0;   
 }
 
 .community-description-text {
@@ -168,7 +167,6 @@
 .community-card-stats-and-btn {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;   
     gap: 0.75rem;
     margin-top: auto;
     position: relative;
@@ -179,7 +177,6 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
     margin-left: auto;
-    min-width: 0; 
 }
 
 .community-card-stat-row.has-leagues {
@@ -284,25 +281,647 @@
     padding: 0.5rem 0;
 }
 
-/* -- Forum Placeholder */
-.community-forum-placeholder {
+/* -- Special member borders -- */
+.member-popup-item--gm {
+    border-color: var(--stockton-yellow);
+}
+
+.member-popup-item--self {
+    border-color: var(--stockton-blue);
+}
+
+.member-popup-item--gm.member-popup-item--self {
+    border-color: var(--stockton-yellow);
+}
+
+/* ── Forum Body ── */
+.community-forum {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    margin-top: 1.25rem;
+    height: 500px;
+}
+
+.community-forum-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding-left: 20px;
+    margin-top: 1rem;
+    height: 40px;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    color: var(--text-stockton-white);
+    font-size: 1.125rem;
+}
+
+.forum-pinned-banner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0.5rem 1rem 0;
+    padding: 0.45rem 0.75rem;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--stockton-blue);
+    flex-shrink: 0;
+}
+
+.forum-pin-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.forum-pin-banner-icon {
+    color: var(--stockton-blue);
+    flex-shrink: 0;
+    font-size: 0.85rem;
+}
+
+.forum-pin-banner-text {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.forum-pin-banner-username {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-stockton-white);
+    flex-shrink: 0;
+}
+
+.forum-pin-banner-message {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.forum-pin-banner-unpin {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.2rem 0.4rem;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.forum-pin-banner-unpin:hover {
+    color: var(--event-match-hover);
+}
+
+.community-forum-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 0rem;
+}
+
+.community-forum-body::-webkit-scrollbar { width: 8px; }
+
+.community-forum-body::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.forum-loading, .forum-empty, .forum-load-older {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
+    padding: 10.5rem 0;
     color: var(--text-secondary);
-    font-size: 0.875rem;
-    background: var(--stockton-black);
-    border-radius: 8px;
-    margin-top: 1.25rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    text-align: center;
+    overflow: hidden;
 }
 
-.community-forum-placeholder i {
+.forum-load-older {
+    padding: 0.5rem 0;
+    flex-direction: row;
+}
+
+/* ── Forum Contents ── */
+.forum-messages {
+    display: flex;
+    flex-direction: column;
+    margin-top: auto;
+}
+
+.forum-message-block {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.02rem 0.5rem;
+    border-radius: 8px;
+    margin-top: 0.5rem;
+}
+
+.forum-message-block-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.forum-message-avatar {
+    width: 30px;
+    height: 30px;       
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    margin-top: 6px;
+}
+
+.forum-message-avatar-initials {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--stockton-blue);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.forum-message-block-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.15rem;
+}
+
+.forum-message-username {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-stockton-white);
+}
+
+.forum-message-block-header .role-badge {
+    align-self: center;
+}
+
+.forum-message-timestamp {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.forum-message-continuation {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.02rem 0.5rem;
+}
+
+.forum-message-continuation-time {
+    width: 30px;
+    flex-shrink: 0;
+}
+
+.forum-message-text-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.forum-message-text {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.forum-message-delete {
+    opacity: 0;
+    transition: opacity 0.15s; 
+    color: var(--event-match-hover);
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 82, 82, 0.4);
+    border-radius: 2px;
+    padding: 0.2rem 0.3rem;
+}
+
+.forum-message-pin {
+    opacity: 0;
+    transition: opacity 0.15s;
+    color: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    padding: 0.2rem 0.3rem;
+}
+
+.forum-message-pin.is-pinned {
+    opacity: 1;
+    color: var(--stockton-blue);
+    border-color: var(--stockton-blue);
+}
+
+.forum-message-report {
+    opacity: 0;
+    transition: opacity 0.15s;
+    color: #e0a83c;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(224, 168, 60, 0.4);
+    border-radius: 2px;
+    padding: 0.2rem 0.3rem;
+}
+
+.forum-message-report:hover {
+    background: rgba(224, 168, 60, 0.15);
+}
+
+.forum-message-block:hover .forum-message-delete,
+.forum-message-continuation:hover .forum-message-delete,
+.forum-message-block:hover .forum-message-pin,
+.forum-message-continuation:hover .forum-message-pin,
+.forum-message-block:hover .forum-message-report,
+.forum-message-continuation:hover .forum-message-report {
+    opacity: 1;
+}
+
+.forum-message-block.is-pinned-message,
+.forum-message-continuation.is-pinned-message {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
+}
+
+.forum-message-highlight {
+    animation: forumPinHighlight 1.5s ease;
+    border-radius: 6px;
+}
+
+@keyframes forumPinHighlight {
+    0%   { background: rgba(255, 255, 255, 0.12); }
+    100% { background: transparent; }
+}
+
+/* ── Forum Textbox ── */
+.community-forum-textbox {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.6rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.forum-message-input {
+    flex: 1;
+    resize: none;
+    max-height: 120px;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    padding: 0.6rem 0.75rem;
+    line-height: 1.3;
+    overflow: hidden;
+}
+
+.forum-message-input:focus {
+    outline: none;
+    border-color: var(--stockton-blue);
+}
+
+.forum-message-input:disabled {
+    opacity: 0.6;
+}
+
+.forum-send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--stockton-blue);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.forum-send-btn:hover { opacity: 0.85; }
+.forum-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.community-forum-textbox {
+    position: relative;
+}
+
+.community-forum-textbox .char-counter {
+    position: absolute;
+    right: 1rem;
+    bottom: -1.3rem;
+    width: 50px;
+    text-align: center;
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    pointer-events: none;
+}
+
+/* ── Cropper modal ── */
+.cropper-container-wrapper {
+    height: 300px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #000;
+}
+
+.crop-controls {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    flex-wrap: wrap;
+}
+
+.crop-controls button {
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: background 0.2s;
+}
+
+.crop-controls button:hover { background: var(--border-color); }
+
+.crop-preview-text {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+/* -- Photo Carousel -- */
+.carousel-section {
+    margin-top: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.carousel-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+}
+
+.carousel-empty {
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.carousel-empty i {
     font-size: 2rem;
     color: var(--border-color);
 }
+
+/* ── Slides ── */
+.carousel-track {
+    width: 100%;
+    height: 100%;
+}
+
+.carousel-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.carousel-slide.active {
+    opacity: 1;
+}
+
+.carousel-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.carousel-arrows {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0.75rem;
+    pointer-events: none;
+}
+
+.carousel-arrow {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: all;
+    transition: background 0.2s;
+    font-size: 0.85rem;
+}
+
+.carousel-arrow:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.carousel-counter {
+    position: absolute;
+    bottom: 0.6rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    pointer-events: none;
+}
+
+.carousel-add-btn {
+    position: absolute;
+    bottom: 0.75rem;
+    right: 0.75rem;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: background 0.2s;
+    font-family: 'Inter', sans-serif;
+    z-index: 2;
+}
+
+.carousel-add-btn:hover { background: rgba(0, 0, 0, 0.85); }
+
+.carousel-delete-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: rgba(0, 0, 0, 0.65);
+    color: #ff5252;
+    border: 1px solid rgba(255, 82, 82, 0.4);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.2s;
+    font-family: 'Inter', sans-serif;
+    z-index: 2;
+}
+
+.carousel-delete-btn:hover { background: rgba(180, 0, 0, 0.55); }
+
+/* -- Photo Manager Popup -- */
+.photo-manager-popup {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(10, 10, 10, 0.92);
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 0 12px 12px;
+    padding: 0.75rem;
+    z-index: 10;
+    backdrop-filter: blur(6px);
+}
+
+.photo-manager-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.photo-manager-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.85rem;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.photo-manager-close:hover { color: var(--text-primary); }
+
+.photo-manager-strip {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+
+.photo-manager-strip::-webkit-scrollbar {
+    height: 4px;
+}
+
+.photo-manager-strip::-webkit-scrollbar-track { background: transparent; }
+.photo-manager-strip::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
+.photo-manager-thumb {
+    position: relative;
+    width: 80px;
+    height: 56px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.photo-manager-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.photo-manager-delete-btn {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ff5252;
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    padding: 0;
+    line-height: 1;
+}
+
+.photo-manager-delete-btn:hover { background: rgba(180, 0, 0, 0.8); }
 
 /* -- League Badges -- */
 .game-league-badge {

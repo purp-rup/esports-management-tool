@@ -417,7 +417,7 @@ function displayEventDetails(event) {
     html += `
         <div class="event-detail-row">
             <div class="event-detail-icon"><i class="fas fa-gamepad"></i></div>
-            <span class="event-detail-value">${formatCalendarGameName(event.game_name, event.team_name, event.is_scheduled) || 'General'}</span>
+            <span class="event-detail-value">${event.game_name || 'General'}</span>
         </div>
     `;
 
@@ -478,12 +478,6 @@ function displayEventDetails(event) {
     if (isUserLoggedIn && event.id) {
         loadNotificationSection(event.id);
     }
-}
-
-// Helper function designed to format game name correctly for team-only scheduled events
-function formatCalendarGameName(gameName, teamName, isScheduled) {
-    if (isScheduled && teamName) return teamName;
-    return gameName || null;
 }
 
 function openEventPopup(event_id, clickedElement) {
@@ -604,7 +598,7 @@ function displayEventPopupDetails(data, popup, clickedElement){
 
                 <div class="popup-games-box">
                     <span class="popup-icon"><i class="fas fa-gamepad"></i></span>
-                    <span class="popup-text">${formatCalendarGameName(data.game_name, data.team_name, data.is_scheduled) || 'N/A'}</span>
+                    <span class="popup-text">${data.game_name || 'N/A'}</span>
                 </div>
 
                 <div class="popup-row full-width">
