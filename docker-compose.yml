@@ -4,7 +4,7 @@ services:
     build: .
     # Map the container's internal port to the local machine
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     # Environment variables
     env_file:
       - EsportsManagementTool/.env
