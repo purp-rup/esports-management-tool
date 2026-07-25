@@ -89,6 +89,16 @@
     text-decoration: underline;
 }
 
+/* League link inside the team info tooltip */
+.tooltip-league-link {
+    color: var(--stockton-blue);
+    text-decoration: none;
+}
+
+.tooltip-league-link:hover {
+    text-decoration: underline;
+}
+
 .league-card-actions {
     display: flex;
     gap: 0.5rem;
@@ -101,24 +111,6 @@
     flex: 1;
     padding: 0.5rem;
     font-size: 0.875rem;
-}
-
-.btn-league-delete {
-    background: #ef4444;
-    color: black;
-}
-
-.btn-league-delete:hover {
-    background: #a00000;
-}
-
-.btn-league-edit {
-    background: var(--stockton-blue);
-    color: black;
-}
-
-.btn-league-edit:hover {
-    background: #5aabdd;
 }
 
 /* Empty state */

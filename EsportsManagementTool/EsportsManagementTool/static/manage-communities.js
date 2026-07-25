@@ -156,6 +156,10 @@ function renderCommunitiesGrid() {
         const hideButtonHtml = (isAdmin || isDeveloper) ? `
             <div class="community-header-right">
                 <div class="community-header-actions">
+                    <div class="community-action-btn discord-indicator ${community.discord_link ? 'has-discord' : 'no-discord'}"
+                         title="${community.discord_link ? 'Discord linked' : 'No Discord linked'}">
+                        <i class="fab fa-discord"></i>
+                    </div>
                     <button class="community-action-btn"
                             onclick="window.location.href='/community/${community.id}'; event.stopPropagation();"
                             title="View community">
@@ -201,7 +205,7 @@ function renderCommunitiesGrid() {
         }
 
         const deleteButtonHtml = isDeveloper
-            ? `<button class="btn btn-community-delete"
+            ? `<button class="btn btn-secondary modal-delete-btn"
                        onclick="confirmDeleteCommunity(${community.id}, '${escapeHtml(community.title)}'); event.stopPropagation();">
                     <i class="fas fa-trash"></i> Delete
                </button>`
@@ -228,7 +232,7 @@ function renderCommunitiesGrid() {
             </div>
 
             <div class="community-action-buttons">
-                <button class="btn btn-secondary" onclick="editCommunity(${community.id}); event.stopPropagation();">
+                <button class="btn btn-secondary modal-edit-btn" onclick="editCommunity(${community.id}); event.stopPropagation();">
                     <i class="fas fa-edit"></i> Edit
                 </button>
                 ${deleteButtonHtml}
@@ -290,57 +294,76 @@ function showCommunityForm(community = null) {
             ` : ''}
         </div>
 
-        <form id="communityForm" onsubmit="submitCommunityForm(event)">
-            <div class="community-form-group">
-                <label for="communityTitle">Game Title *</label>
-                <input type="text"
-                       id="communityTitle"
-                       name="title"
-                       placeholder="e.g., League of Legends, Valorant"
-                       value="${community ? escapeHtml(community.title) : ''}"
-                       required>
+        <form id="communityForm" class="event-form-modal" onsubmit="submitCommunityForm(event)">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="communityTitle" class="required-field">Game Title</label>
+                    <small>Set a name for this community</small>
+                    <input type="text"
+                           id="communityTitle"
+                           name="title"
+                           placeholder="e.g., League of Legends, Valorant"
+                           value="${community ? escapeHtml(community.title) : ''}"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label for="communityAbbreviation" class="required-field">Abbreviation</label>
+                    <small>5 character limit</small>
+                    <input type="text"
+                           id="communityAbbreviation"
+                           name="abbreviation"
+                           placeholder="e.g., LOL, VAL"
+                           value="${community ? escapeHtml(community.abbreviation) : ''}"
+                           maxlength="5"
+                           pattern="[A-Za-z0-9 ]+"
+                           style="text-transform: uppercase;"
+                           required>
+                </div>
             </div>
 
-            <div class="community-form-group">
-                <label for="communityAbbreviation">Abbreviation *</label>
-                <input type="text"
-                       id="communityAbbreviation"
-                       name="abbreviation"
-                       placeholder="e.g., LOL, VAL"
-                       value="${community ? escapeHtml(community.abbreviation) : ''}"
-                       maxlength="5"
-                       pattern="[A-Za-z0-9 ]+"
-                       style="text-transform: uppercase;"
-                       required>
-                <small>Max 5 characters, letters and numbers only. Used for team IDs.</small>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="communityDivision" class="required-field">Division</label>
+                    <small>Choose the best-fitting division</small>
+                    <select id="communityDivision" name="division" required>
+                        <option value="">Select division</option>
+                        ${divisionOptionsHtml}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="communityDiscordLink">Discord Invite Link</label>
+                    <small>Shown to members as a quick-join link.</small>
+                    <input type="url"
+                           id="communityDiscordLink"
+                           name="discord_link"
+                           placeholder="https://discord.gg/..."
+                           value="${community && community.discord_link ? escapeHtml(community.discord_link) : ''}">
+                </div>
             </div>
 
-            <div class="community-form-group">
-                <label for="communityDivision">Division *</label>
-                <select id="communityDivision" name="division" required>
-                    <option value="">Select division</option>
-                    ${divisionOptionsHtml}
-                </select>
-                <small>Choose the category this game belongs to</small>
-            </div>
-
-            <div class="community-form-group">
+            <div class="form-group">
                 <label>Game Icon/Image</label>
                 <div class="community-image-upload">
-                    <div class="community-image-preview" id="communityImagePreview">
+                    <div class="community-image-preview" id="communityImagePreview" onclick="document.getElementById('communityImage').click()">
                         ${imagePreviewHtml}
+                        <div class="avatar-edit-overlay">
+                            <i class="fas fa-camera"></i>
+                        </div>
                     </div>
                     <input type="file"
                            id="communityImage"
                            name="image"
                            accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
-                           onchange="previewCommunityImage(event)">
+                           onchange="previewCommunityImage(event)"
+                           style="display: none;">
                     <small>Recommended: Square image, at least 200x200px (PNG, JPG, GIF, WEBP)</small>
                 </div>
             </div>
 
-            <div class="community-form-group">
-                <label for="communityDescription">Description *</label>
+            <div class="form-group">
+                <label for="communityDescription" class="required-field">Description</label>
                 <textarea id="communityDescription"
                           name="description"
                           placeholder="Enter game description"
@@ -348,8 +371,8 @@ function showCommunityForm(community = null) {
                           required>${community ? escapeHtml(community.description) : ''}</textarea>
             </div>
 
-            <div class="community-form-group">
-                <label>Team Size(s) *</label>
+            <div class="form-group">
+                <label class="required-field">Team Size(s)</label>
                 <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
                     Select all applicable team sizes for this game
                 </p>
@@ -403,6 +426,7 @@ async function submitCommunityForm(event) {
     const abbreviation = form.querySelector('#communityAbbreviation').value.toUpperCase();
     const division = form.querySelector('#communityDivision').value;
     const description = form.querySelector('#communityDescription').value;
+    const discordLink = form.querySelector('#communityDiscordLink').value.trim();
 
     // Get selected team sizes
     const teamSizeCheckboxes = form.querySelectorAll('input[name="teamSize"]:checked');
@@ -416,20 +440,20 @@ async function submitCommunityForm(event) {
     const isEditing = currentEditingCommunity !== null;
 
     // Use the correct keys that match the backend
-    if (isEditing) {
-        // Update route expects: title, description, division, team_sizes, image
+     if (isEditing) {
         formData.append('title', title);
         formData.append('abbreviation', abbreviation);
         formData.append('description', description);
         formData.append('division', division);
         formData.append('team_sizes', JSON.stringify(teamSizes));
+        formData.append('discord_link', discordLink);
     } else {
-        // Create route expects: gameTitle, gameDescription, division, team_sizes, gameImage
         formData.append('gameTitle', title);
         formData.append('abbreviation', abbreviation);
         formData.append('gameDescription', description);
         formData.append('division', division);
         formData.append('team_sizes', JSON.stringify(teamSizes));
+        formData.append('discord_link', discordLink);
     }
 
     // Handle image with correct key based on operation

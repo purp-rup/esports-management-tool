@@ -305,6 +305,29 @@ function handleGalleryCrop(settings) {
 // ADMIN — LANDING PAGE GALLERY MANAGEMENT
 // ============================================
 
+/* Toggles whether a community photo is hidden from the landing page gallery.
+ * The photo remains visible on the community's own page either way.
+ */
+async function toggleCommunityPhotoHidden(gameId, photoId) {
+    try {
+        const res  = await fetch(`/api/game/${gameId}/photos/${photoId}/hide`, { method: 'PATCH' });
+        const data = await res.json();
+
+        if (data.success) {
+            const community = landingGalleryCommunities.find(c => c.game_id === gameId);
+            if (community) {
+                const photo = community.photos.find(p => p.photo_id === photoId);
+                if (photo) photo.is_hidden = data.is_hidden;
+            }
+            renderLandingGalleryCommunities();
+        } else {
+            alert('Failed to update photo visibility: ' + data.message);
+        }
+    } catch (e) {
+        alert('Failed to update photo visibility. Please try again.');
+    }
+}
+
 // Confirms a photo will be removed
 function confirmDeleteLandingPhoto(photoId) {
     openDeleteConfirmModal({
@@ -328,6 +351,43 @@ async function executeLandingPhotoDelete(photoId) {
             landingGalleryPhotos = landingGalleryPhotos.filter(p => p.photo_id !== photoId);
             closeDeleteConfirmModal();
             renderLandingGalleryAdminGrid();
+            showDeleteSuccessMessage('Photo deleted successfully.');
+        } else {
+            closeDeleteConfirmModal();
+            showDeleteErrorMessage('Delete failed: ' + data.message);
+        }
+    } catch (e) {
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Delete failed. Please try again.');
+    }
+}
+
+// Confirms a community photo will be removed (Communities tab of the landing gallery modal)
+function confirmDeleteCommunityPhoto(gameId, photoId) {
+    openDeleteConfirmModal({
+        title: 'Delete Photo?',
+        message: 'Are you sure you want to permanently delete this photo from the community? This cannot be undone.',
+        buttonText: 'Delete Photo',
+        itemId: photoId,
+        onConfirm: async (id) => {
+            await executeCommunityPhotoDelete(gameId, id);
+        }
+    });
+}
+
+// Removes a photo from a specific community, reusing the existing per-game delete route
+async function executeCommunityPhotoDelete(gameId, photoId) {
+    try {
+        const res  = await fetch(`/api/game/${gameId}/photos/${photoId}`, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (data.success) {
+            const community = landingGalleryCommunities.find(c => c.game_id === gameId);
+            if (community) {
+                community.photos = community.photos.filter(p => p.photo_id !== photoId);
+            }
+            closeDeleteConfirmModal();
+            renderLandingGalleryCommunities();
             showDeleteSuccessMessage('Photo deleted successfully.');
         } else {
             closeDeleteConfirmModal();
@@ -463,3 +523,5 @@ window.clearCroppedImageBlob = clearCroppedImageBlob;
 
 // Landing gallery — admin management
 window.confirmDeleteLandingPhoto      = confirmDeleteLandingPhoto;
+window.confirmDeleteCommunityPhoto    = confirmDeleteCommunityPhoto;
+window.toggleCommunityPhotoHidden     = toggleCommunityPhotoHidden;

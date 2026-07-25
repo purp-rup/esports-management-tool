@@ -253,9 +253,14 @@ async function displayTeamLeaguesInSubheader(teamId) {
         const tooltipLeaguesValue = document.getElementById('tooltipLeaguesValue');
 
         if (data.success && data.leagues && data.leagues.length > 0) {
-            // Populate tooltip with plain league names (comma-separated)
+            // Populate tooltip with league names, linking out to website_url when present
             if (tooltipLeagues && tooltipLeaguesValue) {
-                tooltipLeaguesValue.textContent = data.leagues.map(l => l.name).join(', ');
+                tooltipLeaguesValue.innerHTML = data.leagues.map(l => {
+                    const name = escapeHtml(l.name);
+                    return l.website_url
+                        ? `<a href="${l.website_url}" class="tooltip-league-link" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${name}</a>`
+                        : name;
+                }).join(', ');
                 tooltipLeagues.style.display = 'flex';
             }
         } else {

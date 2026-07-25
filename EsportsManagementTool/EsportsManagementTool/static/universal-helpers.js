@@ -278,8 +278,6 @@ function positionInfoTooltip(wrapperEl) {
     const tooltip = wrapperEl.querySelector('.info-tooltip');
     if (!tooltip) return;
 
-    tooltip.style.top = '';
-
     const wrapperRect  = wrapperEl.getBoundingClientRect();
     const tooltipWidth = 260; // matches the fixed CSS width
     const gap          = 12;
@@ -291,21 +289,21 @@ function positionInfoTooltip(wrapperEl) {
     const opensLeft  = spaceRight < tooltipWidth && spaceLeft >= tooltipWidth;
 
     tooltip.classList.toggle('info-tooltip--left', opensLeft);
+    tooltip.style.left = opensLeft
+        ? `${wrapperRect.left - gap - tooltipWidth}px`
+        : `${wrapperRect.right + gap}px`;
 
-    // Vertical clamp
+    // Measure height, then clamp against the viewport
     tooltip.style.visibility = 'hidden';
     tooltip.style.display    = 'block';
     const h = tooltip.offsetHeight;
     tooltip.style.display    = '';
     tooltip.style.visibility = '';
 
-    const defaultViewportTop = wrapperRect.top + wrapperRect.height / 2 - h / 2;
+    let top = wrapperRect.top + wrapperRect.height / 2 - h / 2;
+    top = Math.min(Math.max(top, margin), window.innerHeight - margin - h);
 
-    if (defaultViewportTop < margin) {
-        tooltip.style.top = `${margin - wrapperRect.top + h / 2}px`;
-    } else if (defaultViewportTop + h > window.innerHeight - margin) {
-        tooltip.style.top = `${window.innerHeight - margin - wrapperRect.top - h / 2}px`;
-    }
+    tooltip.style.top = `${top}px`;
 }
 
 /**
@@ -373,7 +371,9 @@ function initInfoIcon(wrapperEl, titleOrFn) {
         const t = wrapperEl.querySelector('.info-tooltip');
         if (!t) return;
         t.style.top = '';
+        t.style.left = '';
         t.classList.remove('info-tooltip--visible'); // fade + slide out
+
         clearTimeout(t._flipTimer);
         // Remove direction class only after the exit transition finishes
         t._flipTimer = setTimeout(() => {

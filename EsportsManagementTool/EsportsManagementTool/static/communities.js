@@ -1224,7 +1224,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (gameId) {
         loadNextCommunityEvent(gameId);
-        initCommunityStats(gameId);
     }
 });
 
