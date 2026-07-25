@@ -135,55 +135,12 @@
     margin: 0 0 1.5rem 0;
 }
 
-/* League form in modal */
-.league-form-group {
-    margin-bottom: 1.5rem;
-}
-
-.league-form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: var(--text-primary);
-    font-weight: 500;
-}
-
-.league-form-group input[type="text"],
-.league-form-group input[type="url"] {
-    width: 100%;
-    padding: 0.75rem;
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-primary);
-    font-size: 1rem;
-    transition: border-color 0.2s;
-}
-
-.league-form-group input:focus {
-    outline: none;
-    border-color: var(--stockton-blue);
-}
-
-.league-form-group small {
-    display: block;
-    margin-top: 0.25rem;
-    color: var(--text-secondary);
-    font-size: 0.8125rem;
-}
-
 /* League modal specific */
-#manageLeaguesModal .modal-content {
-    max-width: 600px;
-    width: 90%;
-}
-
 .league-modal-actions {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-color);
 }
 
 .league-modal-actions h3 {

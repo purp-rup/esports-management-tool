@@ -255,16 +255,29 @@
 
 .calendar-cell--expanded {
     background: rgba(121, 189, 233, 0.07) !important;
+    align-self: start;
+}
+
+.calendar-cell.today.calendar-cell--expanded {
+    border-bottom: none;
 }
 
 .calendar-overflow-panel {
-    position: fixed;
+    position: absolute;
     z-index: 50;
     background: #303437;
     border-top: none;
     border-radius: 0 0 10px 10px;
     padding: 0.25rem 0.5rem 0.5rem;
     overflow: hidden;
+}
+
+/* When the expanded day is "today", continue its blue highlight
+   border down the sides and along the bottom of the panel. */
+.calendar-overflow-panel--today {
+    border-left: 2px solid var(--stockton-blue);
+    border-right: 2px solid var(--stockton-blue);
+    border-bottom: 2px solid var(--stockton-blue);
 }
 
 .calendar-overflow-panel .event:last-child {

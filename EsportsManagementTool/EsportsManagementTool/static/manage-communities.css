@@ -451,7 +451,8 @@
     object-fit: cover;
 }
 
-.community-image-preview i.fa-gamepad {
+.community-image-preview i.fa-gamepad,
+.community-image-preview i.fa-trophy {
     font-size: 2rem;
     color: var(--text-secondary);
 }

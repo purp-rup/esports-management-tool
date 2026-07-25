@@ -30,6 +30,9 @@ const CAROUSEL_INTERVAL = 5000;
 // Initialize member popup
 let memberListOpen = false;
 
+// My Communities cache (profile tab) — { data, version }
+let myCommunitiesCache = null;
+
 /**
  * Initialize communities module
  * Sets up event listeners for profile tab
@@ -129,47 +132,6 @@ async function updateGameMembership(gameId, action) {
         } else {
             alert(`Failed to ${action} community. Please try again.`);
         }
-    }
-}
-
-// ============================================
-// COMMUNITY PAGE
-// ============================================
-
-// Builds stats and leagues for a community
-async function initCommunityStats(gameId) {
-    const leaguesBox   = document.getElementById('communityLeaguesBox');
-    const leaguesBadges = document.getElementById('communityLeaguesBadges');
-    if (!leaguesBox || !leaguesBadges) return;
-
-    try {
-        const res  = await fetch(`/api/game/${gameId}/current-leagues`);
-        const data = await res.json();
-
-        if (!data.success || !data.leagues?.length) return;
-
-        leaguesBadges.innerHTML = data.leagues.map(league => {
-            const logoHtml = league.logo
-                ? `<img src="${league.logo}" alt="${league.name}" class="game-league-badge-logo">`
-                : '<i class="fas fa-trophy game-league-badge-icon"></i>';
-
-            return league.website_url
-                ? `<a href="${league.website_url}" target="_blank" rel="noopener noreferrer"
-                      class="game-league-badge" title="Visit ${league.name} website">
-                       ${logoHtml}
-                       <span class="game-league-badge-name">${league.name}</span>
-                       <i class="fas fa-external-link-alt game-league-badge-external"></i>
-                   </a>`
-                : `<span class="game-league-badge">
-                       ${logoHtml}
-                       <span class="game-league-badge-name">${league.name}</span>
-                   </span>`;
-        }).join('');
-
-        leaguesBox.style.display = 'block';
-        leaguesBox.closest('.community-card-stat-row')?.classList.add('has-leagues');
-    } catch (e) {
-        console.error('Error loading community leagues:', e);
     }
 }
 
@@ -1132,36 +1094,63 @@ async function loadMyCommunities() {
     const grid = document.getElementById('myCommunitiesGrid');
     const empty = document.getElementById('myCommunitiesEmpty');
 
-    // Show loading state
-    loading.style.display = 'block';
-    grid.style.display = 'none';
-    empty.style.display = 'none';
+    // Render cached communities instantly, no spinner. Only show the loading state when there's nothing cached yet.
+    if (myCommunitiesCache) {
+        renderMyCommunities(myCommunitiesCache.data, loading, grid, empty);
+    } else {
+        loading.style.display = 'block';
+        grid.style.display = 'none';
+        empty.style.display = 'none';
+    }
 
     try {
+        // Quietly check whether membership has changed; only re-run the
+        // heavier /api/user/communities query if it actually has
+        const versionRes = await fetch('/api/user/communities/version');
+        const versionData = await versionRes.json();
+
+        const isStale = !versionData.success || !myCommunitiesCache || myCommunitiesCache.version !== versionData.version;
+        if (!isStale) return; // Cache confirmed current — nothing more to do
+
         // Fetch user's communities from API
         const response = await fetch('/api/user/communities');
         const data = await response.json();
 
-        if (data.success && data.communities.length > 0) {
-            // Display communities in grid
-            grid.innerHTML = '';
-
-            data.communities.forEach(community => {
-                const card = createCommunityCard(community);
-                grid.appendChild(card);
-            });
-
-            loading.style.display = 'none';
-            grid.style.display = 'flex';
-        } else {
-            // No communities, show empty state
+        if (data.success) {
+            myCommunitiesCache = {
+                data,
+                version: versionData.success ? versionData.version : null
+            };
+            renderMyCommunities(data, loading, grid, empty);
+        } else if (!myCommunitiesCache) {
+            // No cache to fall back on and the fetch failed
             loading.style.display = 'none';
             empty.style.display = 'block';
         }
     } catch (error) {
-        // Handle errors
+        // Handle errors — but don't wipe out good cached content
         console.error('Error loading communities:', error);
+        if (!myCommunitiesCache) {
+            loading.style.display = 'none';
+            empty.style.display = 'block';
+        }
+    }
+}
+
+// Renders the my-communities grid from a fetched or cached data payload
+function renderMyCommunities(data, loading, grid, empty) {
+    if (data.success && data.communities.length > 0) {
+        grid.innerHTML = '';
+        data.communities.forEach(community => {
+            const card = createCommunityCard(community);
+            grid.appendChild(card);
+        });
         loading.style.display = 'none';
+        grid.style.display = 'flex';
+        empty.style.display = 'none';
+    } else {
+        loading.style.display = 'none';
+        grid.style.display = 'none';
         empty.style.display = 'block';
     }
 }

@@ -294,6 +294,30 @@ def register_event_routes(app, mysql, login_required, roles_required):
             cursor.close()
 
 
+    @app.route('/api/events/version')
+    @login_required
+    def get_events_version():
+        """Cheap check for whether new events exist, used by the client to decide
+        whether the cached events list can be reused or needs a refetch."""
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            cursor.execute("""
+                    SELECT COUNT(*) as event_count, MAX(created_at) as latest_created
+                    FROM generalevents
+                """)
+            result = cursor.fetchone()
+            latest = result['latest_created'].isoformat() if result['latest_created'] else None
+            return jsonify({
+                'success': True,
+                'version': f"{result['event_count']}:{latest}"
+            }), 200
+        except Exception as e:
+            print(f"Error checking events version: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to check version'}), 500
+        finally:
+            cursor.close()
+
+
     @app.route('/api/event/<int:event_id>')
     @login_required
     def api_event_details(event_id):

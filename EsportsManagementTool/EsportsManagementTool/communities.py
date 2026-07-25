@@ -1563,6 +1563,33 @@ def view_communities():
         cursor.close()
 
 
+@app.route('/api/communities/version', methods=['GET'])
+@login_required
+def get_communities_version():
+    """Cheap check for whether the communities/browse list has changed —
+    covers new games being added/hidden and any membership changes
+    (joins/leaves), which affect member counts and the is_member flags."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT
+                (SELECT COUNT(*) FROM games WHERE hidden = 0) as game_count,
+                (SELECT COUNT(*) FROM in_communities) as membership_count,
+                (SELECT MAX(joined_at) FROM in_communities) as latest_join
+        """)
+        result = cursor.fetchone()
+        latest = result['latest_join'].isoformat() if result['latest_join'] else None
+        return jsonify({
+            'success': True,
+            'version': f"{result['game_count']}:{result['membership_count']}:{latest}"
+        }), 200
+    except Exception as e:
+        print(f"Error checking communities version: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to check version'}), 500
+    finally:
+        cursor.close()
+
+
 @app.route('/api/game/<int:game_id>/join', methods=['POST'])
 @login_required
 def join_community(game_id):
@@ -1707,6 +1734,32 @@ def get_user_communities():
     except Exception as e:
         print(f"Error getting user communities: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load communities'}), 500
+
+
+@app.route('/api/user/communities/version', methods=['GET'])
+@login_required
+def get_user_communities_version():
+    """Cheap check for whether the current user's community memberships have
+    changed, used by the client to decide whether the cached list can be
+    reused or needs a refetch."""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT COUNT(*) as community_count, MAX(joined_at) as latest_joined
+            FROM in_communities
+            WHERE user_id = %s
+        """, (session['id'],))
+        result = cursor.fetchone()
+        latest = result['latest_joined'].isoformat() if result['latest_joined'] else None
+        return jsonify({
+            'success': True,
+            'version': f"{result['community_count']}:{latest}"
+        }), 200
+    except Exception as e:
+        print(f"Error checking communities version: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to check version'}), 500
+    finally:
+        cursor.close()
 
 
 # =======================================

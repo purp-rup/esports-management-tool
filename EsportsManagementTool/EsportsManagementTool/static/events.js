@@ -37,13 +37,13 @@ const EventState = {
     gamesListCache: null,
     selectedGames: [],
 
+    // Events cache (keyed by filter query string) + last known version signature
+    eventsCache: {},
+
     // Partnerships cache and selection
     partnershipsListCache: null,
     selectedPartnerships: [],
     selectedPartnershipFilter: null,
-
-    // Calendar day modal data
-    eventsData: {},
 
     // Reset state to defaults
     reset() {
@@ -115,29 +115,52 @@ function loadEvents() {
         emptyState: document.getElementById('eventsEmptyState')
     };
 
-    //Show loading for events
-    showEventsLoadingState()
-
     // Build query parameters
     const queryParams = buildEventFilterParams();
+    const cached = EventState.eventsCache[queryParams];
 
-    // Fetch events
-    Promise.all([
-        fetch(`/api/events?${queryParams}`).then(response => response.json()),
-        loadGamesList()
-    ])
-        .then(([data]) => {
-            if (data.success) {
-                EventState.setPermissions(data.is_admin, data.is_gm, data.is_developer);
-                renderEvents(data.events, data.is_admin, data.is_developer, data.is_gm);
-            } else {
-                console.error('Failed to load events:', data.message);
-                showEventsError();
+    // If we have a cached view, render it immediately. Only show the spinner when there's nothing to show yet.
+    if (cached) {
+        EventState.setPermissions(cached.data.is_admin, cached.data.is_gm, cached.data.is_developer);
+        renderEvents(cached.data.events, cached.data.is_admin, cached.data.is_developer, cached.data.is_gm);
+    } else {
+        showEventsLoadingState();
+    }
+
+    loadGamesList();
+
+    // Quietly check whether the cache is still current; only hit the heavier
+    // /api/events query if a new event has actually shown up
+    fetch('/api/events/version')
+        .then(response => response.json())
+        .then(versionData => {
+            const isStale = !versionData.success || !cached || cached.version !== versionData.version;
+
+            if (!isStale) {
+                return; // Cache confirmed current — nothing more to do
             }
+
+            return fetch(`/api/events?${queryParams}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        EventState.setPermissions(data.is_admin, data.is_gm, data.is_developer);
+                        renderEvents(data.events, data.is_admin, data.is_developer, data.is_gm);
+
+                        // Cache this filter's result alongside the version it was fetched at
+                        EventState.eventsCache[queryParams] = {
+                            data,
+                            version: versionData.success ? versionData.version : null
+                        };
+                    } else {
+                        console.error('Failed to load events:', data.message);
+                        if (!cached) showEventsError();
+                    }
+                });
         })
         .catch(error => {
             console.error('Error loading events:', error);
-            showEventsError();
+            if (!cached) showEventsError();
         })
         .finally(() => {
             hideEventsLoadingState();
@@ -187,9 +210,6 @@ function loadEventsForPastSeason() {
         emptyState: document.getElementById('eventsEmptyState')
     };
 
-    // Show loading state
-    showEventsLoadingState();
-
     // Build query parameters
     let queryParams = `season_id=${PastSeasonFilterState.selectedSeasonId}`;
 
@@ -218,24 +238,52 @@ function loadEventsForPastSeason() {
         queryParams += '&filter=all';
     }
 
-    // Fetch events
-    fetch(`/api/events?${queryParams}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                EventState.setPermissions(data.is_admin, data.is_gm, data.is_developer);
-                renderEvents(data.events, data.is_admin, data.is_developer, data.is_gm);
+    const cached = EventState.eventsCache[queryParams];
 
-                // Update empty state message for season filtering
-                updateEmptyStateMessage()
-            } else {
-                console.error('Failed to load events:', data.message);
-                showEventsError();
+    // Render cached view instantly, no spinner flash. Only show the loading state when there's nothing cached to fall back on.
+    if (cached) {
+        EventState.setPermissions(cached.data.is_admin, cached.data.is_gm, cached.data.is_developer);
+        renderEvents(cached.data.events, cached.data.is_admin, cached.data.is_developer, cached.data.is_gm);
+        updateEmptyStateMessage();
+    } else {
+        showEventsLoadingState();
+    }
+
+    // Quietly check whether the cache is still current; only hit the heavier
+    // /api/events query if a new event has actually shown up
+    fetch('/api/events/version')
+        .then(response => response.json())
+        .then(versionData => {
+            const isStale = !versionData.success || !cached || cached.version !== versionData.version;
+
+            if (!isStale) {
+                return; // Cache confirmed current — nothing more to do
             }
+
+            return fetch(`/api/events?${queryParams}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        EventState.setPermissions(data.is_admin, data.is_gm, data.is_developer);
+                        renderEvents(data.events, data.is_admin, data.is_developer, data.is_gm);
+
+                        // Cache this filter's result alongside the version it was fetched at
+                        EventState.eventsCache[queryParams] = {
+                            data,
+                            version: versionData.success ? versionData.version : null
+                        };
+
+                        // Update empty state message for season filtering
+                        updateEmptyStateMessage();
+                    } else {
+                        console.error('Failed to load events:', data.message);
+                        if (!cached) showEventsError();
+                    }
+                });
         })
         .catch(error => {
             console.error('Error loading events:', error);
-            showEventsError();
+            if (!cached) showEventsError();
         })
         .finally(() => {
             hideEventsLoadingState();

@@ -1,5 +1,4 @@
 /**
- * game.js
  * ============================================================================
  * Handles general game functionality including:
  * - Game loading and display
@@ -15,21 +14,17 @@
 // GLOBAL STATE
 // ============================================
 
-/**
- * Currently selected game ID for modal operations
- * @type {number|null}
- */
+// Currently selected game ID for modal operations
 let currentGameId = null;
+
+// Communities/browse list cache (rosters tab) — { data, version }
+let communitiesListCache = null;
 
 // ============================================
 // MODULE INITIALIZATION
 // ============================================
 
-/**
- * Initialize games module
- * Sets up event listeners and loads initial data
- * Called on DOMContentLoaded
- */
+// Sets up event listeners and loads initial data
 function initializeGamesModule() {
     console.log('Games module initialized');
 
@@ -85,46 +80,67 @@ function setupGameImagePreview() {
 // ============================================
 // GAME LOADING & DISPLAY
 // ============================================
-
-/**
- * Load all games from database
- * Fetches games and displays them in the rosters grid
- * Shows loading state while fetching
- **/
 async function loadGames() {
     const loadingDiv = document.getElementById('rostersLoading');
     const gridDiv = document.getElementById('rostersGrid');
     const emptyDiv = document.getElementById('rostersEmpty');
 
-    loadingDiv.style.display = 'block';
-    gridDiv.style.display = 'none';
-    emptyDiv.style.display = 'none';
+    // Render cached list instantly, no spinner flash. Only show the loading state when there's nothing cached yet.
+    if (communitiesListCache) {
+        renderGamesList(communitiesListCache.data, loadingDiv, gridDiv, emptyDiv);
+    } else {
+        loadingDiv.style.display = 'block';
+        gridDiv.style.display = 'none';
+        emptyDiv.style.display = 'none';
+    }
 
     try {
+        // Quietly check whether anything's changed; only re-run the heavier /communities query if it has
+        const versionRes = await fetch('/api/communities/version');
+        const versionData = await versionRes.json();
+
+        const isStale = !versionData.success || !communitiesListCache || communitiesListCache.version !== versionData.version;
+        if (!isStale) return; // Cache confirmed current — nothing more to do
+
         const response = await fetch('/communities');
         const data = await response.json();
 
         if (data.success && data.games && data.games.length > 0) {
-            window.currentGamesData = data.games;
-            resetCommunityFilters();
-            displayGamesList(data.games);
-            loadingDiv.style.display = 'none';
-            gridDiv.style.display = 'flex';
-        } else {
+            communitiesListCache = {
+                data,
+                version: versionData.success ? versionData.version : null
+            };
+            renderGamesList(data, loadingDiv, gridDiv, emptyDiv);
+        } else if (!communitiesListCache) {
             loadingDiv.style.display = 'none';
             emptyDiv.style.display = 'block';
         }
     } catch (error) {
         console.error('Error loading games:', error);
+        if (!communitiesListCache) {
+            loadingDiv.style.display = 'none';
+            emptyDiv.style.display = 'block';
+        }
+    }
+}
+
+// Renders the communities/browse grid from a fetched or cached data payload
+function renderGamesList(data, loadingDiv, gridDiv, emptyDiv) {
+    if (data.success && data.games && data.games.length > 0) {
+        window.currentGamesData = data.games;
+        resetCommunityFilters();
+        displayGamesList(data.games);
         loadingDiv.style.display = 'none';
+        gridDiv.style.display = 'flex';
+        emptyDiv.style.display = 'none';
+    } else {
+        loadingDiv.style.display = 'none';
+        gridDiv.style.display = 'none';
         emptyDiv.style.display = 'block';
     }
 }
 
-/**
- * Display all games as a flat banner list
- * @param {Array} games - Array of game objects from the API
- */
+// Display all games as a flat banner list
 function displayGamesList(games) {
     const gridDiv = document.getElementById('rostersGrid');
     gridDiv.className = 'community-list';

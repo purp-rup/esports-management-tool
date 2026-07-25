@@ -186,43 +186,46 @@ function showLeagueForm(league = null) {
             ` : ''}
         </div>
 
-        <form id="leagueForm" onsubmit="submitLeagueForm(event)">
-            <div class="league-form-group">
-                <label for="leagueName">League Name *</label>
-                <input type="text"
-                       id="leagueName"
-                       name="name"
-                       placeholder="e.g., NACE Starleague, ECAC"
-                       value="${league ? escapeHtml(league.name) : ''}"
-                       required>
-            </div>
+        <form id="leagueForm" class="event-form-modal" onsubmit="submitLeagueForm(event)">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="leagueName" class="required-field">League Name</label>
+                    <input type="text"
+                           id="leagueName"
+                           name="name"
+                           placeholder="e.g., NACE Starleague, ECAC"
+                           value="${league ? escapeHtml(league.name) : ''}"
+                           required>
+                </div>
 
-            <div class="league-form-group">
-                <label>League Logo</label>
-                <div class="league-logo-upload">
-                    <div class="league-logo-preview" id="leagueLogoPreview">
-                        ${logoPreviewHtml}
-                    </div>
-                    <div class="league-logo-upload-input">
-                        <input type="file"
-                               id="leagueLogo"
-                               name="logo"
-                               accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
-                               onchange="previewLeagueLogo(event)">
-                        <small>Recommended: Square image, at least 200x200px (PNG, JPG, GIF, WEBP)</small>
-                    </div>
+                <div class="form-group">
+                    <label for="leagueWebsite">League Website</label>
+                    <input type="text"
+                           id="leagueWebsite"
+                           name="website_url"
+                           placeholder="https://example.com"
+                           pattern="https?://.+"
+                           value="${league && league.website_url ? escapeHtml(league.website_url) : ''}">
                 </div>
             </div>
 
-            <div class="league-form-group">
-                <label for="leagueWebsite">League Website (Optional)</label>
-                <input type="text"
-                       id="leagueWebsite"
-                       name="website_url"
-                       placeholder="https://example.com"
-                       pattern="https?://.+"
-                       value="${league && league.website_url ? escapeHtml(league.website_url) : ''}">
-                <small>Full URL to the league's official website (must start with http:// or https://)</small>
+            <div class="form-group">
+                <label>League Logo</label>
+                <div class="community-image-upload">
+                    <div class="community-image-preview" id="leagueLogoPreview" onclick="document.getElementById('leagueLogo').click()">
+                        ${logoPreviewHtml}
+                        <div class="avatar-edit-overlay">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                    </div>
+                    <input type="file"
+                           id="leagueLogo"
+                           name="logo"
+                           accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                           onchange="previewLeagueLogo(event)"
+                           style="display: none;">
+                    <small>Recommended: Square image, at least 200x200px (PNG, JPG, GIF, WEBP)</small>
+                </div>
             </div>
 
             <div id="leagueFormMessage" class="form-message" style="display: none;"></div>
