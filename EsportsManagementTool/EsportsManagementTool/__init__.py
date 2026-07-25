@@ -30,7 +30,8 @@ app = Flask(__name__)
 # CONFIGURATION
 # =========================================
 # Security: Change this to a strong random key in production
-app.secret_key = 'your secret key'
+# Set FLASK_SECRET_KEY to a strong random value in production.
+app.secret_key = os.environ.get('FLASK_SECRET_KEY')
 
 # Database Configuration (loaded from environment variables)
 app.config['MYSQL_HOST'] = os.environ.get('MYSQL_HOST')
