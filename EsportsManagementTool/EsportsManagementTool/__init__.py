@@ -66,7 +66,7 @@ class TestingEmailConfig:
 
 # CHANGE THIS TO SWITCH MAILING MODES ('production' or 'testing')
 # Note: Testing mode will ONLY send emails to mailpit, make sure to revert to prod. mode when done testing!!!
-MAILING_MODE = 'production'
+MAILING_MODE = os.environ.get('MAILING_MODE')
 
 if MAILING_MODE == 'production':
     app.config.from_object(ProductionEmailConfig)
