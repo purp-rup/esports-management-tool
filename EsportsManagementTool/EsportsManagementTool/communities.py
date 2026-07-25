@@ -1,9 +1,10 @@
-from EsportsManagementTool import app, login_required, roles_required, mysql, EST, season_roles, forum_db
+from EsportsManagementTool import app, login_required, roles_required, mysql, EST, season_roles, forum_db, forum_broadcast
 from EsportsManagementTool.universal_helpers import get_user_permissions, format_time_to_12hr, is_all_day_event, build_member_profile, attach_profile_extras
-from flask import request, render_template, redirect, url_for, session, flash, jsonify
+from flask import request, render_template, redirect, url_for, session, flash, jsonify, Response, stream_with_context
 from datetime import datetime, timedelta
 import MySQLdb.cursors
 import json
+import queue
 import cloudinary
 import cloudinary.uploader
 import time
@@ -1069,12 +1070,11 @@ def post_community_message(game_id):
 
             if not content:
                 return jsonify({'success': False, 'message': 'Message cannot be empty'}), 400
-            if len(content) > 2000:
+            if len(content) > 1000:
                 return jsonify({'success': False, 'message': 'Message is too long (2000 character limit)'}), 400
 
             is_profane = check_message_profanity(content)
 
-            # community_id/user_id from MySQL
             item = forum_db.create_message(
                 community_id=game_id, user_id=session['id'], content=content, is_profane=is_profane
             )
@@ -1095,7 +1095,7 @@ def post_community_message(game_id):
             )
             user = cursor.fetchone()
 
-            return jsonify({'success': True, 'message': {
+            message_payload = {
                 'message_id': item['message_id'],
                 'user_id': session['id'],
                 'username': user['username'],
@@ -1103,7 +1103,13 @@ def post_community_message(game_id):
                 'profile_picture': user['profile_picture'],
                 'content': content,
                 'created_at': datetime.fromtimestamp(item['created_at'], EST).isoformat()
-            }}), 200
+            }
+
+            attach_role_badges(cursor, [message_payload], game_id)
+
+            forum_broadcast.publish(game_id, 'message', message_payload, exclude_user_id=session['id'])
+
+            return jsonify({'success': True, 'message': message_payload}), 200
 
         except Exception as e:
             print(f"Error posting community message: {str(e)}")
@@ -1166,6 +1172,8 @@ def pin_community_message(game_id, message_id):
 
             pinned_message = get_pinned_message_data(cursor, game_id)
 
+            forum_broadcast.publish(game_id, 'pin', {'pinned_message': pinned_message})
+
             return jsonify({'success': True, 'pinned_message': pinned_message}), 200
 
         except Exception as e:
@@ -1208,6 +1216,8 @@ def unpin_community_message(game_id):
                 return jsonify({'success': False, 'message': 'No message is currently pinned'}), 400
 
             forum_db.clear_pinned_message(game_id)
+
+            forum_broadcast.publish(game_id, 'pin', {'pinned_message': None})
 
             return jsonify({'success': True, 'message': 'Message unpinned'}), 200
 
@@ -1256,9 +1266,12 @@ def delete_community_message(game_id, message_id):
             if not updated:
                 return jsonify({'success': False, 'message': 'Message not found'}), 404
 
+            forum_broadcast.publish(game_id, 'delete', {'message_id': message_id})
+
             existing_pin = forum_db.get_pinned_message_id(game_id)
             if existing_pin and existing_pin['pinned_message_id'] == message_id:
                 forum_db.clear_pinned_message(game_id)
+                forum_broadcast.publish(game_id, 'pin', {'pinned_message': None})
 
             return jsonify({'success': True, 'message': 'Message deleted'}), 200
 
@@ -1313,9 +1326,12 @@ def report_community_message(game_id, message_id):
             if not updated:
                 return jsonify({'success': False, 'message': 'Message not found'}), 404
 
+            forum_broadcast.publish(game_id, 'delete', {'message_id': message_id})
+
             existing_pin = forum_db.get_pinned_message_id(game_id)
             if existing_pin and existing_pin['pinned_message_id'] == message_id:
                 forum_db.clear_pinned_message(game_id)
+                forum_broadcast.publish(game_id, 'pin', {'pinned_message': None})
 
             return jsonify({'success': True, 'message': 'Message reported and removed'}), 200
 
@@ -1330,62 +1346,28 @@ def report_community_message(game_id, message_id):
         print(f"Error reporting community message: {str(e)}")
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
-@app.route('/api/game/<int:game_id>/messages/new', methods=['GET'])
+@app.route('/api/game/<int:game_id>/stream')
 @login_required
-def get_new_community_messages(game_id):
+def forum_stream(game_id):
     """
-    Returns new messages, who's typing, and any
-    messages that were deleted since the last check.
+    Persistent SSE connection. Pushes new messages, deletions, and pin
     """
-    after_id = request.args.get('after', default='', type=str)
-    deleted_after = request.args.get('deleted_after', default=0, type=int)
+    user_id = session['id']
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    try:
-        items = forum_db.get_new_messages(community_id=game_id, after_message_id=after_id)
-        deleted_ids = forum_db.get_recently_deleted(community_id=game_id, since_timestamp=deleted_after)
-        next_deleted_after = int(time.time())  # cursor for the client's next poll
+    def event_stream():
+        q = forum_broadcast.subscribe(game_id, user_id)
+        try:
+            yield ': connected\n\n'
+            while True:
+                try:
+                    event_type, data = q.get(timeout=15)
+                    yield f'event: {event_type}\ndata: {json.dumps(data)}\n\n'
+                except queue.Empty:
+                    yield ': keep-alive\n\n'
+        finally:
+            forum_broadcast.unsubscribe(game_id, user_id, q)
 
-        messages = []
-        if items:
-            user_ids = sorted({item['user_id'] for item in items})
-            placeholders = ','.join(['%s'] * len(user_ids))
-            cursor.execute(
-                f"SELECT id, username, firstname, lastname, profile_picture FROM users WHERE id IN ({placeholders})",
-                user_ids
-            )
-            users_by_id = {row['id']: row for row in cursor.fetchall()}
-
-            for item in items:
-                user = users_by_id.get(item['user_id'], {})
-                messages.append({
-                    'message_id': item['message_id'],
-                    'user_id': item['user_id'],
-                    'username': user.get('username', 'Unknown'),
-                    'full_name': f"{user.get('firstname', '')} {user.get('lastname', '')}".strip() or 'Unknown User',
-                    'profile_picture': user.get('profile_picture'),
-                    'content': item['content'],
-                    'created_at': datetime.fromtimestamp(item['created_at'], EST).isoformat()
-                })
-
-        attach_role_badges(cursor, messages, game_id)
-
-        pinned_message = get_pinned_message_data(cursor, game_id)
-
-        return jsonify({
-            'success': True,
-            'messages': messages,
-            'deleted_message_ids': deleted_ids,
-            'deleted_after': next_deleted_after,
-            'pinned_message': pinned_message
-        }), 200
-
-    except Exception as e:
-        print(f"Error fetching new community messages: {str(e)}")
-        return jsonify({'success': False, 'message': 'Failed to load new messages'}), 500
-
-    finally:
-        cursor.close()
+    return Response(stream_with_context(event_stream()), mimetype='text/event-stream')
 
 def check_message_profanity(content: str) -> bool:
     """

@@ -123,34 +123,6 @@ def report_message(community_id: int, message_id: str, reported_by: int) -> dict
     except _dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
         return None
 
-
-def get_new_messages(community_id: int, after_message_id: str, limit: int = 50):
-    """
-    Returns messages newer than after_message_id
-    """
-    query_kwargs = {
-        "KeyConditionExpression": Key("community_id").eq(community_id) & Key("message_id").gt(after_message_id),
-        "FilterExpression": Attr("is_deleted").ne(True),
-        "ScanIndexForward": True, 
-        "Limit": limit,
-    }
-    response = _table.query(**query_kwargs)
-    return [_clean(item) for item in response.get("Items", [])]
-
-
-def get_recently_deleted(community_id: int, since_timestamp: int, limit: int = 100):
-    """
-    Updates recently deleted messages with the live functionality
-    """
-    response = _table.query(
-        KeyConditionExpression=Key("community_id").eq(community_id),
-        FilterExpression=Attr("is_deleted").eq(True) & Attr("deleted_at").gt(since_timestamp),
-        Limit=limit,
-    )
-    items = [_clean(item) for item in response.get("Items", [])]
-    return [item["message_id"] for item in items]
-
-
 def get_profane_messages(limit: int = 500):
     """
     Returns all messages flagged as profane (is_profane = True), across every

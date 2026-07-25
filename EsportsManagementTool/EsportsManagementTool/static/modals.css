@@ -772,6 +772,8 @@
         left: 10px;
         max-width: none;
     }
+}
+
 @media (max-width: 768px) {
     .popup-event-item.mobile-sheet {
         position: fixed !important;

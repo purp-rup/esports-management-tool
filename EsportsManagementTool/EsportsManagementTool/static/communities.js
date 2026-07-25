@@ -15,14 +15,10 @@ let currentGameIdForGM = null;
 let forumMessages        = [];
 let forumHasMoreOlder    = false;
 let forumIsLoadingOlder  = false;
-let forumLastMessageId = '';          
-let forumDeletedAfter = Math.floor(Date.now() / 1000);
-let forumPollTimer = null;
-let forumIsPolling = false;
+let forumEventSource     = null;
 let forumSendCooldownActive = false;
 let forumPinnedMessage = null;
 const FORUM_SEND_COOLDOWN_MS = 2000; // min time between sent messages
-const FORUM_POLL_INTERVAL_MS = 2000;
 const FORUM_GROUP_GAP_MS = 5 * 60 * 1000; // messages within 5 min of the same user group together
 
 // Initialize photo carousel elements
@@ -188,7 +184,7 @@ async function initForum() {
     if (!gameId || !body) return;
 
     await loadForumMessages(gameId);
-    startForumPoll(gameId);
+    startForumStream(gameId);
 
     body.addEventListener('scroll', () => {
         if (body.scrollTop === 0 && forumHasMoreOlder && !forumIsLoadingOlder) {
@@ -198,7 +194,7 @@ async function initForum() {
 
     const input = document.getElementById('forumMessageInput');
     if (input) {
-        attachCharacterCounter('forumMessageInput', 250);
+        attachCharacterCounter('forumMessageInput', 1000);
 
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -210,7 +206,6 @@ async function initForum() {
         input.addEventListener('input', () => {
             input.style.height = 'auto';
             input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-
         });
     }
 }
@@ -230,10 +225,6 @@ async function loadForumMessages(gameId) {
         forumMessages = data.messages;
         forumHasMoreOlder = data.has_more;
         forumPinnedMessage = data.pinned_message || null;
-
-        if (forumMessages.length) {
-            forumLastMessageId = forumMessages[forumMessages.length - 1].message_id;
-        }
 
         renderForumMessages();
         renderPinnedBanner();
@@ -448,14 +439,12 @@ async function sendForumMessage() {
             if (!forumMessages.some(m => m.message_id === data.message.message_id)) {
                 forumMessages.push(data.message);
             }
-            forumLastMessageId = data.message.message_id;
             renderForumMessages();
             scrollForumToBottom();
 
             input.value = '';
             input.style.height = 'auto';
             input.dispatchEvent(new Event('input'));
-
 
             const empty = document.getElementById('forumEmpty');
             if (empty) empty.style.display = 'none';
@@ -677,9 +666,42 @@ async function executeUnpinForumMessage() {
     }
 }
 
-function startForumPoll(gameId) {
-    if (forumPollTimer) clearInterval(forumPollTimer);
-    forumPollTimer = setInterval(() => pollForumUpdates(gameId), FORUM_POLL_INTERVAL_MS);
+function startForumStream(gameId) {
+    if (forumEventSource) forumEventSource.close();
+    forumEventSource = new EventSource(`/api/game/${gameId}/stream`);
+
+    forumEventSource.addEventListener('message', (e) => {
+        const msg = JSON.parse(e.data);
+        if (forumMessages.some(m => m.message_id === msg.message_id)) return;
+
+        const wasAtBottom = isForumScrolledToBottom();
+        const empty = document.getElementById('forumEmpty');
+
+        forumMessages.push(msg);
+        renderForumMessages();
+        if (empty) empty.style.display = 'none';
+        if (wasAtBottom) scrollForumToBottom();
+    });
+
+    forumEventSource.addEventListener('delete', (e) => {
+        const { message_id } = JSON.parse(e.data);
+        forumMessages = forumMessages.filter(m => m.message_id !== message_id);
+        renderForumMessages();
+
+        const empty = document.getElementById('forumEmpty');
+        if (empty) empty.style.display = forumMessages.length === 0 ? 'flex' : 'none';
+    });
+
+    forumEventSource.addEventListener('pin', (e) => {
+        const { pinned_message } = JSON.parse(e.data);
+        forumPinnedMessage = pinned_message;
+        renderPinnedBanner();
+        renderForumMessages();
+    });
+
+    forumEventSource.onerror = () => {
+        console.warn('Forum stream disconnected, browser will retry automatically');
+    };
 }
 
 function isForumScrolledToBottom() {
