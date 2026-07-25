@@ -182,6 +182,46 @@ async function executeDeleteConfirm() {
     }
 }
 
+
+// ============================================
+// WARNING POPUP MODAL
+// ============================================
+
+/**
+ * Open the warning popup modal
+ * Title is always "Warning" - only the message body is customizable
+ *
+ * @param {string} message - The warning text to display
+ *
+ * @example
+ * openWarningPopup('Your message was not sent because it contains inappropriate language.');
+ */
+function openWarningPopup(message) {
+    const modal = document.getElementById('warningPopupModal');
+    const messageElement = document.getElementById('warningPopupMessage');
+
+    if (!modal || !messageElement) {
+        console.error('Warning popup modal elements not found');
+        return;
+    }
+
+    messageElement.textContent = message;
+
+    modal.classList.add('active');
+    lockBodyScroll('warningPopupModal');
+}
+
+function closeWarningPopup() {
+    const modal = document.getElementById('warningPopupModal');
+    if (!modal) return;
+
+    modal.classList.remove('active');
+    unlockBodyScroll('warningPopupModal');
+}
+
+window.openWarningPopup = openWarningPopup;
+window.closeWarningPopup = closeWarningPopup;
+
 // ============================================
 // NOTIFICATION QUEUE SYSTEM
 // ============================================
