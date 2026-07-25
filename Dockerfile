@@ -25,8 +25,6 @@ EXPOSE 5000
 
 # Set the run variables
 ENV FLASK_APP=EsportsManagementTool
-ENV FLASK_DEBUG=1
-ENV FLASK_RUN_HOST=0.0.0.0
 
 # Command to run the application
-CMD ["flask", "run"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "EsportsManagementTool:app"]
