@@ -30,7 +30,8 @@ app = Flask(__name__)
 # CONFIGURATION
 # =========================================
 # Security: Change this to a strong random key in production
-app.secret_key = 'your secret key'
+# Set FLASK_SECRET_KEY to a strong random value in production.
+app.secret_key = os.environ.get('FLASK_SECRET_KEY')
 
 # Database Configuration (loaded from environment variables)
 app.config['MYSQL_HOST'] = os.environ.get('MYSQL_HOST')
@@ -48,9 +49,9 @@ app.config['MYSQL_CUSTOM_OPTIONS'] = {
 
 # Email Configuration (Brevo SMTP)
 class ProductionEmailConfig:
-    MAIL_SERVER = 'smtp-relay.brevo.com'
-    MAIL_PORT = 587
-    MAIL_USE_TLS = True
+    MAIL_SERVER = os.environ.get('MAIL_SERVER')
+    MAIL_PORT = os.environ.get('MAIL_PORT')
+    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS')
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER')
@@ -66,7 +67,7 @@ class TestingEmailConfig:
 
 # CHANGE THIS TO SWITCH MAILING MODES ('production' or 'testing')
 # Note: Testing mode will ONLY send emails to mailpit, make sure to revert to prod. mode when done testing!!!
-MAILING_MODE = 'production'
+MAILING_MODE = os.environ.get('MAILING_MODE')
 
 if MAILING_MODE == 'production':
     app.config.from_object(ProductionEmailConfig)
