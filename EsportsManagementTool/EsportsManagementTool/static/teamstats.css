@@ -347,6 +347,36 @@
     color: var(--text-primary);
 }
 
+.score-input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+}
+
+.score-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.score-input-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.score-input-group input {
+    width: 90px;
+    text-align: center;
+}
+
+.score-input-sep {
+    padding-bottom: 0.6rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
 /* ============================================
    RESPONSIVE DESIGN
    ============================================ */

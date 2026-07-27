@@ -47,6 +47,25 @@ main {
     font-size: 0.875rem;
 }
 
+/* Nav bar on distinct pages (communities/admin stats) */
+.nav-bar {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.nav-bar a {
+    color: var(--stockton-blue);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.nav-bar a:hover { color: #5aabdd; }
+
+.nav-bar-sep { color: var(--border-color); }
+
 /* =======================================
    CONTENT CARDS
    Primary content container styling

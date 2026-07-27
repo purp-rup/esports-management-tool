@@ -1,5 +1,4 @@
 /**
- * teamstats.js
  * ============================================================================
  * TEAM STATISTICS MANAGEMENT
  * ORGANIZED BY CLAUDEAI
@@ -327,7 +326,9 @@ function renderMatchHistory() {
         const resultIcon = match.result === 'win' ? 'fa-trophy' :
                           match.result === 'loss' ? 'fa-times-circle' :
                           'fa-clock';
-        const resultText = match.result ? match.result.toUpperCase() : 'PENDING';
+        const resultText = match.result
+            ? `${match.result.toUpperCase()}${match.score_display ? ` ${match.score_display}` : ''}`
+            : 'PENDING';
         const playoffsBadge = match.is_playoffs ? `
             <span class="match-playoffs-badge" title="Playoffs match">
                 <i class="fas fa-star"></i> Playoffs
@@ -560,13 +561,18 @@ async function submitMatchResult(event) {
     // ========================================
     // COLLECT FORM DATA
     // ========================================
+    const teamScoreRaw = document.getElementById('matchTeamScore').value.trim();
+    const opponentScoreRaw = document.getElementById('matchOpponentScore').value.trim();
+
     const formData = {
         team_id: currentStatsTeamId,
         event_id: document.getElementById('matchEventSelect').value,
         result: document.querySelector('input[name="matchResult"]:checked')?.value,
         notes: document.getElementById('matchNotes').value,
         is_playoffs: document.getElementById('matchPlayoffs').checked,
-        opponent_school: document.getElementById('matchOpponentSchool').value.trim()
+        opponent_school: document.getElementById('matchOpponentSchool').value.trim(),
+        team_score: teamScoreRaw === '' ? null : teamScoreRaw,
+        opponent_score: opponentScoreRaw === '' ? null : opponentScoreRaw
     };
 
     // ========================================
@@ -580,6 +586,12 @@ async function submitMatchResult(event) {
 
     if (!formData.result) {
         showMessage(messageDiv, 'Please select a result (Win or Loss)', 'error');
+        resetSubmitButton(submitBtn, btnText, btnSpinner);
+        return;
+    }
+
+    if ((formData.team_score === null) !== (formData.opponent_score === null)) {
+        showMessage(messageDiv, 'Please enter both scores, or leave both blank', 'error');
         resetSubmitButton(submitBtn, btnText, btnSpinner);
         return;
     }
@@ -705,6 +717,12 @@ async function editMatchResult(eventId) {
         opponentSchoolField.value = match.opponent_school || '';
     }
 
+    // Set score fields if they exist
+    const teamScoreField = document.getElementById('matchTeamScore');
+    const opponentScoreField = document.getElementById('matchOpponentScore');
+    if (teamScoreField) teamScoreField.value = match.team_score ?? '';
+    if (opponentScoreField) opponentScoreField.value = match.opponent_score ?? '';
+
     // Set playoffs checkbox if applicable
     const playoffsCheckbox = document.getElementById('matchPlayoffs');
     if (playoffsCheckbox) {
@@ -803,7 +821,7 @@ async function openMatchDetailsModal(eventId) {
             resultHTML = `
                 <span class="match-detail-result ${resultClass}">
                     <i class="fas ${resultIcon}"></i>
-                    ${match.result.toUpperCase()}
+                    ${match.result.toUpperCase()}${match.score_display ? `&nbsp;&nbsp;${match.score_display}` : ''}
                 </span>
             `;
         }

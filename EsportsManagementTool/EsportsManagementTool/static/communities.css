@@ -115,24 +115,6 @@
     min-width: 0;   
 }
 
-.nav-bar {
-    display: flex;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin-bottom: 1rem;
-}
-
-.nav-bar a {
-    color: var(--stockton-blue);
-    text-decoration: none;
-    transition: color 0.2s;
-}
-
-.nav-bar a:hover { color: #5aabdd; }
-
-.nav-bar-sep { color: var(--border-color); }
-
 /* -- Description Card -- */
 .community-description-card {
     background: var(--card-bg);
@@ -539,7 +521,7 @@
     transition: opacity 0.15s;
     color: var(--text-secondary);
     background: rgba(0, 0, 0, 0.25);
-    border: 1px solid var(--border-color);
+    border: 1px solid rgba(172, 219, 241, 0.4);
     border-radius: 2px;
     padding: 0.2rem 0.3rem;
 }
@@ -571,6 +553,7 @@
 .forum-message-block:hover .forum-message-report,
 .forum-message-continuation:hover .forum-message-report {
     opacity: 1;
+    cursor: pointer;
 }
 
 .forum-message-block.is-pinned-message,

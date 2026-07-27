@@ -105,6 +105,8 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                             mr.opponent_school,
                             mr.recorded_at,
                             mr.is_playoffs,
+                            mr.team_score,
+                            mr.opponent_score,
                             u.firstname,
                             u.lastname
                         FROM generalevents ge
@@ -123,7 +125,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                     """, (team_id, team_id, game_id, league_id))
                 else:
                     cursor.execute("""
-                        SELECT 
+                        SELECT  
                             ge.EventID as event_id,
                             ge.EventName as name,
                             ge.Date as date,
@@ -136,6 +138,8 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                             mr.opponent_school,
                             mr.recorded_at,
                             mr.is_playoffs,
+                            mr.team_score,
+                            mr.opponent_score,
                             u.firstname,
                             u.lastname
                         FROM generalevents ge
@@ -154,6 +158,10 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
 
                 match_events = []
                 for match in cursor.fetchall():
+                    team_score = match['team_score']
+                    opponent_score = match['opponent_score']
+                    score_display = f"{team_score}-{opponent_score}" if team_score is not None and opponent_score is not None else None
+
                     match_events.append({
                         'event_id': match['event_id'],
                         'name': match['name'],
@@ -165,6 +173,9 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                         'result': match['result'],
                         'notes': match['notes'],
                         'opponent_school': match['opponent_school'],
+                        'team_score': team_score,
+                        'opponent_score': opponent_score,
+                        'score_display': score_display,  # e.g. "2-3", or None if only W/L was recorded
                         'recorded_at': match['recorded_at'].strftime('%Y-%m-%d %H:%M:%S') if match['recorded_at'] else None,
                         'recorded_by': f"{match['firstname']} {match['lastname']}" if match['firstname'] else None,
                         'is_playoffs': bool(match['is_playoffs']) if match['is_playoffs'] is not None else False
@@ -300,6 +311,28 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                     'message': 'Invalid result. Must be "win" or "loss"'
                 }), 400
 
+            # Scores are optional — GMs can record a plain W/L without a score
+            team_score = data.get('team_score')
+            opponent_score = data.get('opponent_score')
+
+            for label, value in (('team_score', team_score), ('opponent_score', opponent_score)):
+                if value is not None:
+                    try:
+                        value = int(value)
+                    except (TypeError, ValueError):
+                        return jsonify({
+                            'success': False,
+                            'message': f'{label} must be a whole number'
+                        }), 400
+                    if value < 0:
+                        return jsonify({
+                            'success': False,
+                            'message': f'{label} cannot be negative'
+                        }), 400
+
+            team_score = int(team_score) if team_score is not None else None
+            opponent_score = int(opponent_score) if opponent_score is not None else None
+
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             try:
@@ -412,14 +445,16 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                 # Insert or update match result
                 cursor.execute("""
                     INSERT INTO match_results 
-                    (event_id, team_id, result, recorded_by, notes, is_playoffs, opponent_school)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    (event_id, team_id, result, recorded_by, notes, is_playoffs, opponent_school, team_score, opponent_score)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE
                         result = VALUES(result),
                         recorded_by = VALUES(recorded_by),
                         notes = VALUES(notes),
                         is_playoffs = VALUES(is_playoffs),
                         opponent_school = VALUES(opponent_school),
+                        team_score = VALUES(team_score),
+                        opponent_score = VALUES(opponent_score),
                         recorded_at = CURRENT_TIMESTAMP
                 """, (
                     data['event_id'],
@@ -428,7 +463,9 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                     user_id,
                     data.get('notes', ''),
                     data.get('is_playoffs', False),
-                    data.get('opponent_school', '') or ''
+                    data.get('opponent_school', '') or '',
+                    team_score,
+                    opponent_score
                 ))
 
                 mysql.connection.commit()

@@ -1963,6 +1963,25 @@
                         </label>
                     </div>
                 </div>
+
+                <!-- Final Score -->
+                <div class="form-group">
+                    <label>Final Score (Optional)</label>
+                    <div class="score-input-row">
+                        <div class="score-input-group">
+                            <label for="matchTeamScore" class="score-input-label">Your Team</label>
+                            <input type="number" id="matchTeamScore" name="team_score" min="0" step="1" placeholder="0">
+                        </div>
+                        <span class="score-input-sep">&ndash;</span>
+                        <div class="score-input-group">
+                            <label for="matchOpponentScore" class="score-input-label">Opponent</label>
+                            <input type="number" id="matchOpponentScore" name="opponent_score" min="0" step="1" placeholder="0">
+                        </div>
+                    </div>
+                    <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                        Leave both blank to record only a Win/Loss without a specific score.
+                    </small>
+                </div>
                 
                 <!-- Playoffs Checkbox -->
                 <div class="form-group" style="margin-top: 1rem;">
