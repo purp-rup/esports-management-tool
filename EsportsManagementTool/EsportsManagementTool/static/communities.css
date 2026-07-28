@@ -723,10 +723,6 @@
     color: var(--border-color);
 }
 
-/* Community Discord box */
-.community-discord-box {
-    display: flex;
-    flex-direction: column;
 /* ── Slides ── */
 .carousel-track {
     width: 100%;
@@ -928,15 +924,12 @@
 
 .photo-manager-delete-btn:hover { background: rgba(180, 0, 0, 0.8); }
 
-/* -- League Badges -- */
-.game-league-badge {
-    display: inline-flex;
+/* Community Discord box */
+.community-discord-box {
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.25rem;
-    text-decoration: none;
-    color: var(--text-primary);
-    transition: all 0.2s;
 }
 
 .community-discord-box:hover {
@@ -967,6 +960,10 @@
 }
 
 /* -- Next Scheduled Event Card -- */
+.game-next-event-container {
+    margin-top: 1rem;
+}
+
 .game-next-event-card {
     background: var(--dark-bg);
     border: 2px solid var(--border-color);

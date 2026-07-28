@@ -140,6 +140,17 @@
     width: 90%;
 }
 
+#manageStreamsModal label.required-field::after {
+    content: ' *';
+    color: #ef4444;
+}
+
+#manageStreamsModal input[type="date"]::-webkit-calendar-picker-indicator,
+#manageStreamsModal input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
 .add-stream-panel {
     background: var(--background-secondary);
     border: 1px solid var(--border-color);
