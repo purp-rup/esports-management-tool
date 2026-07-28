@@ -879,11 +879,11 @@
                             </div>
 
                             <div class="form-group all-day-field" style="margin: 0;">
-                                <label class="all-day-toggle-wrapper" title="Set event to run from 12:00 AM to 11:59 PM">
+                                <label class="all-day-toggle-wrapper toggle-switch-wrapper" title="Set event to run from 12:00 AM to 11:59 PM">
                                     <input type="checkbox" id="allDayEvent" name="allDayEvent"
-                                           class="all-day-checkbox" onchange="toggleAllDayEvent()">
-                                    <span class="all-day-switch"></span>
-                                    <span class="all-day-toggle-label">All Day</span>
+                                           class="toggle-switch-checkbox" onchange="toggleAllDayEvent()">
+                                    <span class="toggle-switch-slider"></span>
+                                    <span class="toggle-switch-label">All Day</span>
                                 </label>
                             </div>
                         </div>
@@ -1063,7 +1063,7 @@
                             <i class="fas fa-calendar-alt"></i> Schedule
                         </button>
                         <button class="team-tab" data-team-tab="stats">
-                            <i class="fas fa-chart-bar"></i> Stats
+                            <i class="fas fa-chart-bar"></i> Match Results
                         </button>
                         <button class="team-tab" data-team-tab="vods">
                             <i class="fas fa-video"></i> VODs
@@ -1916,100 +1916,86 @@
             </button>
         </div>
         <div class="modal-body">
-            <p class="modal-subtitle">Record the outcome of a past match</p>
+            <p class="modal-subtitle">Record the outcome of a match</p>
             <form id="recordMatchResultForm" class="event-form-modal" onsubmit="submitMatchResult(event)">
-                <!-- Match Selection -->
-                <div class="form-group">
-                    <label for="matchEventSelect">Select Match *</label>
-                    <select id="matchEventSelect" name="event_id" required>
-                        <option value="">Loading matches...</option>
-                    </select>
-                    <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                        Only past matches are shown. Future matches cannot have results recorded yet.
-                    </small>
-                </div>
-                
-                <!-- Opponent School -->
-                <div class="form-group">
-                    <label for="matchOpponentSchool">Opponent School (Optional)</label>
-                    <input type="text"
-                           id="matchOpponentSchool"
-                           name="opponent_school"
-                           placeholder="e.g., University of the Pacific"
-                           maxlength="150">
-                    <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                        Enter the name of the opposing school or team
-                    </small>
-                </div>
-
-                <!-- Result Selection -->
-                <div class="form-group">
-                    <label>Match Result *</label>
-                    <div class="result-options">
-                        <label class="result-option result-option-win" data-result="win" onclick="handleResultSelection('win')">
-                            <input type="radio" name="matchResult" value="win" required>
-                            <div class="result-option-icon">
-                                <i class="fas fa-trophy"></i>
+                <!-- Match Selection + Opponent School -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="matchEventTagBox" class="required-field">Select Match</label>
+                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                            Only past matches are shown.
+                        </small>
+                        <div class="filter-box tag-select-box" id="matchEventTagBox">
+                            <div class="tag-select-trigger" onclick="toggleFilterBox('matchEventOptionsPanel')">
+                                <div id="matchEventSelectDisplay" class="combo-select-display">
+                                    <span class="combo-placeholder">Loading matches...</span>
+                                </div>
+                                <i class="fas fa-chevron-down tag-select-arrow"></i>
                             </div>
-                            <span class="result-option-label">WIN</span>
-                        </label>
-
-                        <label class="result-option result-option-loss" data-result="loss" onclick="handleResultSelection('loss')">
-                            <input type="radio" name="matchResult" value="loss" required>
-                            <div class="result-option-icon">
-                                <i class="fas fa-times-circle"></i>
+                            <div class="filter-box-panel tag-select-panel" id="matchEventOptionsPanel">
+                                <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
                             </div>
-                            <span class="result-option-label">LOSS</span>
-                        </label>
+                        </div>
+                        <input type="hidden" id="matchEventSelect" name="event_id">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="matchOpponentSchool" class="required-field">Opponent's School</label>
+                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                            Enter the opposing school or team
+                        </small>
+                        <input type="text"
+                               id="matchOpponentSchool"
+                               name="opponent_school"
+                               placeholder="e.g., University of the Pacific"
+                               maxlength="150"
+                               required>
                     </div>
                 </div>
 
-                <!-- Final Score -->
+                <!-- Match Results (Win/Loss + Score, combined) -->
                 <div class="form-group">
-                    <label>Final Score (Optional)</label>
-                    <div class="score-input-row">
-                        <div class="score-input-group">
-                            <label for="matchTeamScore" class="score-input-label">Your Team</label>
-                            <input type="number" id="matchTeamScore" name="team_score" min="0" step="1" placeholder="0">
-                        </div>
-                        <span class="score-input-sep">&ndash;</span>
-                        <div class="score-input-group">
-                            <label for="matchOpponentScore" class="score-input-label">Opponent</label>
-                            <input type="number" id="matchOpponentScore" name="opponent_score" min="0" step="1" placeholder="0">
-                        </div>
-                    </div>
-                    <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                        Leave both blank to record only a Win/Loss without a specific score.
+                    <label class="required-field">Match Results</label>
+                    <small style="color: var(--text-secondary); font-size: 0.8125rem; display: block;">
+                        Score is optional but much appreciated!
                     </small>
-                </div>
-                
-                <!-- Playoffs Checkbox -->
-                <div class="form-group" style="margin-top: 1rem;">
-                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
-                        <input type="checkbox"
-                            id="matchPlayoffs"
-                            name="is_playoffs"
-                            value="true"
-                            style="width: 1.1rem; height: 1.1rem; accent-color: var(--stockton-blue); cursor: pointer;">
-                        <span>
-                            <strong>Playoffs Match</strong>
-                            <small style="display: block; color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.15rem;">
-                                Check if this match was part of a playoff series
-                            </small>
-                        </span>
-                    </label>
-                </div>
+                    <div class="match-result-row">
+                        <div class="result-options-column">
+                            <div class="result-options result-options-compact">
+                                <label class="result-option result-option-win" data-result="win" onclick="handleResultSelection('win')">
+                                    <input type="radio" name="matchResult" value="win" required>
+                                    <div class="result-option-icon">
+                                        <i class="fas fa-trophy"></i>
+                                    </div>
+                                    <span class="result-option-label">WIN</span>
+                                </label>
 
-                <!-- Optional Notes -->
-                <div class="form-group">
-                    <label for="matchNotes">Notes (Optional)</label>
-                    <textarea id="matchNotes" 
-                              name="notes" 
-                              rows="3" 
-                              placeholder="Add any additional notes about the match..."></textarea>
-                    <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                        e.g., "Close game, went to overtime" or "Dominant performance"
-                    </small>
+                                <label class="result-option result-option-loss" data-result="loss" onclick="handleResultSelection('loss')">
+                                    <input type="radio" name="matchResult" value="loss" required>
+                                    <div class="result-option-icon">
+                                        <i class="fas fa-times-circle"></i>
+                                    </div>
+                                    <span class="result-option-label">LOSS</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="score-input-row">
+                            <div class="score-input-group">
+                                <input type="number" id="matchTeamScore" name="team_score" min="0" step="1" placeholder="" oninput="handleScoreInput()">
+                            </div>
+                            <span class="score-input-sep">&ndash;</span>
+                            <div class="score-input-group">
+                                <input type="number" id="matchOpponentScore" name="opponent_score" min="0" step="1" placeholder="" oninput="handleScoreInput()">
+                            </div>
+                        </div>
+
+                        <label class="toggle-switch-wrapper match-playoffs-toggle" title="Check if this match was part of a playoff series">
+                            <input type="checkbox" id="matchPlayoffs" name="is_playoffs" value="true" class="toggle-switch-checkbox">
+                            <span class="toggle-switch-slider"></span>
+                            <span class="toggle-switch-label">Playoff match?</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div id="recordResultMessage" class="form-message" style="display: none;"></div>
@@ -2024,36 +2010,6 @@
                     </button>
                 </div>
             </form>
-        </div>
-    </div>
-</div>
-
-<!-- Match Details Modal -->
-<div id="matchDetailsModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="matchDetailsTitle">Match Details</h2>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                <button id="editMatchDetailsBtn"
-                        class="btn-icon-action btn-icon-edit"
-                        style="display: none;"
-                        title="Edit Result">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="modal-close" onclick="closeMatchDetailsModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        </div>
-        <div class="modal-body">
-            <div id="matchDetailsLoading" class="loading-spinner" style="text-align: center; padding: 2rem;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--stockton-blue);"></i>
-                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading match details...</p>
-            </div>
-
-            <div id="matchDetailsContent" style="display: none;">
-                <!-- Match details will be populated here -->
-            </div>
         </div>
     </div>
 </div>

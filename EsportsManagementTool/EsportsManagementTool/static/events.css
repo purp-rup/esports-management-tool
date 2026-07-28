@@ -772,52 +772,7 @@ select[multiple]:focus {
 }
 
 .all-day-toggle-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    user-select: none;
     margin-top: 2rem;
-}
-
-.all-day-checkbox {
-    display: none;
-}
-
-.all-day-switch {
-    position: relative;
-    width: 34px;
-    height: 19px;
-    background: var(--dark-bg);
-    border-radius: 999px;
-    transition: background 0.2s;
-    flex-shrink: 0;
-}
-
-.all-day-switch::before {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 15px;
-    height: 15px;
-    background: white;
-    border-radius: 50%;
-    transition: transform 0.2s;
-}
-
-.all-day-checkbox:checked + .all-day-switch {
-    background: var(--stockton-blue);
-}
-
-.all-day-checkbox:checked + .all-day-switch::before {
-    transform: translateX(15px);
-}
-
-.all-day-toggle-label {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    white-space: nowrap;
 }
 
 /* ===============================

@@ -77,7 +77,7 @@ function showPlayoffsBanner(pendingCount, daysUntilEnd, seasonName) {
                 </div>
             </div>
             <div class="playoffs-banner-actions">
-                <button class="playoffs-banner-btn" onclick="openRecordResultsModal()">
+                <button class="playoffs-banner-btn" onclick="openPlayoffsResultsModal()">
                     <i class="fas fa-clipboard-check"></i>
                     Record Results Now
                 </button>
@@ -131,7 +131,7 @@ document.head.appendChild(style);
 /**
  * Open modal to record playoffs results
  */
-function openRecordResultsModal() {
+function openPlayoffsResultsModal() {
     // Load pending teams
     fetch('/api/playoffs-results/pending-teams')
         .then(response => response.json())
@@ -143,7 +143,7 @@ function openRecordResultsModal() {
                     return;
                 }
                 
-                displayRecordResultsModal(data.teams, data.season, data.placement_options);
+                displayPlayoffsResultsModal(data.teams, data.season, data.placement_options);
             } else {
                 showMessage('error', 'Failed to load pending teams');
             }
@@ -157,7 +157,7 @@ function openRecordResultsModal() {
 /**
  * Display the record results modal with pending teams
  */
-function displayRecordResultsModal(teams, season, placementOptions) {
+function displayPlayoffsResultsModal(teams, season, placementOptions) {
     // Group teams by game
     const teamsByGame = {};
     teams.forEach(team => {
@@ -243,7 +243,7 @@ function displayRecordResultsModal(teams, season, placementOptions) {
     // Create modal
     const modal = document.createElement('div');
     modal.className = 'modal';
-    modal.id = 'recordResultsModal';
+    modal.id = 'playoffsResultsModal';
     modal.style.display = 'flex';
     
     const modalContent = document.createElement('div');
@@ -253,7 +253,7 @@ function displayRecordResultsModal(teams, season, placementOptions) {
     const modalHeader = document.createElement('div');
     modalHeader.className = 'modal-header';
     modalHeader.innerHTML = '<h2>Record Playoffs Results - ' + season.season_name + '</h2>' +
-        '<button class="modal-close" onclick="closeRecordResultsModal()">' +
+        '<button class="modal-close" onclick="closePlayoffsResultsModal()">' +
         '<i class="fas fa-times"></i></button>';
     
     // Modal body
@@ -287,7 +287,7 @@ function displayRecordResultsModal(teams, season, placementOptions) {
     // Modal footer
     const modalFooter = document.createElement('div');
     modalFooter.className = 'modal-footer';
-    modalFooter.innerHTML = '<button class="btn btn-secondary" onclick="closeRecordResultsModal()">Close</button>';
+    modalFooter.innerHTML = '<button class="btn btn-secondary" onclick="closePlayoffsResultsModal()">Close</button>';
     
     modalContent.appendChild(modalHeader);
     modalContent.appendChild(modalBody);
@@ -364,7 +364,7 @@ function recordSingleResult(teamId, leagueId, seasonId) {
                     if (remainingTeams.length === 0) {
                         showModalMessage('success', 'All results recorded! Closing modal...');
                         setTimeout(() => {
-                            closeRecordResultsModal();
+                            closePlayoffsResultsModal();
                             dismissPlayoffsBanner();
                             showMessage('success', 'All playoffs results have been recorded successfully!');
                         }, 1500);
@@ -393,8 +393,8 @@ function recordSingleResult(teamId, leagueId, seasonId) {
 /**
  * Close record results modal
  */
-function closeRecordResultsModal() {
-    const modal = document.getElementById('recordResultsModal');
+function closePlayoffsResultsModal() {
+    const modal = document.getElementById('playoffsResultsModal');
     if (modal) {
         modal.remove();
     }
@@ -452,7 +452,7 @@ document.head.appendChild(fadeStyle);
 // EXPORT FUNCTIONS TO GLOBAL SCOPE
 // ============================================
 window.checkPendingResults = checkPendingResults;
-window.openRecordResultsModal = openRecordResultsModal;
-window.closeRecordResultsModal = closeRecordResultsModal;
+window.openPlayoffsResultsModal = openPlayoffsResultsModal;
+window.closePlayoffsResultsModal = closePlayoffsResultsModal;
 window.recordSingleResult = recordSingleResult;
 window.dismissPlayoffsBanner = dismissPlayoffsBanner;
