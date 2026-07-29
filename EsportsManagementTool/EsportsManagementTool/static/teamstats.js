@@ -1,5 +1,4 @@
 /**
- * teamstats.js
  * ============================================================================
  * TEAM STATISTICS MANAGEMENT
  * ORGANIZED BY CLAUDEAI
@@ -62,13 +61,6 @@ let currentLeagueFilter = null;
  * @type {Array}
  */
 let availableLeagues = [];
-
-/**
- * Event ID to re-open in matchDetailsModal after editing from that modal.
- * Set when the edit button inside matchDetailsModal is clicked; cleared after use.
- * @type {number|null}
- */
-let pendingDetailsReopenEventId = null;
 
 // ============================================
 // STATS TAB LOADING
@@ -144,10 +136,7 @@ async function loadStatsTab(teamId, gameId, leagueId = null) {
 // STATS RENDERING WITH LEAGUE FILTER
 // ============================================
 
-/**
- * Render the complete stats content with league filter dropdown
- * Displays summary cards and match history
- */
+// Calculate stats in the background and display filter
 async function renderStatsContent() {
     const statsPanel = document.getElementById('statsTabContent');
 
@@ -172,98 +161,58 @@ async function renderStatsContent() {
         console.error('Error checking record permissions:', e);
     }
 
-    // Build league filter dropdown
-    let leagueFilterHTML = '';
+    // Build league filter using the universal filter-box system
+    let leagueFilterBoxHTML = '';
     if (availableLeagues && availableLeagues.length > 0) {
-        leagueFilterHTML = `
-            <div class="stats-league-filter">
-                <label for="statsLeagueFilter">
-                    <i class="fas fa-trophy"></i> Filter by League:
-                </label>
-                <select id="statsLeagueFilter" onchange="handleLeagueFilterChange()">
-                    <option value="">All Leagues</option>
-                    ${availableLeagues.map(league => `
-                        <option value="${league.id}" ${currentLeagueFilter === league.id ? 'selected' : ''}>
-                            ${league.name}
-                        </option>
-                    `).join('')}
-                </select>
+        const selectedLeague = availableLeagues.find(l => l.id === currentLeagueFilter);
+        const currentLabel = selectedLeague ? selectedLeague.name : 'All Leagues';
+
+        leagueFilterBoxHTML = `
+            <div class="filter-box" id="statsLeagueFilterBox">
+                <button class="filter-box-btn" id="statsLeagueFilterBtn" onclick="toggleFilterBox('statsLeagueFilterPanel')">
+                    <span id="statsLeagueFilterLabel">${currentLabel}</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="filter-box-panel" id="statsLeagueFilterPanel">
+                    ${currentLeagueFilter !== null ? `
+                        <div class="filter-box-item" onclick="applyStatsLeagueFilter(null, 'All Leagues')">All Leagues</div>
+                    ` : ''}
+                    ${availableLeagues
+                        .filter(league => league.id !== currentLeagueFilter)
+                        .map(league => `
+                            <div class="filter-box-item" onclick="applyStatsLeagueFilter(${league.id}, '${league.name.replace(/'/g, "\\'")}')">
+                                ${league.name}
+                            </div>
+                        `).join('')}
+                </div>
             </div>
         `;
     }
 
     // Build playoffs results button for GMs and admins
     const playoffsBtnHTML = canRecordResults ? `
-        <button class="btn btn-primary btn-sm" 
-                onclick="openRecordResultsModal()" 
-                title="Record team results for your teams"
+        <button class="btn btn-primary btn-sm"
+                onclick="openPlayoffsResultsModal()"
+                title="Record playoff results for your teams"
                 style="display: flex; align-items: center; gap: 0.4rem;">
             <i class="fas fa-trophy"></i>
-            Record Team Results
+            <span class="playoffs-btn-record-word">Record </span>Playoff Results
         </button>
     ` : '';
 
     // Build stats UI
     statsPanel.innerHTML = `
         <div class="stats-container">
-            <!-- League Filter Dropdown -->
-            ${leagueFilterHTML}
-
-            <!-- Stats Summary Cards -->
-            <div class="stats-summary-grid">
-                <!-- Wins Card -->
-                <div class="stat-card stat-card-wins">
-                    <div class="stat-card-icon">
-                        <i class="fas fa-trophy"></i>
-                    </div>
-                    <div class="stat-card-content">
-                        <div class="stat-card-value">${wins}</div>
-                        <div class="stat-card-label">Wins</div>
-                    </div>
-                </div>
-
-                <!-- Losses Card -->
-                <div class="stat-card stat-card-losses">
-                    <div class="stat-card-icon">
-                        <i class="fas fa-times-circle"></i>
-                    </div>
-                    <div class="stat-card-content">
-                        <div class="stat-card-value">${losses}</div>
-                        <div class="stat-card-label">Losses</div>
-                    </div>
-                </div>
-
-                <!-- Win Rate Card -->
-                <div class="stat-card stat-card-percentage">
-                    <div class="stat-card-icon">
-                        <i class="fas fa-percent"></i>
-                    </div>
-                    <div class="stat-card-content">
-                        <div class="stat-card-value">${winPercentage}%</div>
-                        <div class="stat-card-label">Win Rate</div>
-                    </div>
-                </div>
-
-                <!-- Record Card -->
-                <div class="stat-card stat-card-record">
-                    <div class="stat-card-icon">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <div class="stat-card-content">
-                        <div class="stat-card-value">${wins}-${losses}</div>
-                        <div class="stat-card-label">Record</div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Match History Section -->
             <div class="match-history-section">
                 <div class="section-header">
-                    <h3>
-                        <i class="fas fa-history"></i> 
-                        Match History
-                        ${currentLeagueFilter ? `<span style="color: var(--stockton-blue); font-size: 0.875rem; font-weight: normal; margin-left: 0.5rem;">(${availableLeagues.find(l => l.id === currentLeagueFilter)?.name})</span>` : ''}
-                    </h3>
+                    <div class="section-header-left">
+                        <h3>
+                            <i class="fas fa-history"></i>
+                            Match History
+                        </h3>
+                        ${leagueFilterBoxHTML}
+                    </div>
                     ${playoffsBtnHTML}
                 </div>
 
@@ -271,7 +220,6 @@ async function renderStatsContent() {
             </div>
         </div>
     `;
-
 }
 
 // ============================================
@@ -279,17 +227,17 @@ async function renderStatsContent() {
 // ============================================
 
 /**
- * Handle league filter dropdown change
- * Reloads stats with selected league filter
+ * Handle league filter-box selection
+ * Updates the trigger label, closes the panel, and reloads stats with the selected league
  */
-function handleLeagueFilterChange() {
-    const filterSelect = document.getElementById('statsLeagueFilter');
-    if (!filterSelect) return;
+function applyStatsLeagueFilter(leagueId, leagueName) {
+    const label = document.getElementById('statsLeagueFilterLabel');
+    if (label) label.textContent = leagueName;
 
-    const selectedLeagueId = filterSelect.value ? parseInt(filterSelect.value) : null;
-    
+    closeAllFilterPanels();
+
     // Reload stats with new filter
-    loadStatsTab(currentStatsTeamId, currentStatsGameId, selectedLeagueId);
+    loadStatsTab(currentStatsTeamId, currentStatsGameId, leagueId);
 }
 
 // ============================================
@@ -297,11 +245,20 @@ function handleLeagueFilterChange() {
 // ============================================
 
 /**
- * Render match history list with league badges
- * Displays all recorded match results in chronological order
+ * Format a raw "HH:MM:SS" time string into 12-hour display (e.g. "2:30 PM")
  *
- * @returns {string} HTML string for match history
+ * @param {string|null} startTime - Raw start time from the backend
+ * @returns {string|null} Formatted time, or null if not set
  */
+function formatMatchTime(startTime) {
+    if (!startTime) return null;
+    const parts = String(startTime).split(':');
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    return `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+}
+
+// Renders the match history cards (expandable) in the Match Results tab
 function renderMatchHistory() {
     if (!matchEvents || matchEvents.length === 0) {
         const filterText = currentLeagueFilter ? ' for this league' : '';
@@ -322,12 +279,16 @@ function renderMatchHistory() {
 
     let html = '<div class="match-history-list">';
 
-    matchEvents.forEach(match => {
+    matchEvents.forEach((match, index) => {
+        const rowIndex = Math.floor(index / 2);
+
         const resultClass = match.result ? match.result.toLowerCase() : 'pending';
         const resultIcon = match.result === 'win' ? 'fa-trophy' :
                           match.result === 'loss' ? 'fa-times-circle' :
                           'fa-clock';
-        const resultText = match.result ? match.result.toUpperCase() : 'PENDING';
+        const resultText = match.result
+            ? `${match.result.toUpperCase()}${match.score_display ? ` ${match.score_display}` : ''}`
+            : 'PENDING';
         const playoffsBadge = match.is_playoffs ? `
             <span class="match-playoffs-badge" title="Playoffs match">
                 <i class="fas fa-star"></i> Playoffs
@@ -340,13 +301,39 @@ function renderMatchHistory() {
             </span>
         ` : '';
 
+        // Expanded content: only start time + opponent school
+        const timeDisplay = formatMatchTime(match.start_time);
+        const hasOpponent = match.opponent_school && match.opponent_school.trim();
+
+        const expandRows = `
+            ${timeDisplay ? `
+                <div class="match-expand-row">
+                    <i class="fas fa-clock"></i>
+                    <span>${timeDisplay}</span>
+                </div>
+            ` : ''}
+            ${hasOpponent ? `
+                <div class="match-expand-row">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>vs ${match.opponent_school}</span>
+                </div>
+            ` : ''}
+            ${!timeDisplay && !hasOpponent ? `
+                <div class="match-expand-empty">No additional details available</div>
+            ` : ''}
+        `;
+
         html += `
-            <div class="match-history-item" 
-                 onclick="openMatchDetailsModal(${match.event_id})"
+            <div class="match-history-item"
+                 data-row-index="${rowIndex}"
+                 onclick="toggleMatchCardExpand(${rowIndex})"
+                 title="Click for more details"
                  style="cursor: pointer;">
+                <i class="fas fa-chevron-down match-expand-chevron"></i>
+
                 <div class="match-date">
                     <i class="fas fa-calendar"></i>
-                    ${match.date}
+                    ${match.date_display}
                 </div>
 
                 <div class="match-info">
@@ -357,6 +344,9 @@ function renderMatchHistory() {
                         </div>
                     ` : ''}
                     ${leagueBadge}
+                    <div class="match-expand-content">
+                        ${expandRows}
+                    </div>
                 </div>
 
                 <div class="match-result match-result-${resultClass}">
@@ -366,7 +356,7 @@ function renderMatchHistory() {
 
                 ${canEdit ? `
                     <div class="match-actions" onclick="event.stopPropagation()">
-                        <button class="btn-icon"
+                        <button class="btn-icon btn-icon-edit"
                                 onclick="editMatchResult(${match.event_id})"
                                 title="Edit result">
                             <i class="fas fa-edit"></i>
@@ -379,6 +369,19 @@ function renderMatchHistory() {
 
     html += '</div>';
     return html;
+}
+
+/**
+ * Toggle the expanded state for every card sharing a row index.
+ * Ensures both cards in a row expand/collapse together so neither
+ * looks awkwardly taller than the other.
+ */
+function toggleMatchCardExpand(rowIndex) {
+    const cardsInRow = document.querySelectorAll(`.match-history-item[data-row-index="${rowIndex}"]`);
+    if (cardsInRow.length === 0) return;
+
+    const shouldExpand = !cardsInRow[0].classList.contains('expanded');
+    cardsInRow.forEach(card => card.classList.toggle('expanded', shouldExpand));
 }
 
 // ============================================
@@ -444,32 +447,29 @@ function openRecordResultModal() {
     lockBodyScroll('recordMatchResultModal');
 }
 
-/**
- * Close record result modal
- * Restores body scrolling
- */
+// Close record result modal
 function closeRecordResultModal() {
     const modal = document.getElementById('recordMatchResultModal');
     if (modal) {
         modal.style.display = 'none';
         unlockBodyScroll('recordMatchResultModal');
     }
-    // Clear any pending details re-open (e.g. user cancelled the edit)
-    pendingDetailsReopenEventId = null;
 }
 
 /**
- * Populate the events dropdown with past match events
+ * Populate the match tag-select combobox with past match events
  * Fetches match-type events that can have results recorded
- *
- * @param {number} preSelectEventId - Optional event ID to pre-select after loading
  */
 async function populateMatchEventsDropdown(preSelectEventId = null) {
-    const select = document.getElementById('matchEventSelect');
-    if (!select) return;
+    const panel = document.getElementById('matchEventOptionsPanel');
+    const displayArea = document.getElementById('matchEventSelectDisplay');
+    const hiddenInput = document.getElementById('matchEventSelect');
+    if (!panel || !displayArea || !hiddenInput) return;
 
-    // Show loading state
-    select.innerHTML = '<option value="">Loading matches...</option>';
+    // Reset selection state and show loading
+    hiddenInput.value = '';
+    displayArea.innerHTML = '<span class="combo-placeholder">Loading matches...</span>';
+    panel.innerHTML = '<div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
 
     try {
         // Fetch available match events
@@ -477,47 +477,62 @@ async function populateMatchEventsDropdown(preSelectEventId = null) {
         const data = await response.json();
 
         if (data.success && data.events && data.events.length > 0) {
-            // Build dropdown options
-            select.innerHTML = '<option value="">Select a match...</option>';
+            displayArea.innerHTML = '<span class="combo-placeholder">Select a match...</span>';
 
-            data.events.forEach(event => {
-                const option = document.createElement('option');
-                option.value = event.event_id;
-                option.textContent = `${event.date} - ${event.name}`;
-                option.dataset.hasResult = event.has_result;
-
-                // Indicate if result already recorded
+            panel.innerHTML = data.events.map(event => {
+                let text = `${event.date} - ${event.name}`;
                 if (event.has_result) {
-                    option.textContent += ` (${event.result.toUpperCase()})`;
+                    text += ` (${event.result.toUpperCase()})`;
                 }
-
-                select.appendChild(option);
-            });
+                return `
+                    <div class="filter-box-item" onclick="event.stopPropagation(); selectMatchEvent(${event.event_id}, '${text.replace(/'/g, "\\'")}')">
+                        ${text}
+                    </div>
+                `;
+            }).join('');
 
             // Pre-select the event if specified (used when editing)
             if (preSelectEventId) {
-                select.value = preSelectEventId;
+                const preSelected = data.events.find(e => e.event_id === preSelectEventId);
+                if (preSelected) {
+                    let text = `${preSelected.date} - ${preSelected.name}`;
+                    if (preSelected.has_result) {
+                        text += ` (${preSelected.result.toUpperCase()})`;
+                    }
+                    selectMatchEvent(preSelectEventId, text);
+                }
             }
         } else {
             // No matches available
-            select.innerHTML = '<option value="">No past matches found</option>';
+            displayArea.innerHTML = '<span class="combo-placeholder">No past matches found</span>';
+            panel.innerHTML = '<div class="filter-box-flyout-loading">No past matches found</div>';
         }
     } catch (error) {
         console.error('Error loading match events:', error);
-        select.innerHTML = '<option value="">Error loading matches</option>';
+        displayArea.innerHTML = '<span class="combo-placeholder">Error loading matches</span>';
+        panel.innerHTML = '<div class="filter-box-flyout-loading">Failed to load</div>';
     }
+}
+
+/**
+ * Handle selecting a match from the tag-select combobox panel
+ * Updates the hidden form value + trigger display, then closes the panel
+ */
+function selectMatchEvent(eventId, labelText) {
+    const hiddenInput = document.getElementById('matchEventSelect');
+    const displayArea = document.getElementById('matchEventSelectDisplay');
+    if (hiddenInput) hiddenInput.value = eventId;
+    if (displayArea) {
+        displayArea.innerHTML = `<span class="combo-selected-text">${labelText}</span>`;
+    }
+    closeAllFilterPanels();
 }
 
 // ============================================
 // RESULT SELECTION
 // ============================================
 
-/**
- * Handle result radio button selection
- * Updates visual feedback for selected result option
- *
- * @param {string} result - Selected result ('win' or 'loss')
- */
+// Supports choosing win/loss depending on which box is chosen
 function handleResultSelection(result) {
     // Get result option buttons
     const winBtn = document.querySelector('.result-option[data-result="win"]');
@@ -527,6 +542,30 @@ function handleResultSelection(result) {
         // Update selected class based on choice
         winBtn.classList.toggle('selected', result === 'win');
         lossBtn.classList.toggle('selected', result === 'loss');
+    }
+}
+
+/**
+ * Auto-select Win/Loss based on the entered scores.
+ * Runs on every keystroke in either score field; only acts once both
+ * fields hold valid, differing numbers — otherwise leaves the current
+ * selection (manual or none) untouched.
+ */
+function handleScoreInput() {
+    const teamScoreRaw = document.getElementById('matchTeamScore').value.trim();
+    const opponentScoreRaw = document.getElementById('matchOpponentScore').value.trim();
+
+    if (teamScoreRaw === '' || opponentScoreRaw === '') return;
+
+    const teamScore = parseInt(teamScoreRaw, 10);
+    const opponentScore = parseInt(opponentScoreRaw, 10);
+    if (isNaN(teamScore) || isNaN(opponentScore) || teamScore === opponentScore) return;
+
+    const result = teamScore > opponentScore ? 'win' : 'loss';
+    const resultRadio = document.querySelector(`input[name="matchResult"][value="${result}"]`);
+    if (resultRadio) {
+        resultRadio.checked = true;
+        handleResultSelection(result);
     }
 }
 
@@ -560,13 +599,17 @@ async function submitMatchResult(event) {
     // ========================================
     // COLLECT FORM DATA
     // ========================================
+    const teamScoreRaw = document.getElementById('matchTeamScore').value.trim();
+    const opponentScoreRaw = document.getElementById('matchOpponentScore').value.trim();
+
     const formData = {
         team_id: currentStatsTeamId,
         event_id: document.getElementById('matchEventSelect').value,
         result: document.querySelector('input[name="matchResult"]:checked')?.value,
-        notes: document.getElementById('matchNotes').value,
         is_playoffs: document.getElementById('matchPlayoffs').checked,
-        opponent_school: document.getElementById('matchOpponentSchool').value.trim()
+        opponent_school: document.getElementById('matchOpponentSchool').value.trim(),
+        team_score: teamScoreRaw === '' ? null : teamScoreRaw,
+        opponent_score: opponentScoreRaw === '' ? null : opponentScoreRaw
     };
 
     // ========================================
@@ -580,6 +623,18 @@ async function submitMatchResult(event) {
 
     if (!formData.result) {
         showMessage(messageDiv, 'Please select a result (Win or Loss)', 'error');
+        resetSubmitButton(submitBtn, btnText, btnSpinner);
+        return;
+    }
+
+     if (!formData.opponent_school) {
+        showMessage(messageDiv, 'Please enter the opposing school or team', 'error');
+        resetSubmitButton(submitBtn, btnText, btnSpinner);
+        return;
+    }
+
+    if ((formData.team_score === null) !== (formData.opponent_score === null)) {
+        showMessage(messageDiv, 'Please enter both scores, or leave both blank', 'error');
         resetSubmitButton(submitBtn, btnText, btnSpinner);
         return;
     }
@@ -606,15 +661,7 @@ async function submitMatchResult(event) {
             setTimeout(() => {
                 closeRecordResultModal();
                 // Reload stats tab to show updated data
-                loadStatsTab(currentStatsTeamId, currentStatsGameId).then(() => {
-                    // If edit was triggered from the details modal, re-open it
-                    // so the user sees the refreshed data straight away
-                    if (pendingDetailsReopenEventId !== null) {
-                        const reopenId = pendingDetailsReopenEventId;
-                        pendingDetailsReopenEventId = null;
-                        openMatchDetailsModal(reopenId);
-                    }
-                });
+                loadStatsTab(currentStatsTeamId, currentStatsGameId);
             }, 1500);
         } else {
             throw new Error(data.message);
@@ -693,17 +740,17 @@ async function editMatchResult(eventId) {
         }
     }
 
-    // Set notes if they exist
-    const notesField = document.getElementById('matchNotes');
-    if (match.notes && notesField) {
-        notesField.value = match.notes;
-    }
-
     // Set opponent school if it exists
     const opponentSchoolField = document.getElementById('matchOpponentSchool');
     if (opponentSchoolField) {
         opponentSchoolField.value = match.opponent_school || '';
     }
+
+    // Set score fields if they exist
+    const teamScoreField = document.getElementById('matchTeamScore');
+    const opponentScoreField = document.getElementById('matchOpponentScore');
+    if (teamScoreField) teamScoreField.value = match.team_score ?? '';
+    if (opponentScoreField) opponentScoreField.value = match.opponent_score ?? '';
 
     // Set playoffs checkbox if applicable
     const playoffsCheckbox = document.getElementById('matchPlayoffs');
@@ -743,269 +790,17 @@ function resetSubmitButton(btn, textSpan, spinner) {
     if (textSpan) textSpan.style.display = 'inline';
     if (spinner) spinner.style.display = 'none';
 }
-/**
- * Open match details modal
- * Shows full information about a specific match
- * 
- * @param {number} eventId - ID of the match event to display
- */
-async function openMatchDetailsModal(eventId) {
-    const modal = document.getElementById('matchDetailsModal');
-    if (!modal) {
-        console.error('Match details modal not found');
-        return;
-    }
 
-    const loadingDiv = document.getElementById('matchDetailsLoading');
-    const contentDiv = document.getElementById('matchDetailsContent');
-    const editBtn = document.getElementById('editMatchDetailsBtn');
-
-    modal.style.display = 'block';
-    lockBodyScroll('matchDetailsModal');
-    loadingDiv.style.display = 'block';
-    contentDiv.style.display = 'none';
-
-    try {
-        const match = matchEvents.find(m => m.event_id === eventId);
-        if (!match) throw new Error('Match not found');
-
-        // Date
-        const matchDate = new Date(match.date + 'T00:00:00');
-        const formattedDate = matchDate.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-
-        // Time
-        const timeDisplay = match.start_time
-            ? (() => {
-                const parts = String(match.start_time).split(':');
-                const hours = parseInt(parts[0], 10);
-                const minutes = parseInt(parts[1], 10);
-                return `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
-            })()
-            : 'Time not set';
-
-        // Result
-        let resultHTML = `
-            <span class="match-detail-result pending">
-                <i class="fas fa-clock"></i>
-                PENDING
-            </span>
-        `;
-
-        if (match.result) {
-            const resultClass = match.result.toLowerCase();
-            const resultIcon = match.result === 'win' ? 'fa-trophy' : 'fa-times-circle';
-
-            resultHTML = `
-                <span class="match-detail-result ${resultClass}">
-                    <i class="fas ${resultIcon}"></i>
-                    ${match.result.toUpperCase()}
-                </span>
-            `;
-        }
-
-        // Opponent School
-        let opponentSchoolHTML = '';
-        if (match.opponent_school && match.opponent_school.trim()) {
-            opponentSchoolHTML = `
-                <div class="match-detail-section">
-                    <div class="match-detail-label">
-                        <i class="fas fa-shield-alt"></i>
-                        Opponent School
-                    </div>
-                    <div class="match-detail-value">${match.opponent_school}</div>
-                </div>
-            `;
-        }
-
-        // League
-        let leagueHTML = '';
-        if (match.league_name) {
-            leagueHTML = `
-                <div class="match-detail-section">
-                    <div class="match-detail-label">
-                        <i class="fas fa-trophy"></i>
-                        League
-                    </div>
-                    <div class="match-detail-value">
-                        <span class="match-league-badge">
-                            <i class="fas fa-trophy"></i> ${match.league_name}
-                        </span>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Notes
-        let notesHTML = '';
-        if (match.notes && match.notes.trim()) {
-            notesHTML = `
-                <div class="match-detail-section full-width">
-                    <div class="match-detail-label">
-                        <i class="fas fa-sticky-note"></i>
-                        Notes
-                    </div>
-                    <div class="match-detail-notes">
-                        ${match.notes}
-                    </div>
-                </div>
-            `;
-        }
-
-        // Metadata
-        let metadataHTML = '';
-        if (match.result && match.recorded_by) {
-            metadataHTML = `
-                <div class="match-detail-section full-width">
-                    <div class="match-detail-label">
-                        <i class="fas fa-info-circle"></i>
-                        Recording Information
-                    </div>
-                    <div class="match-detail-metadata">
-                        <div class="match-detail-metadata-item">
-                            <i class="fas fa-user"></i>
-                            <span>Recorded by ${match.recorded_by}</span>
-                        </div>
-                        <div class="match-detail-metadata-item">
-                            <i class="fas fa-clock"></i>
-                            <span>
-                                Recorded on ${new Date(match.recorded_at).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                })}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Title
-        document.getElementById('matchDetailsTitle').textContent = match.name;
-
-
-        const playoffsHTML = match.is_playoffs ? `
-            <div class="match-detail-section">
-                <div class="match-detail-label">
-                    <i class="fas fa-star"></i>
-                    Match Type
-                </div>
-                <div class="match-detail-value">
-                    <span style="color: var(--stockton-blue); font-weight: 600;">
-                        <i class="fas fa-star"></i> Playoffs
-                    </span>
-                </div>
-            </div>
-        ` : '';
-
-        // Render ONCE
-        contentDiv.innerHTML = `
-            <div class="match-details-grid">
-                <div class="match-detail-section">
-                    <div class="match-detail-label">
-                        <i class="fas fa-calendar-day"></i>
-                        Date
-                    </div>
-                    <div class="match-detail-value">${formattedDate}</div>
-                </div>
-
-                <div class="match-detail-section">
-                    <div class="match-detail-label">
-                        <i class="fas fa-clock"></i>
-                        Time
-                    </div>
-                    <div class="match-detail-value">${timeDisplay}</div>
-                </div>
-
-                <div class="match-detail-section">
-                    <div class="match-detail-label">
-                        <i class="fas fa-map-marker-alt"></i>
-                        Location
-                    </div>
-                    <div class="match-detail-value">${match.location || 'Not specified'}</div>
-                </div>
-
-                <div class="match-detail-section">
-                    <div class="match-detail-label">
-                        <i class="fas fa-flag-checkered"></i>
-                        Result
-                    </div>
-                    <div class="match-detail-value">
-                        ${resultHTML}
-                    </div>
-                </div>
-
-                ${opponentSchoolHTML}
-                ${leagueHTML}
-                ${playoffsHTML}
-                ${notesHTML}
-                ${metadataHTML}
-            </div>
-        `;
-
-        // Edit permissions
-        const currentTeam = allTeamsData.find(t => t.TeamID === currentStatsTeamId);
-        const isGameManager = currentTeam && currentTeam.gm_id === window.currentUserId;
-        const isActiveSeason = window.currentTeamSeasonIsActive === 1;
-
-         // Only show edit button if: GM + active season + match has result
-        if (editBtn && isGameManager && isActiveSeason && match.result) {
-            editBtn.style.display = 'flex';
-            editBtn.onclick = () => {
-                pendingDetailsReopenEventId = eventId;
-                closeMatchDetailsModal();
-                editMatchResult(eventId);
-            };
-        } else if (editBtn) {
-            editBtn.style.display = 'none';
-        }
-
-        loadingDiv.style.display = 'none';
-        contentDiv.style.display = 'block';
-
-    } catch (error) {
-        console.error('Error loading match details:', error);
-        contentDiv.innerHTML = `
-            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                <i class="fas fa-exclamation-circle" style="font-size: 3rem; margin-bottom: 1rem; color: #ff5252;"></i>
-                <p>Failed to load match details</p>
-                <small>${error.message}</small>
-            </div>
-        `;
-        loadingDiv.style.display = 'none';
-        contentDiv.style.display = 'block';
-    }
-}
-
-
-/**
- * Close match details modal
- */
-function closeMatchDetailsModal() {
-    const modal = document.getElementById('matchDetailsModal');
-    if (modal) {
-        modal.style.display = 'none';
-        unlockBodyScroll('matchDetailsModal');
-    }
-}
 
 // ============================================
 // EXPORT FUNCTIONS
 // ============================================
-
 window.loadStatsTab = loadStatsTab;
 window.openRecordResultModal = openRecordResultModal;
 window.closeRecordResultModal = closeRecordResultModal;
-window.openMatchDetailsModal = openMatchDetailsModal;
-window.closeMatchDetailsModal = closeMatchDetailsModal;
 window.handleResultSelection = handleResultSelection;
+window.handleScoreInput = handleScoreInput;
 window.submitMatchResult = submitMatchResult;
 window.editMatchResult = editMatchResult;
-window.handleLeagueFilterChange = handleLeagueFilterChange;
+window.selectMatchEvent = selectMatchEvent;
+window.applyStatsLeagueFilter = applyStatsLeagueFilter;

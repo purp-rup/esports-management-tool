@@ -8,7 +8,6 @@
 // ============================================
 // INITIALIZATION
 // ============================================
-
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Admin statistics page loaded');
     
@@ -17,6 +16,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set up export handlers
     setupExportHandlers();
+
+    // Set up floating game tabs pan arrows
+    initStatsFloatingTabs();
 });
 
 // ============================================
@@ -150,18 +152,143 @@ function initializeLeagueCharts() {
 // ============================================
 // EXPORT FUNCTIONALITY
 // ============================================
-
-/**
- * Set up export button handlers
- */
 function setupExportHandlers() {
     // Export handlers are defined globally for onclick attributes
     console.log('Export handlers ready');
 }
 
 /**
- * Export statistics to Excel format
+ * Set up left/right pan arrows for the floating game tabs strip.
+ * Arrows only appear when the tabs overflow the visible track width.
  */
+function initStatsFloatingTabs() {
+    const track = document.getElementById('statsFloatingTabsTrack');
+    const leftArrow = document.getElementById('statsFloatingTabsArrowLeft');
+    const rightArrow = document.getElementById('statsFloatingTabsArrowRight');
+
+    // Wire up each floating tab (Overview + per-game) to switch views
+    document.querySelectorAll('.stats-floating-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.stats-floating-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const gameId = btn.dataset.game;
+            if (gameId === 'overview') {
+                showOverviewView();
+            } else {
+                showGameView(gameId, btn.querySelector('span').textContent);
+            }
+        });
+    });
+
+    if (!track || !leftArrow || !rightArrow) return;
+
+    function updateArrows() {
+        const maxScroll = track.scrollWidth - track.clientWidth;
+        leftArrow.style.display = track.scrollLeft > 4 ? 'flex' : 'none';
+        rightArrow.style.display = track.scrollLeft < maxScroll - 4 ? 'flex' : 'none';
+    }
+
+    leftArrow.addEventListener('click', () => {
+        track.scrollBy({ left: -220, behavior: 'smooth' });
+    });
+
+    rightArrow.addEventListener('click', () => {
+        track.scrollBy({ left: 220, behavior: 'smooth' });
+    });
+
+    track.addEventListener('scroll', updateArrows);
+    window.addEventListener('resize', updateArrows);
+
+    updateArrows();
+
+    // Hide the tab bar once the user scrolls near the bottom of the page,
+    // so it doesn't sit on top of the footer.
+    const wrapper = document.querySelector('.stats-floating-tabs-wrapper');
+    if (wrapper) {
+        const BOTTOM_THRESHOLD = 100; // px from the true bottom before hiding
+
+        function updateWrapperVisibility() {
+            const distanceFromBottom =
+                document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+
+            if (distanceFromBottom < BOTTOM_THRESHOLD) {
+                wrapper.classList.add('stats-floating-tabs-hidden');
+            } else {
+                wrapper.classList.remove('stats-floating-tabs-hidden');
+            }
+        }
+
+        window.addEventListener('scroll', updateWrapperVisibility);
+        window.addEventListener('resize', updateWrapperVisibility);
+
+        updateWrapperVisibility();
+    }
+}
+
+// ============================================
+// PER-GAME DETAIL VIEW
+// ============================================
+function showOverviewView() {
+    document.getElementById('statsOverviewView').style.display = '';
+    document.getElementById('statsGameView').style.display = 'none';
+}
+
+// Pulls a game's data after selecting its tab
+function showGameView(gameId, gameTitle) {
+    document.getElementById('statsOverviewView').style.display = 'none';
+    document.getElementById('statsGameView').style.display = '';
+    document.querySelector('#gameViewTitle span').textContent = gameTitle;
+
+    const seasonParam = window.selectedSeason ? `?season_id=${window.selectedSeason}` : '';
+
+    fetch(`/api/admin/statistics/game/${gameId}${seasonParam}`)
+        .then(res => res.json())
+        .then(data => renderGameStatsTable(data.statistics))
+        .catch(() => renderGameStatsTable(getMockGameStats())); // TEMP fallback until backend returns real match data
+}
+
+// Builds the game tab data sheet
+function renderGameStatsTable(gameStats) {
+    const tbody = document.getElementById('gameStatsTableBody');
+    tbody.innerHTML = '';
+
+    const blockClasses = ['game-team-block-a', 'game-team-block-b', 'game-team-block-c'];
+
+    (gameStats.teams || []).forEach((team, i) => {
+        const row = document.createElement('tr');
+        row.className = blockClasses[i % blockClasses.length];
+
+        row.innerHTML = `
+            <td>${gameStats.game_manager || '—'}</td>
+            <td class="game-stats-team-name">${team.team_title}</td>
+            <td>${team.conference || '—'}</td>
+            <td>${renderMatchList(team.regular_season_matches)}</td>
+            <td><span class="game-stats-record-badge">${team.regular_season_record || '—'}</span></td>
+            <td>
+                <div class="game-stats-qualified">${team.playoffs_status || ''}</div>
+                ${renderMatchList(team.playoffs_matches)}
+                <div class="game-stats-outcome">${team.playoffs_outcome || ''}</div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Displays a list of matches down via data
+function renderMatchList(matches) {
+    if (!matches || !matches.length) return '';
+    return `<div class="game-stats-match-list">` +
+        matches.map(m => `
+            <div class="match-row">
+                ${m.label}: <span class="match-score ${m.result === 'loss' ? 'loss' : ''}">${m.score}</span>
+                ${m.opponent ? `(vs ${m.opponent})` : ''}
+            </div>
+        `).join('') +
+    `</div>`;
+}
+
+// Export statistics to Excel format
 function exportToExcel() {
     if (!window.statisticsData) {
         alert('No data available to export');
@@ -232,9 +359,7 @@ function exportToExcel() {
     document.body.removeChild(link);
 }
 
-/**
- * Export statistics to PDF format
- */
+// Export statistics to PDF format
 function exportToPDF() {
     // This would require a library like jsPDF
     // For now, use print functionality as fallback
@@ -242,9 +367,7 @@ function exportToPDF() {
     window.print();
 }
 
-/**
- * Print statistics page
- */
+// Print statistics page
 function printStatistics() {
     window.print();
 }
@@ -253,26 +376,35 @@ function printStatistics() {
 // UTILITY FUNCTIONS
 // ============================================
 
-/**
- * Format number with commas
- */
+//Format number with commas
 function formatNumber(num) {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-/**
- * Calculate percentage
- */
+// Calculate percentage
 function calculatePercentage(part, total) {
     if (total === 0) return 0;
     return ((part / total) * 100).toFixed(1);
 }
 
+/**
+ * Placeholder toggle for the Competitive / Community view tabs.
+ * Purely visual for now — no content switching until the split is built.
+ */
+function switchStatsView(view, btnEl) {
+    document.querySelectorAll('.stats-view-tabs .tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    btnEl.classList.add('active');
+}
+
 // ============================================
 // EXPORT FUNCTIONS TO GLOBAL SCOPE
 // ============================================
-
 window.filterBySeason = filterBySeason;
 window.exportToExcel = exportToExcel;
 window.exportToPDF = exportToPDF;
 window.printStatistics = printStatistics;
+window.switchStatsView = switchStatsView;
+window.showOverviewView = showOverviewView;
+window.showGameView = showGameView;

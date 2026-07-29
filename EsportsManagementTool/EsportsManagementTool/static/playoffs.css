@@ -114,7 +114,6 @@ body.has-playoffs-banner {
    Playoffs Results Record Modal
    ============================================ */
 .playoffs-results-container {
-    max-height: 500px;
     overflow-y: auto;
     padding: 1rem;
     background: var(--background-secondary);
@@ -164,7 +163,7 @@ body.has-playoffs-banner {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 1.5rem;
+    gap: 0.75rem;
     transition: all 0.3s ease;
 }
 

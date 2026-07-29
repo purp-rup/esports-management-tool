@@ -36,10 +36,7 @@ class EsportsStatistics:
     # =====================================
     
     def get_unique_games(self):
-        """
-        Count unique competitive game titles (games with at least one team)
-        Returns: int
-        """
+        """Count unique competitive game titles (games with at least one team)"""
         query = """
             SELECT COUNT(DISTINCT gameID) as count 
             FROM teams
@@ -55,10 +52,7 @@ class EsportsStatistics:
         return result['count'] if result else 0
     
     def get_unique_leagues(self):
-        """
-        Count unique leagues teams are competing in
-        Returns: int
-        """
+        """Count unique leagues teams are competing in"""
         query = """
             SELECT COUNT(DISTINCT league_id) as count 
             FROM team_leagues
@@ -78,10 +72,7 @@ class EsportsStatistics:
         return result['count'] if result else 0
     
     def get_unique_players(self):
-        """
-        Count unique players across all teams
-        Returns: int
-        """
+        """Count unique players across all teams"""
         query = """
             SELECT COUNT(DISTINCT user_id) as count 
             FROM team_members
@@ -101,28 +92,40 @@ class EsportsStatistics:
         return result['count'] if result else 0
     
     def get_unique_esports_count(self):
-        """
-        Count games that have active teams (same as get_unique_games)
-        Returns: int
-        """
+        """Count games that have active teams (same as get_unique_games)"""
         # Reuse get_unique_games to avoid duplication
         return self.get_unique_games()
+
+    def get_active_games(self):
+        """
+        Get list of games with at least one team for the current season filter
+        Used to populate per-game navigation (e.g. bottom game tabs)
+        """
+        query = """
+            SELECT DISTINCT g.GameID as game_id, g.GameTitle as game_title
+            FROM teams t
+            JOIN games g ON t.gameID = g.GameID
+        """
+        params = ()
+
+        if self.season_id:
+            query += " WHERE t.season_id = %s"
+            params = (self.season_id,)
+
+        query += " ORDER BY g.GameTitle ASC"
+
+        self.cursor.execute(query, params)
+        return self.cursor.fetchall()
     
     def get_total_games_in_database(self):
-        """
-        Count all games in database (including non-competitive)
-        Returns: int
-        """
+        """Count all games in database (including non-competitive)"""
         query = "SELECT COUNT(DISTINCT GameID) as count FROM games"
         self.cursor.execute(query)
         result = self.cursor.fetchone()
         return result['count'] if result else 0
     
     def get_community_members(self):
-        """
-        Count unique members in game communities
-        Returns: int
-        """
+        """Count unique members in game communities"""
         query = """
             SELECT COUNT(DISTINCT user_id) as count 
             FROM in_communities
@@ -132,17 +135,11 @@ class EsportsStatistics:
         return result['count'] if result else 0
     
     def get_fielded_players(self):
-        """
-        Count players who are on at least one team
-        Returns: int
-        """
+        """Count players who are on at least one team"""
         return self.get_unique_players()
     
     def get_unique_teams(self):
-        """
-        Count total unique teams
-        Returns: int
-        """
+        """Count total unique teams"""
         query = "SELECT COUNT(TeamID) as count FROM teams"
         
         if self.season_id:
@@ -386,71 +383,152 @@ class EsportsStatistics:
     # =====================================
     # GAME-SPECIFIC STATISTICS
     # =====================================
-    
     def get_game_statistics(self, game_id):
         """
-        Get detailed statistics for a specific game
-        
-        Args:
-            game_id: Game ID to get stats for
-        Returns: dict with game statistics
+        Get per-team statistics for a specific game, formatted for the
+        admin statistics page's per-game tab view.
+
+        Returns: dict with game_id, game_manager (display name), and a list
+        of per-team dicts (conference, regular season matches/record,
+        playoffs matches/status/outcome).
         """
-        stats = {
-            'game_id': game_id,
-            'teams': [],
-            'total_wins': 0,
-            'total_losses': 0,
-            'win_percentage': 0
-        }
-        
-        # Get all teams for this game
-        query = """
-            SELECT 
-                t.TeamID,
-                t.TeamTitle,
-                t.division,
-                COUNT(DISTINCT tm.user_id) as player_count
-            FROM teams t
-            LEFT JOIN team_members tm ON t.TeamID = tm.team_id
-            WHERE t.gameID = %s
-        """
-        
+        cursor = self.cursor
+
+        # Game Manager — one per game, pulled via games.gm_id
+        cursor.execute("""
+            SELECT u.firstname, u.lastname
+            FROM games g
+            LEFT JOIN users u ON g.gm_id = u.id
+            WHERE g.GameID = %s
+        """, (game_id,))
+        gm_row = cursor.fetchone()
+        game_manager = f"{gm_row['firstname']} {gm_row['lastname']}" if gm_row and gm_row['firstname'] else None
+
+        # Teams for this game (optionally filtered by season)
+        team_query = "SELECT TeamID, teamName FROM teams WHERE gameID = %s"
+        params = [game_id]
         if self.season_id:
-            query += " AND t.season_id = %s GROUP BY t.TeamID"
-            self.cursor.execute(query, (game_id, self.season_id))
-        else:
-            query += " GROUP BY t.TeamID"
-            self.cursor.execute(query, (game_id,))
-        
-        teams = self.cursor.fetchall()
-        
-        # Get match results for each team
+            team_query += " AND season_id = %s"
+            params.append(self.season_id)
+        team_query += " ORDER BY teamName ASC"
+
+        cursor.execute(team_query, tuple(params))
+        teams = cursor.fetchall()
+
+        result_rows = []
         for team in teams:
-            self.cursor.execute("""
-                SELECT 
-                    SUM(CASE WHEN result = 'win' THEN 1 ELSE 0 END) as wins,
-                    SUM(CASE WHEN result = 'loss' THEN 1 ELSE 0 END) as losses
-                FROM match_results
-                WHERE team_id = %s
-            """, (team['TeamID'],))
-            
-            results = self.cursor.fetchone()
-            wins = int(results['wins']) if results['wins'] else 0
-            losses = int(results['losses']) if results['losses'] else 0
-            
-            team['wins'] = wins
-            team['losses'] = losses
-            team['total_matches'] = wins + losses
-            team['win_percentage'] = (wins / (wins + losses) * 100) if (wins + losses) > 0 else 0
-            
-            stats['total_wins'] += wins
-            stats['total_losses'] += losses
-            stats['teams'].append(team)
-        
-        total_matches = stats['total_wins'] + stats['total_losses']
-        stats['win_percentage'] = (stats['total_wins'] / total_matches * 100) if total_matches > 0 else 0
-        
-        return stats
+            team_id = team['TeamID']
+
+            # A team can compete in more than one league at once — each
+            # league gets its own row, with its own matches/record/outcome
+            cursor.execute("""
+                        SELECT l.id as league_id, l.name as league_name
+                        FROM team_leagues tl
+                        JOIN league l ON tl.league_id = l.id
+                        WHERE tl.team_id = %s
+                        ORDER BY l.name
+                    """, (team_id,))
+            team_leagues = cursor.fetchall()
+
+            # Team isn't in any league yet — still show one row, blank conference
+            if not team_leagues:
+                team_leagues = [{'league_id': None, 'league_name': None}]
+
+            for tl in team_leagues:
+                league_id = tl['league_id']
+
+                match_params = [team_id]
+                league_clause = ""
+                if league_id is not None:
+                    league_clause = " AND ge.league_id = %s"
+                    match_params.append(league_id)
+
+                # Regular season matches — scoped to this league only
+                cursor.execute(f"""
+                            SELECT ge.EventName as label, mr.opponent_school, mr.result,
+                                   mr.team_score, mr.opponent_score
+                            FROM match_results mr
+                            JOIN generalevents ge ON mr.event_id = ge.EventID
+                            WHERE mr.team_id = %s AND mr.is_playoffs = 0{league_clause}
+                            ORDER BY ge.Date ASC, ge.StartTime ASC
+                        """, tuple(match_params))
+                regular_matches = self._format_matches(cursor.fetchall())
+
+                wins = sum(1 for m in regular_matches if m['result'] == 'win')
+                losses = sum(1 for m in regular_matches if m['result'] == 'loss')
+                regular_season_record = f"{wins}-{losses}"
+
+                # Playoffs matches — scoped to this league only
+                cursor.execute(f"""
+                            SELECT ge.EventName as label, mr.opponent_school, mr.result,
+                                   mr.team_score, mr.opponent_score
+                            FROM match_results mr
+                            JOIN generalevents ge ON mr.event_id = ge.EventID
+                            WHERE mr.team_id = %s AND mr.is_playoffs = 1{league_clause}
+                            ORDER BY ge.Date ASC, ge.StartTime ASC
+                        """, tuple(match_params))
+                playoffs_matches = self._format_matches(cursor.fetchall())
+
+                # Playoffs status + outcome — scoped to this league only
+                placement = None
+                if league_id is not None:
+                    placement_query = "SELECT placement FROM playoffs_results WHERE team_id = %s AND league_id = %s"
+                    placement_params = [team_id, league_id]
+                    if self.season_id:
+                        placement_query += " AND season_id = %s"
+                        placement_params.append(self.season_id)
+                    placement_query += " LIMIT 1"
+
+                    cursor.execute(placement_query, tuple(placement_params))
+                    placement_row = cursor.fetchone()
+                    placement = placement_row['placement'] if placement_row else None
+
+                if placement is None:
+                    playoffs_status, playoffs_outcome = None, None
+                elif placement == 'Did Not Qualify':
+                    playoffs_status, playoffs_outcome = 'Did Not Qualify', None
+                else:
+                    playoffs_status, playoffs_outcome = 'Qualified', placement
+
+                result_rows.append({
+                    'team_id': team_id,
+                    'team_title': team['teamName'],
+                    'conference': tl['league_name'],
+                    'regular_season_matches': regular_matches,
+                    'regular_season_record': regular_season_record,
+                    'playoffs_matches': playoffs_matches,
+                    'playoffs_status': playoffs_status,
+                    'playoffs_outcome': playoffs_outcome,
+                })
+
+        return {
+            'game_id': game_id,
+            'game_manager': game_manager,
+            'teams': result_rows,
+        }
+
+    def _format_matches(self, rows):
+        """
+        Format raw match_results rows into the {label, opponent, result, score}
+        shape the admin statistics frontend expects.
+        Falls back to a plain W/L string when no score was recorded.
+        """
+        matches = []
+        for row in rows:
+            team_score = row['team_score']
+            opponent_score = row['opponent_score']
+            if team_score is not None and opponent_score is not None:
+                score_display = f"{team_score}-{opponent_score}"
+            else:
+                score_display = row['result'].upper() if row['result'] else None
+
+            matches.append({
+                'label': row['label'],
+                'opponent': row['opponent_school'],
+                'result': row['result'],
+                'score': score_display,
+            })
+        return matches
     
     # =====================================
     # COMPREHENSIVE STATISTICS
@@ -618,6 +696,7 @@ class EsportsStatistics:
             'playoffs_placements': self.get_playoffs_placements(),
             'playoffs_placements_by_league': self.get_playoffs_placements_by_league(),
             'league_breakdown': self.get_league_breakdown(),
+            'active_games': self.get_active_games(),
         }
         
         return stats

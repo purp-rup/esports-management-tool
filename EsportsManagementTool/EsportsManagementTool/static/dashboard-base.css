@@ -47,6 +47,25 @@ main {
     font-size: 0.875rem;
 }
 
+/* Nav bar on distinct pages (communities/admin stats) */
+.nav-bar {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.nav-bar a {
+    color: var(--stockton-blue);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.nav-bar a:hover { color: #5aabdd; }
+
+.nav-bar-sep { color: var(--border-color); }
+
 /* =======================================
    CONTENT CARDS
    Primary content container styling
@@ -93,6 +112,12 @@ main {
 
 .modal-edit-btn:hover {
     background: #5aabdd;
+}
+
+.btn-icon.btn-icon-edit,
+.btn-icon-action.btn-icon-edit {
+    color: var(--stockton-blue);
+    border-color: var(--stockton-blue);
 }
 
 .modal-delete-btn {
@@ -320,6 +345,57 @@ main {
 
 .filter-btn.active .filter-check i {
     opacity: 1;
+}
+
+/* ================================
+   Universal toggle switch
+   ================================*/
+.toggle-switch-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-switch-checkbox {
+    display: none;
+}
+
+.toggle-switch-slider {
+    position: relative;
+    width: 34px;
+    height: 19px;
+    background: var(--dark-bg);
+    border-radius: 999px;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.toggle-switch-slider::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 15px;
+    height: 15px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+
+.toggle-switch-checkbox:checked + .toggle-switch-slider {
+    background: var(--stockton-blue);
+}
+
+.toggle-switch-checkbox:checked + .toggle-switch-slider::before {
+    transform: translateX(15px);
+}
+
+.toggle-switch-label {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
 }
 
 /* ====================================
