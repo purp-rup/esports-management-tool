@@ -18,8 +18,13 @@ let forumIsLoadingOlder  = false;
 let forumEventSource     = null;
 let forumSendCooldownActive = false;
 let forumPinnedMessage = null;
+let isCurrentlyTyping = false;
+let stopTypingTimer   = null;
+let typers = {};
 const FORUM_SEND_COOLDOWN_MS = 2000; // min time between sent messages
-const FORUM_GROUP_GAP_MS = 5 * 60 * 1000; // messages within 5 min of the same user group together
+const FORUM_GROUP_GAP_MS     = 5 * 60 * 1000; // messages within 5 min of the same user group together
+const TYPING_IDLE_MS   = 2500; // wait after last keystroke before sending is_typing:false
+const TYPING_EXPIRE_MS = 4000; // hide a typer if nothing arrives in this window
 
 // Initialize photo carousel elements
 let carouselPhotos  = [];
@@ -168,6 +173,13 @@ async function initForum() {
         input.addEventListener('input', () => {
             input.style.height = 'auto';
             input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+
+            if (!isCurrentlyTyping) {
+                isCurrentlyTyping = true;
+                sendTypingState(gameId, true);
+            }
+            clearTimeout(stopTypingTimer);
+            stopTypingTimer = setTimeout(() => stopTyping(gameId), TYPING_IDLE_MS);
         });
     }
 }
@@ -249,6 +261,22 @@ function renderForumMessages() {
 
         return buildForumMessageHtml(msg, isNewBlock, canDelete, canModerate);
     }).join('');
+}
+
+function sendTypingState(gameId, isTyping) {
+    fetch(`/api/game/${gameId}/typing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_typing: isTyping })
+    }).catch(() => {});
+}
+
+function stopTyping(gameId) {
+    clearTimeout(stopTypingTimer);
+    if (isCurrentlyTyping) {
+        isCurrentlyTyping = false;
+        sendTypingState(gameId, false);
+    }
 }
 
 function buildForumMessageHtml(msg, isNewBlock, canDelete, canModerate) {
@@ -384,6 +412,8 @@ async function sendForumMessage() {
 
     const content = normalizeMessageContent(input.value);
     if (!content) return;
+
+    stopTyping(gameId);
 
     input.disabled = true;
     if (sendBtn) sendBtn.disabled = true;
@@ -661,9 +691,55 @@ function startForumStream(gameId) {
         renderForumMessages();
     });
 
+    forumEventSource.addEventListener('typing', (e) => {
+        handleIncomingTyping(JSON.parse(e.data));
+    });
+
     forumEventSource.onerror = () => {
         console.warn('Forum stream disconnected, browser will retry automatically');
     };
+}
+
+// Tracks who's currently typing and re-renders the indicator
+function handleIncomingTyping({ user_id, username, is_typing }) {
+    if (typers[user_id]) clearTimeout(typers[user_id].hideTimer);
+
+    if (is_typing) {
+        typers[user_id] = {
+            username,
+            hideTimer: setTimeout(() => {
+                delete typers[user_id];
+                renderTypingIndicator();
+            }, TYPING_EXPIRE_MS)
+        };
+    } else {
+        delete typers[user_id];
+    }
+    renderTypingIndicator();
+}
+
+function renderTypingIndicator() {
+    const el = document.getElementById('forumTypingIndicator');
+    if (!el) return;
+
+    const names = Object.values(typers).map(t => t.username);
+    if (!names.length) {
+        el.style.display = 'none';
+        el.innerHTML = '';
+        return;
+    }
+
+    const text = names.length === 1
+        ? `${names[0]} is typing`
+        : names.length === 2
+            ? `${names[0]} and ${names[1]} are typing`
+            : 'Several people are typing';
+
+    el.innerHTML = `
+        <span>${escapeHtml(text)}</span>
+        <span class="forum-typing-dots"><span></span><span></span><span></span></span>
+    `;
+    el.style.display = 'flex';
 }
 
 function isForumScrolledToBottom() {
