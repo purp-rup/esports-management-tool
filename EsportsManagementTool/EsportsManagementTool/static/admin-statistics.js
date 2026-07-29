@@ -30,11 +30,9 @@ document.addEventListener('DOMContentLoaded', function() {
  * Reloads the page with season parameter
  */
 function filterBySeason(seasonId) {
-    if (seasonId) {
-        window.location.href = `/admin/statistics?season_id=${seasonId}`;
-    } else {
-        window.location.href = '/admin/statistics';
-    }
+    window.location.href = seasonId
+        ? `/admin/statistics?season_id=${seasonId}`
+        : '/admin/statistics?season_id=all';
 }
 
 // ============================================
@@ -176,7 +174,7 @@ function initStatsFloatingTabs() {
             if (gameId === 'overview') {
                 showOverviewView();
             } else {
-                showGameView(gameId, btn.querySelector('span').textContent);
+                showGameView(gameId, btn.querySelector('.stats-floating-tab-label').textContent, btn.dataset.icon);
             }
         });
     });
@@ -235,10 +233,24 @@ function showOverviewView() {
 }
 
 // Pulls a game's data after selecting its tab
-function showGameView(gameId, gameTitle) {
+function showGameView(gameId, gameTitle, gameIconUrl) {
     document.getElementById('statsOverviewView').style.display = 'none';
     document.getElementById('statsGameView').style.display = '';
-    document.querySelector('#gameViewTitle span').textContent = gameTitle;
+    document.getElementById('gameViewTitleText').textContent = gameTitle;
+
+    const titleIcon = document.querySelector('.game-view-title-icon');
+    if (titleIcon) {
+        titleIcon.innerHTML = gameIconUrl
+            ? `<img src="${gameIconUrl}" alt="${gameTitle}" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fas fa-gamepad\\'></i>';">`
+            : '<i class="fas fa-gamepad"></i>';
+    }
+
+    // Immediate feedback while the fetch below is in flight
+    document.getElementById('gameStatsTableBody').innerHTML = `
+        <tr class="game-stats-loading-row">
+            <td colspan="6"><i class="fas fa-spinner fa-spin"></i> Loading stats...</td>
+        </tr>
+    `;
 
     const seasonParam = window.selectedSeason ? `?season_id=${window.selectedSeason}` : '';
 
@@ -254,8 +266,35 @@ function renderGameStatsTable(gameStats) {
     tbody.innerHTML = '';
 
     const blockClasses = ['game-team-block-a', 'game-team-block-b', 'game-team-block-c'];
+    let previousConference = null;
+    let previousSeason; // stays undefined for season-filtered views (no season_name sent)
 
     (gameStats.teams || []).forEach((team, i) => {
+        const seasonChanged = team.season_name != null && team.season_name !== previousSeason;
+
+        if (seasonChanged) {
+            // Extra breathing room before every season header after the first
+            if (i > 0) {
+                const seasonGapRow = document.createElement('tr');
+                seasonGapRow.className = 'game-stats-league-gap';
+                seasonGapRow.innerHTML = '<td colspan="6"></td>';
+                tbody.appendChild(seasonGapRow);
+            }
+            const seasonRow = document.createElement('tr');
+            seasonRow.className = 'game-stats-season-header';
+            seasonRow.innerHTML = `<td colspan="6">${team.season_name || 'Unknown Season'}</td>`;
+            tbody.appendChild(seasonRow);
+        } else if (i > 0 && team.conference !== previousConference) {
+            // Small gap between league groups within the same season
+            const gapRow = document.createElement('tr');
+            gapRow.className = 'game-stats-league-gap';
+            gapRow.innerHTML = '<td colspan="6"></td>';
+            tbody.appendChild(gapRow);
+        }
+
+        previousConference = team.conference;
+        previousSeason = team.season_name;
+
         const row = document.createElement('tr');
         row.className = blockClasses[i % blockClasses.length];
 

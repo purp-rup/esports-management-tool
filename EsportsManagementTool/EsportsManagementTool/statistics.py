@@ -102,7 +102,8 @@ class EsportsStatistics:
         Used to populate per-game navigation (e.g. bottom game tabs)
         """
         query = """
-            SELECT DISTINCT g.GameID as game_id, g.GameTitle as game_title
+            SELECT DISTINCT g.GameID as game_id, g.GameTitle as game_title,
+                   CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image
             FROM teams t
             JOIN games g ON t.gameID = g.GameID
         """
@@ -115,7 +116,12 @@ class EsportsStatistics:
         query += " ORDER BY g.GameTitle ASC"
 
         self.cursor.execute(query, params)
-        return self.cursor.fetchall()
+        games = self.cursor.fetchall()
+
+        for game in games:
+            game['icon_url'] = f"/game-image/{game['game_id']}" if game['has_image'] else None
+
+        return games
     
     def get_total_games_in_database(self):
         """Count all games in database (including non-competitive)"""
@@ -405,7 +411,7 @@ class EsportsStatistics:
         game_manager = f"{gm_row['firstname']} {gm_row['lastname']}" if gm_row and gm_row['firstname'] else None
 
         # Teams for this game (optionally filtered by season)
-        team_query = "SELECT TeamID, teamName FROM teams WHERE gameID = %s"
+        team_query = "SELECT TeamID, teamName, season_id FROM teams WHERE gameID = %s"
         params = [game_id]
         if self.season_id:
             team_query += " AND season_id = %s"
@@ -414,6 +420,16 @@ class EsportsStatistics:
 
         cursor.execute(team_query, tuple(params))
         teams = cursor.fetchall()
+
+        # All-Time view only: map season_id -> name, and rank seasons so the
+        # most recent one sorts first (used below to group rows by season)
+        season_names = {}
+        season_order = {}
+        if not self.season_id:
+            cursor.execute("SELECT season_id, season_name FROM seasons ORDER BY start_date DESC")
+            all_seasons = cursor.fetchall()
+            season_names = {s['season_id']: s['season_name'] for s in all_seasons}
+            season_order = {s['season_id']: idx for idx, s in enumerate(all_seasons)}
 
         result_rows = []
         for team in teams:
@@ -494,12 +510,29 @@ class EsportsStatistics:
                     'team_id': team_id,
                     'team_title': team['teamName'],
                     'conference': tl['league_name'],
+                    'season_id': team['season_id'],
+                    'season_name': None if self.season_id else season_names.get(team['season_id']),
                     'regular_season_matches': regular_matches,
                     'regular_season_record': regular_season_record,
                     'playoffs_matches': playoffs_matches,
                     'playoffs_status': playoffs_status,
                     'playoffs_outcome': playoffs_outcome,
                 })
+
+        # Group primarily by league.
+        result_rows.sort(key=lambda r: (r['conference'] is None, r['conference'] or '', r['team_title']))
+
+        # Group primarily by league. For the All-Time view (no
+        # season filter), group by season first — most recent season on top.
+        if self.season_id:
+            result_rows.sort(key=lambda r: (r['conference'] is None, r['conference'] or '', r['team_title']))
+        else:
+            result_rows.sort(key=lambda r: (
+                season_order.get(r['season_id'], len(season_order)),
+                r['conference'] is None,
+                r['conference'] or '',
+                r['team_title']
+            ))
 
         return {
             'game_id': game_id,
@@ -707,7 +740,7 @@ def register_statistics_routes(app, mysql, login_required, roles_required):
     Register statistics routes with the Flask app
     """
     from flask import render_template, request, jsonify
-    
+
     @app.route('/admin/statistics')
     @login_required
     @roles_required('admin', 'developer')
@@ -715,23 +748,32 @@ def register_statistics_routes(app, mysql, login_required, roles_required):
         """
         Display comprehensive statistics page
         """
-        # Get optional season filter
-        season_id = request.args.get('season_id', type=int)
-        
+        # Get available seasons for filter dropdown (order unchanged)
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute("""
+                SELECT season_id, season_name, start_date, end_date, is_active
+                FROM seasons
+                ORDER BY start_date DESC
+            """)
+        seasons = cursor.fetchall()
+        cursor.close()
+
+        # Season filter: no param on first load = default to the current
+        # (active) season; ?season_id=all = explicit "All Time" pick;
+        # otherwise use whatever season_id was given
+        season_param = request.args.get('season_id')
+        if season_param is None:
+            active_season = next((s for s in seasons if s['is_active']), None)
+            season_id = active_season['season_id'] if active_season else None
+        elif season_param == 'all':
+            season_id = None
+        else:
+            season_id = int(season_param)
+
         # Calculate statistics
         with EsportsStatistics(mysql, season_id) as stats:
             all_stats = stats.get_all_statistics()
-        
-        # Get available seasons for filter dropdown
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute("""
-            SELECT season_id, season_name, start_date, end_date, is_active
-            FROM seasons
-            ORDER BY start_date DESC
-        """)
-        seasons = cursor.fetchall()
-        cursor.close()
-        
+
         return render_template(
             'admin_statistics.html',
             statistics=all_stats,

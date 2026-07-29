@@ -285,7 +285,7 @@
     <div id="statsGameView" style="display:none;">
         <section class="stats-section">
             <h2 id="gameViewTitle">
-                <i class="fas fa-gamepad"></i> <span></span>
+                <span class="game-view-title-icon"><i class="fas fa-gamepad"></i></span> <span id="gameViewTitleText"></span>
             </h2>
             <div id="gameStatsTableWrap" class="game-stats-table-wrap">
                 <table class="game-stats-table">
@@ -318,12 +318,18 @@
         <div class="stats-floating-tabs-inner">
             <button class="stats-floating-tab active" data-game="overview">
                 <i class="fas fa-chart-pie"></i>
-                <span>Overview</span>
+                <span class="stats-floating-tab-label">Overview</span>
             </button>
             {% for game in statistics.active_games %}
-            <button class="stats-floating-tab" data-game="{{ game.game_id }}">
-                <i class="fas fa-gamepad"></i>
-                <span>{{ game.game_title }}</span>
+            <button class="stats-floating-tab" data-game="{{ game.game_id }}" data-icon="{{ game.icon_url or '' }}">
+                <span class="stats-floating-tab-icon">
+                    {% if game.icon_url %}
+                        <img src="{{ game.icon_url }}" alt="{{ game.game_title }}" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'fas fa-gamepad\'></i>';">
+                    {% else %}
+                        <i class="fas fa-gamepad"></i>
+                    {% endif %}
+                </span>
+                <span class="stats-floating-tab-label">{{ game.game_title }}</span>
             </button>
             {% endfor %}
         </div>

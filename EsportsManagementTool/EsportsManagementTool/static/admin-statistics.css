@@ -59,6 +59,13 @@
     color: var(--text-primary);
 }
 
+/* Cap the season list at ~6 visible items before scrolling, without
+   touching the shared .filter-box-panel used elsewhere in the app */
+#seasonFilterPanel {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
 .season-dropdown {
     padding: 0.5rem 1rem;
     border: 2px solid var(--border-color);
@@ -491,6 +498,56 @@
     font-weight: 700;
 }
 
+.game-view-title-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.game-view-title-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.stats-floating-tab-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.stats-floating-tab-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.game-stats-league-gap td {
+    height: 10px;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+.game-stats-table tbody tr.game-stats-season-header td {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #fff;
+    background: var(--stockton-blue);
+    padding: 0.6rem 1rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
 .game-stats-match-list {
     display: flex;
     flex-direction: column;
@@ -625,8 +682,21 @@
 }
 
 /* ============================================
-   EMPTY STATE
+   States
    ============================================ */
+.game-stats-loading-row td {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    border-bottom: none;
+}
+
+.game-stats-loading-row i {
+    margin-right: 0.5rem;
+    color: var(--stockton-blue);
+}
+
 .empty-state {
     text-align: center;
     padding: 4rem 2rem;
