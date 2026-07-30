@@ -396,7 +396,7 @@ function openRecordResultModal() {
     // Check if season is active
     const isActiveSeason = window.currentTeamSeasonIsActive === 1;
     if (!isActiveSeason) {
-        alert('Cannot record match results for teams from past seasons.');
+        showDeleteErrorMessage('Cannot record match results for teams from past seasons.');
         return;
     }
 
@@ -654,8 +654,15 @@ async function submitMatchResult(event) {
         const data = await response.json();
 
         if (data.success) {
-            // Show success message
+            // Show inline modal message
             showMessage(messageDiv, data.message, 'success');
+
+            // Show notification card colored by match result (win = green, loss = red)
+            if (formData.result === 'win') {
+                showDeleteSuccessMessage(data.message);
+            } else {
+                showDeleteErrorMessage(data.message);
+            }
 
             // Close modal and reload stats after brief delay
             setTimeout(() => {
@@ -687,7 +694,7 @@ async function editMatchResult(eventId) {
     // Find the match in cached data
     const match = matchEvents.find(m => m.event_id === eventId);
     if (!match) {
-        alert('Match not found');
+        showDeleteErrorMessage('Match not found');
         return;
     }
 

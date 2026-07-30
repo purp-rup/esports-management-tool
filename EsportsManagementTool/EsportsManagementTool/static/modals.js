@@ -1,5 +1,4 @@
 /**
- * modals.js
  * ============================================================================
  * UNIVERSAL MODAL MANAGEMENT SYSTEM
  * ============================================================================
@@ -11,11 +10,30 @@
  * - ESC key to close any visible modal
  * - Automatic body scroll management (prevents background scrolling)
  * - Centralized handler registry for easy maintenance
- *
- * This system ensures consistent modal behavior throughout the application
- * without needing to attach individual listeners to each modal.
+ * - Delete modal structure and processing
  * ============================================================================
  */
+
+// ============================================
+// GLOBAL STATE (for delete modals)
+// ============================================
+const DeleteModalState = {
+    /** Current deletion callback function */
+    onConfirm: null,
+
+    /** Item ID being deleted */
+    itemId: null,
+
+    /** Item name being deleted */
+    itemName: '',
+
+    /** Reset state */
+    reset() {
+        this.onConfirm = null;
+        this.itemId = null;
+        this.itemName = '';
+    }
+};
 
 // ============================================
 // MODAL CLOSE HANDLER REGISTRY
@@ -148,3 +166,173 @@ function initializeEscapeKeyHandler() {
         }
     });
 }
+
+
+// ============================================
+// DELETE MODAL FUNCTIONALITY
+// ============================================
+
+/**
+ * Open delete confirmation modal with custom content
+ *
+ * @example
+ * openDeleteConfirmModal({
+ *     title: 'Delete Event?',
+ *     itemName: 'Weekly Practice',
+ *     message: 'Are you sure you want to delete this event?',
+ *     additionalInfo: '<div style="color: orange;">Time remaining: 2h 30m</div>',
+ *     buttonText: 'Delete Event',
+ *     onConfirm: confirmDeleteEvent,
+ *     itemId: 123
+ * });
+ */
+function openDeleteConfirmModal(config) {
+    const {
+        title = 'Confirm Deletion',
+        itemName = '',
+        message = 'Are you sure you want to delete this item?',
+        additionalInfo = '',
+        buttonText = 'Delete',
+        onConfirm,
+        itemId = null
+    } = config;
+
+    // Validate required parameters
+    if (!onConfirm || typeof onConfirm !== 'function') {
+        console.error('openDeleteConfirmModal: onConfirm callback is required');
+        return;
+    }
+
+    // Store state
+    DeleteModalState.onConfirm = onConfirm;
+    DeleteModalState.itemId = itemId;
+    DeleteModalState.itemName = itemName;
+
+    // Get modal elements
+    const modal = document.getElementById('deleteConfirmModal');
+    const titleElement = document.getElementById('deleteConfirmTitle');
+    const messageElement = document.getElementById('deleteConfirmMessage');
+    const confirmButton = document.getElementById('deleteConfirmButton');
+
+    if (!modal || !titleElement || !messageElement || !confirmButton) {
+        console.error('Delete confirmation modal elements not found');
+        return;
+    }
+
+    // Update modal content
+    titleElement.textContent = title;
+
+    // Build message with item name highlighted
+    let fullMessage = message;
+    if (itemName) {
+        fullMessage = fullMessage.replace(
+            itemName,
+            `<span class="delete-confirmation-event-name">${itemName}</span>`
+        );
+    }
+
+    // Add additional info if provided
+    if (additionalInfo) {
+        fullMessage += additionalInfo;
+    }
+
+    messageElement.innerHTML = fullMessage;
+    confirmButton.textContent = buttonText;
+
+    // Reset button state (in case previous operation left it disabled)
+    confirmButton.disabled = false;
+    confirmButton.innerHTML = buttonText;
+
+    // Show modal
+    modal.classList.add('active');
+    lockBodyScroll('deleteConfirmModal');
+}
+
+// Close delete confirmation modal
+function closeDeleteConfirmModal() {
+    const modal = document.getElementById('deleteConfirmModal');
+    if (!modal) return;
+
+    modal.classList.remove('active');
+    unlockBodyScroll('deleteConfirmModal');
+
+    // Reset state
+    DeleteModalState.reset();
+}
+
+/**
+ * Execute the deletion when user confirms
+ * Calls the stored callback function
+ */
+async function executeDeleteConfirm() {
+    if (!DeleteModalState.onConfirm) {
+        console.error('No deletion callback registered');
+        closeDeleteConfirmModal();
+        return;
+    }
+
+    const confirmButton = document.getElementById('deleteConfirmButton');
+
+    // Set loading state
+    if (confirmButton) {
+        confirmButton.disabled = true;
+        confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    }
+
+    try {
+        // Execute the callback with stored item ID
+        await DeleteModalState.onConfirm(DeleteModalState.itemId);
+
+        // Callback is responsible for closing modal and showing success message
+        // This allows for custom post-deletion behavior
+    } catch (error) {
+        console.error('Error during deletion:', error);
+
+        // Reset button state on error
+        if (confirmButton) {
+            confirmButton.disabled = false;
+            confirmButton.textContent = 'Delete';
+        }
+
+        // Show error to user
+        alert('An error occurred during deletion. Please try again.');
+        closeDeleteConfirmModal();
+    }
+}
+
+// ============================================
+// WARNING POPUP MODAL
+// ============================================
+
+/**
+ * Open the warning popup modal
+ * Title is always "Warning" - only the message body is customizable
+ */
+function openWarningPopup(message) {
+    const modal = document.getElementById('warningPopupModal');
+    const messageElement = document.getElementById('warningPopupMessage');
+
+    if (!modal || !messageElement) {
+        console.error('Warning popup modal elements not found');
+        return;
+    }
+
+    messageElement.textContent = message;
+
+    modal.classList.add('active');
+    lockBodyScroll('warningPopupModal');
+}
+
+function closeWarningPopup() {
+    const modal = document.getElementById('warningPopupModal');
+    if (!modal) return;
+
+    modal.classList.remove('active');
+    unlockBodyScroll('warningPopupModal');
+}
+
+window.openWarningPopup = openWarningPopup;
+window.closeWarningPopup = closeWarningPopup;
+window.openDeleteConfirmModal = openDeleteConfirmModal;
+window.closeDeleteConfirmModal = closeDeleteConfirmModal;
+window.executeDeleteConfirm = executeDeleteConfirm;

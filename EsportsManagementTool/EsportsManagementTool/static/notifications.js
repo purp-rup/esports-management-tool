@@ -1,13 +1,18 @@
 /**
- * notifications.js
  * ============================================================================
  * NOTIFICATION SETTINGS MANAGEMENT
  * ============================================================================
- * Handles all notification-related functionality:
+ * Handles all internal and external notification-related functionality:
+ * (EXTERNAL)
  * - User notification preferences (enable/disable toggle)
  * - Event type filter buttons (multi-select, auto-save on click)
  * - Advance notice settings
  * - Event subscription management (subscribe/unsubscribe)
+ *
+ * (INTERNAL)
+ * - Notification card message formatting and processing
+ * - Notification styles (success, error, info)
+ * - Notification queue system for multiple notifications at once
  * ============================================================================
  */
 

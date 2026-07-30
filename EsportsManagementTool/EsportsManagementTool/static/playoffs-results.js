@@ -420,15 +420,12 @@ function showModalMessage(type, message) {
     }
 }
 
-/**
- * Show global message
- */
+// Show global message
 function showMessage(type, message) {
-    // Reuse existing notification system if available
-    if (typeof showNotification === 'function') {
-        showNotification(message, type);
+    if (type === 'success') {
+        showDeleteSuccessMessage(message);
     } else {
-        alert(message);
+        showDeleteErrorMessage(message);
     }
 }
 
