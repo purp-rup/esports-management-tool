@@ -1,6 +1,11 @@
 /**
- * Seasons Management JavaScript
- * Handles UI and API interactions for seasons system
+ * =============================
+ * Seasons Management
+ * =============================
+ *
+ * - Seasons modal (including create and edit modals too)
+ * - Logic for storing season history
+ * - Rendering season specific content
  */
 
 let currentSeason = null;
@@ -31,15 +36,14 @@ function closeManageSeasonsModal() {
     unlockBodyScroll('manageSeasonsModal');
 
     // Clear any messages
-    hideMessage('seasonsMessage');
+    const messageEl = document.getElementById('seasonsMessage');
+    if (messageEl) messageEl.style.display = 'none';
 }
 
-/**
- * Load current season and history
- */
+// Load current season and all historical season figures
 async function loadSeasonsData() {
-    showLoading('seasonsLoading');
-    hideContent('seasonsContent');
+    document.getElementById('seasonsLoading').style.display = 'block';
+    document.getElementById('seasonsContent').style.display = 'none';
 
     try {
         // Fetch current season
@@ -63,16 +67,19 @@ async function loadSeasonsData() {
 
     } catch (error) {
         console.error('Error loading seasons:', error);
-        showMessage('seasonsMessage', 'Failed to load seasons data', 'error');
+        const messageEl = document.getElementById('seasonsMessage');
+        if (messageEl) {
+            messageEl.textContent = 'Failed to load seasons data';
+            messageEl.className = 'form-message error';
+            messageEl.style.display = 'block';
+        }
     } finally {
-        hideLoading('seasonsLoading');
-        showContent('seasonsContent');
+        document.getElementById('seasonsLoading').style.display = 'none';
+        document.getElementById('seasonsContent').style.display = 'block';
     }
 }
 
-/**
- * Render the seasons UI based on current state
- */
+// Render the seasons UI based on current state
 function renderSeasonsUI() {
     const container = document.getElementById('seasonsContent');
 
@@ -183,18 +190,16 @@ function renderSeasonsUI() {
     container.innerHTML = html;
 }
 
-/**
- * Open create season form
- */
+// Open and activate the create season form
 function openCreateSeasonForm() {
     const container = document.getElementById('seasonsContent');
 
     container.innerHTML = `
-        <form id="createSeasonForm" class="season-form" onsubmit="handleCreateSeason(event)">
+        <form id="createSeasonForm" class="event-form-modal season-form" onsubmit="handleCreateSeason(event)">
             <h3><i class="fas fa-calendar-plus"></i> Create New Season</h3>
 
             <div class="form-group">
-                <label for="newSeasonName">Season Name *</label>
+                <label for="newSeasonName" class="required-field">Season Name</label>
                 <input type="text"
                        id="newSeasonName"
                        name="season_name"
@@ -204,7 +209,7 @@ function openCreateSeasonForm() {
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="newSeasonStart">Start Date *</label>
+                    <label for="newSeasonStart" class="required-field">Start Date</label>
                     <input type="date"
                            id="newSeasonStart"
                            name="start_date"
@@ -212,7 +217,7 @@ function openCreateSeasonForm() {
                 </div>
 
                 <div class="form-group">
-                    <label for="newSeasonEnd">End Date *</label>
+                    <label for="newSeasonEnd" class="required-field">End Date</label>
                     <input type="date"
                            id="newSeasonEnd"
                            name="end_date"
@@ -233,20 +238,18 @@ function openCreateSeasonForm() {
     `;
 }
 
-/**
- * Open edit season form
- */
+// Open and activate the edit season modal form
 function openEditSeasonForm() {
     if (!currentSeason) return;
 
     const container = document.getElementById('seasonsContent');
 
     container.innerHTML = `
-        <form id="editSeasonForm" class="season-form" onsubmit="handleUpdateSeason(event)">
+        <form id="editSeasonForm" class="event-form-modal season-form" onsubmit="handleUpdateSeason(event)">
             <h3><i class="fas fa-edit"></i> Edit Season</h3>
 
             <div class="form-group">
-                <label for="editSeasonName">Season Name *</label>
+                <label for="editSeasonName" class="required-field">Season Name</label>
                 <input type="text"
                        id="editSeasonName"
                        name="season_name"
@@ -266,7 +269,7 @@ function openEditSeasonForm() {
                 </div>
 
                 <div class="form-group">
-                    <label for="editSeasonEnd">End Date *</label>
+                    <label for="editSeasonEnd" class="required-field">End Date</label>
                     <input type="date"
                            id="editSeasonEnd"
                            name="end_date"
@@ -484,46 +487,4 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-}
-
-/**
- * Helper functions for UI state
- */
-function showLoading(id) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'block';
-}
-
-function hideLoading(id) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-}
-
-function showContent(id) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'block';
-}
-
-function hideContent(id) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-}
-
-function showMessage(id, message, type) {
-    const el = document.getElementById(id);
-    if (el) {
-        el.textContent = message;
-        el.className = `form-message ${type}`;
-        el.style.display = 'block';
-
-        // Auto-hide success messages after 5 seconds
-        if (type === 'success') {
-            setTimeout(() => hideMessage(id), 5000);
-        }
-    }
-}
-
-function hideMessage(id) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
 }

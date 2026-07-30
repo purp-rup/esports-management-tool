@@ -4,148 +4,153 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='dashboard-base.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='tabs.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='admin-statistics.css') }}">
 {% endblock %}
 
 {% block content %}
 <div class="container">
+    <!-- nav-bar -->
+    <nav class="nav-bar">
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <span class="nav-bar-sep"><i class="fas fa-chevron-right" style="font-size:0.65rem;"></i></span>
+        <span>Program Statistics</span>
+    </nav>
+
     <div class="statistics-header">
-        <div>
+        <div class="statistics-header-title">
             <h1>Esports Program Statistics</h1>
             <p>Comprehensive overview of Stockton's competitive esports performance</p>
         </div>
-        
-        <!-- Season Filter -->
-        {% set ns = namespace(current_season_label='All Time') %}
-        {% for season in seasons %}
-            {% if selected_season == season.season_id %}
-                {% set ns.current_season_label = season.season_name + (' (Current)' if season.is_active else '') %}
-            {% endif %}
-        {% endfor %}
-        <div class="season-filter">
-            <label>Season:</label>
-            <div class="filter-box" id="seasonFilterBox">
-                <button class="filter-box-btn" onclick="toggleFilterBox('seasonFilterPanel')">
-                    <span id="seasonFilterLabel">{{ ns.current_season_label }}</span>
-                    <i class="fas fa-chevron-down"></i>
-                </button>
-                <div class="filter-box-panel" id="seasonFilterPanel">
-                    <div class="filter-box-item {% if not selected_season %}active{% endif %}" onclick="filterBySeason('')">All Time</div>
-                    {% for season in seasons %}
-                    <div class="filter-box-item {% if selected_season == season.season_id %}active{% endif %}" onclick="filterBySeason('{{ season.season_id }}')">
-                        {{ season.season_name }}{% if season.is_active %} (Current){% endif %}
+
+        <div class="statistics-header-right">
+            <!-- Season Filter -->
+            {% set ns = namespace(current_season_label='All Time') %}
+            {% for season in seasons %}
+                {% if selected_season == season.season_id %}
+                    {% set ns.current_season_label = season.season_name + (' (Current)' if season.is_active else '') %}
+                {% endif %}
+            {% endfor %}
+            <div class="season-filter">
+                <label>Season:</label>
+                <div class="filter-box" id="seasonFilterBox">
+                    <button class="filter-box-btn" onclick="toggleFilterBox('seasonFilterPanel')">
+                        <span id="seasonFilterLabel">{{ ns.current_season_label }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="filter-box-panel" id="seasonFilterPanel">
+                        <div class="filter-box-item {% if not selected_season %}active{% endif %}" onclick="filterBySeason('')">All Time</div>
+                        {% for season in seasons %}
+                        <div class="filter-box-item {% if selected_season == season.season_id %}active{% endif %}" onclick="filterBySeason('{{ season.season_id }}')">
+                            {{ season.season_name }}{% if season.is_active %} (Current){% endif %}
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
                 </div>
+            </div>
+
+            <!-- Competitive / Community view tabs (placeholder — not wired up yet) -->
+            <div class="tab-navigation stats-view-tabs">
+                <button class="tab-button active" data-view="competitive" onclick="switchStatsView('competitive', this)">
+                    <i class="fas fa-trophy tab-icon"></i>
+                    <span>Competitive</span>
+                </button>
+                <button class="tab-button" data-view="community" onclick="switchStatsView('community', this)">
+                    <i class="fas fa-users tab-icon"></i>
+                    <span>Community</span>
+                </button>
             </div>
         </div>
     </div>
 
+    <div id="statsOverviewView">
     <!-- ================================ -->
-    <!-- PROGRAM-WIDE SUMMARY CARDS -->
-    <!-- ================================ -->
-    <section class="stats-section">
-        <h2>Program Overview</h2>
-        <div class="stats-grid-large">
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-                    <i class="fas fa-gamepad"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value">{{ statistics.program_wide.unique_games }}</div>
-                    <div class="stat-label">Competitive Game Titles</div>
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
-                    <i class="fas fa-trophy"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value">{{ statistics.program_wide.unique_leagues }}</div>
-                    <div class="stat-label">Unique Leagues</div>
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
-                    <i class="fas fa-users"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value">{{ statistics.program_wide.unique_players }}</div>
-                    <div class="stat-label">Unique Players</div>
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
-                    <i class="fas fa-shield-alt"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value">{{ statistics.program_wide.unique_teams }}</div>
-                    <div class="stat-label">Unique Teams</div>
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #fa709a, #fee140);">
-                    <i class="fas fa-user-friends"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value">{{ statistics.program_wide.community_members }}</div>
-                    <div class="stat-label">Community Members</div>
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #30cfd0, #330867);">
-                    <i class="fas fa-user-check"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value">{{ statistics.program_wide.fielded_players }}</div>
-                    <div class="stat-label">Fielded Players</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ================================ -->
-    <!-- PLAYER STATISTICS -->
+    <!-- SCORECARD OVERVIEW -->
     <!-- ================================ -->
     <section class="stats-section">
-        <h2>Player Metrics</h2>
-        <div class="stats-grid-medium">
-            <div class="stat-card stat-card-highlight">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #11998e, #38ef7d);">
-                    <i class="fas fa-user-plus"></i>
+        <div class="scorecard-layout">
+
+            <!-- LEFT COLUMN: program-wide + player metrics + aggregate playoffs -->
+            <div class="scorecard-column">
+                <div class="scorecard-box">
+                    <span class="scorecard-box-label">Unique Esports</span>
+                    <span class="scorecard-box-value">{{ statistics.program_wide.unique_esports }}</span>
                 </div>
-                <div class="stat-content">
-                    <div class="stat-value">{{ statistics.player_stats.new_players }}</div>
-                    <div class="stat-label">New Players</div>
-                    <div class="stat-description">First time competitors</div>
+                <div class="scorecard-box">
+                    <span class="scorecard-box-label">Unique Leagues</span>
+                    <span class="scorecard-box-value">{{ statistics.program_wide.unique_leagues }}</span>
+                </div>
+
+                <div class="scorecard-table">
+                    <div class="scorecard-table-row row-winner">
+                        <span>Winner</span><span>{{ statistics.playoffs_placements.winners }}</span>
+                    </div>
+                    <div class="scorecard-table-row row-finals">
+                        <span>Finals / Top 2</span><span>{{ statistics.playoffs_placements.finals }}</span>
+                    </div>
+                    <div class="scorecard-table-row row-semifinals">
+                        <span>Semifinals / Top 4</span><span>{{ statistics.playoffs_placements.semifinals }}</span>
+                    </div>
+                    <div class="scorecard-table-row row-quarterfinals">
+                        <span>Quarterfinals / Top 8</span><span>{{ statistics.playoffs_placements.quarterfinals }}</span>
+                    </div>
+                    <div class="scorecard-table-row row-playoffs">
+                        <span>Playoffs</span><span>{{ statistics.playoffs_placements.playoffs }}</span>
+                    </div>
+                    <div class="scorecard-table-row row-regular">
+                        <span>Regular Season</span><span>{{ statistics.playoffs_placements.regular_season }}</span>
+                    </div>
+                    <div class="scorecard-table-row row-inprogress">
+                        <span>In Progress</span><span>{{ statistics.playoffs_placements.in_progress }}</span>
+                    </div>
+                </div>
+
+                <div class="scorecard-box">
+                    <span class="scorecard-box-label">New Players</span>
+                    <span class="scorecard-box-value">{{ statistics.player_stats.new_players }}</span>
+                </div>
+                <div class="scorecard-box">
+                    <span class="scorecard-box-label">Did Not Return</span>
+                    <span class="scorecard-box-value">{{ statistics.player_stats.did_not_return }}</span>
+                </div>
+                <div class="scorecard-box">
+                    <span class="scorecard-box-label">Multi-Team Players</span>
+                    <span class="scorecard-box-value">{{ statistics.player_stats.multi_team_players }}</span>
                 </div>
             </div>
 
-            <div class="stat-card stat-card-warning">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #ee0979, #ff6a00);">
-                    <i class="fas fa-user-times"></i>
+            <!-- RIGHT SIDE: per-league table + chart panels -->
+            <div class="scorecard-panels">
+                {% if statistics.league_breakdown %}
+                {% for league in statistics.league_breakdown %}
+                <div class="league-panel">
+                    <div class="league-panel-table">
+                        <div class="league-panel-name">{{ league.league_name or 'No League' }}</div>
+                        <div class="league-panel-row row-players">
+                            <span>Unique Players</span><span>{{ league.unique_players }}</span>
+                        </div>
+                        <div class="league-panel-row row-esports">
+                            <span>Unique Esports</span><span>{{ league.unique_esports }}</span>
+                        </div>
+                        <div class="league-panel-row row-community">
+                            <span>Unique {{ league.league_name or 'Program' }} Community Members</span>
+                            <span>{{ league.community_members }}</span>
+                        </div>
+                        <div class="league-panel-row row-teams">
+                            <span>Unique Teams</span><span>{{ league.unique_teams }}</span>
+                        </div>
+                    </div>
+                    <div class="league-panel-chart">
+                        <canvas id="leagueChart{{ loop.index }}"></canvas>
+                    </div>
                 </div>
-                <div class="stat-content">
-                    <div class="stat-value">{{ statistics.player_stats.did_not_return }}</div>
-                    <div class="stat-label">Did Not Return</div>
-                    <div class="stat-description">From previous season</div>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-chart-bar"></i>
+                    <p>No league data available for this period</p>
                 </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #3b41c5, #a981bb);">
-                    <i class="fas fa-exchange-alt"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value">{{ statistics.player_stats.multi_team_players }}</div>
-                    <div class="stat-label">Multi-Team Players</div>
-                    <div class="stat-description">Competing in multiple teams</div>
-                </div>
+                {% endif %}
             </div>
         </div>
     </section>
@@ -154,8 +159,8 @@
     <!-- PLAYOFFS PLACEMENTS BY LEAGUE -->
     <!-- ================================ -->
     <section class="stats-section">
-        <h2>Playoffs Performance</h2>
-        
+        <h2>Playoffs Performance by League</h2>
+
         {% if statistics.playoffs_placements_by_league %}
         <div class="league-stats-container">
             {% for league in statistics.playoffs_placements_by_league %}
@@ -163,7 +168,7 @@
                 <div class="league-header">
                     <div class="league-title">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div class="league-icon" style="width: 40px; height: 40px; background: linear-gradient(135deg, var(--stockton-blue), #3b7dd6); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                            <div class="league-icon">
                                 <i class="fas fa-trophy"></i>
                             </div>
                             <h3>{{ league.league_name }}</h3>
@@ -180,62 +185,66 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="placements-grid">
-                    <div class="placement-card gold">
-                        <div class="placement-icon">
-                            <i class="fas fa-crown"></i>
+                    <div class="placement-row placement-row-top">
+                        <div class="placement-card gold">
+                            <div class="placement-icon">
+                                <i class="fas fa-crown"></i>
+                            </div>
+                            <div class="placement-value">{{ league.winners }}</div>
+                            <div class="placement-label">Winners</div>
                         </div>
-                        <div class="placement-value">{{ league.winners }}</div>
-                        <div class="placement-label">Winners</div>
+
+                        <div class="placement-card silver">
+                            <div class="placement-icon">
+                                <i class="fas fa-medal"></i>
+                            </div>
+                            <div class="placement-value">{{ league.finals }}</div>
+                            <div class="placement-label">Finals</div>
+                        </div>
+
+                        <div class="placement-card bronze">
+                            <div class="placement-icon">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <div class="placement-value">{{ league.semifinals }}</div>
+                            <div class="placement-label">Semifinals</div>
+                        </div>
                     </div>
 
-                    <div class="placement-card silver">
-                        <div class="placement-icon">
-                            <i class="fas fa-medal"></i>
+                    <div class="placement-row placement-row-bottom">
+                        <div class="placement-card">
+                            <div class="placement-icon">
+                                <i class="fas fa-award"></i>
+                            </div>
+                            <div class="placement-value">{{ league.quarterfinals }}</div>
+                            <div class="placement-label">Quarterfinals</div>
                         </div>
-                        <div class="placement-value">{{ league.finals }}</div>
-                        <div class="placement-label">Finals</div>
-                    </div>
 
-                    <div class="placement-card bronze">
-                        <div class="placement-icon">
-                            <i class="fas fa-trophy"></i>
+                        <div class="placement-card">
+                            <div class="placement-icon">
+                                <i class="fas fa-chevron-up"></i>
+                            </div>
+                            <div class="placement-value">{{ league.playoffs }}</div>
+                            <div class="placement-label">Playoffs</div>
                         </div>
-                        <div class="placement-value">{{ league.semifinals }}</div>
-                        <div class="placement-label">Semifinals</div>
-                    </div>
 
-                    <div class="placement-card">
-                        <div class="placement-icon">
-                            <i class="fas fa-award"></i>
+                        <div class="placement-card">
+                            <div class="placement-icon">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            <div class="placement-value">{{ league.regular_season }}</div>
+                            <div class="placement-label">Did Not Qualify</div>
                         </div>
-                        <div class="placement-value">{{ league.quarterfinals }}</div>
-                        <div class="placement-label">Quarterfinals</div>
-                    </div>
 
-                    <div class="placement-card">
-                        <div class="placement-icon">
-                            <i class="fas fa-chevron-up"></i>
+                        <div class="placement-card">
+                            <div class="placement-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="placement-value">{{ league.in_progress }}</div>
+                            <div class="placement-label">In Progress</div>
                         </div>
-                        <div class="placement-value">{{ league.playoffs }}</div>
-                        <div class="placement-label">Playoffs</div>
-                    </div>
-
-                    <div class="placement-card">
-                        <div class="placement-icon">
-                            <i class="fas fa-calendar-alt"></i>
-                        </div>
-                        <div class="placement-value">{{ league.regular_season }}</div>
-                        <div class="placement-label">Did Not Qualify</div>
-                    </div>
-
-                    <div class="placement-card">
-                        <div class="placement-icon">
-                            <i class="fas fa-clock"></i>
-                        </div>
-                        <div class="placement-value">{{ league.in_progress }}</div>
-                        <div class="placement-label">In Progress</div>
                     </div>
                 </div>
             </div>
@@ -245,64 +254,6 @@
         <div class="empty-state">
             <i class="fas fa-trophy"></i>
             <p>No playoffs data available for this period</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- ================================ -->
-    <!-- LEAGUE BREAKDOWN -->
-    <!-- ================================ -->
-    <section class="stats-section">
-        <h2>League Breakdown</h2>
-        
-        {% if statistics.league_breakdown %}
-        <div class="league-stats-container">
-            {% for league in statistics.league_breakdown %}
-            <div class="league-card">
-                <div class="league-header">
-                    <div class="league-title">
-                        {% if league.league_name %}
-                        <h3>{{ league.league_name }}</h3>
-                        {% else %}
-                        <h3>No League</h3>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <div class="league-stats-grid">
-                    <div class="league-stat">
-                        <div class="league-stat-value">{{ league.unique_players }}</div>
-                        <div class="league-stat-label">Unique Players</div>
-                    </div>
-                    <div class="league-stat">
-                        <div class="league-stat-value">{{ league.unique_esports }}</div>
-                        <div class="league-stat-label">Unique Esports</div>
-                    </div>
-                    <div class="league-stat">
-                        <div class="league-stat-value">{{ league.community_members }}</div>
-                        <div class="league-stat-label">Community Members</div>
-                    </div>
-                    <div class="league-stat">
-                        <div class="league-stat-value">{{ league.fielded_players }}</div>
-                        <div class="league-stat-label">Fielded Players</div>
-                    </div>
-                    <div class="league-stat">
-                        <div class="league-stat-value">{{ league.unique_teams }}</div>
-                        <div class="league-stat-label">Unique Teams</div>
-                    </div>
-                </div>
-
-                <!-- Bar Chart Visualization -->
-                <div class="league-chart">
-                    <canvas id="leagueChart{{ loop.index }}"></canvas>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-state">
-            <i class="fas fa-chart-bar"></i>
-            <p>No league data available for this period</p>
         </div>
         {% endif %}
     </section>
@@ -326,6 +277,61 @@
             </div>
         </div>
     </section>
+    </div><!-- /#statsOverviewView -->
+
+    <!-- ================================ -->
+    <!-- PER-GAME DETAIL VIEW -->
+    <!-- ================================ -->
+    <div id="statsGameView" style="display:none;">
+        <section class="stats-section">
+            <h2 id="gameViewTitle">
+                <i class="fas fa-gamepad"></i> <span></span>
+            </h2>
+            <div id="gameStatsTableWrap" class="game-stats-table-wrap">
+                <table class="game-stats-table">
+                    <thead>
+                        <tr>
+                            <th>Game Manager</th>
+                            <th>Team Name</th>
+                            <th>Conference</th>
+                            <th>Regular Season</th>
+                            <th>Reg Season Record</th>
+                            <th>Playoffs</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gameStatsTableBody">
+                        <!-- Rows injected by renderGameStatsTable() -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
+<!-- Floating bottom-right tabs: Overview + one per active game (placeholder, not yet functional) -->
+<div class="stats-floating-tabs-wrapper">
+    <button class="stats-floating-tabs-arrow stats-floating-tabs-arrow-left" id="statsFloatingTabsArrowLeft" style="display:none;">
+        <i class="fas fa-chevron-left"></i>
+    </button>
+
+    <div class="stats-floating-tabs" id="statsFloatingTabsTrack">
+        <div class="stats-floating-tabs-inner">
+            <button class="stats-floating-tab active" data-game="overview">
+                <i class="fas fa-chart-pie"></i>
+                <span>Overview</span>
+            </button>
+            {% for game in statistics.active_games %}
+            <button class="stats-floating-tab" data-game="{{ game.game_id }}">
+                <i class="fas fa-gamepad"></i>
+                <span>{{ game.game_title }}</span>
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <button class="stats-floating-tabs-arrow stats-floating-tabs-arrow-right" id="statsFloatingTabsArrowRight" style="display:none;">
+        <i class="fas fa-chevron-right"></i>
+    </button>
 </div>
 
 <!-- Store data for JavaScript -->

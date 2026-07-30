@@ -6,24 +6,46 @@
 /* ============================================
    HEADER & FILTERS
    ============================================ */
+.container .nav-bar {
+    margin-top: 2rem;
+}
+
 .statistics-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 2rem;
     padding-bottom: 1.5rem;
     border-bottom: 2px solid var(--border-color);
 }
 
-.statistics-header h1 {
+.statistics-header-title h1 {
     margin: 0;
     font-size: 2rem;
     color: var(--text-primary);
 }
 
-.statistics-header p {
+.statistics-header-title p {
     margin: 0.5rem 0 0;
     color: var(--text-secondary);
+}
+
+.statistics-header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.75rem;
+}
+
+/* Right-aligned, content-width tab variant (placeholder for competitive/community split) */
+.stats-view-tabs {
+    width: auto;
+    margin-bottom: 0;
+}
+
+.stats-view-tabs .tab-button {
+    flex: 0 0 auto;
+    padding: 0.6rem 1.25rem;
 }
 
 .season-filter {
@@ -80,217 +102,158 @@
 }
 
 /* ============================================
-   STAT CARDS - LARGE GRID (6 columns)
+   SCORECARD OVERVIEW - LEFT COLUMN
+   (program totals, player metrics, aggregate playoffs table)
    ============================================ */
-.stats-grid-large {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-}
-
-/* ============================================
-   STAT CARDS - MEDIUM GRID (3 columns)
-   ============================================ */
-.stats-grid-medium {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-}
-
-/* ============================================
-   STAT CARD BASE STYLES
-   ============================================ */
-.stat-card {
+.scorecard-layout {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
     background: var(--dark-bg);
     border: 2px solid var(--border-color);
     border-radius: 12px;
     padding: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.scorecard-column {
     display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    width: 320px;
+    flex-shrink: 0;
+}
+
+.scorecard-box {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 1rem;
-    transition: all 0.3s ease;
-    position: relative;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.55rem 1rem;
+    background: var(--background-secondary);
+}
+
+.scorecard-box-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.scorecard-box-value {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+}
+
+.scorecard-table {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
     overflow: hidden;
 }
 
-.stat-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--stockton-blue), transparent);
-    opacity: 0;
-    transition: opacity 0.3s;
+.scorecard-table-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--background-secondary);
 }
 
-.stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-    border-color: var(--stockton-blue);
+.scorecard-table-row:last-child {
+    border-bottom: none;
 }
 
-.stat-card:hover::before {
-    opacity: 1;
+.scorecard-table-row span:last-child {
+    font-weight: 700;
 }
 
-/* Highlight variant */
-.stat-card-highlight {
-    border-color: #11998e;
-}
-
-.stat-card-highlight:hover {
-    border-color: #38ef7d;
-}
-
-/* Warning variant */
-.stat-card-warning {
-    border-color: #ee0979;
-}
-
-.stat-card-warning:hover {
-    border-color: #ff6a00;
-}
+.row-winner        { background: linear-gradient(rgba(255,215,0,0.40), rgba(255,215,0,0.40)), var(--background-secondary); }
+.row-finals        { background: linear-gradient(rgba(192,192,192,0.35), rgba(192,192,192,0.35)), var(--background-secondary); }
+.row-semifinals    { background: linear-gradient(rgba(255,140,66,0.40), rgba(255,140,66,0.40)), var(--background-secondary); }
+.row-quarterfinals { background: linear-gradient(rgba(56,239,125,0.40), rgba(56,239,125,0.40)), var(--background-secondary); }
+.row-playoffs      { background: linear-gradient(rgba(79,172,254,0.40), rgba(79,172,254,0.40)), var(--background-secondary); }
+.row-regular       { background: linear-gradient(rgba(169,129,187,0.40), rgba(169,129,187,0.40)), var(--background-secondary); }
+.row-inprogress    { background: linear-gradient(rgba(238,9,121,0.40), rgba(238,9,121,0.40)), var(--background-secondary); }
 
 /* ============================================
-   STAT CARD COMPONENTS
+   SCORECARD OVERVIEW - LEAGUE PANELS
+   (right side: per-league table + chart)
    ============================================ */
-.stat-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 12px;
+.scorecard-panels {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    flex: 1;
+    align-content: start;
+}
+
+.league-panel {
+    display: flex;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--dark-bg);
+}
+
+.league-panel-table {
+    display: flex;
+    flex-direction: column;
+    width: 40%;
+    flex-shrink: 0;
+}
+
+.league-panel-name {
+    padding: 0.6rem 1rem;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--background-secondary);
+}
+
+.league-panel-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    background: var(--background-secondary);
+}
+
+.league-panel-row:last-child {
+    border-bottom: none;
+}
+
+.league-panel-row span:last-child {
+    font-weight: 700;
+}
+
+.row-players   { background: linear-gradient(rgba(255,215,0,0.30), rgba(255,215,0,0.30)), var(--background-secondary); }
+.row-esports   { background: linear-gradient(rgba(56,239,125,0.30), rgba(56,239,125,0.30)), var(--background-secondary); }
+.row-community { background: linear-gradient(rgba(255,152,0,0.30), rgba(255,152,0,0.30)), var(--background-secondary); }
+.row-teams     { background: linear-gradient(rgba(244,67,84,0.30), rgba(244,67,84,0.30)), var(--background-secondary); }
+
+.league-panel-chart {
+    flex: 1;
+    padding: 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.75rem;
-    color: white;
-    flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.stat-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    line-height: 1.2;
-    margin-bottom: 0.25rem;
-}
-
-.stat-label {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 600;
-}
-
-.stat-description {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    margin-top: 0.25rem;
-    font-style: italic;
+    min-height: 160px;
+    max-height: 220px;
 }
 
 /* ============================================
-   PLACEMENT CARDS (Playoffs Performance)
-   ============================================ */
-.placements-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1rem;
-}
-
-.placement-card {
-    background: var(--dark-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1.5rem;
-    text-align: center;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.placement-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, transparent, rgba(121, 189, 233, 0.05));
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.placement-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
-}
-
-.placement-card:hover::before {
-    opacity: 1;
-}
-
-/* Gold placement */
-.placement-card.gold {
-    border-color: #FFD700;
-}
-
-.placement-card.gold .placement-icon {
-    color: #FFD700;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-}
-
-/* Silver placement */
-.placement-card.silver {
-    border-color: #C0C0C0;
-}
-
-.placement-card.silver .placement-icon {
-    color: #C0C0C0;
-    text-shadow: 0 0 10px rgba(192, 192, 192, 0.5);
-}
-
-/* Bronze placement */
-.placement-card.bronze {
-    border-color: #CD7F32;
-}
-
-.placement-card.bronze .placement-icon {
-    color: #CD7F32;
-    text-shadow: 0 0 10px rgba(205, 127, 50, 0.5);
-}
-
-.placement-icon {
-    font-size: 2.5rem;
-    color: var(--stockton-blue);
-    margin-bottom: 0.75rem;
-}
-
-.placement-value {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-}
-
-.placement-label {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 600;
-}
-
-/* ============================================
-   LEAGUE CARDS
+   PLAYOFFS PERFORMANCE BY LEAGUE
    ============================================ */
 .league-stats-container {
     display: grid;
@@ -327,41 +290,129 @@
     color: var(--text-primary);
 }
 
-.league-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+.league-icon {
+    width: 26px;
+    height: 26px;
+    background: linear-gradient(135deg, var(--stockton-blue), #3b7dd6);
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
-.league-stat {
-    text-align: center;
-    padding: 0.75rem;
-    background: var(--background-secondary);
-    border-radius: 8px;
+/* Placement cards (pyramid layout: 3 top row, 4 bottom row) */
+.placements-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.placement-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.placement-row .placement-card {
+    flex: 0 1 110px;
+}
+
+.placement-card {
+    background: var(--dark-bg);
     border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.4rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-.league-stat-value {
-    font-size: 1.75rem;
-    font-weight: 700;
+.placement-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, transparent, rgba(121, 189, 233, 0.05));
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.placement-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.placement-card:hover::before {
+    opacity: 1;
+}
+
+.placement-card.gold {
+    border-color: #FFD700;
+}
+
+.placement-card.gold .placement-icon {
+    color: #FFD700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.placement-card.silver {
+    border-color: #C0C0C0;
+}
+
+.placement-card.silver .placement-icon {
+    color: #C0C0C0;
+    text-shadow: 0 0 10px rgba(192, 192, 192, 0.5);
+}
+
+.placement-card.bronze {
+    border-color: #CD7F32;
+}
+
+.placement-card.bronze .placement-icon {
+    color: #CD7F32;
+    text-shadow: 0 0 10px rgba(205, 127, 50, 0.5);
+}
+
+.placement-icon {
+    font-size: 0.9rem;
     color: var(--stockton-blue);
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.2rem;
 }
 
-.league-stat-label {
-    font-size: 0.75rem;
+.placement-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.15rem;
+}
+
+.placement-label {
+    font-size: 0.65rem;
     color: var(--text-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
+    font-weight: 600;
 }
 
-.league-chart {
-    margin-top: 1.5rem;
-    /*padding: 1rem;*/
+/* League-card-specific overrides for nested placement cards */
+.league-card .placements-grid {
+    margin-top: 0;
+}
+
+.league-card .placement-card {
     background: var(--background-secondary);
-    border-radius: 8px;
-    max-height: 300px;
+    border: 2px solid var(--border-color);
+}
+
+.league-card .placement-card:hover {
+    background: var(--dark-bg);
 }
 
 /* ============================================
@@ -373,6 +424,7 @@
     border-radius: 12px;
     padding: 2rem;
     text-align: center;
+    margin-bottom: 4.5rem;
 }
 
 .export-actions h2 {
@@ -394,6 +446,182 @@
     gap: 0.5rem;
     font-size: 1rem;
     padding: 0.75rem 1.5rem;
+}
+
+/* ============================================
+   PER-GAME DETAIL TABLE
+   ============================================ */
+.game-stats-table-wrap {
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--dark-bg);
+}
+
+.game-stats-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.game-stats-table thead th {
+    background: var(--stockton-blue);
+    color: #fff;
+    font-weight: 700;
+    text-align: center;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.game-stats-table tbody td {
+    padding: 0.65rem 1rem;
+    text-align: center;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+/* Alternating team blocks — swap the three colors below for whatever fits your palette */
+.game-team-block-a td { background: rgba(121, 189, 233, 0.10); }
+.game-team-block-b td { background: rgba(56, 239, 125, 0.08); }
+.game-team-block-c td { background: rgba(255, 152, 0, 0.08); }
+
+.game-stats-team-name {
+    font-weight: 700;
+}
+
+.game-stats-match-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    text-align: left;
+}
+
+.game-stats-match-list .match-row {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.game-stats-match-list .match-row .match-score {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.game-stats-match-list .match-row .match-score.loss {
+    text-decoration: underline;
+}
+
+.game-stats-record-badge {
+    display: inline-block;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.3rem 0.9rem;
+    border-radius: 6px;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.game-stats-outcome {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--stockton-blue);
+    margin-top: 0.4rem;
+}
+
+.game-stats-qualified {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* ============================================
+   FLOATING GAME TABS (bottom-right, fixed)
+   ============================================ */
+.stats-floating-tabs-wrapper {
+    position: fixed;
+    bottom: 0;
+    left: 1rem;
+    right: 1rem;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.35rem;
+    z-index: 50;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.stats-floating-tabs-wrapper.stats-floating-tabs-hidden {
+    transform: translateY(100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.stats-floating-tabs {
+    display: flex;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    flex: 1;
+    min-width: 0;
+}
+
+.stats-floating-tabs-inner {
+    display: flex;
+    gap: 0.3rem;
+    margin-left: auto;
+}
+
+.stats-floating-tab {
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-bottom: none;
+    border-radius: 10px 10px 0 0;
+    padding: 0.85rem 1.5rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.95rem;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    transition: all 0.2s;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
+}
+
+.stats-floating-tab i {
+    font-size: 1.05rem;
+}
+
+.stats-floating-tab:hover {
+    color: var(--text-primary);
+    background: var(--background-secondary);
+}
+
+.stats-floating-tab.active {
+    color: var(--stockton-blue);
+    background: var(--dark-bg);
+    border-color: var(--stockton-blue);
+}
+
+.stats-floating-tabs-arrow {
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-bottom: none;
+    border-radius: 10px 10px 0 0;
+    padding: 0.85rem 0.9rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
+}
+
+.stats-floating-tabs-arrow:hover {
+    color: var(--text-primary);
+    background: var(--background-secondary);
 }
 
 /* ============================================
@@ -420,12 +648,23 @@
    RESPONSIVE DESIGN
    ============================================ */
 @media (max-width: 1200px) {
-    .stats-grid-large {
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    }
-    
     .league-stats-container {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 1100px) {
+    .scorecard-layout {
+        flex-direction: column;
+    }
+
+    .scorecard-column {
+        width: 100%;
+    }
+
+    .scorecard-panels {
+        grid-template-columns: 1fr;
+        width: 100%;
     }
 }
 
@@ -435,111 +674,50 @@
         align-items: flex-start;
         gap: 1rem;
     }
-    
-    .stats-grid-large,
-    .stats-grid-medium {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .placements-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .stat-card {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .stat-icon {
-        width: 50px;
-        height: 50px;
-        font-size: 1.5rem;
-    }
-    
-    .stat-value {
-        font-size: 1.75rem;
-    }
-    
-    .export-buttons {
-        flex-direction: column;
-    }
-    
-    .export-buttons .btn {
-        width: 100%;
-    }
-}
 
-@media (max-width: 480px) {
-    .stats-grid-large,
-    .stats-grid-medium,
-    .placements-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .league-stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-/* ============================================
-   LEAGUE ICON STYLING (for playoffs section)
-   ============================================ */
-.league-icon {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, var(--stockton-blue), #3b7dd6);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    color: white;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-/* ============================================
-   LEAGUE CARD UPDATES (for playoffs grid)
-   ============================================ */
-.league-card .placements-grid {
-    margin-top: 0;
-}
-
-.league-card .placement-card {
-    background: var(--background-secondary);
-    border: 2px solid var(--border-color);
-}
-
-.league-card .placement-card:hover {
-    background: var(--dark-bg);
-}
-
-/* ============================================
-   RESPONSIVE UPDATES
-   ============================================ */
-@media (max-width: 1200px) {
-    .league-stats-container {
-        grid-template-columns: 1fr;
-    }
-    
-    .league-card .placements-grid {
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    }
-}
-
-@media (max-width: 768px) {
     .league-header {
         flex-direction: column;
         align-items: flex-start !important;
         gap: 1rem;
     }
-    
-    .league-card .placements-grid {
-        grid-template-columns: repeat(2, 1fr);
+
+    .export-buttons {
+        flex-direction: column;
+    }
+
+    .export-buttons .btn {
+        width: 100%;
+    }
+
+    .stats-floating-tabs-wrapper {
+        left: 0.5rem;
+        right: 0.5rem;
+        gap: 0.2rem;
+    }
+
+    .stats-floating-tabs-inner {
+        gap: 0.2rem;
+    }
+
+    .stats-floating-tab span {
+        display: none;
+    }
+
+    .stats-floating-tab {
+        padding: 0.85rem 1rem;
+    }
+
+    .stats-floating-tabs-arrow {
+        padding: 0.85rem 0.7rem;
     }
 }
 
-@media (max-width: 480px) {
-    .league-card .placements-grid {
-        grid-template-columns: 1fr;
+@media (max-width: 600px) {
+    .league-panel {
+        flex-direction: column;
+    }
+
+    .league-panel-table {
+        width: 100%;
     }
 }

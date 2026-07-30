@@ -122,6 +122,13 @@
     border-bottom: 2px solid var(--border-color);
 }
 
+.section-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
 .section-header h3 {
     margin: 0;
     color: var(--text-primary);
@@ -135,23 +142,35 @@
     color: var(--stockton-blue);
 }
 
+.match-results-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
 /* Match History List */
 .match-history-list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding-top: 0.3rem;
 }
 
 .match-history-item {
     display: grid;
-    grid-template-columns: 150px 1fr auto auto;
-    gap: 1rem;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 0.5rem;
     align-items: center;
-    padding: 1rem;
+    padding: 0.75rem;
     background: var(--background-secondary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     transition: all 0.2s;
+    position: relative;
     cursor: pointer; 
 }
 
@@ -163,10 +182,13 @@
 
 .match-date {
     font-size: 0.875rem;
-    color: var(--text-secondary);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    align-self: stretch;
+    white-space: nowrap;
+    padding-right: 0.75rem;
+    border-right: 2px solid #000000;
 }
 
 .match-date i {
@@ -193,11 +215,10 @@
 }
 
 .match-result {
-    padding: 0.5rem 1rem;
+    padding: 0.25rem 0.5rem;
     border-radius: 6px;
     font-weight: 600;
-    font-size: 0.875rem;
-    display: flex;
+    font-size: 0.7rem;
     align-items: center;
     gap: 0.5rem;
 }
@@ -245,6 +266,52 @@
     color: var(--stockton-blue);
 }
 
+/* =========================
+   MATCH CARD EXPAND
+   ========================= */
+.match-expand-chevron {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--stockton-blue);
+    opacity: 0;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+.match-history-item:hover .match-expand-chevron,
+.match-history-item.expanded .match-expand-chevron {
+    opacity: 1;
+}
+
+.match-expand-content {
+    display: none;
+    flex-direction: column;
+    border-top: 1px dashed var(--border-color);
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.match-history-item.expanded .match-expand-content {
+    display: flex;
+}
+
+.match-expand-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.match-expand-row i {
+    color: var(--stockton-blue);
+    width: 16px;
+}
+
+.match-expand-empty {
+    font-style: italic;
+    opacity: 0.7;
+}
+
 /* Empty State */
 .match-history-empty {
     text-align: center;
@@ -273,16 +340,67 @@
 /* ============================================
    RECORD MATCH RESULT MODAL
    ============================================ */
-
 #recordMatchResultModal .modal-content {
     max-width: 600px;
+}
+
+.match-result-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.match-playoffs-toggle {
+    margin-left: auto;
+    align-self: center;
+}
+
+.result-options-column {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Compact win/loss pills — sit inline with the score inputs instead of
+   the large stacked cards used elsewhere */
+.result-options-compact {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0;
+}
+
+.result-options-compact .result-option {
+    height: 2.5rem;
+    min-height: 0;
+    box-sizing: border-box;
+    flex-direction: row;
+    padding: 0.4rem 0.875rem;
+    gap: 0.5rem;
+    border-radius: 8px;
+}
+
+.score-input-group input {
+    height: 2.5rem;
+    box-sizing: border-box;
+    width: 60px;
+    text-align: center;
+}
+
+.result-options-compact .result-option-icon {
+    width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
+    border-radius: 5px;
+}
+
+.result-options-compact .result-option-label {
+    font-size: 0.8125rem;
 }
 
 .result-options {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    gap: 0.25rem;
 }
 
 .result-option {
@@ -347,271 +465,37 @@
     color: var(--text-primary);
 }
 
-/* ============================================
-   RESPONSIVE DESIGN
-   ============================================ */
-@media (max-width: 768px) {
-    .stats-summary-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-    }
-    
-    .stat-card {
-        padding: 1rem;
-    }
-    
-    .stat-card-icon {
-        width: 50px;
-        height: 50px;
-        font-size: 1.5rem;
-    }
-    
-    .stat-card-value {
-        font-size: 1.5rem;
-    }
-    
-    .match-history-item {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-    }
-    
-    .match-result {
-        justify-content: center;
-    }
-    
-    .result-options {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 640px) {
-    .stats-summary-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-
-    .stat-card {
-        padding: 1rem;
-    }
-
-    .stat-card-icon {
-        width: 50px;
-        height: 50px;
-        font-size: 1.5rem;
-    }
-
-    .stat-card-value {
-        font-size: 1.5rem;
-    }
-}
-/* ============================================
-   MATCH DETAILS MODAL
-   ============================================ */
-
-.match-details-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-
-.match-detail-section {
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1rem;
-}
-
-.match-detail-section.full-width {
-    grid-column: 1 / -1;
-}
-
-.match-detail-label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-secondary);
-    margin-bottom: 0.5rem;
+.score-input-row {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    align-items: flex-end;
+    gap: 0.25rem;
 }
 
-.match-detail-label i {
-    color: var(--stockton-blue);
-}
-
-.match-detail-value {
-    font-size: 1rem;
-    color: var(--text-primary);
-    font-weight: 500;
-}
-
-.match-detail-result {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 0.9375rem;
-}
-
-.match-detail-result.win {
-    background: rgba(76, 175, 80, 0.1);
-    color: #4caf50;
-    border: 2px solid #4caf50;
-}
-
-.match-detail-result.loss {
-    background: rgba(244, 67, 54, 0.1);
-    color: #f44336;
-    border: 2px solid #f44336;
-}
-
-.match-detail-result.pending {
-    background: rgba(255, 152, 0, 0.1);
-    color: #ff9800;
-    border: 2px solid #ff9800;
-}
-
-.match-detail-notes {
-    background: var(--background-secondary);
-    border-left: 3px solid var(--stockton-blue);
-    padding: 1rem;
-    border-radius: 4px;
-    font-style: italic;
-    color: var(--text-primary);
-    line-height: 1.6;
-}
-
-.match-detail-metadata {
+.score-input-group {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    font-size: 0.875rem;
+    gap: 0.35rem;
+}
+
+.score-input-label {
+    font-size: 0.75rem;
     color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
 }
 
-.match-detail-metadata-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.match-detail-metadata-item i {
-    color: var(--stockton-blue);
-    width: 16px;
-}
-
-/* Action buttons in modal */
-.btn-icon-action {
-    background: transparent;
-    border: 2px solid var(--border-color);
+.score-input-sep {
+    padding-bottom: 0.6rem;
     color: var(--text-secondary);
-    width: 36px;
-    height: 36px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-icon-action:hover {
-    background: var(--hover-bg);
-    border-color: var(--stockton-blue);
-    color: var(--stockton-blue);
-}
-
-.btn-icon-edit:hover {
-    border-color: var(--stockton-blue);
-    color: var(--stockton-blue);
-}
-
-.btn-icon-delete:hover {
-    border-color: #f44336;
-    color: #f44336;
-}
-
-/* ============================================
-   LEAGUE FILTER IN STATS TAB
-   ============================================ */
-
-.stats-league-filter {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    margin-bottom: 1.5rem;
-}
-
-.stats-league-filter label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-primary);
-    font-weight: 500;
-    font-size: 0.9375rem;
-    white-space: nowrap;
-}
-
-.stats-league-filter label i {
-    color: var(--stockton-blue);
-}
-
-.stats-league-filter select {
-    flex: 1;
-    max-width: 300px;
-    padding: 0.5rem 0.75rem;
-    background: var(--background-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-primary);
-    font-size: 0.9375rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.stats-league-filter select:hover {
-    border-color: var(--stockton-blue);
-}
-
-.stats-league-filter select:focus {
-    outline: none;
-    border-color: var(--stockton-blue);
-    box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
-}
-
-/* Fix for league filter dropdown options visibility */
-.stats-league-filter select option {
-    background: var(--dark-bg);
-    color: var(--text-primary);
-    padding: 0.5rem;
-}
-
-/* Ensure selected option is visible */
-.stats-league-filter select option:checked {
-    background: var(--stockton-blue);
-    color: white;
-}
-
-/* Hover state for options */
-.stats-league-filter select option:hover {
-    background: var(--stockton-blue);
-    color: white;
+    font-weight: 700;
 }
 
 /* ============================================
    LEAGUE BADGES IN MATCH HISTORY
    ============================================ */
-
 .match-league-badge {
     display: inline-flex;
+    align-self: flex-start;
     align-items: center;
     gap: 0.25rem;
     padding: 0.25rem 0.6rem;
@@ -648,24 +532,124 @@
     color: var(--stockton-blue);
 }
 
-
-/* ============================================
-   RESPONSIVE DESIGN
-   ============================================ */
-
+/* ===============================
+   Mobile friendliness
+   ===============================*/
 @media (max-width: 768px) {
-    .stats-league-filter {
-        flex-direction: column;
-        align-items: stretch;
+    .stats-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .section-header {
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+    }
+
+    .section-header h3 {
+        font-size: 0.9rem;
+    }
+
+    .match-history-list {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card {
+        padding: 1rem;
+    }
+
+    .stat-card-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+
+    .stat-card-value {
+        font-size: 1.5rem;
+    }
+
+    .match-history-item {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "date date"
+            "info actions"
+            "result result";
+        align-items: start;
+        gap: 0.5rem 0.75rem;
+    }
+
+    .match-info {
+        grid-area: info;
+        min-width: 0;
+    }
+
+    .match-actions {
+        grid-area: actions;
+        align-self: start;
+    }
+
+    .match-date {
+        grid-area: date;
+        border-right: none;
+        padding-right: 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+     .match-result {
+        grid-area: result;
+        justify-content: center;
+        justify-self: start;
+        width: fit-content;
+    }
+
+    .match-result-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "results toggle"
+            "scores  toggle";
+        align-items: center;
         gap: 0.75rem;
     }
-    
-    .stats-league-filter select {
-        max-width: 100%;
+
+    .result-options-column {
+        grid-area: results;
     }
-    
+
+    .result-options-compact .result-option {
+        padding: 0.2rem 0.5rem;
+    }
+
+    .result-options-compact .result-option-label {
+        font-size: 0.7rem;
+    }
+
+    .score-input-row {
+        grid-area: scores;
+        justify-content: center;
+    }
+
+    .match-playoffs-toggle {
+        grid-area: toggle;
+        margin-left: 0;
+        justify-self: center;
+        align-self: center;
+    }
+
     .match-league-badge {
         font-size: 0.6875rem;
         padding: 0.2rem 0.5rem;
+    }
+
+    .playoffs-btn-record-word {
+        display: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .stats-summary-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
     }
 }

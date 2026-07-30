@@ -15,9 +15,8 @@
 .teams-layout {
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 1rem;
-    height: calc(100vh - 50px);
     min-height: 675px;
     width: 100%;
     max-width: 100%;
@@ -35,8 +34,6 @@
     padding: 2rem;
     flex: 1;
     min-width: 0;
-    height: 100%;
-    max-height: 100%;
 }
 
 /* Welcome state - initial state prior to selecting a team */
@@ -299,7 +296,10 @@
    ROSTER TAB
    Team member roster display
    -------------------------------------------- */
-#rosterTabContent {
+#rosterTabContent,
+#scheduleTabContent,
+#statsTabContent,
+#vodsTabContent {
     overflow-y: auto;
 }
 

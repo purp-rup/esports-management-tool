@@ -778,6 +778,13 @@ function toggleCellOverflow(overflowEl, hiddenEvents) {
     const panel = document.createElement('div');
     panel.className = 'calendar-overflow-panel';
 
+    /* If the day being expanded is "today", extend its blue highlight
+     * border down into the panel so the highlight reads as one shape.
+     */
+    if (cell.classList.contains('today')) {
+        panel.classList.add('calendar-overflow-panel--today');
+    }
+
     const cellMirror = document.createElement('div');
     cellMirror.className = 'calendar-cell calendar-overflow-inner';
     hiddenEvents.forEach(event => cellMirror.appendChild(createEventElement(event)));
@@ -786,8 +793,8 @@ function toggleCellOverflow(overflowEl, hiddenEvents) {
     document.body.appendChild(panel);
     overflowEl.style.display = 'none';
 
-    positionOverflowPanel(panel, cell);
     cell.classList.add('calendar-cell--expanded');
+    positionOverflowPanel(panel, cell);
 
     _overflowPanel   = panel;
     _overflowCell    = cell;
@@ -799,12 +806,11 @@ function toggleCellOverflow(overflowEl, hiddenEvents) {
  * to bridge the grid gap seamlessly.
  */
 function positionOverflowPanel(panel, cell) {
-    requestAnimationFrame(() => {
-        const rect = cell.getBoundingClientRect();
-        panel.style.top   = `${rect.bottom - 8}px`;
-        panel.style.left  = `${rect.left}px`;
-        panel.style.width = `${rect.width}px`;
-    });
+    const rect = cell.getBoundingClientRect();
+
+    panel.style.top   = `${rect.bottom + window.scrollY - 8}px`;
+    panel.style.left  = `${rect.left + window.scrollX}px`;
+    panel.style.width = `${rect.width}px`;
 }
 
 /**
@@ -836,7 +842,6 @@ function handleOverflowReposition() {
     positionOverflowPanel(_overflowPanel, _overflowCell);
 }
 
-window.addEventListener('scroll', handleOverflowReposition, { passive: true });
 window.addEventListener('resize', handleOverflowReposition);
 
 // ============================================
