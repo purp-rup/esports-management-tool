@@ -13,7 +13,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize charts
     initializeLeagueCharts();
-    
+    initializeOverallTrendsChart();
+    initializeLeagueTrendsChart();
+    initializeTrendsDurationLabels();
+
     // Set up export handlers
     setupExportHandlers();
 
@@ -145,14 +148,6 @@ function initializeLeagueCharts() {
             }
         });
     });
-}
-
-// ============================================
-// EXPORT FUNCTIONALITY
-// ============================================
-function setupExportHandlers() {
-    // Export handlers are defined globally for onclick attributes
-    console.log('Export handlers ready');
 }
 
 /**
@@ -325,6 +320,348 @@ function renderMatchList(matches) {
             </div>
         `).join('') +
     `</div>`;
+}
+
+// ============================================
+// OVERALL TRENDS CHART (All-Time view)
+// ============================================
+let overallTrendsStat = 'players';
+let overallTrendsDuration = 'all';
+
+const TRENDS_STAT_LABELS = {
+    players: 'Players',
+    teams: 'Teams',
+    playoffs: 'Playoff Qualifications'
+};
+
+const TRENDS_STAT_KEYS = {
+    players: 'unique_players',
+    teams: 'unique_teams',
+    playoffs: 'playoff_qualified'
+};
+
+const TRENDS_STAT_COLORS = {
+    players: { bg: 'rgba(121, 189, 233, 0.7)', border: 'rgba(121, 189, 233, 1)' },
+    teams: { bg: 'rgba(244, 67, 54, 0.7)', border: 'rgba(244, 67, 54, 1)' },
+    playoffs: { bg: 'rgba(79, 172, 254, 0.7)', border: 'rgba(79, 172, 254, 1)' }
+};
+
+// Chart.js instances for each trends panel, keyed by panel name
+const trendsChartInstances = {
+    overall: { main: null, axis: null },
+    league: { main: null, axis: null }
+};
+
+/**
+ * Build a "{oldest season in range} - Now" label for the past-N-seasons
+ * duration options. Both trends panels enumerate the same full season
+ * list under the hood, so this range is consistent across Overall and
+ * League panels regardless of which one is currently selected.
+ */
+function formatDurationRangeLabel(n) {
+    const allData = (window.statisticsData && window.statisticsData.program_trends) || [];
+    const slice = allData.slice(-n);
+    if (!slice.length) {
+        return `Past ${n} Seasons`;
+    }
+    return `${slice[0].season_name} - Now`;
+}
+
+/**
+ * Fill in the "past 2"/"past 4" filter option text with real season
+ * ranges once statisticsData is available, and hide either option
+ * entirely if the program doesn't have enough seasons of history yet
+ * to fill it (e.g. hide "Past 4 Seasons" if only 3 seasons exist).
+ */
+function initializeTrendsDurationLabels() {
+    const totalSeasons = ((window.statisticsData && window.statisticsData.program_trends) || []).length;
+    const label2 = formatDurationRangeLabel(2);
+    const label4 = formatDurationRangeLabel(4);
+    const label8 = formatDurationRangeLabel(8);
+
+    ['overallDuration2Item', 'leagueDuration2Item'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = label2;
+        el.style.display = totalSeasons < 2 ? 'none' : '';
+    });
+    ['overallDuration4Item', 'leagueDuration4Item'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = label4;
+        el.style.display = totalSeasons < 4 ? 'none' : '';
+    });
+    ['overallDuration8Item', 'leagueDuration8Item'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = label8;
+        el.style.display = totalSeasons < 8 ? 'none' : '';
+    });
+}
+
+/**
+ * Return program_trends data trimmed to the current duration filter.
+ * Data is ordered oldest -> newest, so "past N seasons" is the last N entries.
+ */
+function getOverallTrendsFilteredData() {
+    const allData = (window.statisticsData && window.statisticsData.program_trends) || [];
+    if (overallTrendsDuration === '2') return allData.slice(-2);
+    if (overallTrendsDuration === '4') return allData.slice(-4);
+    if (overallTrendsDuration === '8') return allData.slice(-8);
+    return allData;
+}
+
+/**
+ * Shared renderer for any "seasons on the x-axis" trends chart: builds the
+ * scrollable main chart plus its frozen y-axis twin. Used by both the
+ * Overall Trends panel and the Trends by League panel.
+ */
+function renderTrendsChart(key, elIds, data, statKey, statLabel, color) {
+    const canvas = document.getElementById(elIds.canvas);
+    const axisCanvas = document.getElementById(elIds.axisCanvas);
+    const scrollWrap = document.getElementById(elIds.scrollWrap);
+    const innerWrap = document.getElementById(elIds.innerWrap);
+    if (!canvas || !axisCanvas) return;
+
+    const labels = data.map(d => d.season_name);
+    const values = data.map(d => d[statKey]);
+
+    const PX_PER_BAR = 90;
+    const MIN_VISIBLE_BARS = 4;
+    const needsScroll = data.length > MIN_VISIBLE_BARS;
+
+    innerWrap.style.width = needsScroll ? `${data.length * PX_PER_BAR}px` : '100%';
+
+    // Shared y-axis bounds so the frozen axis lines up with the scrolling bars
+    const maxValue = values.length ? Math.max(...values) : 0;
+    const yMax = maxValue > 0 ? Math.ceil(maxValue * 1.2) : 5;
+
+    const instances = trendsChartInstances[key];
+    if (instances.main) {
+        instances.main.destroy();
+    }
+    if (instances.axis) {
+        instances.axis.destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+    instances.main = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: statLabel,
+                data: values,
+                backgroundColor: color.bg,
+                borderColor: color.border,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        size: 14
+                    },
+                    bodyFont: {
+                        size: 13
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 0,
+                    max: yMax,
+                    ticks: {
+                        display: false
+                    },
+                    grid: {
+                        color: 'rgba(156, 163, 175, 0.1)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: '#9ca3af',
+                        font: {
+                            size: 10
+                        }
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+
+    // Frozen axis-only chart: same y range, no visible bars, pinned on top-left
+    const axisCtx = axisCanvas.getContext('2d');
+    instances.axis = new Chart(axisCtx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: 'transparent',
+                borderColor: 'transparent',
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            events: [],
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 0,
+                    max: yMax,
+                    ticks: {
+                        color: '#9ca3af',
+                        font: {
+                            size: 11
+                        },
+                        precision: 0
+                    },
+                    grid: {
+                        display: false
+                    }
+                },
+                x: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // When scrolling is active, default to showing the most recent seasons
+    if (needsScroll && scrollWrap) {
+        requestAnimationFrame(() => {
+            scrollWrap.scrollLeft = scrollWrap.scrollWidth;
+        });
+    }
+}
+
+function initializeOverallTrendsChart() {
+    const data = getOverallTrendsFilteredData();
+    renderTrendsChart(
+        'overall',
+        { canvas: 'overallTrendsChart', axisCanvas: 'overallTrendsAxisChart', scrollWrap: 'overallTrendsScroll', innerWrap: 'overallTrendsInner' },
+        data,
+        TRENDS_STAT_KEYS[overallTrendsStat],
+        TRENDS_STAT_LABELS[overallTrendsStat],
+        TRENDS_STAT_COLORS[overallTrendsStat]
+    );
+}
+
+// ============================================
+// TRENDS BY LEAGUE CHART (All-Time view)
+// ============================================
+let leagueTrendsStat = 'players';
+let leagueTrendsDuration = 'all';
+let leagueTrendsLeagueId = null;
+
+/**
+ * Return the currently-selected league's trend data, trimmed to the
+ * current duration filter. Defaults to the first league on first render.
+ */
+function getLeagueTrendsFilteredData() {
+    const allLeagueTrends = (window.statisticsData && window.statisticsData.league_trends) || [];
+    if (leagueTrendsLeagueId === null && allLeagueTrends.length) {
+        leagueTrendsLeagueId = allLeagueTrends[0].league_id;
+    }
+
+    const leagueEntry = allLeagueTrends.find(l => l.league_id === leagueTrendsLeagueId);
+    const seasonData = leagueEntry ? leagueEntry.trends : [];
+
+    if (leagueTrendsDuration === '2') return seasonData.slice(-2);
+    if (leagueTrendsDuration === '4') return seasonData.slice(-4);
+    if (leagueTrendsDuration === '8') return seasonData.slice(-8);
+    return seasonData;
+}
+
+function initializeLeagueTrendsChart() {
+    const data = getLeagueTrendsFilteredData();
+    renderTrendsChart(
+        'league',
+        { canvas: 'leagueTrendsChart', axisCanvas: 'leagueTrendsAxisChart', scrollWrap: 'leagueTrendsScroll', innerWrap: 'leagueTrendsInner' },
+        data,
+        TRENDS_STAT_KEYS[leagueTrendsStat],
+        TRENDS_STAT_LABELS[leagueTrendsStat],
+        TRENDS_STAT_COLORS[leagueTrendsStat]
+    );
+}
+
+// Handle League Filter selection for the Trends by League chart
+function setLeagueTrendsLeague(leagueId, leagueName, el) {
+    leagueTrendsLeagueId = leagueId;
+    document.getElementById('leagueFilterLabel').textContent = leagueName;
+    document.querySelectorAll('#leagueFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeLeagueTrendsChart();
+}
+
+// Handle Stat Filter selection for the Trends by League chart
+function setLeagueTrendsStat(stat, el) {
+    leagueTrendsStat = stat;
+    document.getElementById('leagueStatFilterLabel').textContent = TRENDS_STAT_LABELS[stat];
+    document.querySelectorAll('#leagueStatFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeLeagueTrendsChart();
+}
+
+// Handle Duration Filter selection for the Trends by League chart
+function setLeagueTrendsDuration(duration, el) {
+    leagueTrendsDuration = duration;
+    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
+    document.getElementById('leagueDurationFilterLabel').textContent = labelText;
+    document.querySelectorAll('#leagueDurationFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeLeagueTrendsChart();
+}
+
+// Handle Stat Filter selection for the Overall Trends chart
+function setOverallTrendsStat(stat, el) {
+    overallTrendsStat = stat;
+    document.getElementById('overallStatFilterLabel').textContent = TRENDS_STAT_LABELS[stat];
+    document.querySelectorAll('#overallStatFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeOverallTrendsChart();
+}
+
+// Handle Duration Filter selection for the Overall Trends chart
+function setOverallTrendsDuration(duration, el) {
+    overallTrendsDuration = duration;
+    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
+    document.getElementById('overallDurationFilterLabel').textContent = labelText;
+    document.querySelectorAll('#overallDurationFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeOverallTrendsChart();
+}
+
+// ============================================
+// EXPORT FUNCTIONALITY
+// ============================================
+function setupExportHandlers() {
+    // Export handlers are defined globally for onclick attributes
+    console.log('Export handlers ready');
 }
 
 // Export statistics to Excel format

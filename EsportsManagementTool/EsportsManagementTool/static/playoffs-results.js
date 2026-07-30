@@ -302,7 +302,7 @@ function displayPlayoffsResultsModal(teams, season, placementOptions) {
  */
 function recordSingleResult(teamId, leagueId, seasonId) {
     // Find the select element for this specific team-league combination
-    const select = document.querySelector(`select.playoffs-placement-select[data-team-id="${teamId}"]`);
+    const select = document.querySelector(`select.playoffs-placement-select[data-team-id="${teamId}"][data-league-id="${leagueId}"]`);
     
     if (!select) {
         console.error('Could not find select element for team:', teamId);

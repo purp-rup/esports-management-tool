@@ -2,6 +2,7 @@
 Esports Program Statistics Module
 Calculates comprehensive statistics for the admin statistics page
 """
+from EsportsManagementTool import playoffs_results
 import MySQLdb.cursors
 
 class EsportsStatistics:
@@ -122,6 +123,134 @@ class EsportsStatistics:
             game['icon_url'] = f"/game-image/{game['game_id']}" if game['has_image'] else None
 
         return games
+
+    def get_program_trends(self):
+        """
+        Get per-season totals for the All-Time "Overall Trends" chart:
+        unique players, unique teams, and playoff-qualified teams (teams
+        with at least one match_results row flagged is_playoffs = 1).
+
+        Returns: list of dicts ordered oldest -> newest season.
+        """
+        cursor = self.cursor
+
+        cursor.execute("""
+                SELECT season_id, season_name
+                FROM seasons
+                ORDER BY start_date ASC
+            """)
+        seasons = cursor.fetchall()
+
+        trends = []
+        for season in seasons:
+            season_id = season['season_id']
+
+            cursor.execute("""
+                    SELECT COUNT(DISTINCT tm.user_id) as count
+                    FROM team_members tm
+                    JOIN teams t ON tm.team_id = t.TeamID
+                    WHERE t.season_id = %s
+                """, (season_id,))
+            players_row = cursor.fetchone()
+
+            cursor.execute("""
+                    SELECT COUNT(*) as count
+                    FROM teams
+                    WHERE season_id = %s
+                """, (season_id,))
+            teams_row = cursor.fetchone()
+
+            cursor.execute("""
+                    SELECT COUNT(DISTINCT mr.team_id) as count
+                    FROM match_results mr
+                    JOIN teams t ON mr.team_id = t.TeamID
+                    WHERE t.season_id = %s AND mr.is_playoffs = 1
+                """, (season_id,))
+            playoffs_row = cursor.fetchone()
+
+            trends.append({
+                'season_id': season_id,
+                'season_name': season['season_name'],
+                'unique_players': players_row['count'] if players_row else 0,
+                'unique_teams': teams_row['count'] if teams_row else 0,
+                'playoff_qualified': playoffs_row['count'] if playoffs_row else 0,
+            })
+
+        return trends
+
+
+    def get_league_trends(self, league_id):
+        """
+        Same as get_program_trends(), but scoped to a single league via
+        the team_leagues junction table. Used by the "Trends by League" chart.
+        """
+        cursor = self.cursor
+
+        cursor.execute("""
+            SELECT season_id, season_name
+            FROM seasons
+            ORDER BY start_date ASC
+        """)
+        seasons = cursor.fetchall()
+
+        trends = []
+        for season in seasons:
+            season_id = season['season_id']
+
+            cursor.execute("""
+                SELECT COUNT(DISTINCT tm.user_id) as count
+                FROM team_members tm
+                JOIN teams t ON tm.team_id = t.TeamID
+                JOIN team_leagues tl ON t.TeamID = tl.team_id
+                WHERE t.season_id = %s AND tl.league_id = %s
+            """, (season_id, league_id))
+            players_row = cursor.fetchone()
+
+            cursor.execute("""
+                SELECT COUNT(DISTINCT tl.team_id) as count
+                FROM team_leagues tl
+                JOIN teams t ON tl.team_id = t.TeamID
+                WHERE t.season_id = %s AND tl.league_id = %s
+            """, (season_id, league_id))
+            teams_row = cursor.fetchone()
+
+            cursor.execute("""
+                SELECT COUNT(DISTINCT mr.team_id) as count
+                FROM match_results mr
+                JOIN teams t ON mr.team_id = t.TeamID
+                JOIN team_leagues tl ON t.TeamID = tl.team_id
+                WHERE t.season_id = %s AND tl.league_id = %s AND mr.is_playoffs = 1
+            """, (season_id, league_id))
+            playoffs_row = cursor.fetchone()
+
+            trends.append({
+                'season_id': season_id,
+                'season_name': season['season_name'],
+                'unique_players': players_row['count'] if players_row else 0,
+                'unique_teams': teams_row['count'] if teams_row else 0,
+                'playoff_qualified': playoffs_row['count'] if playoffs_row else 0,
+            })
+
+        return trends
+
+    def get_all_league_trends(self):
+        """
+        Get per-season trend data for every league, keyed by league, for the
+        "Trends by League" chart's League Filter. Only needed for All-Time.
+        """
+        cursor = self.cursor
+        cursor.execute("SELECT id as league_id, name as league_name FROM league ORDER BY name ASC")
+        leagues = cursor.fetchall()
+
+        return [
+            {
+                'league_id': league['league_id'],
+                'league_name': league['league_name'],
+                'trends': self.get_league_trends(league['league_id'])
+            }
+            for league in leagues
+        ]
+
     
     def get_total_games_in_database(self):
         """Count all games in database (including non-competitive)"""
@@ -327,15 +456,83 @@ class EsportsStatistics:
         
         result = self.cursor.fetchone()
         return result['count'] if result else 0
-    
+
     # =====================================
     # PLAYOFFS PLACEMENT STATISTICS
     # =====================================
+    def get_playoffs_qualified_count(self):
+        """
+        Count distinct teams that made playoffs at all: any team with at
+        least one match_results row flagged is_playoffs = 1.
+        """
+        query = """
+            SELECT COUNT(DISTINCT mr.team_id) as count
+            FROM match_results mr
+            JOIN teams t ON mr.team_id = t.TeamID
+            WHERE mr.is_playoffs = 1
+        """
+
+        if self.season_id:
+            query += " AND t.season_id = %s"
+            self.cursor.execute(query, (self.season_id,))
+        else:
+            self.cursor.execute(query)
+
+        result = self.cursor.fetchone()
+        return result['count'] if result else 0
+
+    def get_regular_season_count(self):
+        """
+        Count distinct teams with at least one recorded match_results row,
+        regardless of whether it was a playoffs or regular-season match.
+        """
+        query = """
+            SELECT COUNT(DISTINCT mr.team_id) as count
+            FROM match_results mr
+            JOIN teams t ON mr.team_id = t.TeamID
+        """
+
+        if self.season_id:
+            query += " WHERE t.season_id = %s"
+            self.cursor.execute(query, (self.season_id,))
+        else:
+            self.cursor.execute(query)
+
+        result = self.cursor.fetchone()
+        return result['count'] if result else 0
+
     def get_playoffs_placements(self):
-        from EsportsManagementTool import playoffs_results
-        
         # Actually queries the playoffs_results table
-        return playoffs_results.get_playoffs_results_for_season(self.mysql, self.season_id)
+        placements = playoffs_results.get_playoffs_results_for_season(self.mysql, self.season_id)
+
+        # Convert exact-bucket counts into cumulative "Top N" counts:
+        # e.g. Top 8 (quarterfinals) should include every team that
+        # reached quarterfinals or further (semis, finals, winner),
+        # not just teams whose final placement was exactly "Quarterfinals"
+        winners_raw = placements.get('winners', 0)
+        finals_raw = placements.get('finals', 0)
+        semifinals_raw = placements.get('semifinals', 0)
+        quarterfinals_raw = placements.get('quarterfinals', 0)
+
+        placements['winners'] = winners_raw
+        placements['finals'] = winners_raw + finals_raw
+        placements['semifinals'] = winners_raw + finals_raw + semifinals_raw
+        placements['quarterfinals'] = winners_raw + finals_raw + semifinals_raw + quarterfinals_raw
+
+        # "Playoffs" here means total teams that made playoffs at all,
+        # not the "Playoffs" placement bucket - override with the
+        # match_results-based count
+        placements['playoffs'] = self.get_playoffs_qualified_count()
+
+        # "Regular Season" here means total teams with at least one
+        # recorded match, not the "Did Not Qualify" placement bucket
+        placements['regular_season'] = self.get_regular_season_count()
+
+        # Playoff % = teams that made playoffs / total teams fielded
+        total_teams = self.get_unique_teams()
+        placements['playoff_pct'] = round((placements['playoffs'] / total_teams) * 100, 1) if total_teams else 0
+
+        return placements
     
     # =====================================
     # LEAGUE-SPECIFIC STATISTICS
@@ -634,13 +831,64 @@ class EsportsStatistics:
                 'Playoffs': 'playoffs',
                 'Did Not Qualify': 'regular_season'
             }
-            
+
             for row in placements_data:
                 key = placement_map.get(row['placement'])
                 if key:
                     placements[key] = row['count']
-            
-            # Count teams in this league with no results (in progress)
+
+                # Convert exact-bucket counts into cumulative "Top N" counts:
+                # e.g. Top 8 (quarterfinals) should include every team that
+                # reached quarterfinals or further (semis, finals, winner),
+                # not just teams whose final placement was exactly "Quarterfinals"
+            winners_raw = placements['winners']
+            finals_raw = placements['finals']
+            semifinals_raw = placements['semifinals']
+            quarterfinals_raw = placements['quarterfinals']
+
+            placements['winners'] = winners_raw
+            placements['finals'] = winners_raw + finals_raw
+            placements['semifinals'] = winners_raw + finals_raw + semifinals_raw
+            placements['quarterfinals'] = winners_raw + finals_raw + semifinals_raw + quarterfinals_raw
+
+            # "Playoffs" here means total teams in this league that made
+            # playoffs at all (match_results-based), not the "Playoffs"
+            # placement bucket from playoffs_results
+            playoffs_qualified_query = """
+                            SELECT COUNT(DISTINCT mr.team_id) as count
+                            FROM match_results mr
+                            JOIN teams t ON mr.team_id = t.TeamID
+                            JOIN team_leagues tl ON t.TeamID = tl.team_id
+                            WHERE tl.league_id = %s AND mr.is_playoffs = 1
+                        """
+            if self.season_id:
+                cursor.execute(playoffs_qualified_query + " AND t.season_id = %s",
+                               (league_id, self.season_id))
+            else:
+                cursor.execute(playoffs_qualified_query, (league_id,))
+            playoffs_qualified = cursor.fetchone()
+            placements['playoffs'] = playoffs_qualified['count'] if playoffs_qualified else 0
+
+            # "Regular Season" here means total teams in this league with
+            # at least one recorded match (any match), not the
+            # "Did Not Qualify" placement bucket from playoffs_results
+            regular_season_query = """
+                            SELECT COUNT(DISTINCT mr.team_id) as count
+                            FROM match_results mr
+                            JOIN teams t ON mr.team_id = t.TeamID
+                            JOIN team_leagues tl ON t.TeamID = tl.team_id
+                            WHERE tl.league_id = %s
+                        """
+            if self.season_id:
+                cursor.execute(regular_season_query + " AND t.season_id = %s",
+                               (league_id, self.season_id))
+            else:
+                cursor.execute(regular_season_query, (league_id,))
+            regular_season_teams = cursor.fetchone()
+            placements['regular_season'] = regular_season_teams['count'] if regular_season_teams else 0
+
+            # Count teams in this league with at least one recorded match
+            # but no final placement submitted yet (in progress)
             in_progress_query = """
                 SELECT COUNT(DISTINCT t.TeamID) as count
                 FROM teams t
@@ -649,7 +897,7 @@ class EsportsStatistics:
                     tr.team_id = t.TeamID 
                     AND tr.league_id = %s
             """
-            
+
             if self.season_id:
                 in_progress_query += " AND tr.season_id = %s"
                 cursor.execute(in_progress_query + """
@@ -657,14 +905,20 @@ class EsportsStatistics:
                     WHERE tl.league_id = %s
                     AND t.season_id = %s
                     AND tr.result_id IS NULL
+                    AND EXISTS (
+                        SELECT 1 FROM match_results mr WHERE mr.team_id = t.TeamID
+                    )
                 """, (league_id, self.season_id, league_id, self.season_id))
             else:
                 cursor.execute(in_progress_query + """
                     )
                     WHERE tl.league_id = %s
                     AND tr.result_id IS NULL
+                    AND EXISTS (
+                        SELECT 1 FROM match_results mr WHERE mr.team_id = t.TeamID
+                    )
                 """, (league_id, league_id))
-            
+
             in_progress = cursor.fetchone()
             placements['in_progress'] = in_progress['count'] if in_progress else 0
             
@@ -684,16 +938,12 @@ class EsportsStatistics:
             
             total_teams = cursor.fetchone()
             total_count = total_teams['count'] if total_teams else 0
-            
-            # Calculate completed teams
-            completed_count = sum([
-                placements['winners'],
-                placements['finals'],
-                placements['semifinals'],
-                placements['quarterfinals'],
-                placements['playoffs'],
-                placements['regular_season']
-            ])
+
+            # Completed teams = any team with recorded match activity.
+            # regular_season is now that exact count (a superset that
+            # already includes playoff teams, winners, finals, etc.), so
+            # summing the buckets here would double/triple-count teams.
+            completed_count = placements['regular_season']
             
             result.append({
                 'league_id': league_id,
@@ -730,6 +980,8 @@ class EsportsStatistics:
             'playoffs_placements_by_league': self.get_playoffs_placements_by_league(),
             'league_breakdown': self.get_league_breakdown(),
             'active_games': self.get_active_games(),
+            'program_trends': self.get_program_trends() if not self.season_id else [],
+            'league_trends': self.get_all_league_trends() if not self.season_id else [],
         }
         
         return stats

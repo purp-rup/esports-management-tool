@@ -109,6 +109,151 @@
 }
 
 /* ============================================
+   PROGRAM TRENDS (All-Time view only)
+   ============================================ */
+.trends-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: stretch;
+    margin-bottom: 1.5rem;
+}
+
+.trends-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--dark-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.trends-panel-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 1rem;
+}
+
+.trends-panel-chart {
+    height: 260px;
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+    position: relative;
+}
+
+.trends-chart-axis-wrap {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 42px;
+    background: var(--dark-bg);
+    z-index: 2;
+    pointer-events: none;
+}
+
+.trends-chart-scroll {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    box-sizing: border-box;
+    padding-left: 42px;
+}
+
+.trends-chart-inner {
+    height: 100%;
+}
+
+.trends-chart-scroll::-webkit-scrollbar {
+    height: 8px;
+}
+
+.trends-chart-scroll::-webkit-scrollbar-track {
+    background: var(--dark-bg);
+    border-radius: 4px;
+}
+
+.trends-chart-scroll::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.trends-chart-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--stockton-blue);
+}
+
+.trends-panel-filters {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.notable-performances {
+    margin-top: 0.5rem;
+}
+
+.notable-performances-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.75rem;
+}
+
+.notable-performances-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.notable-performance-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    padding: 0.6rem 1.25rem;
+    background: var(--background-secondary);
+}
+
+.notable-performance-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.notable-performance-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.notable-performance-team {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.notable-performance-meta {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* ============================================
    SCORECARD OVERVIEW - LEFT COLUMN
    (program totals, player metrics, aggregate playoffs table)
    ============================================ */
@@ -170,6 +315,12 @@
     font-weight: 600;
     color: var(--text-primary);
     background: var(--background-secondary);
+    cursor: help;
+    transition: filter 0.15s ease;
+}
+
+.scorecard-table-row:hover {
+    filter: brightness(1.25) saturate(1.4);
 }
 
 .scorecard-table-row:last-child {
@@ -185,6 +336,7 @@
 .row-semifinals    { background: linear-gradient(rgba(255,140,66,0.40), rgba(255,140,66,0.40)), var(--background-secondary); }
 .row-quarterfinals { background: linear-gradient(rgba(56,239,125,0.40), rgba(56,239,125,0.40)), var(--background-secondary); }
 .row-playoffs      { background: linear-gradient(rgba(79,172,254,0.40), rgba(79,172,254,0.40)), var(--background-secondary); }
+.row-playoffs-pct  { background: linear-gradient(rgba(45,212,191,0.40), rgba(45,212,191,0.40)), var(--background-secondary); }
 .row-regular       { background: linear-gradient(rgba(169,129,187,0.40), rgba(169,129,187,0.40)), var(--background-secondary); }
 .row-inprogress    { background: linear-gradient(rgba(238,9,121,0.40), rgba(238,9,121,0.40)), var(--background-secondary); }
 
