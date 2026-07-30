@@ -312,6 +312,13 @@ function openCreateScheduleModal() {
     if (specificDateGroup) specificDateGroup.style.display = 'none';
     if (endDateGroup) endDateGroup.style.display = 'block';
 
+    // Re-enable all visibility options in case a previous session
+    // locked them to "Team Only" for a Match event
+    const playersOption = document.getElementById('visibilityPlayersOption');
+    const communityOption = document.getElementById('visibilityCommunityOption');
+    if (playersOption) playersOption.disabled = false;
+    if (communityOption) communityOption.disabled = false;
+
     const dayOfWeekSelect = document.getElementById('scheduledDayOfWeek');
     const specificDateInput = document.getElementById('scheduledSpecificDate');
     const endDateInput = document.getElementById('scheduledEndDate');
@@ -337,6 +344,10 @@ function openCreateScheduleModal() {
     if (eventTypeSelect) {
         eventTypeSelect.removeEventListener('change', handleEventTypeChangeForLeague);
         eventTypeSelect.addEventListener('change', handleEventTypeChangeForLeague);
+
+        // Attach event type change listener for visibility restriction
+        eventTypeSelect.removeEventListener('change', handleEventTypeChangeForVisibility);
+        eventTypeSelect.addEventListener('change', handleEventTypeChangeForVisibility);
     }
 
     // Character Counter
@@ -873,10 +884,11 @@ function openEditScheduleMode(scheduleId) {
             <div class="form-group">
                 <label for="editScheduleVisibility">Visibility *</label>
                 <select id="editScheduleVisibility" name="visibility" required>
-                    <option value="team" ${schedule.visibility === 'team' ? 'selected' : ''}>Team Only</option>
-                    <option value="game_players" ${schedule.visibility === 'game_players' ? 'selected' : ''}>Game Players</option>
-                    <option value="game_community" ${schedule.visibility === 'game_community' ? 'selected' : ''}>Game Community</option>
+                    <option value="team" ${schedule.visibility === 'team' || schedule.event_type === 'Match' ? 'selected' : ''}>Team Only</option>
+                    <option value="game_players" ${schedule.visibility === 'game_players' ? 'selected' : ''} ${schedule.event_type === 'Match' ? 'disabled' : ''}>Game Players</option>
+                    <option value="game_community" ${schedule.visibility === 'game_community' ? 'selected' : ''} ${schedule.event_type === 'Match' ? 'disabled' : ''}>Game Community</option>
                 </select>
+                ${schedule.event_type === 'Match' ? '<small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">Match events are always visible to the team only.</small>' : ''}
             </div>
 
             <div class="form-group">
@@ -1064,7 +1076,7 @@ async function handleEditScheduleSubmit(event) {
         team_id: teamId,
         event_name: document.getElementById('editScheduleName').value,
         event_type: eventType,
-        visibility: document.getElementById('editScheduleVisibility').value,
+        visibility: eventType === 'Match' ? 'team' : document.getElementById('scheduledVisibility').value,
         location: location,
         description: document.getElementById('editScheduleDescription').value
     };
@@ -1274,6 +1286,32 @@ function handleEventTypeChangeForLeague() {
         if (leagueLabel) {
             leagueLabel.textContent = 'League (Optional)';
         }
+    }
+}
+
+// ============================================
+// VISIBILITY RESTRICTION FOR MATCHES
+// ============================================
+
+// Match events can only be visible to the team for match result purposes
+function handleEventTypeChangeForVisibility() {
+    const eventType = document.getElementById('scheduledEventType').value;
+    const visibilitySelect = document.getElementById('scheduledVisibility');
+    const playersOption = document.getElementById('visibilityPlayersOption');
+    const communityOption = document.getElementById('visibilityCommunityOption');
+
+    if (!visibilitySelect) {
+        console.warn('Visibility select not found');
+        return;
+    }
+
+    if (eventType === 'Match') {
+        visibilitySelect.value = 'team';
+        if (playersOption) playersOption.disabled = true;
+        if (communityOption) communityOption.disabled = true;
+    } else {
+        if (playersOption) playersOption.disabled = false;
+        if (communityOption) communityOption.disabled = false;
     }
 }
 

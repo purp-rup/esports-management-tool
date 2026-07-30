@@ -45,6 +45,12 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                         'message': 'League selection is required for Match events'
                     }), 400
 
+                if data['visibility'] != 'team':
+                    return jsonify({
+                        'success': False,
+                        'message': 'Match events can only be visible to the team'
+                    }), 400
+
             # Additional validation based on frequency
             if data['frequency'] == 'Once':
                 if 'specific_date' not in data or not data['specific_date']:
@@ -369,7 +375,14 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                 league_id = data.get('league_id')
                 if data.get('event_type') == 'Match':
                     if not league_id:
-                        return jsonify({'success': False, 'message': 'League selection is required for Match events'}), 400
+                        return jsonify(
+                            {'success': False, 'message': 'League selection is required for Match events'}), 400
+
+                    if data.get('visibility') != 'team':
+                        return jsonify({
+                            'success': False,
+                            'message': 'Match events can only be visible to the team'
+                        }), 400
 
                     if not resolved_team_id:
                         return jsonify({

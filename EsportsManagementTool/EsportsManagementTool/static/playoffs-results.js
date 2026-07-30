@@ -138,19 +138,19 @@ function openPlayoffsResultsModal() {
         .then(data => {
             if (data.success) {
                 if (data.teams.length === 0) {
-                    showMessage('success', 'All playoffs results have been recorded! Great job!');
+                    showPlayoffsGlobalMessage('success', 'All playoffs results have been recorded! Great job!');
                     dismissPlayoffsBanner();
                     return;
                 }
                 
                 displayPlayoffsResultsModal(data.teams, data.season, data.placement_options);
             } else {
-                showMessage('error', 'Failed to load pending teams');
+                showPlayoffsGlobalMessage('error', 'Failed to load pending teams');
             }
         })
         .catch(error => {
             console.error('Error loading pending teams:', error);
-            showMessage('error', 'Failed to load pending teams');
+            showPlayoffsGlobalMessage('error', 'Failed to load pending teams');
         });
 }
 
@@ -421,7 +421,7 @@ function showModalMessage(type, message) {
 }
 
 // Show global message
-function showMessage(type, message) {
+function showPlayoffsGlobalMessage(type, message) {
     if (type === 'success') {
         showDeleteSuccessMessage(message);
     } else {

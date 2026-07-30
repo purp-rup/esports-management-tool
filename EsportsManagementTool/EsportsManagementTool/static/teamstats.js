@@ -654,9 +654,6 @@ async function submitMatchResult(event) {
         const data = await response.json();
 
         if (data.success) {
-            // Show inline modal message
-            showMessage(messageDiv, data.message, 'success');
-
             // Show notification card colored by match result (win = green, loss = red)
             if (formData.result === 'win') {
                 showDeleteSuccessMessage(data.message);
