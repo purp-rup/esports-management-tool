@@ -92,8 +92,8 @@
 }
 
 .stats-section h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
+    font-size: 1rem;
+    margin-bottom: 1rem;
     color: var(--text-primary);
     display: flex;
     align-items: center;
@@ -205,6 +205,17 @@
     font-weight: 700;
     color: var(--text-primary);
     margin: 0 0 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.notable-performances-title::before {
+    content: '';
+    width: 4px;
+    height: 1.5rem;
+    background: var(--stockton-blue);
+    border-radius: 2px;
 }
 
 .notable-performances-list {
@@ -213,14 +224,67 @@
     gap: 1rem;
 }
 
+.notable-performances-list--centered {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
 .notable-performance-card {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    border: 1px solid var(--border-color);
+    border: 2px solid transparent;
     border-radius: 999px;
-    padding: 0.6rem 1.25rem;
-    background: var(--background-secondary);
+    padding: 0.6rem 1.75rem 0.6rem 1.25rem;
+    background:
+        linear-gradient(var(--background-secondary), var(--background-secondary)) padding-box,
+        conic-gradient(from var(--social-angle),
+            var(--notable-c1),
+            var(--notable-c2),
+            var(--notable-c1)
+        ) border-box;
+    animation: social-border-spin 6s linear infinite;
+    transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+    --notable-c1: #f9c74f;
+    --notable-c2: var(--stockton-blue);
+}
+
+.notable-performance-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, transparent, rgba(121, 189, 233, 0.05));
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.notable-performance-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.notable-performance-card:hover::before {
+    opacity: 1;
+}
+
+.notable-performance-season {
+    position: absolute;
+    top: 0.6rem;
+    right: 1rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    padding: 0 0.4rem;
+}
+
+.notable-performance-card--fading {
+    opacity: 0;
 }
 
 .notable-performance-avatar {
@@ -230,6 +294,17 @@
     background: var(--dark-bg);
     border: 1px solid var(--border-color);
     flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notable-performance-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
 }
 
 .notable-performance-info {
@@ -331,6 +406,10 @@
     font-weight: 700;
 }
 
+.scorecard-label-short {
+    display: none;
+}
+
 .row-winner        { background: linear-gradient(rgba(255,215,0,0.40), rgba(255,215,0,0.40)), var(--background-secondary); }
 .row-finals        { background: linear-gradient(rgba(192,192,192,0.35), rgba(192,192,192,0.35)), var(--background-secondary); }
 .row-semifinals    { background: linear-gradient(rgba(255,140,66,0.40), rgba(255,140,66,0.40)), var(--background-secondary); }
@@ -386,6 +465,28 @@
     color: var(--text-primary);
     font-size: 0.85rem;
     background: var(--background-secondary);
+    position: relative;
+    transition: filter 0.3s ease;
+}
+
+.league-panel-row::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, transparent, rgba(121, 189, 233, 0.05));
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.league-panel-row:hover {
+    filter: brightness(1.12);
+}
+
+.league-panel-row:hover::before {
+    opacity: 1;
 }
 
 .league-panel-row:last-child {
@@ -605,6 +706,10 @@
     gap: 0.5rem;
     font-size: 1rem;
     padding: 0.75rem 1.5rem;
+}
+
+.export-label-short {
+    display: none;
 }
 
 /* ============================================
@@ -891,10 +996,116 @@
 }
 
 @media (max-width: 768px) {
+    .container .nav-bar {
+        display: none;
+    }
+
+    .stats-section {
+        margin-bottom: 1rem;
+    }
+
     .statistics-header {
         flex-direction: column;
         align-items: flex-start;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .statistics-header-title h1 {
+        font-size: 1.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .statistics-header-title p {
+        display: none;
+    }
+
+    .statistics-header-right {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        gap: 0.5rem;
+    }
+
+    .stats-view-tabs {
+        order: 1;
+    }
+
+    .season-filter {
+        order: 2;
+    }
+
+    .season-filter label {
+        display: none;
+    }
+
+    .trends-layout {
+        grid-template-columns: 1fr;
         gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .notable-performances-list {
+        grid-template-columns: 1fr;
+    }
+
+    .scorecard-layout {
+        gap: 1rem;
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .scorecard-column {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .scorecard-box {
+        flex: 0 0 calc(50% - 0.25rem);
+        padding: 0.4rem 0.6rem;
+    }
+
+    .scorecard-box-label {
+        font-size: 0.7rem;
+    }
+
+    .scorecard-box-value {
+        font-size: 0.9rem;
+    }
+
+    .scorecard-box--hide-mobile {
+        display: none;
+    }
+
+    .scorecard-table {
+        flex: 0 0 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        border: none;
+        border-radius: 0;
+        overflow: visible;
+    }
+
+    .scorecard-table-row {
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.4rem 0.6rem;
+        font-size: 0.8rem;
+    }
+
+    .scorecard-table-row:last-child {
+        border: 1px solid var(--border-color);
+    }
+
+    .scorecard-label-full {
+        display: none;
+    }
+
+    .scorecard-label-short {
+        display: inline;
     }
 
     .league-header {
@@ -904,11 +1115,24 @@
     }
 
     .export-buttons {
-        flex-direction: column;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
     }
 
     .export-buttons .btn {
-        width: 100%;
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0.6rem 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .export-label-full {
+        display: none;
+    }
+
+    .export-label-short {
+        display: inline;
     }
 
     .stats-floating-tabs-wrapper {
@@ -921,12 +1145,12 @@
         gap: 0.2rem;
     }
 
-    .stats-floating-tab span {
+    .stats-floating-tab-label {
         display: none;
     }
 
     .stats-floating-tab {
-        padding: 0.85rem 1rem;
+        padding: 0.5rem 0.8rem;
     }
 
     .stats-floating-tabs-arrow {

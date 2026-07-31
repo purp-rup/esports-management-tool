@@ -172,24 +172,27 @@
             <h3 class="notable-performances-title">Notable Performances</h3>
             <div class="notable-performances-list" id="notablePerformancesList">
                 <div class="notable-performance-card">
+                    <span class="notable-performance-season">Season</span>
                     <div class="notable-performance-avatar"></div>
                     <div class="notable-performance-info">
                         <span class="notable-performance-team">Team Name</span>
-                        <span class="notable-performance-meta">(Placement) &middot; Season</span>
+                        <span class="notable-performance-meta">Placement in League</span>
                     </div>
                 </div>
                 <div class="notable-performance-card">
+                    <span class="notable-performance-season">Season</span>
                     <div class="notable-performance-avatar"></div>
                     <div class="notable-performance-info">
                         <span class="notable-performance-team">Team Name</span>
-                        <span class="notable-performance-meta">(Placement) &middot; Season</span>
+                        <span class="notable-performance-meta">Placement in League</span>
                     </div>
                 </div>
                 <div class="notable-performance-card">
+                    <span class="notable-performance-season">Season</span>
                     <div class="notable-performance-avatar"></div>
                     <div class="notable-performance-info">
                         <span class="notable-performance-team">Team Name</span>
-                        <span class="notable-performance-meta">(Placement) &middot; Season</span>
+                        <span class="notable-performance-meta">Placement in League</span>
                     </div>
                 </div>
             </div>
@@ -219,13 +222,13 @@
                         <span>Winner</span><span>{{ statistics.playoffs_placements.winners }}</span>
                     </div>
                     <div class="scorecard-table-row row-finals" title="Teams that reached the finals or further">
-                        <span>Finals / Top 2</span><span>{{ statistics.playoffs_placements.finals }}</span>
+                        <span><span class="scorecard-label-full">Finals / Top 2</span><span class="scorecard-label-short">Finals</span></span><span>{{ statistics.playoffs_placements.finals }}</span>
                     </div>
                     <div class="scorecard-table-row row-semifinals" title="Teams that reached the semifinals or further">
-                        <span>Semifinals / Top 4</span><span>{{ statistics.playoffs_placements.semifinals }}</span>
+                        <span><span class="scorecard-label-full">Semifinals / Top 4</span><span class="scorecard-label-short">Semis</span></span><span>{{ statistics.playoffs_placements.semifinals }}</span>
                     </div>
                     <div class="scorecard-table-row row-quarterfinals" title="Teams that reached the quarterfinals or further">
-                        <span>Quarterfinals / Top 8</span><span>{{ statistics.playoffs_placements.quarterfinals }}</span>
+                        <span><span class="scorecard-label-full">Quarterfinals / Top 8</span><span class="scorecard-label-short">Quarterfinals</span></span><span>{{ statistics.playoffs_placements.quarterfinals }}</span>
                     </div>
                     <div class="scorecard-table-row row-playoffs" title="Teams with at least one recorded playoffs match">
                         <span>Playoffs</span><span>{{ statistics.playoffs_placements.playoffs }}</span>
@@ -255,7 +258,7 @@
                     <span class="scorecard-box-value">{{ statistics.player_stats.did_not_return }}</span>
                 </div>
                 {% endif %}
-                <div class="scorecard-box">
+                <div class="scorecard-box scorecard-box--hide-mobile">
                     <span class="scorecard-box-label">Multi-Team Players</span>
                     <span class="scorecard-box-value">{{ statistics.player_stats.multi_team_players }}</span>
                 </div>
@@ -408,13 +411,13 @@
             <h2>Export Options</h2>
             <div class="export-buttons">
                 <button class="btn btn-primary" onclick="exportToExcel()">
-                    <i class="fas fa-file-excel"></i> Export to Excel
+                    <i class="fas fa-file-excel"></i> <span class="export-label-full">Export to Excel</span><span class="export-label-short">Excel</span>
                 </button>
                 <button class="btn btn-secondary" onclick="exportToPDF()">
-                    <i class="fas fa-file-pdf"></i> Export to PDF
+                    <i class="fas fa-file-pdf"></i> <span class="export-label-full">Export to PDF</span><span class="export-label-short">PDF</span>
                 </button>
                 <button class="btn btn-secondary" onclick="printStatistics()">
-                    <i class="fas fa-print"></i> Print Report
+                    <i class="fas fa-print"></i> <span class="export-label-full">Print Report</span><span class="export-label-short">Print</span>
                 </button>
             </div>
         </div>

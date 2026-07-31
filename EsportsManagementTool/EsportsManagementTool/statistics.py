@@ -533,11 +533,75 @@ class EsportsStatistics:
         placements['playoff_pct'] = round((placements['playoffs'] / total_teams) * 100, 1) if total_teams else 0
 
         return placements
-    
+
+
+    def get_notable_performances(self):
+        """
+        Get teams with notable playoffs performances for the "Notable
+        Performances" cards on the All-Time overview.
+
+        A notable performance is any placement of Winner, Semifinals
+        (Top 2), or Quarterfinals (Top 4). Results are ordered by
+        placement priority (Winner first, then Top 2, then Top 4), with
+        the most recent season first within each tier.
+        """
+        cursor = self.cursor
+
+        query = """
+            SELECT
+                pr.result_id as result_id,
+                t.teamName as team_name,
+                t.gameID as game_id,
+                CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_game_image,
+                l.name as league_name,
+                s.season_name,
+                s.start_date,
+                pr.placement
+            FROM playoffs_results pr
+            JOIN teams t ON pr.team_id = t.TeamID
+            JOIN games g ON t.gameID = g.GameID
+            JOIN seasons s ON pr.season_id = s.season_id
+            LEFT JOIN league l ON pr.league_id = l.id
+            WHERE pr.placement IN ('Winner', 'Semifinals', 'Quarterfinals')
+        """
+
+        if self.season_id:
+            query += " AND pr.season_id = %s"
+            cursor.execute(query, (self.season_id,))
+        else:
+            cursor.execute(query)
+
+        rows = cursor.fetchall()
+
+        priority = {'Winner': 0, 'Semifinals': 1, 'Quarterfinals': 2}
+        # DB placement -> display label, per current card design
+        placement_labels = {'Winner': '1st', 'Semifinals': 'Finals', 'Quarterfinals': 'Semifinals'}
+
+        performances = []
+        for row in rows:
+            performances.append({
+                'id': row['result_id'],
+                'team_name': row['team_name'],
+                'game_icon_url': f"/game-image/{row['game_id']}" if row['has_game_image'] else None,
+                'season_name': row['season_name'],
+                'league_name': row['league_name'] or 'League',
+                'placement': placement_labels.get(row['placement'], row['placement']),
+                '_priority': priority.get(row['placement'], 99),
+                '_start_date': row['start_date'],
+            })
+
+        performances.sort(key=lambda p: (p['_priority'], p['_start_date'] is None,
+                                         p['_start_date'].toordinal() * -1 if p['_start_date'] else 0))
+
+        for p in performances:
+            p.pop('_priority', None)
+            p.pop('_start_date', None)
+
+        return performances
+
     # =====================================
     # LEAGUE-SPECIFIC STATISTICS
     # =====================================
-    
     def get_league_breakdown(self):
         """
         Get statistics broken down by league
@@ -982,6 +1046,7 @@ class EsportsStatistics:
             'active_games': self.get_active_games(),
             'program_trends': self.get_program_trends() if not self.season_id else [],
             'league_trends': self.get_all_league_trends() if not self.season_id else [],
+            'notable_performances': self.get_notable_performances() if not self.season_id else [],
         }
         
         return stats

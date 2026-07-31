@@ -22,6 +22,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Set up floating game tabs pan arrows
     initStatsFloatingTabs();
+
+    // Populate Notable Performances cards
+    initNotablePerformances();
+
+    // Re-run on resize if the mobile/desktop slot count actually changes
+    window.addEventListener('resize', () => {
+        if (getNotableSlotCount() !== notableSlotCount) {
+            initNotablePerformances();
+        }
+    });
 });
 
 // ============================================
@@ -654,6 +664,120 @@ function setOverallTrendsDuration(duration, el) {
     el.classList.add('active');
     closeAllFilterPanels();
     initializeOverallTrendsChart();
+}
+
+// ============================================
+// NOTABLE PERFORMANCES
+// ============================================
+let notablePerformances = [];
+let notableNextSlot = 0;
+let notableNextIndex = 0;
+let notableIntervalId = null;
+let notableVisibleIds = []; // performance.id currently shown per slot (index = slot)
+let notableSlotCount = 3;   // how many cards are shown at once (3 desktop, 1 mobile)
+
+// How many notable-performance card slots should be visible right now.
+function getNotableSlotCount() {
+    return window.matchMedia('(max-width: 768px)').matches ? 1 : 3;
+}
+
+/**
+ * Populate the 3 Notable Performance cards from window.statisticsData,
+ * and start the fade-cycle if there are more than 3 to show.
+ */
+function initNotablePerformances() {
+    const section = document.querySelector('.notable-performances');
+    const container = document.getElementById('notablePerformancesList');
+    if (!section || !container) return;
+
+    notablePerformances = (window.statisticsData && window.statisticsData.notable_performances) || [];
+
+    if (notableIntervalId) {
+        clearInterval(notableIntervalId);
+        notableIntervalId = null;
+    }
+
+    if (notablePerformances.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = '';
+    notableSlotCount = getNotableSlotCount();
+    const cards = Array.from(container.querySelectorAll('.notable-performance-card'));
+    const visibleCount = Math.min(notableSlotCount, notablePerformances.length);
+
+    notableVisibleIds = [];
+    cards.forEach((card, i) => {
+        if (i < visibleCount) {
+            card.style.display = '';
+            renderNotableCard(card, notablePerformances[i]);
+            notableVisibleIds[i] = notablePerformances[i].id;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    container.classList.toggle('notable-performances-list--centered', notablePerformances.length < notableSlotCount);
+
+    if (notablePerformances.length > visibleCount) {
+        notableNextSlot = 0;
+        notableNextIndex = visibleCount % notablePerformances.length;
+        notableIntervalId = setInterval(cycleNotableCard, 4000);
+    }
+}
+
+// Fill a single notable-performance-card with data
+function renderNotableCard(cardEl, performance) {
+    const avatar = cardEl.querySelector('.notable-performance-avatar');
+    const teamEl = cardEl.querySelector('.notable-performance-team');
+    const metaEl = cardEl.querySelector('.notable-performance-meta');
+    const seasonEl = cardEl.querySelector('.notable-performance-season');
+
+    if (avatar) {
+        avatar.innerHTML = performance.game_icon_url
+            ? `<img src="${performance.game_icon_url}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='';">`
+            : '';
+    }
+    if (teamEl) teamEl.textContent = performance.team_name;
+    if (metaEl) metaEl.textContent = `${performance.placement} in ${performance.league_name}`;
+    if (seasonEl) seasonEl.textContent = performance.season_name;
+}
+
+/**
+ * Fade out one card slot, swap in the next performance, fade back in.
+ * Rotates through slots 0/1/2 and through the performances list in round-robin.
+ */
+function cycleNotableCard() {
+    const container = document.getElementById('notablePerformancesList');
+    if (!container || notablePerformances.length <= notableSlotCount) return;
+
+    const cards = container.querySelectorAll('.notable-performance-card');
+    const card = cards[notableNextSlot];
+    if (!card) return;
+
+    // Skip forward past any performance that's already showing in one of
+    // the other visible slots, so the same result never appears twice at once
+    let nextPerformance = notablePerformances[notableNextIndex];
+    let attempts = 0;
+    while (
+        notableVisibleIds.some((id, slot) => slot !== notableNextSlot && id === nextPerformance.id) &&
+        attempts < notablePerformances.length
+    ) {
+        notableNextIndex = (notableNextIndex + 1) % notablePerformances.length;
+        nextPerformance = notablePerformances[notableNextIndex];
+        attempts++;
+    }
+
+    card.classList.add('notable-performance-card--fading');
+    setTimeout(() => {
+        renderNotableCard(card, nextPerformance);
+        notableVisibleIds[notableNextSlot] = nextPerformance.id;
+        card.classList.remove('notable-performance-card--fading');
+    }, 300);
+
+    notableNextSlot = (notableNextSlot + 1) % notableSlotCount;
+    notableNextIndex = (notableNextIndex + 1) % notablePerformances.length;
 }
 
 // ============================================
