@@ -1309,6 +1309,31 @@ def report_community_message(game_id, message_id):
         print(f"Error reporting community message: {str(e)}")
         return jsonify({'success': False, 'message': 'Server error occurred'}), 500
 
+@app.route('/api/game/<int:game_id>/typing', methods=['POST'])
+@login_required
+def forum_typing(game_id):
+    """
+    Broadcasts a ping to everyone else in the community forum stream.
+    """
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("SELECT 1 FROM in_communities WHERE user_id = %s AND game_id = %s",
+                       (session['id'], game_id))
+        if not cursor.fetchone():
+            return jsonify({'success': False, 'message': 'You must be a member of this community'}), 403
+
+        data = request.get_json(silent=True) or {}
+
+        forum_broadcast.publish(game_id, 'typing', {
+            'user_id': session['id'],
+            'username': session.get('username'),
+            'is_typing': bool(data.get('is_typing')),
+        }, exclude_user_id=session['id'])
+
+        return '', 204
+    finally:
+        cursor.close()
+
 @app.route('/api/game/<int:game_id>/stream')
 @login_required
 def forum_stream(game_id):
