@@ -343,6 +343,12 @@ def index():
     return render_template('index.html', stats=stats, season_name=season_name)
 
 
+@app.route('/privacy-policy')
+def privacy_policy():
+    """Display the privacy policy for the Stockton Esports Management Tool."""
+    return render_template('privacy_policy.html')
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """
