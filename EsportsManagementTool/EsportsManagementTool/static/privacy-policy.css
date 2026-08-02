@@ -1,0 +1,80 @@
+/* =========================================
+   PRIVACY POLICY PAGE
+   ========================================= */
+
+.policy-page {
+    width: min(100%, 1000px);
+    margin: 0 auto;
+    padding: 3rem 2rem 4rem;
+}
+
+.policy-hero {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.policy-hero h1 {
+    margin-bottom: 0.5rem;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.15;
+}
+
+.policy-updated,
+.policy-intro,
+.policy-section p,
+.policy-section li {
+    color: var(--text-secondary);
+}
+
+.policy-intro {
+    margin-top: 1rem;
+    font-size: 1.05rem;
+}
+
+.policy-notice {
+    margin: 1.5rem 0 2rem;
+    padding: 1.25rem;
+    border: 1px solid var(--stockton-blue);
+    border-radius: 10px;
+    background: rgba(121, 189, 233, 0.08);
+}
+
+.policy-notice strong,
+.policy-section a {
+    color: var(--stockton-blue);
+}
+
+.policy-section {
+    margin-top: 2rem;
+}
+
+.policy-section h2 {
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
+    font-size: 1.4rem;
+}
+
+.policy-section h3 {
+    margin: 1.25rem 0 0.5rem;
+    color: var(--text-primary);
+    font-size: 1.05rem;
+}
+
+.policy-section p + p {
+    margin-top: 0.75rem;
+}
+
+.policy-section ul {
+    margin: 0.75rem 0 0 1.25rem;
+}
+
+.policy-section li + li {
+    margin-top: 0.55rem;
+}
+
+@media (max-width: 600px) {
+    .policy-page {
+        padding: 2rem 1rem 3rem;
+    }
+}
