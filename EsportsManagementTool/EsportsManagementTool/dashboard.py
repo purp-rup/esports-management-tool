@@ -9,11 +9,13 @@ import calendar as cal
 import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # Allowed file extensions for avatars
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
 
 ## =============================================
 ## THE FOLLOWING WAS PRODUCED ALONGSIDE CLAUDEAI
@@ -23,9 +25,12 @@ def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
 """
 Main route to allow all users to access the dashboard.
 """
+
+
 @app.route('/dashboard')
 @login_required  # Added security
 def dashboard():
@@ -137,10 +142,14 @@ def dashboard():
                         p.is_admin,
                         p.is_gm,
                         p.is_player,
-                        p.is_developer
+                        p.is_developer,
+                        GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
                     FROM users u
                     LEFT JOIN user_activity ua ON u.id = ua.userid
                     LEFT JOIN permissions p ON u.id = p.userid
+                    LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
+                    LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
+                    GROUP BY u.id
                     ORDER BY ua.is_active DESC, u.date DESC
                 """)
                 user_list = cursor.fetchall()
@@ -166,6 +175,7 @@ def dashboard():
 
     finally:
         cursor.close()
+
 
 @app.route('/profile/preferred-tab', methods=['POST'])
 @login_required
@@ -197,40 +207,37 @@ def save_preferred_tab():
     finally:
         cursor.close()
 
+
 """
 Route meant to assign and remove roles.
+Custom roles live in user_custom_roles (many-to-many) and always carry GM-level
+permissions; is_gm reflects "has GM access from any source" while is_gm_standard
+tracks a plain, non-custom Game Manager grant on its own.
 """
+
+
 @app.route('/admin/manage-role', methods=['POST'])
 @roles_required('admin', 'developer')
 def manage_role():
-    """
-    Assign or remove roles from users
-    NOW INCLUDES: Prevent role changes when no active season exists
-    """
     try:
         data = request.get_json()
         username = data.get('username')
         action = data.get('action')  # 'assign' or 'remove'
         role = data.get('role')  # 'Admin' or 'Game Manager'
+        custom_role_id = data.get('custom_role_id')  # existing custom role picked
+        custom_role_name = data.get('custom_role_name')  # new custom role name, if typed
 
         # Validate input
         if not username or not action or not role:
-            return jsonify({
-                'success': False,
-                'message': 'Missing required fields'
-            }), 400
+            return jsonify({'success': False, 'message': 'Missing required fields'}), 400
 
         if action not in ['assign', 'remove']:
-            return jsonify({
-                'success': False,
-                'message': 'Invalid action'
-            }), 400
+            return jsonify({'success': False, 'message': 'Invalid action'}), 400
 
         if role not in ['Admin', 'Game Manager']:
-            return jsonify({
-                'success': False,
-                'message': 'Invalid role'
-            }), 400
+            return jsonify({'success': False, 'message': 'Invalid role'}), 400
+
+        wants_custom = bool(custom_role_id) or bool(custom_role_name and custom_role_name.strip())
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -238,13 +245,8 @@ def manage_role():
             # Get user ID from username
             cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
             user = cursor.fetchone()
-
             if not user:
-                return jsonify({
-                    'success': False,
-                    'message': f'User "{username}" not found'
-                }), 404
-
+                return jsonify({'success': False, 'message': f'User "{username}" not found'}), 404
             user_id = user['id']
 
             # Prevent admin from removing their own admin role
@@ -255,17 +257,91 @@ def manage_role():
                 }), 403
 
             # Map role names to database columns
-            role_column_map = {
-                'Admin': 'is_admin',
-                'Game Manager': 'is_gm'
-            }
+            resolved_custom_role_id = None
+            resolved_custom_role_name = None
 
-            role_column = role_column_map[role]
-            new_value = 1 if action == 'assign' else 0
+            if role == 'Game Manager' and wants_custom:
+                if custom_role_id:
+                    cursor.execute(
+                        "SELECT id, name FROM custom_roles WHERE id = %s AND is_archived = 0",
+                        (custom_role_id,)
+                    )
+                    existing = cursor.fetchone()
+                    if not existing:
+                        return jsonify({'success': False, 'message': 'Custom role not found'}), 404
+                    resolved_custom_role_id = existing['id']
+                    resolved_custom_role_name = existing['name']
+                elif action == 'assign':
+                    clean_name = custom_role_name.strip()
+                    if len(clean_name) > 40:
+                        return jsonify({
+                            'success': False,
+                            'message': 'Custom role name must be 40 characters or fewer'
+                        }), 400
+
+                    cursor.execute(
+                        "SELECT id, name FROM custom_roles WHERE LOWER(name) = LOWER(%s)",
+                        (clean_name,)
+                    )
+                    existing = cursor.fetchone()
+                    if existing:
+                        resolved_custom_role_id = existing['id']
+                        resolved_custom_role_name = existing['name']
+                    else:
+                        cursor.execute(
+                            "INSERT INTO custom_roles (name, created_by) VALUES (%s, %s)",
+                            (clean_name, session['id'])
+                        )
+                        resolved_custom_role_id = cursor.lastrowid
+                        resolved_custom_role_name = clean_name
+                else:
+                    return jsonify({'success': False, 'message': 'Missing custom role to remove'}), 400
 
             # Update the permissions table
-            query = f"UPDATE permissions SET {role_column} = %s WHERE userid = %s"
-            cursor.execute(query, (new_value, user_id))
+            if role == 'Admin':
+                new_value = 1 if action == 'assign' else 0
+                cursor.execute(
+                    "UPDATE permissions SET is_admin = %s WHERE userid = %s",
+                    (new_value, user_id)
+                )
+            elif resolved_custom_role_id:
+                if action == 'assign':
+                    cursor.execute("""
+                        INSERT INTO user_custom_roles (user_id, custom_role_id)
+                        VALUES (%s, %s)
+                        ON DUPLICATE KEY UPDATE user_id = user_id
+                    """, (user_id, resolved_custom_role_id))
+                    cursor.execute("UPDATE permissions SET is_gm = 1 WHERE userid = %s", (user_id,))
+                else:
+                    cursor.execute(
+                        "DELETE FROM user_custom_roles WHERE user_id = %s AND custom_role_id = %s",
+                        (user_id, resolved_custom_role_id)
+                    )
+                    cursor.execute("""
+                        SELECT
+                            (SELECT is_gm_standard FROM permissions WHERE userid = %s) AS has_standard,
+                            (SELECT COUNT(*) FROM user_custom_roles WHERE user_id = %s) AS custom_count
+                    """, (user_id, user_id))
+                    status = cursor.fetchone()
+                    still_has_gm = bool(status['has_standard']) or status['custom_count'] > 0
+                    cursor.execute(
+                        "UPDATE permissions SET is_gm = %s WHERE userid = %s",
+                        (1 if still_has_gm else 0, user_id)
+                    )
+            else:
+                # Plain Game Manager — no custom label attached
+                new_value = 1 if action == 'assign' else 0
+                cursor.execute(
+                    "UPDATE permissions SET is_gm = %s, is_gm_standard = %s WHERE userid = %s",
+                    (new_value, new_value, user_id)
+                )
+                if action == 'remove':
+                    cursor.execute(
+                        "SELECT COUNT(*) AS custom_count FROM user_custom_roles WHERE user_id = %s",
+                        (user_id,)
+                    )
+                    if cursor.fetchone()['custom_count'] > 0:
+                        cursor.execute("UPDATE permissions SET is_gm = 1 WHERE userid = %s", (user_id,))
 
             # ONLY update season-specific role if there's an ACTIVE season
             # Do NOT update if using fallback to most recent past season
@@ -279,70 +355,76 @@ def manage_role():
                 # For GM role, get their current game assignment
                 gm_game_id = None
                 if role == 'Game Manager' and action == 'assign':
-                    cursor.execute("""
-                        SELECT GameID 
-                        FROM games 
-                        WHERE gm_id = %s 
-                        LIMIT 1
-                    """, (user_id,))
+                    cursor.execute("SELECT GameID FROM games WHERE gm_id = %s LIMIT 1", (user_id,))
                     game_result = cursor.fetchone()
                     if game_result:
                         gm_game_id = game_result['GameID']
 
+                if role == 'Game Manager':
+                    cursor.execute("SELECT is_gm FROM permissions WHERE userid = %s", (user_id,))
+                    season_role_value = bool(cursor.fetchone()['is_gm'])
+                else:
+                    season_role_value = (action == 'assign')
+
                 season_roles.assign_season_role(
-                    mysql,
-                    user_id,
-                    active_season_id,
-                    role_name,
-                    value=(action == 'assign'),
-                    gm_game_id=gm_game_id  # Pass the game ID
+                    mysql, user_id, active_season_id, role_name,
+                    value=season_role_value, gm_game_id=gm_game_id
                 )
             else:
-                # No active season - only update permissions table, not season_roles
                 print(
                     f"⚠️ No active season - role change for {username} applied to permissions only (not season_roles)")
 
             # If removing Game Manager role, clear their game associations
-            if action == 'remove' and role == 'Game Manager':
-                cursor.execute("""
-                    UPDATE games 
-                    SET gm_id = NULL 
-                    WHERE gm_id = %s
-                """, (user_id,))
+            if action == 'remove' and role == 'Game Manager' and not resolved_custom_role_id:
+                cursor.execute("UPDATE games SET gm_id = NULL WHERE gm_id = %s", (user_id,))
 
             mysql.connection.commit()
 
             # Prepare success message
+            display_role = resolved_custom_role_name if resolved_custom_role_name else role
             action_past_tense = 'assigned' if action == 'assign' else 'removed'
-            message = f'{role} role {action_past_tense} {"to" if action == "assign" else "from"} {username} successfully'
+            message = f'{display_role} role {action_past_tense} {"to" if action == "assign" else "from"} {username} successfully'
 
-            return jsonify({
-                'success': True,
-                'message': message
-            }), 200
+            return jsonify({'success': True, 'message': message}), 200
 
         except Exception as e:
             mysql.connection.rollback()
             print(f"Database error: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': 'Database error occurred'
-            }), 500
+            return jsonify({'success': False, 'message': 'Database error occurred'}), 500
 
         finally:
             cursor.close()
 
     except Exception as e:
         print(f"Error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': 'Server error occurred'
-        }), 500
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+
+@app.route('/api/admin/custom-roles', methods=['GET'])
+@roles_required('admin', 'developer')
+def get_custom_roles():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("""
+            SELECT id, name FROM custom_roles
+            WHERE is_archived = 0
+            ORDER BY name ASC
+        """)
+        roles = cursor.fetchall()
+        return jsonify({'success': True, 'roles': roles}), 200
+    except Exception as e:
+        print(f"Error fetching custom roles: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to load custom roles'}), 500
+    finally:
+        cursor.close()
+
 
 """
 Route meant to retrieve the games a user manages from the database.
 Updated to support checking a specific game or getting the first managed game.
 """
+
+
 @app.route('/api/user/<int:user_id>/managed-game', methods=['GET'])
 @app.route('/api/user/<int:user_id>/manages-game/<int:game_id>', methods=['GET'])
 @login_required
@@ -437,9 +519,12 @@ def get_user_managed_game(user_id, game_id=None):
         print(f"Error getting managed game: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to get managed game'}), 500
 
+
 """
 Method to search users in Admin Panel based on input from user in search bar.
 """
+
+
 @app.route('/admin/search-users')
 @login_required
 @roles_required('admin', 'developer')
@@ -461,10 +546,14 @@ def search_users():
                        COALESCE(p.is_admin, 0) as is_admin, 
                        COALESCE(p.is_gm, 0) as is_gm, 
                        COALESCE(p.is_player, 0) as is_player,
-                       COALESCE(p.is_developer, 0) as is_developer
+                       COALESCE(p.is_developer, 0) as is_developer,
+                       GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
                 FROM users u
                 LEFT JOIN permissions p ON u.id = p.userid
                 LEFT JOIN user_activity ua ON u.id = ua.userid
+                LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
+                LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
+                GROUP BY u.id
                 ORDER BY u.firstname, u.lastname
                 LIMIT 50
             """)
@@ -479,15 +568,19 @@ def search_users():
                        COALESCE(p.is_admin, 0) as is_admin, 
                        COALESCE(p.is_gm, 0) as is_gm, 
                        COALESCE(p.is_player, 0) as is_player,
-                       COALESCE(p.is_developer, 0) as is_developer
+                       COALESCE(p.is_developer, 0) as is_developer,
+                       GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
                 FROM users u
                 LEFT JOIN permissions p ON u.id = p.userid
                 LEFT JOIN user_activity ua ON u.id = ua.userid
+                LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
+                LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
                 WHERE u.firstname LIKE %s
                    OR u.lastname LIKE %s
                    OR u.username LIKE %s
                    OR u.email LIKE %s
                    OR CONCAT(u.firstname, ' ', u.lastname) LIKE %s
+                GROUP BY u.id
                 ORDER BY u.firstname, u.lastname
                 LIMIT 50
             """, (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern))
@@ -527,7 +620,8 @@ def search_users():
                 'is_admin': bool(user.get('is_admin', 0)),
                 'is_gm': bool(user.get('is_gm', 0)),
                 'is_player': bool(user.get('is_player', 0)),
-                'is_developer': bool(user.get('is_developer', 0))
+                'is_developer': bool(user.get('is_developer', 0)),
+                'custom_role_names': user.get('custom_role_names') or ''
             })
 
         return jsonify({
@@ -547,9 +641,12 @@ def search_users():
     finally:
         cursor.close()
 
+
 """
 Route allowing admins to remove user data from the site. This includes email, password, profile picture, etc.
 """
+
+
 @app.route('/admin/remove-user', methods=['POST'])
 @roles_required('admin', 'developer')
 def remove_user():

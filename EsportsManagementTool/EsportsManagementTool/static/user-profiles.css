@@ -281,6 +281,13 @@
     gap: 0.4rem;
 }
 
+/* Custom role badge (GM permissions under a custom label) — mirrors admin-panel.css
+   since this stylesheet loads on pages admin-panel.css doesn't (communities, teams) */
+.role-badge.custom {
+    background: #8e44ad;
+    color: #fff;
+}
+
 /* Community tab profile teams section */
 .profile-teams-label {
     font-size: 0.7rem;

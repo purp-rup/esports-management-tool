@@ -350,6 +350,68 @@
   gap: 1rem;
 }
 
+/* Custom role badge (GM permissions under a custom label) */
+.role-badge.custom {
+    background: #8e44ad;
+    color: #fff;
+}
+
+/* Existing custom roles list inside the custom role modal */
+.custom-role-option-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    max-height: 160px;
+    overflow-y: auto;
+    margin-bottom: 1.25rem;
+}
+
+.custom-role-option {
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.custom-role-option:hover {
+    background: var(--hover-bg);
+}
+
+.custom-role-option.active {
+    border-color: var(--stockton-blue);
+    background: rgba(121, 189, 233, 0.1);
+    color: var(--stockton-blue);
+}
+
+/* Roles the user already has — shown with a checkmark and a blue tint */
+.custom-role-option.already-assigned {
+    border-color: var(--stockton-blue);
+    background: rgba(121, 189, 233, 0.08);
+}
+
+.custom-role-option.already-assigned i {
+    color: var(--stockton-blue);
+    font-size: 0.75rem;
+}
+
+/* Custom role option in the role-type dropdown */
+.filter-box-item[data-value="Custom"] {
+    border-top: 1px solid var(--border-color);
+    color: var(--stockton-blue);
+}
+
+.filter-box-item[data-value="Custom"] i {
+    margin-right: 0.35rem;
+    font-size: 0.7rem;
+}
+
 /* Toggle buttons */
 .role-toggle-group {
     display: flex;
@@ -456,7 +518,7 @@
   flex-wrap: nowrap;
   overflow-x: auto;
   margin-bottom: 1rem;
-  padding: 0.5rem 0rem 0.5rem 0.1rem; 
+  padding: 0.5rem 0rem 0.5rem 0.1rem;
 }
 
 .audit-log-filters .filter-box {

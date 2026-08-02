@@ -129,16 +129,25 @@ function buildCommunitiesSection(member, firstName) {
 // Constructs the roles section on the community page profile popup
 function buildRolesSection(member) {
     const roles = member.roles || [];
-    const isMemberOnly = roles.length === 0 || (roles.length === 1 && roles[0] === 'Member');
+    const customRoles = member.custom_roles || [];
+    const isMemberOnly = customRoles.length === 0 && (roles.length === 0 || (roles.length === 1 && roles[0] === 'Member'));
     if (isMemberOnly) return '';
 
     const contextGameId = Number(document.getElementById('communityGameId')?.value);
 
-    const badgesHtml = window.buildUniversalRoleBadges({
+    let badgesHtml = window.buildUniversalRoleBadges({
         userId: member.id,
         roles: roles,
         contextGameId: contextGameId || null
     });
+
+    // Custom roles aren't known to buildUniversalRoleBadges, so append their badges
+    // directly — same treatment as the admin panel's "Current Roles" list
+    if (customRoles.length > 0) {
+        badgesHtml += customRoles
+            .map(name => `<span class="role-badge custom" title="Game Manager permissions">${escapeHtml(name)}</span>`)
+            .join('');
+    }
 
     return `
         <div class="profile-roles-section">

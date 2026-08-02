@@ -156,6 +156,26 @@ def build_member_profile(user_row, include_gm_flag=False):
         else:
             discord_username = user_row['discord_username']
 
+    # A GM-permission user may hold one or more custom role labels (e.g. "Production");
+    # when present, those replace the generic "Game Manager" badge in `roles` and are
+    # surfaced separately in `custom_roles`, since buildUniversalRoleBadges (JS) only
+    # knows the four fixed role names and would mishandle an arbitrary custom label.
+    custom_role_names = [
+        name.strip()
+        for name in (user_row.get('custom_role_names') or '').split(',')
+        if name.strip()
+    ]
+
+    roles_list = [r for flag, r in [
+        (user_row.get('is_admin') == 1, 'Admin'),
+        (user_row.get('is_developer') == 1, 'Developer'),
+        (user_row.get('is_gm') == 1 and not custom_role_names, 'Game Manager'),
+        (user_row.get('is_player') == 1, 'Player'),
+    ] if flag]
+
+    if not roles_list and not custom_role_names:
+        roles_list = ['Member']
+
     profile = {
         'id': user_row['id'],
         'name': f"{user_row['firstname']} {user_row['lastname']}",
@@ -166,14 +186,8 @@ def build_member_profile(user_row, include_gm_flag=False):
         'communities_remaining': user_row.get('communities_remaining', 0),
         'teams': user_row.get('teams', []),
         'is_captain': bool(user_row.get('is_captain')),
-        'roles': (
-                [r for flag, r in [
-                    (user_row.get('is_admin') == 1, 'Admin'),
-                    (user_row.get('is_developer') == 1, 'Developer'),
-                    (user_row.get('is_gm') == 1, 'Game Manager'),
-                    (user_row.get('is_player') == 1, 'Player'),
-                ] if flag] or ['Member']
-        ),
+        'roles': roles_list,
+        'custom_roles': custom_role_names,
         'joined_at': (
             user_row['joined_at'].strftime('%B %d, %Y')
             if user_row.get('joined_at') else None

@@ -1,5 +1,6 @@
 from EsportsManagementTool import app, mysql, EST, login_required, roles_required, localize_datetime, season_roles
-from EsportsManagementTool.universal_helpers import get_user_permissions, get_team_game_id, format_time_to_12hr, is_all_day_event, build_member_profile, select_profile_communities, attach_profile_extras
+from EsportsManagementTool.universal_helpers import get_user_permissions, get_team_game_id, format_time_to_12hr, \
+    is_all_day_event, build_member_profile, select_profile_communities, attach_profile_extras
 from flask import Flask, render_template, request, session, jsonify
 from datetime import datetime, timedelta
 import MySQLdb.cursors
@@ -19,6 +20,7 @@ def idgen(abbreviation, existing_ids):
         counter += 1
 
     return f"{prefix}{counter}"
+
 
 @app.route('/api/create-team/<int:game_id>', methods=['POST'])
 @roles_required('admin', 'gm', 'developer')
@@ -47,7 +49,8 @@ def create_team(game_id):
         season_name = active_season['season_name']
 
         # STEP 2: Validate game exists and user has permission
-        cursor.execute('SELECT GameTitle, Abbreviation FROM games WHERE GameID = %s AND gm_id = %s', (game_id, session['id']))
+        cursor.execute('SELECT GameTitle, Abbreviation FROM games WHERE GameID = %s AND gm_id = %s',
+                       (game_id, session['id']))
         games = cursor.fetchone()
 
         if not games:
@@ -242,7 +245,7 @@ def get_team_assigned_leagues(team_id):
         ''', (team_id,))
 
         leagues = cursor.fetchall()
-        
+
         return jsonify({'success': True, 'leagues': leagues}), 200
 
     except Exception as e:
@@ -319,9 +322,12 @@ def get_new_available_teammates(team_id):
                    p.is_admin,
                    p.is_gm,
                    p.is_player,
-                   p.is_developer
+                   p.is_developer,
+                   GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
             FROM users u
             LEFT JOIN permissions p ON u.id = p.userid
+            LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
+            LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
             INNER JOIN in_communities ic ON u.id = ic.user_id
             WHERE ic.game_id = %s
               AND u.id NOT IN (
@@ -329,6 +335,7 @@ def get_new_available_teammates(team_id):
                   FROM team_members 
                   WHERE team_id = %s
               )
+            GROUP BY u.id
             ORDER BY u.firstname, u.lastname
         """, (game_id, team_id))
 
@@ -628,10 +635,10 @@ def get_teams_for_sidebar():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         perms = get_permissions_for_sidebar(session['id'])
-        is_admin     = perms['is_admin']
+        is_admin = perms['is_admin']
         is_developer = perms['is_developer']
-        is_gm        = perms['is_gm']
-        is_player    = perms['is_player']
+        is_gm = perms['is_gm']
+        is_player = perms['is_player']
 
         view_mode = request.args.get('view', None)
         season_id = request.args.get('season_id', None)
@@ -735,17 +742,17 @@ def get_teams_for_sidebar():
         teams = cursor.fetchall()
 
         teams_list = [{
-            'TeamID':          team['TeamID'],
-            'teamName':        team['teamName'],
-            'teamMaxSize':     team['teamMaxSize'],
-            'gameID':          team['gameID'],
-            'GameTitle':       team['GameTitle'],
-            'member_count':    team['member_count'],
-            'gm_id':           team['gm_id'],
-            'has_game_image':  team.get('has_game_image', 0),
-            'division':        team.get('Division', 'Other'),
-            'season_id':       team.get('season_id'),
-            'season_name':     team.get('season_name'),
+            'TeamID': team['TeamID'],
+            'teamName': team['teamName'],
+            'teamMaxSize': team['teamMaxSize'],
+            'gameID': team['gameID'],
+            'GameTitle': team['GameTitle'],
+            'member_count': team['member_count'],
+            'gm_id': team['gm_id'],
+            'has_game_image': team.get('has_game_image', 0),
+            'division': team.get('Division', 'Other'),
+            'season_id': team.get('season_id'),
+            'season_name': team.get('season_name'),
             'season_is_active': team.get('season_is_active', 0)
         } for team in teams]
 
@@ -954,7 +961,10 @@ def team_details(team_id):
                 use_season_roles = (season_id is not None and season_is_active == 0)
 
                 if use_season_roles:
-                    # Past season - use frozen season_roles data
+                    # Past season - use frozen season_roles data.
+                    # Custom role names are NOT joined here on purpose: user_custom_roles
+                    # only tracks current assignments (no per-season snapshot exists), so
+                    # showing them on a historical roster would misrepresent that season.
                     cursor.execute("""
                         SELECT u.id, u.firstname, u.lastname, u.username,
                                u.profile_picture, tm.joined_at, tm.is_captain,
@@ -979,12 +989,16 @@ def team_details(team_id):
                                COALESCE(p.is_developer, 0) as is_developer,
                                COALESCE(p.is_gm, 0) as is_gm,
                                COALESCE(p.is_player, 0) as is_player,
-                               d.discord_username, d.discord_discriminator
+                               d.discord_username, d.discord_discriminator,
+                               GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
                         FROM team_members tm
                         JOIN users u ON tm.user_id = u.id
                         LEFT JOIN permissions p ON u.id = p.userid
                         LEFT JOIN discord d ON d.userid = u.id
+                        LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
+                        LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
                         WHERE tm.team_id = %s
+                        GROUP BY u.id
                         ORDER BY u.firstname, u.lastname
                     """, (team_id,))
 
@@ -1266,10 +1280,10 @@ def get_managed_games():
         games = cursor.fetchall()
 
         games_list = [{
-            'GameID':    g['GameID'],
+            'GameID': g['GameID'],
             'GameTitle': g['GameTitle'],
             'TeamSizes': g['TeamSizes'],
-            'Division':  g['Division'],
+            'Division': g['Division'],
             'image_url': f'/game-image/{g["GameID"]}' if g['has_image'] else None
         } for g in games]
 
@@ -1281,6 +1295,7 @@ def get_managed_games():
 
     finally:
         cursor.close()
+
 
 # =====================================
 # HELPER FUNCTIONS
@@ -1316,6 +1331,7 @@ def get_permissions_for_sidebar(user_id):
         return {**perms, 'manages_games': manages_games, 'in_teams': in_teams, 'has_managed_teams': has_managed_teams}
     finally:
         cursor.close()
+
 
 def check_team_deletion_permission(cursor, team_id, user_id):
     """
