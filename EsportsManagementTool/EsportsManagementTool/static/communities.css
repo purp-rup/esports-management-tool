@@ -578,10 +578,17 @@
     align-items: center;
     gap: 0.4rem;
     padding: 0.3rem 1rem 0;
+    height: 1.35rem;
+    flex-shrink: 0;
     font-size: 0.78rem;
     color: var(--text-secondary);
     font-family: 'Inter', sans-serif;
     font-style: italic;
+    visibility: hidden;
+}
+
+.forum-typing-indicator.is-visible {
+    visibility: visible;
 }
 
 .forum-typing-dots {

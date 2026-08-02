@@ -724,7 +724,7 @@ function renderTypingIndicator() {
 
     const names = Object.values(typers).map(t => t.username);
     if (!names.length) {
-        el.style.display = 'none';
+        el.classList.remove('is-visible');
         el.innerHTML = '';
         return;
     }
@@ -739,7 +739,7 @@ function renderTypingIndicator() {
         <span>${escapeHtml(text)}</span>
         <span class="forum-typing-dots"><span></span><span></span><span></span></span>
     `;
-    el.style.display = 'flex';
+    el.classList.add('is-visible');
 }
 
 function isForumScrolledToBottom() {
