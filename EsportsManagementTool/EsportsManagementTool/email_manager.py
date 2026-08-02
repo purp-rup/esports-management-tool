@@ -236,7 +236,7 @@ def get_email_footer() -> str:
                 Join us on Discord!
             </a>
             <br><br>
-            <p style="margin: 0 0 8px 0;">Have a question? Contact <strong>seiberlh@go.stockton.edu</strong> for assistance!</p>
+            <p style="margin: 0 0 8px 0;">Have a question? Contact <strong>esports@stockton.edu</strong> for assistance!</p>
             <p style="margin: 0;">©{datetime.now().year} Stockton Esports Management Tool. All rights reserved.</p>
         </div>
     '''
