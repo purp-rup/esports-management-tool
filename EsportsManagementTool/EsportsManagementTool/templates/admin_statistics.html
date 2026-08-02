@@ -314,7 +314,11 @@
                     <div class="league-title">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
                             <div class="league-icon">
-                                <i class="fas fa-trophy"></i>
+                                {% if league.league_logo_url %}
+                                    <img src="{{ league.league_logo_url }}" alt="{{ league.league_name }}" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'fas fa-trophy\'></i>';">
+                                {% else %}
+                                    <i class="fas fa-trophy"></i>
+                                {% endif %}
                             </div>
                             <h3>{{ league.league_name }}</h3>
                         </div>
@@ -448,6 +452,10 @@
                         <!-- Rows injected by renderGameStatsTable() -->
                     </tbody>
                 </table>
+            </div>
+
+            <div id="gameStatsCardsWrap" class="game-stats-cards-wrap">
+                <!-- Cards injected by renderGameStatsTable() for mobile view -->
             </div>
         </section>
     </div>

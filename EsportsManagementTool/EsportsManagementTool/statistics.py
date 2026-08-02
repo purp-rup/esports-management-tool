@@ -682,6 +682,22 @@ class EsportsStatistics:
         cursor.execute(team_query, tuple(params))
         teams = cursor.fetchall()
 
+        # Historical Game Manager per season — pulled from the season_roles
+        # snapshot rather than games.gm_id, so past seasons show who was GM
+        # at the time instead of whoever the CURRENT GM happens to be.
+        # Falls back to the current GM for any season with no snapshot row
+        # (e.g. seasons that predate this feature).
+        cursor.execute("""
+                    SELECT sr.season_id, u.firstname, u.lastname
+                    FROM season_roles sr
+                    JOIN users u ON sr.userid = u.id
+                    WHERE sr.gm_game_id = %s AND sr.is_gm = 1
+                """, (game_id,))
+        season_gm_map = {
+            row['season_id']: f"{row['firstname']} {row['lastname']}"
+            for row in cursor.fetchall()
+        }
+
         # All-Time view only: map season_id -> name, and rank seasons so the
         # most recent one sorts first (used below to group rows by season)
         season_names = {}
@@ -773,6 +789,7 @@ class EsportsStatistics:
                     'conference': tl['league_name'],
                     'season_id': team['season_id'],
                     'season_name': None if self.season_id else season_names.get(team['season_id']),
+                    'game_manager': season_gm_map.get(team['season_id'], game_manager),
                     'regular_season_matches': regular_matches,
                     'regular_season_record': regular_season_record,
                     'playoffs_matches': playoffs_matches,
@@ -837,7 +854,7 @@ class EsportsStatistics:
         
         # Get all leagues that have teams with playoffs results
         query = """
-            SELECT DISTINCT l.id, l.name
+            SELECT DISTINCT l.id, l.name, l.logo
             FROM league l
             JOIN team_leagues tl ON l.id = tl.league_id
             JOIN teams t ON tl.team_id = t.TeamID
@@ -851,10 +868,11 @@ class EsportsStatistics:
         
         leagues = cursor.fetchall()
         result = []
-        
+
         for league in leagues:
             league_id = league['id']
             league_name = league['name']
+            league_logo_url = league['logo']
             
             # Get placements for this league
             placement_query = """
@@ -937,12 +955,12 @@ class EsportsStatistics:
             # at least one recorded match (any match), not the
             # "Did Not Qualify" placement bucket from playoffs_results
             regular_season_query = """
-                            SELECT COUNT(DISTINCT mr.team_id) as count
-                            FROM match_results mr
-                            JOIN teams t ON mr.team_id = t.TeamID
-                            JOIN team_leagues tl ON t.TeamID = tl.team_id
-                            WHERE tl.league_id = %s
-                        """
+                SELECT COUNT(DISTINCT mr.team_id) as count
+                FROM match_results mr
+                JOIN teams t ON mr.team_id = t.TeamID
+                JOIN team_leagues tl ON t.TeamID = tl.team_id
+                WHERE tl.league_id = %s
+            """
             if self.season_id:
                 cursor.execute(regular_season_query + " AND t.season_id = %s",
                                (league_id, self.season_id))
@@ -1008,10 +1026,11 @@ class EsportsStatistics:
             # already includes playoff teams, winners, finals, etc.), so
             # summing the buckets here would double/triple-count teams.
             completed_count = placements['regular_season']
-            
+
             result.append({
                 'league_id': league_id,
                 'league_name': league_name,
+                'league_logo_url': league_logo_url,
                 'total_teams': total_count,
                 'completed_teams': completed_count,
                 **placements

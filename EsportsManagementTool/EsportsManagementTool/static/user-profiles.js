@@ -44,7 +44,7 @@ function toggleUserProfilePopup(e, member) {
 
 // Constructs the header for the user profile.
 function buildUserProfileHeader(member, options = {}) {
-    const { showCaptainControl = false, teamId = null } = options;
+    const { showCaptainControl = false, teamId = null, seasonId = null } = options;
     const firstName = member.name.split(' ')[0];
 
     const avatarHtml = member.profile_picture
@@ -59,7 +59,7 @@ function buildUserProfileHeader(member, options = {}) {
         : '';
 
     const communitiesHtml = buildCommunitiesSection(member, firstName);
-    const rolesHtml = buildRolesSection(member);
+    const rolesHtml = buildRolesSection(member, seasonId);
     const teamsHtml = buildTeamsSection(member, firstName);
     const captainHtml = showCaptainControl ? buildCaptainControl(member, teamId) : '';
 
@@ -127,7 +127,7 @@ function buildCommunitiesSection(member, firstName) {
 }
 
 // Constructs the roles section on the community page profile popup
-function buildRolesSection(member) {
+function buildRolesSection(member, seasonId = null) {
     const roles = member.roles || [];
     const isMemberOnly = roles.length === 0 || (roles.length === 1 && roles[0] === 'Member');
     if (isMemberOnly) return '';
@@ -137,7 +137,8 @@ function buildRolesSection(member) {
     const badgesHtml = window.buildUniversalRoleBadges({
         userId: member.id,
         roles: roles,
-        contextGameId: contextGameId || null
+        contextGameId: contextGameId || null,
+        seasonId: seasonId
     });
 
     return `

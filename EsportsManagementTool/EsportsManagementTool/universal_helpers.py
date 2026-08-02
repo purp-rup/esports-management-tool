@@ -185,7 +185,7 @@ def build_member_profile(user_row, include_gm_flag=False):
 
     return profile
 
-def attach_profile_extras(cursor, members, current_game_id):
+def attach_profile_extras(cursor, members, current_game_id, season_id=None):
     """
     Bulk-fetch and attach each member's communities and teams (for display
     on the user profile popup/panel), applying the same selection rules
@@ -198,6 +198,12 @@ def attach_profile_extras(cursor, members, current_game_id):
     caller's own member query (LEFT JOIN discord d ON d.userid = u.id),
     since that query's column list differs slightly per caller (e.g.
     season_roles vs permissions).
+
+    season_id: optional override for which season's teams to show. When
+    omitted, defaults to the currently active season (original behavior,
+    used by communities.py). teams.py passes the season of the roster
+    actually being viewed, so past-season profiles show that season's
+    teams instead of the current one.
 
     Used in communities.py (get_community_details) & teams.py (team_details).
     """
@@ -224,20 +230,23 @@ def attach_profile_extras(cursor, members, current_game_id):
             'joined_at': row['joined_at'],
         })
 
-    # -- Teams (current season only) --
-    teams_by_user = {}
-    cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
-    active_season = cursor.fetchone()
-    active_season_id = active_season['season_id'] if active_season else None
+        # -- Teams (scoped to the given season, or the active season by default) --
+        teams_by_user = {}
+        if season_id is not None:
+            target_season_id = season_id
+        else:
+            cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+            active_season = cursor.fetchone()
+            target_season_id = active_season['season_id'] if active_season else None
 
-    if active_season_id:
-        cursor.execute(f"""
-            SELECT tm.user_id, tm.team_id, tm.joined_at, t.teamName, t.gameID, g.GameImage
-            FROM team_members tm
-            JOIN teams t ON tm.team_id = t.TeamID
-            JOIN games g ON t.gameID = g.GameID
-            WHERE tm.user_id IN ({placeholders}) AND t.season_id = %s
-        """, tuple(member_ids) + (active_season_id,))
+        if target_season_id:
+            cursor.execute(f"""
+                SELECT tm.user_id, tm.team_id, tm.joined_at, t.teamName, t.gameID, g.GameImage
+                FROM team_members tm
+                JOIN teams t ON tm.team_id = t.TeamID
+                JOIN games g ON t.gameID = g.GameID
+                WHERE tm.user_id IN ({placeholders}) AND t.season_id = %s
+            """, tuple(member_ids) + (target_season_id,))
 
         for row in cursor.fetchall():
             teams_by_user.setdefault(row['user_id'], []).append({

@@ -521,11 +521,17 @@
     gap: 2rem;
 }
 
+.league-stats-container .league-card:nth-child(odd):last-child {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: calc(50% - 1rem);
+}
+
 .league-card {
     background: var(--dark-bg);
     border: 2px solid var(--border-color);
     border-radius: 12px;
-    padding: 1.5rem;
+    padding: 1rem;
     transition: all 0.3s ease;
 }
 
@@ -551,8 +557,8 @@
 }
 
 .league-icon {
-    width: 26px;
-    height: 26px;
+    width: 40px;
+    height: 40px;
     background: linear-gradient(135deg, var(--stockton-blue), #3b7dd6);
     border-radius: 7px;
     display: flex;
@@ -561,6 +567,14 @@
     font-size: 0.8rem;
     color: white;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+.league-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 7px;
 }
 
 /* Placement cards (pyramid layout: 3 top row, 4 bottom row) */
@@ -794,6 +808,25 @@
     background: transparent;
 }
 
+.game-stats-season-header-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+
+.game-stats-season-header-toggle:hover {
+    opacity: 0.85;
+}
+
+.game-stats-season-chevron {
+    display: inline-block;
+    margin-right: 0.5rem;
+    transition: transform 0.2s ease;
+}
+
+.game-stats-season-header-toggle.game-stats-season-collapsed .game-stats-season-chevron {
+    transform: rotate(-90deg);
+}
+
 .game-stats-table tbody tr.game-stats-season-header td {
     text-align: center;
     font-size: 1.1rem;
@@ -846,6 +879,102 @@
 .game-stats-qualified {
     font-size: 0.8rem;
     color: var(--text-secondary);
+}
+
+/* ============================================
+   PER-GAME DETAIL — MOBILE CARDS
+   (hidden by default, shown under 768px in place of the table)
+   ============================================ */
+.game-stats-cards-wrap {
+    display: none;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.game-stats-card {
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    background: var(--dark-bg);
+}
+
+.game-stats-card.game-team-block-a { background: rgba(121, 189, 233, 0.10); }
+.game-stats-card.game-team-block-b { background: rgba(56, 239, 125, 0.08); }
+.game-stats-card.game-team-block-c { background: rgba(255, 152, 0, 0.08); }
+
+.game-stats-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.game-stats-card-team {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.game-stats-card-conference {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.game-stats-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+    font-size: 0.85rem;
+}
+
+.game-stats-card-label {
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.game-stats-card-value {
+    text-align: right;
+    color: var(--text-primary);
+}
+
+.game-stats-card-playoffs .game-stats-card-value {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.2rem;
+}
+
+.game-stats-card-season-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #fff;
+    background: var(--stockton-blue);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    margin: 0.25rem 0;
+}
+
+.game-stats-card-season-title {
+    display: flex;
+    align-items: center;
+}
+
+.game-stats-card-season-manager {
+    font-size: 0.8rem;
+    font-weight: 600;
+    opacity: 0.9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ============================================
@@ -978,6 +1107,11 @@
     .league-stats-container {
         grid-template-columns: 1fr;
     }
+
+    .league-stats-container .league-card:nth-child(odd):last-child {
+        width: 100%;
+        justify-self: stretch;
+    }
 }
 
 @media (max-width: 1100px) {
@@ -1046,6 +1180,10 @@
         margin-bottom: 2rem;
     }
 
+    .trends-panel-filters {
+        gap: 0.2rem;
+    }
+
     .notable-performances-list {
         grid-template-columns: 1fr;
     }
@@ -1079,6 +1217,35 @@
         display: none;
     }
 
+    .game-stats-table-wrap {
+        display: none;
+    }
+
+    .game-stats-cards-wrap {
+        display: flex;
+        gap: 0.4rem;
+    }
+
+    .game-stats-card-season-header {
+        font-size: 1rem;
+    }
+
+    .game-stats-card-conference {
+        color: white;
+    }
+
+    .stats-section h2 {
+        margin-bottom: 0.5rem;
+    }
+
+    .game-stats-card-playoffs .game-stats-card-value {
+        gap: 0rem;
+    }
+
+    .game-stats-outcome {
+        margin-top: 0rem;
+    }
+
     .scorecard-table {
         flex: 0 0 100%;
         display: grid;
@@ -1100,12 +1267,73 @@
         border: 1px solid var(--border-color);
     }
 
+    .scorecard-table-row:nth-child(odd):last-child {
+        grid-column: 1 / -1;
+    }
+
     .scorecard-label-full {
         display: none;
     }
 
     .scorecard-label-short {
         display: inline;
+    }
+
+    .placement-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+    }
+
+    .placement-row .placement-card {
+        flex: initial;
+    }
+
+    .placement-card {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        text-align: left;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .placement-icon {
+        order: 1;
+        margin-bottom: 0;
+        margin-right: 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .placement-label {
+        order: 2;
+        font-size: 0.65rem;
+    }
+
+    .placement-value {
+        order: 3;
+        margin-left: auto;
+        margin-bottom: 0;
+        padding-left: 0.5rem;
+        font-size: 1rem;
+    }
+
+    .placement-row-top {
+        grid-template-rows: auto auto;
+    }
+
+    .placement-row-top .placement-card.gold {
+        grid-column: 1 / -1;
+        grid-row: 1;
+    }
+
+    .placement-row-top .placement-card.silver {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .placement-row-top .placement-card.bronze {
+        grid-column: 2;
+        grid-row: 2;
     }
 
     .league-header {

@@ -991,7 +991,7 @@ def team_details(team_id):
                 members = cursor.fetchall()
 
                 # Finish building user profile on roster tab
-                attach_profile_extras(cursor, members, game_id)
+                attach_profile_extras(cursor, members, game_id, season_id=season_id)
 
                 # Format response to build accurate user profiles
                 formatted_members = [build_member_profile(m) for m in members]

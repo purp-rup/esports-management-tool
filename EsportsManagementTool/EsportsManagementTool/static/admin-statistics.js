@@ -265,34 +265,64 @@ function showGameView(gameId, gameTitle, gameIconUrl) {
         .catch(() => renderGameStatsTable(getMockGameStats())); // TEMP fallback until backend returns real match data
 }
 
-// Builds the game tab data sheet
+// Builds the game tab data sheet (table for desktop, cards for mobile)
 function renderGameStatsTable(gameStats) {
     const tbody = document.getElementById('gameStatsTableBody');
+    const cardsWrap = document.getElementById('gameStatsCardsWrap');
     tbody.innerHTML = '';
+    cardsWrap.innerHTML = '';
 
     const blockClasses = ['game-team-block-a', 'game-team-block-b', 'game-team-block-c'];
     let previousConference = null;
     let previousSeason; // stays undefined for season-filtered views (no season_name sent)
+    let seasonIndex = -1;
 
     (gameStats.teams || []).forEach((team, i) => {
         const seasonChanged = team.season_name != null && team.season_name !== previousSeason;
 
         if (seasonChanged) {
+            seasonIndex++;
+            const currentSeasonIdx = seasonIndex;
+
             // Extra breathing room before every season header after the first
+            // (tagged with the PRIOR season's index so it collapses along with it)
             if (i > 0) {
                 const seasonGapRow = document.createElement('tr');
                 seasonGapRow.className = 'game-stats-league-gap';
+                seasonGapRow.dataset.seasonIdx = currentSeasonIdx - 1;
                 seasonGapRow.innerHTML = '<td colspan="6"></td>';
                 tbody.appendChild(seasonGapRow);
             }
+
             const seasonRow = document.createElement('tr');
-            seasonRow.className = 'game-stats-season-header';
-            seasonRow.innerHTML = `<td colspan="6">${team.season_name || 'Unknown Season'}</td>`;
+            seasonRow.className = 'game-stats-season-header game-stats-season-header-toggle';
+            seasonRow.dataset.seasonIdx = currentSeasonIdx;
+            seasonRow.innerHTML = `
+                <td colspan="6">
+                    <i class="fas fa-chevron-down game-stats-season-chevron"></i>
+                    ${team.season_name || 'Unknown Season'}
+                </td>
+            `;
+            seasonRow.onclick = () => toggleGameStatsSeason(currentSeasonIdx);
             tbody.appendChild(seasonRow);
+
+            const seasonCard = document.createElement('div');
+            seasonCard.className = 'game-stats-card-season-header game-stats-season-header-toggle';
+            seasonCard.dataset.seasonIdx = currentSeasonIdx;
+            seasonCard.innerHTML = `
+                <span class="game-stats-card-season-title">
+                    <i class="fas fa-chevron-down game-stats-season-chevron"></i>
+                    ${team.season_name || 'Unknown Season'}
+                </span>
+                <span class="game-stats-card-season-manager">${team.game_manager || gameStats.game_manager || '—'}</span>
+            `;
+            seasonCard.onclick = () => toggleGameStatsSeason(currentSeasonIdx);
+            cardsWrap.appendChild(seasonCard);
         } else if (i > 0 && team.conference !== previousConference) {
             // Small gap between league groups within the same season
             const gapRow = document.createElement('tr');
             gapRow.className = 'game-stats-league-gap';
+            gapRow.dataset.seasonIdx = seasonIndex;
             gapRow.innerHTML = '<td colspan="6"></td>';
             tbody.appendChild(gapRow);
         }
@@ -300,11 +330,13 @@ function renderGameStatsTable(gameStats) {
         previousConference = team.conference;
         previousSeason = team.season_name;
 
-        const row = document.createElement('tr');
-        row.className = blockClasses[i % blockClasses.length];
+        const blockClass = blockClasses[i % blockClasses.length];
 
+        const row = document.createElement('tr');
+        row.className = `${blockClass} game-stats-season-body`;
+        row.dataset.seasonIdx = seasonIndex;
         row.innerHTML = `
-            <td>${gameStats.game_manager || '—'}</td>
+            <td>${team.game_manager || gameStats.game_manager || '—'}</td>
             <td class="game-stats-team-name">${team.team_title}</td>
             <td>${team.conference || '—'}</td>
             <td>${renderMatchList(team.regular_season_matches)}</td>
@@ -316,16 +348,67 @@ function renderGameStatsTable(gameStats) {
             </td>
         `;
         tbody.appendChild(row);
+
+        const card = document.createElement('div');
+        card.className = `game-stats-card ${blockClass} game-stats-season-body`;
+        card.dataset.seasonIdx = seasonIndex;
+        card.innerHTML = `
+            <div class="game-stats-card-header">
+                <span class="game-stats-card-team">${team.team_title}</span>
+                <span class="game-stats-card-conference">${team.conference || '—'}</span>
+            </div>
+            ${team.season_name ? '' : `
+            <div class="game-stats-card-row">
+                <span class="game-stats-card-label">Manager</span>
+                <span class="game-stats-card-value">${team.game_manager || gameStats.game_manager || '—'}</span>
+            </div>
+            `}
+            <div class="game-stats-card-row">
+                <span class="game-stats-card-label">Regular Season</span>
+                <span class="game-stats-card-value">${renderMatchList(team.regular_season_matches, false) || '—'}</span>
+            </div>
+            <div class="game-stats-card-row">
+                <span class="game-stats-card-label">Record</span>
+                <span class="game-stats-card-value"><span class="game-stats-record-badge">${team.regular_season_record || '—'}</span></span>
+            </div>
+            <div class="game-stats-card-row game-stats-card-playoffs">
+                <span class="game-stats-card-label">Playoffs</span>
+                <span class="game-stats-card-value">
+                    <div class="game-stats-qualified">${team.playoffs_status || ''}</div>
+                    ${renderMatchList(team.playoffs_matches, false)}
+                    <div class="game-stats-outcome">${team.playoffs_outcome || ''}</div>
+                </span>
+            </div>
+        `;
+        cardsWrap.appendChild(card);
+    });
+}
+
+// Expands/collapses a season's teams in both the table and card views at once
+function toggleGameStatsSeason(seasonIdx) {
+    const header = document.querySelector(
+        `.game-stats-season-header-toggle[data-season-idx="${seasonIdx}"]`
+    );
+    const isCollapsing = !header.classList.contains('game-stats-season-collapsed');
+
+    document.querySelectorAll(`.game-stats-season-header-toggle[data-season-idx="${seasonIdx}"]`)
+        .forEach(h => h.classList.toggle('game-stats-season-collapsed', isCollapsing));
+
+    document.querySelectorAll(`[data-season-idx="${seasonIdx}"]`).forEach(el => {
+        if (!el.classList.contains('game-stats-season-header-toggle')) {
+            el.style.display = isCollapsing ? 'none' : '';
+        }
     });
 }
 
 // Displays a list of matches down via data
-function renderMatchList(matches) {
+// showLabel=false omits the "<Event Name>: " prefix (used for mobile cards)
+function renderMatchList(matches, showLabel = true) {
     if (!matches || !matches.length) return '';
     return `<div class="game-stats-match-list">` +
         matches.map(m => `
             <div class="match-row">
-                ${m.label}: <span class="match-score ${m.result === 'loss' ? 'loss' : ''}">${m.score}</span>
+                ${showLabel ? `${m.label}: ` : ''}<span class="match-score ${m.result === 'loss' ? 'loss' : ''}">${m.score}</span>
                 ${m.opponent ? `(vs ${m.opponent})` : ''}
             </div>
         `).join('') +
