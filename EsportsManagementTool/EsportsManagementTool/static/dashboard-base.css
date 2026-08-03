@@ -202,6 +202,13 @@ main {
     scrollbar-color: var(--border-color) var(--dark-bg);
 }
 
+/* Disable scroll bar for mobile devices */
+@media (max-width: 768px) {
+    * {
+        scrollbar-width: none;
+    }
+}
+
 /* ====================================
    DROPDOWN / FILTERS
    ==================================== */

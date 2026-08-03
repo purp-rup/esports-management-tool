@@ -208,12 +208,11 @@ def save_preferred_tab():
         cursor.close()
 
 
-"""
-Route meant to assign and remove roles.
-Custom roles live in user_custom_roles (many-to-many) and always carry GM-level
-permissions; is_gm reflects "has GM access from any source" while is_gm_standard
-tracks a plain, non-custom Game Manager grant on its own.
-"""
+# Palette of colors a new custom role can be created with
+CUSTOM_ROLE_COLORS = {'purple', 'blue', 'green', 'orange', 'red', 'teal'}
+
+# Maximum number of distinct custom roles a single user can hold at once.
+MAX_CUSTOM_ROLES_PER_USER = 3
 
 
 @app.route('/admin/manage-role', methods=['POST'])
@@ -226,6 +225,7 @@ def manage_role():
         role = data.get('role')  # 'Admin' or 'Game Manager'
         custom_role_id = data.get('custom_role_id')  # existing custom role picked
         custom_role_name = data.get('custom_role_name')  # new custom role name, if typed
+        custom_role_color = data.get('custom_role_color')  # new custom role color, if typed
 
         # Validate input
         if not username or not action or not role:
@@ -273,11 +273,15 @@ def manage_role():
                     resolved_custom_role_name = existing['name']
                 elif action == 'assign':
                     clean_name = custom_role_name.strip()
-                    if len(clean_name) > 40:
+                    if len(clean_name) > 8:
                         return jsonify({
                             'success': False,
-                            'message': 'Custom role name must be 40 characters or fewer'
+                            'message': 'Custom role name must be 8 characters or fewer'
                         }), 400
+
+                    # Colors only apply when the role doesn't already exist — an existing
+                    # role's color isn't changeable through this endpoint
+                    clean_color = custom_role_color if custom_role_color in CUSTOM_ROLE_COLORS else 'purple'
 
                     cursor.execute(
                         "SELECT id, name FROM custom_roles WHERE LOWER(name) = LOWER(%s)",
@@ -289,15 +293,14 @@ def manage_role():
                         resolved_custom_role_name = existing['name']
                     else:
                         cursor.execute(
-                            "INSERT INTO custom_roles (name, created_by) VALUES (%s, %s)",
-                            (clean_name, session['id'])
+                            "INSERT INTO custom_roles (name, color, created_by) VALUES (%s, %s, %s)",
+                            (clean_name, clean_color, session['id'])
                         )
                         resolved_custom_role_id = cursor.lastrowid
                         resolved_custom_role_name = clean_name
                 else:
                     return jsonify({'success': False, 'message': 'Missing custom role to remove'}), 400
 
-            # Update the permissions table
             if role == 'Admin':
                 new_value = 1 if action == 'assign' else 0
                 cursor.execute(
@@ -306,6 +309,24 @@ def manage_role():
                 )
             elif resolved_custom_role_id:
                 if action == 'assign':
+                    cursor.execute(
+                        "SELECT COUNT(*) AS count FROM user_custom_roles WHERE user_id = %s",
+                        (user_id,)
+                    )
+                    current_count = cursor.fetchone()['count']
+
+                    cursor.execute(
+                        "SELECT 1 FROM user_custom_roles WHERE user_id = %s AND custom_role_id = %s",
+                        (user_id, resolved_custom_role_id)
+                    )
+                    already_has_this_one = cursor.fetchone() is not None
+
+                    if current_count >= MAX_CUSTOM_ROLES_PER_USER and not already_has_this_one:
+                        return jsonify({
+                            'success': False,
+                            'message': f'{username} already has the maximum of {MAX_CUSTOM_ROLES_PER_USER} custom roles. Remove one before adding another.'
+                        }), 400
+
                     cursor.execute("""
                         INSERT INTO user_custom_roles (user_id, custom_role_id)
                         VALUES (%s, %s)
@@ -406,7 +427,7 @@ def get_custom_roles():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         cursor.execute("""
-            SELECT id, name FROM custom_roles
+            SELECT id, name, color FROM custom_roles
             WHERE is_archived = 0
             ORDER BY name ASC
         """)
@@ -415,6 +436,88 @@ def get_custom_roles():
     except Exception as e:
         print(f"Error fetching custom roles: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load custom roles'}), 500
+    finally:
+        cursor.close()
+
+
+"""
+Archives role and removes GM perms from anyone who currently has the now archived role
+"""
+
+
+@app.route('/api/admin/custom-roles/<int:role_id>/archive', methods=['POST'])
+@roles_required('admin', 'developer')
+def archive_custom_role(role_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("SELECT id, name FROM custom_roles WHERE id = %s", (role_id,))
+        role = cursor.fetchone()
+        if not role:
+            return jsonify({'success': False, 'message': 'Custom role not found'}), 404
+
+        # Capture who holds this role before removing the assignments
+        cursor.execute(
+            "SELECT user_id FROM user_custom_roles WHERE custom_role_id = %s",
+            (role_id,)
+        )
+        affected_user_ids = [row['user_id'] for row in cursor.fetchall()]
+
+        cursor.execute("UPDATE custom_roles SET is_archived = 1 WHERE id = %s", (role_id,))
+        cursor.execute("DELETE FROM user_custom_roles WHERE custom_role_id = %s", (role_id,))
+
+        cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+        active_season = cursor.fetchone()
+        active_season_id = active_season['season_id'] if active_season else None
+
+        for user_id in affected_user_ids:
+            cursor.execute("""
+                SELECT
+                    (SELECT is_gm_standard FROM permissions WHERE userid = %s) AS has_standard,
+                    (SELECT COUNT(*) FROM user_custom_roles WHERE user_id = %s) AS custom_count
+            """, (user_id, user_id))
+            status = cursor.fetchone()
+            still_has_gm = bool(status['has_standard']) or status['custom_count'] > 0
+
+            cursor.execute(
+                "UPDATE permissions SET is_gm = %s WHERE userid = %s",
+                (1 if still_has_gm else 0, user_id)
+            )
+
+            if not still_has_gm:
+                cursor.execute("UPDATE games SET gm_id = NULL WHERE gm_id = %s", (user_id,))
+
+            if active_season_id:
+                season_roles.assign_season_role(
+                    mysql, user_id, active_season_id, 'gm',
+                    value=still_has_gm, gm_game_id=None
+                )
+
+        mysql.connection.commit()
+        return jsonify({'success': True, 'message': f'"{role["name"]}" role deleted successfully'}), 200
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error archiving custom role: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to remove custom role'}), 500
+    finally:
+        cursor.close()
+
+
+"""
+Applies color to custom role, not restricted behind admin panela access as other members need to see the color
+"""
+
+
+@app.route('/api/custom-roles/colors', methods=['GET'])
+@login_required
+def get_custom_role_colors():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("SELECT name, color FROM custom_roles WHERE is_archived = 0")
+        rows = cursor.fetchall()
+        return jsonify({'success': True, 'colors': {r['name']: r['color'] for r in rows}}), 200
+    except Exception as e:
+        print(f"Error fetching custom role colors: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to load custom role colors'}), 500
     finally:
         cursor.close()
 

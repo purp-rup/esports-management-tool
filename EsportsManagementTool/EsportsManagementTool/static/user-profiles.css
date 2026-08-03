@@ -281,12 +281,15 @@
     gap: 0.4rem;
 }
 
-/* Custom role badge (GM permissions under a custom label) — mirrors admin-panel.css
-   since this stylesheet loads on pages admin-panel.css doesn't (communities, teams) */
-.role-badge.custom {
-    background: #8e44ad;
-    color: #fff;
-}
+/* Custom role badge colors (GM permissions under a custom label) — mirrors
+   admin-panel.css since this stylesheet loads on pages admin-panel.css doesn't
+   (communities, teams) */
+.role-badge.custom-purple { background: #8e44ad; color: #fff; }
+.role-badge.custom-blue   { background: #2980b9; color: #fff; }
+.role-badge.custom-green  { background: #27ae60; color: #fff; }
+.role-badge.custom-orange { background: #e67e22; color: #fff; }
+.role-badge.custom-red    { background: #c0392b; color: #fff; }
+.role-badge.custom-teal   { background: #16a085; color: #fff; }
 
 /* Community tab profile teams section */
 .profile-teams-label {

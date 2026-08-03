@@ -370,9 +370,7 @@ function initInfoIcon(wrapperEl, titleOrFn) {
     wrapperEl.addEventListener('mouseleave', () => {
         const t = wrapperEl.querySelector('.info-tooltip');
         if (!t) return;
-        t.style.top = '';
-        t.style.left = '';
-        t.classList.remove('info-tooltip--visible'); // fade + slide out
+        t.classList.remove('info-tooltip--visible'); // fade out in place
 
         clearTimeout(t._flipTimer);
         // Remove direction class only after the exit transition finishes
