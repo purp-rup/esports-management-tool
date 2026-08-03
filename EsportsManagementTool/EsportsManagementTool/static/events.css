@@ -222,6 +222,8 @@
     font-size: 0.9rem;
     color: var(--text-primary);
     margin: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 /* Partnership-specific styles. Includes an animated, cycling border */
