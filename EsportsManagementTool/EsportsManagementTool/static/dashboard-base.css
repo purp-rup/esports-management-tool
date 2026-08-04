@@ -21,14 +21,6 @@ select.fa-icons, option.fa-icons {
     font-weight: 500;
 }
 
-/* ====================================
-   MAIN LAYOUT
-   Dashboard viewport and spacing
-   ==================================== */
-main {
-    min-height: calc(100vh - 73px) !important;
-}
-
 /* =====================================
    DASHBOARD HEADER
    Page title and description area

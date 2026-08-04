@@ -1143,10 +1143,24 @@
     /* Right community page column (carousel) stacks on top */
     .community-page-columns {
         grid-template-columns: 1fr;
+        gap: 0rem;
     }
 
     .community-col-right {
         order: -1;
+    }
+
+    .carousel-section {
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .game-next-event-container {
+        margin-top: 0.5rem;
+    }
+
+    .community-forum {
+        margin-top: 0.5rem;
     }
 }
 

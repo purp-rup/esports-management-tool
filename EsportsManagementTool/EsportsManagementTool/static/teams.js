@@ -429,11 +429,15 @@ function openRosterDetailPanel(member) {
     const pane = document.getElementById('rosterDetailPane');
     if (!pane) return;
 
+    const isActiveSeason = window.currentTeamSeasonIsActive === 1;
+    const seasonId = !isActiveSeason ? window.currentTeamSeasonId : null;
+
     pane.innerHTML = `
         <div class="user-profile-panel">
             ${buildUserProfileHeader(member, {
                 showCaptainControl: window.currentTeamIsGM,
-                teamId: window.currentSelectedTeamId
+                teamId: window.currentSelectedTeamId,
+                seasonId: seasonId
             })}
         </div>
     `;

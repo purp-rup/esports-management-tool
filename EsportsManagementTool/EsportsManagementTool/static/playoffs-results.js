@@ -138,19 +138,19 @@ function openPlayoffsResultsModal() {
         .then(data => {
             if (data.success) {
                 if (data.teams.length === 0) {
-                    showMessage('success', 'All playoffs results have been recorded! Great job!');
+                    showPlayoffsGlobalMessage('success', 'All playoffs results have been recorded! Great job!');
                     dismissPlayoffsBanner();
                     return;
                 }
                 
                 displayPlayoffsResultsModal(data.teams, data.season, data.placement_options);
             } else {
-                showMessage('error', 'Failed to load pending teams');
+                showPlayoffsGlobalMessage('error', 'Failed to load pending teams');
             }
         })
         .catch(error => {
             console.error('Error loading pending teams:', error);
-            showMessage('error', 'Failed to load pending teams');
+            showPlayoffsGlobalMessage('error', 'Failed to load pending teams');
         });
 }
 
@@ -302,7 +302,7 @@ function displayPlayoffsResultsModal(teams, season, placementOptions) {
  */
 function recordSingleResult(teamId, leagueId, seasonId) {
     // Find the select element for this specific team-league combination
-    const select = document.querySelector(`select.playoffs-placement-select[data-team-id="${teamId}"]`);
+    const select = document.querySelector(`select.playoffs-placement-select[data-team-id="${teamId}"][data-league-id="${leagueId}"]`);
     
     if (!select) {
         console.error('Could not find select element for team:', teamId);
@@ -420,15 +420,12 @@ function showModalMessage(type, message) {
     }
 }
 
-/**
- * Show global message
- */
-function showMessage(type, message) {
-    // Reuse existing notification system if available
-    if (typeof showNotification === 'function') {
-        showNotification(message, type);
+// Show global message
+function showPlayoffsGlobalMessage(type, message) {
+    if (type === 'success') {
+        showDeleteSuccessMessage(message);
     } else {
-        alert(message);
+        showDeleteErrorMessage(message);
     }
 }
 

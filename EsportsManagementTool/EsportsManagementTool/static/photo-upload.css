@@ -243,11 +243,6 @@
 .banner-upload-btn:hover { background: rgba(0,0,0,0.85); }
 
 /*  Photo Carousel */
-.carousel-section {
-    margin-top: 1rem;
-    margin-bottom: 1.25rem;
-}
-
 .carousel-wrapper {
     position: relative;
     width: 100%;
@@ -771,5 +766,5 @@
 }
 
 @media (max-width: 520px) {
-    .community-banner-wrapper { height: 150px; }
+    .community-banner-wrapper { height: 100px; }
 }

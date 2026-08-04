@@ -392,8 +392,11 @@ def get_playoffs_results_for_season(mysql, season_id=None):
                 )
                 WHERE t.season_id = %s
                 AND tr.result_id IS NULL
+                AND EXISTS (
+                    SELECT 1 FROM match_results mr WHERE mr.team_id = t.teamID
+                )
             """, (season_id, season_id))
-            
+
             in_progress = cursor.fetchone()
             if in_progress:
                 placements['in_progress'] = in_progress['count']

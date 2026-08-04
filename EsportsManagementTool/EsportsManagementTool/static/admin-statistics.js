@@ -13,12 +13,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize charts
     initializeLeagueCharts();
-    
+    initializeOverallTrendsChart();
+    initializeLeagueTrendsChart();
+    initializeTrendsDurationLabels();
+
     // Set up export handlers
     setupExportHandlers();
 
     // Set up floating game tabs pan arrows
     initStatsFloatingTabs();
+
+    // Populate Notable Performances cards
+    initNotablePerformances();
+
+    // Re-run on resize if the mobile/desktop slot count actually changes
+    window.addEventListener('resize', () => {
+        if (getNotableSlotCount() !== notableSlotCount) {
+            initNotablePerformances();
+        }
+    });
 });
 
 // ============================================
@@ -30,11 +43,9 @@ document.addEventListener('DOMContentLoaded', function() {
  * Reloads the page with season parameter
  */
 function filterBySeason(seasonId) {
-    if (seasonId) {
-        window.location.href = `/admin/statistics?season_id=${seasonId}`;
-    } else {
-        window.location.href = '/admin/statistics';
-    }
+    window.location.href = seasonId
+        ? `/admin/statistics?season_id=${seasonId}`
+        : '/admin/statistics?season_id=all';
 }
 
 // ============================================
@@ -149,14 +160,6 @@ function initializeLeagueCharts() {
     });
 }
 
-// ============================================
-// EXPORT FUNCTIONALITY
-// ============================================
-function setupExportHandlers() {
-    // Export handlers are defined globally for onclick attributes
-    console.log('Export handlers ready');
-}
-
 /**
  * Set up left/right pan arrows for the floating game tabs strip.
  * Arrows only appear when the tabs overflow the visible track width.
@@ -176,7 +179,7 @@ function initStatsFloatingTabs() {
             if (gameId === 'overview') {
                 showOverviewView();
             } else {
-                showGameView(gameId, btn.querySelector('span').textContent);
+                showGameView(gameId, btn.querySelector('.stats-floating-tab-label').textContent, btn.dataset.icon);
             }
         });
     });
@@ -235,10 +238,24 @@ function showOverviewView() {
 }
 
 // Pulls a game's data after selecting its tab
-function showGameView(gameId, gameTitle) {
+function showGameView(gameId, gameTitle, gameIconUrl) {
     document.getElementById('statsOverviewView').style.display = 'none';
     document.getElementById('statsGameView').style.display = '';
-    document.querySelector('#gameViewTitle span').textContent = gameTitle;
+    document.getElementById('gameViewTitleText').textContent = gameTitle;
+
+    const titleIcon = document.querySelector('.game-view-title-icon');
+    if (titleIcon) {
+        titleIcon.innerHTML = gameIconUrl
+            ? `<img src="${gameIconUrl}" alt="${gameTitle}" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fas fa-gamepad\\'></i>';">`
+            : '<i class="fas fa-gamepad"></i>';
+    }
+
+    // Immediate feedback while the fetch below is in flight
+    document.getElementById('gameStatsTableBody').innerHTML = `
+        <tr class="game-stats-loading-row">
+            <td colspan="6"><i class="fas fa-spinner fa-spin"></i> Loading stats...</td>
+        </tr>
+    `;
 
     const seasonParam = window.selectedSeason ? `?season_id=${window.selectedSeason}` : '';
 
@@ -248,19 +265,78 @@ function showGameView(gameId, gameTitle) {
         .catch(() => renderGameStatsTable(getMockGameStats())); // TEMP fallback until backend returns real match data
 }
 
-// Builds the game tab data sheet
+// Builds the game tab data sheet (table for desktop, cards for mobile)
 function renderGameStatsTable(gameStats) {
     const tbody = document.getElementById('gameStatsTableBody');
+    const cardsWrap = document.getElementById('gameStatsCardsWrap');
     tbody.innerHTML = '';
+    cardsWrap.innerHTML = '';
 
     const blockClasses = ['game-team-block-a', 'game-team-block-b', 'game-team-block-c'];
+    let previousConference = null;
+    let previousSeason; // stays undefined for season-filtered views (no season_name sent)
+    let seasonIndex = -1;
 
     (gameStats.teams || []).forEach((team, i) => {
-        const row = document.createElement('tr');
-        row.className = blockClasses[i % blockClasses.length];
+        const seasonChanged = team.season_name != null && team.season_name !== previousSeason;
 
+        if (seasonChanged) {
+            seasonIndex++;
+            const currentSeasonIdx = seasonIndex;
+
+            // Extra breathing room before every season header after the first
+            // (tagged with the PRIOR season's index so it collapses along with it)
+            if (i > 0) {
+                const seasonGapRow = document.createElement('tr');
+                seasonGapRow.className = 'game-stats-league-gap';
+                seasonGapRow.dataset.seasonIdx = currentSeasonIdx - 1;
+                seasonGapRow.innerHTML = '<td colspan="6"></td>';
+                tbody.appendChild(seasonGapRow);
+            }
+
+            const seasonRow = document.createElement('tr');
+            seasonRow.className = 'game-stats-season-header game-stats-season-header-toggle';
+            seasonRow.dataset.seasonIdx = currentSeasonIdx;
+            seasonRow.innerHTML = `
+                <td colspan="6">
+                    <i class="fas fa-chevron-down game-stats-season-chevron"></i>
+                    ${team.season_name || 'Unknown Season'}
+                </td>
+            `;
+            seasonRow.onclick = () => toggleGameStatsSeason(currentSeasonIdx);
+            tbody.appendChild(seasonRow);
+
+            const seasonCard = document.createElement('div');
+            seasonCard.className = 'game-stats-card-season-header game-stats-season-header-toggle';
+            seasonCard.dataset.seasonIdx = currentSeasonIdx;
+            seasonCard.innerHTML = `
+                <span class="game-stats-card-season-title">
+                    <i class="fas fa-chevron-down game-stats-season-chevron"></i>
+                    ${team.season_name || 'Unknown Season'}
+                </span>
+                <span class="game-stats-card-season-manager">${team.game_manager || gameStats.game_manager || '—'}</span>
+            `;
+            seasonCard.onclick = () => toggleGameStatsSeason(currentSeasonIdx);
+            cardsWrap.appendChild(seasonCard);
+        } else if (i > 0 && team.conference !== previousConference) {
+            // Small gap between league groups within the same season
+            const gapRow = document.createElement('tr');
+            gapRow.className = 'game-stats-league-gap';
+            gapRow.dataset.seasonIdx = seasonIndex;
+            gapRow.innerHTML = '<td colspan="6"></td>';
+            tbody.appendChild(gapRow);
+        }
+
+        previousConference = team.conference;
+        previousSeason = team.season_name;
+
+        const blockClass = blockClasses[i % blockClasses.length];
+
+        const row = document.createElement('tr');
+        row.className = `${blockClass} game-stats-season-body`;
+        row.dataset.seasonIdx = seasonIndex;
         row.innerHTML = `
-            <td>${gameStats.game_manager || '—'}</td>
+            <td>${team.game_manager || gameStats.game_manager || '—'}</td>
             <td class="game-stats-team-name">${team.team_title}</td>
             <td>${team.conference || '—'}</td>
             <td>${renderMatchList(team.regular_season_matches)}</td>
@@ -272,20 +348,527 @@ function renderGameStatsTable(gameStats) {
             </td>
         `;
         tbody.appendChild(row);
+
+        const card = document.createElement('div');
+        card.className = `game-stats-card ${blockClass} game-stats-season-body`;
+        card.dataset.seasonIdx = seasonIndex;
+        card.innerHTML = `
+            <div class="game-stats-card-header">
+                <span class="game-stats-card-team">${team.team_title}</span>
+                <span class="game-stats-card-conference">${team.conference || '—'}</span>
+            </div>
+            ${team.season_name ? '' : `
+            <div class="game-stats-card-row">
+                <span class="game-stats-card-label">Manager</span>
+                <span class="game-stats-card-value">${team.game_manager || gameStats.game_manager || '—'}</span>
+            </div>
+            `}
+            <div class="game-stats-card-row">
+                <span class="game-stats-card-label">Regular Season</span>
+                <span class="game-stats-card-value">${renderMatchList(team.regular_season_matches, false) || '—'}</span>
+            </div>
+            <div class="game-stats-card-row">
+                <span class="game-stats-card-label">Record</span>
+                <span class="game-stats-card-value"><span class="game-stats-record-badge">${team.regular_season_record || '—'}</span></span>
+            </div>
+            <div class="game-stats-card-row game-stats-card-playoffs">
+                <span class="game-stats-card-label">Playoffs</span>
+                <span class="game-stats-card-value">
+                    <div class="game-stats-qualified">${team.playoffs_status || ''}</div>
+                    ${renderMatchList(team.playoffs_matches, false)}
+                    <div class="game-stats-outcome">${team.playoffs_outcome || ''}</div>
+                </span>
+            </div>
+        `;
+        cardsWrap.appendChild(card);
+    });
+}
+
+// Expands/collapses a season's teams in both the table and card views at once
+function toggleGameStatsSeason(seasonIdx) {
+    const header = document.querySelector(
+        `.game-stats-season-header-toggle[data-season-idx="${seasonIdx}"]`
+    );
+    const isCollapsing = !header.classList.contains('game-stats-season-collapsed');
+
+    document.querySelectorAll(`.game-stats-season-header-toggle[data-season-idx="${seasonIdx}"]`)
+        .forEach(h => h.classList.toggle('game-stats-season-collapsed', isCollapsing));
+
+    document.querySelectorAll(`[data-season-idx="${seasonIdx}"]`).forEach(el => {
+        if (!el.classList.contains('game-stats-season-header-toggle')) {
+            el.style.display = isCollapsing ? 'none' : '';
+        }
     });
 }
 
 // Displays a list of matches down via data
-function renderMatchList(matches) {
+// showLabel=false omits the "<Event Name>: " prefix (used for mobile cards)
+function renderMatchList(matches, showLabel = true) {
     if (!matches || !matches.length) return '';
     return `<div class="game-stats-match-list">` +
         matches.map(m => `
             <div class="match-row">
-                ${m.label}: <span class="match-score ${m.result === 'loss' ? 'loss' : ''}">${m.score}</span>
+                ${showLabel ? `${m.label}: ` : ''}<span class="match-score ${m.result === 'loss' ? 'loss' : ''}">${m.score}</span>
                 ${m.opponent ? `(vs ${m.opponent})` : ''}
             </div>
         `).join('') +
     `</div>`;
+}
+
+// ============================================
+// OVERALL TRENDS CHART (All-Time view)
+// ============================================
+let overallTrendsStat = 'players';
+let overallTrendsDuration = 'all';
+
+const TRENDS_STAT_LABELS = {
+    players: 'Players',
+    teams: 'Teams',
+    playoffs: 'Playoff Qualifications'
+};
+
+const TRENDS_STAT_KEYS = {
+    players: 'unique_players',
+    teams: 'unique_teams',
+    playoffs: 'playoff_qualified'
+};
+
+const TRENDS_STAT_COLORS = {
+    players: { bg: 'rgba(121, 189, 233, 0.7)', border: 'rgba(121, 189, 233, 1)' },
+    teams: { bg: 'rgba(244, 67, 54, 0.7)', border: 'rgba(244, 67, 54, 1)' },
+    playoffs: { bg: 'rgba(79, 172, 254, 0.7)', border: 'rgba(79, 172, 254, 1)' }
+};
+
+// Chart.js instances for each trends panel, keyed by panel name
+const trendsChartInstances = {
+    overall: { main: null, axis: null },
+    league: { main: null, axis: null }
+};
+
+/**
+ * Build a "{oldest season in range} - Now" label for the past-N-seasons
+ * duration options. Both trends panels enumerate the same full season
+ * list under the hood, so this range is consistent across Overall and
+ * League panels regardless of which one is currently selected.
+ */
+function formatDurationRangeLabel(n) {
+    const allData = (window.statisticsData && window.statisticsData.program_trends) || [];
+    const slice = allData.slice(-n);
+    if (!slice.length) {
+        return `Past ${n} Seasons`;
+    }
+    return `${slice[0].season_name} - Now`;
+}
+
+/**
+ * Fill in the "past 2"/"past 4" filter option text with real season
+ * ranges once statisticsData is available, and hide either option
+ * entirely if the program doesn't have enough seasons of history yet
+ * to fill it (e.g. hide "Past 4 Seasons" if only 3 seasons exist).
+ */
+function initializeTrendsDurationLabels() {
+    const totalSeasons = ((window.statisticsData && window.statisticsData.program_trends) || []).length;
+    const label2 = formatDurationRangeLabel(2);
+    const label4 = formatDurationRangeLabel(4);
+    const label8 = formatDurationRangeLabel(8);
+
+    ['overallDuration2Item', 'leagueDuration2Item'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = label2;
+        el.style.display = totalSeasons < 2 ? 'none' : '';
+    });
+    ['overallDuration4Item', 'leagueDuration4Item'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = label4;
+        el.style.display = totalSeasons < 4 ? 'none' : '';
+    });
+    ['overallDuration8Item', 'leagueDuration8Item'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = label8;
+        el.style.display = totalSeasons < 8 ? 'none' : '';
+    });
+}
+
+/**
+ * Return program_trends data trimmed to the current duration filter.
+ * Data is ordered oldest -> newest, so "past N seasons" is the last N entries.
+ */
+function getOverallTrendsFilteredData() {
+    const allData = (window.statisticsData && window.statisticsData.program_trends) || [];
+    if (overallTrendsDuration === '2') return allData.slice(-2);
+    if (overallTrendsDuration === '4') return allData.slice(-4);
+    if (overallTrendsDuration === '8') return allData.slice(-8);
+    return allData;
+}
+
+/**
+ * Shared renderer for any "seasons on the x-axis" trends chart: builds the
+ * scrollable main chart plus its frozen y-axis twin. Used by both the
+ * Overall Trends panel and the Trends by League panel.
+ */
+function renderTrendsChart(key, elIds, data, statKey, statLabel, color) {
+    const canvas = document.getElementById(elIds.canvas);
+    const axisCanvas = document.getElementById(elIds.axisCanvas);
+    const scrollWrap = document.getElementById(elIds.scrollWrap);
+    const innerWrap = document.getElementById(elIds.innerWrap);
+    if (!canvas || !axisCanvas) return;
+
+    const labels = data.map(d => d.season_name);
+    const values = data.map(d => d[statKey]);
+
+    const PX_PER_BAR = 90;
+    const MIN_VISIBLE_BARS = 4;
+    const needsScroll = data.length > MIN_VISIBLE_BARS;
+
+    innerWrap.style.width = needsScroll ? `${data.length * PX_PER_BAR}px` : '100%';
+
+    // Shared y-axis bounds so the frozen axis lines up with the scrolling bars
+    const maxValue = values.length ? Math.max(...values) : 0;
+    const yMax = maxValue > 0 ? Math.ceil(maxValue * 1.2) : 5;
+
+    const instances = trendsChartInstances[key];
+    if (instances.main) {
+        instances.main.destroy();
+    }
+    if (instances.axis) {
+        instances.axis.destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+    instances.main = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: statLabel,
+                data: values,
+                backgroundColor: color.bg,
+                borderColor: color.border,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        size: 14
+                    },
+                    bodyFont: {
+                        size: 13
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 0,
+                    max: yMax,
+                    ticks: {
+                        display: false
+                    },
+                    grid: {
+                        color: 'rgba(156, 163, 175, 0.1)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: '#9ca3af',
+                        font: {
+                            size: 10
+                        }
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+
+    // Frozen axis-only chart: same y range, no visible bars, pinned on top-left
+    const axisCtx = axisCanvas.getContext('2d');
+    instances.axis = new Chart(axisCtx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: 'transparent',
+                borderColor: 'transparent',
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            events: [],
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 0,
+                    max: yMax,
+                    ticks: {
+                        color: '#9ca3af',
+                        font: {
+                            size: 11
+                        },
+                        precision: 0
+                    },
+                    grid: {
+                        display: false
+                    }
+                },
+                x: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // When scrolling is active, default to showing the most recent seasons
+    if (needsScroll && scrollWrap) {
+        requestAnimationFrame(() => {
+            scrollWrap.scrollLeft = scrollWrap.scrollWidth;
+        });
+    }
+}
+
+function initializeOverallTrendsChart() {
+    const data = getOverallTrendsFilteredData();
+    renderTrendsChart(
+        'overall',
+        { canvas: 'overallTrendsChart', axisCanvas: 'overallTrendsAxisChart', scrollWrap: 'overallTrendsScroll', innerWrap: 'overallTrendsInner' },
+        data,
+        TRENDS_STAT_KEYS[overallTrendsStat],
+        TRENDS_STAT_LABELS[overallTrendsStat],
+        TRENDS_STAT_COLORS[overallTrendsStat]
+    );
+}
+
+// ============================================
+// TRENDS BY LEAGUE CHART (All-Time view)
+// ============================================
+let leagueTrendsStat = 'players';
+let leagueTrendsDuration = 'all';
+let leagueTrendsLeagueId = null;
+
+/**
+ * Return the currently-selected league's trend data, trimmed to the
+ * current duration filter. Defaults to the first league on first render.
+ */
+function getLeagueTrendsFilteredData() {
+    const allLeagueTrends = (window.statisticsData && window.statisticsData.league_trends) || [];
+    if (leagueTrendsLeagueId === null && allLeagueTrends.length) {
+        leagueTrendsLeagueId = allLeagueTrends[0].league_id;
+    }
+
+    const leagueEntry = allLeagueTrends.find(l => l.league_id === leagueTrendsLeagueId);
+    const seasonData = leagueEntry ? leagueEntry.trends : [];
+
+    if (leagueTrendsDuration === '2') return seasonData.slice(-2);
+    if (leagueTrendsDuration === '4') return seasonData.slice(-4);
+    if (leagueTrendsDuration === '8') return seasonData.slice(-8);
+    return seasonData;
+}
+
+function initializeLeagueTrendsChart() {
+    const data = getLeagueTrendsFilteredData();
+    renderTrendsChart(
+        'league',
+        { canvas: 'leagueTrendsChart', axisCanvas: 'leagueTrendsAxisChart', scrollWrap: 'leagueTrendsScroll', innerWrap: 'leagueTrendsInner' },
+        data,
+        TRENDS_STAT_KEYS[leagueTrendsStat],
+        TRENDS_STAT_LABELS[leagueTrendsStat],
+        TRENDS_STAT_COLORS[leagueTrendsStat]
+    );
+}
+
+// Handle League Filter selection for the Trends by League chart
+function setLeagueTrendsLeague(leagueId, leagueName, el) {
+    leagueTrendsLeagueId = leagueId;
+    document.getElementById('leagueFilterLabel').textContent = leagueName;
+    document.querySelectorAll('#leagueFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeLeagueTrendsChart();
+}
+
+// Handle Stat Filter selection for the Trends by League chart
+function setLeagueTrendsStat(stat, el) {
+    leagueTrendsStat = stat;
+    document.getElementById('leagueStatFilterLabel').textContent = TRENDS_STAT_LABELS[stat];
+    document.querySelectorAll('#leagueStatFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeLeagueTrendsChart();
+}
+
+// Handle Duration Filter selection for the Trends by League chart
+function setLeagueTrendsDuration(duration, el) {
+    leagueTrendsDuration = duration;
+    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
+    document.getElementById('leagueDurationFilterLabel').textContent = labelText;
+    document.querySelectorAll('#leagueDurationFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeLeagueTrendsChart();
+}
+
+// Handle Stat Filter selection for the Overall Trends chart
+function setOverallTrendsStat(stat, el) {
+    overallTrendsStat = stat;
+    document.getElementById('overallStatFilterLabel').textContent = TRENDS_STAT_LABELS[stat];
+    document.querySelectorAll('#overallStatFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeOverallTrendsChart();
+}
+
+// Handle Duration Filter selection for the Overall Trends chart
+function setOverallTrendsDuration(duration, el) {
+    overallTrendsDuration = duration;
+    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
+    document.getElementById('overallDurationFilterLabel').textContent = labelText;
+    document.querySelectorAll('#overallDurationFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeOverallTrendsChart();
+}
+
+// ============================================
+// NOTABLE PERFORMANCES
+// ============================================
+let notablePerformances = [];
+let notableNextSlot = 0;
+let notableNextIndex = 0;
+let notableIntervalId = null;
+let notableVisibleIds = []; // performance.id currently shown per slot (index = slot)
+let notableSlotCount = 3;   // how many cards are shown at once (3 desktop, 1 mobile)
+
+// How many notable-performance card slots should be visible right now.
+function getNotableSlotCount() {
+    return window.matchMedia('(max-width: 768px)').matches ? 1 : 3;
+}
+
+/**
+ * Populate the 3 Notable Performance cards from window.statisticsData,
+ * and start the fade-cycle if there are more than 3 to show.
+ */
+function initNotablePerformances() {
+    const section = document.querySelector('.notable-performances');
+    const container = document.getElementById('notablePerformancesList');
+    if (!section || !container) return;
+
+    notablePerformances = (window.statisticsData && window.statisticsData.notable_performances) || [];
+
+    if (notableIntervalId) {
+        clearInterval(notableIntervalId);
+        notableIntervalId = null;
+    }
+
+    if (notablePerformances.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = '';
+    notableSlotCount = getNotableSlotCount();
+    const cards = Array.from(container.querySelectorAll('.notable-performance-card'));
+    const visibleCount = Math.min(notableSlotCount, notablePerformances.length);
+
+    notableVisibleIds = [];
+    cards.forEach((card, i) => {
+        if (i < visibleCount) {
+            card.style.display = '';
+            renderNotableCard(card, notablePerformances[i]);
+            notableVisibleIds[i] = notablePerformances[i].id;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    container.classList.toggle('notable-performances-list--centered', notablePerformances.length < notableSlotCount);
+
+    if (notablePerformances.length > visibleCount) {
+        notableNextSlot = 0;
+        notableNextIndex = visibleCount % notablePerformances.length;
+        notableIntervalId = setInterval(cycleNotableCard, 4000);
+    }
+}
+
+// Fill a single notable-performance-card with data
+function renderNotableCard(cardEl, performance) {
+    const avatar = cardEl.querySelector('.notable-performance-avatar');
+    const teamEl = cardEl.querySelector('.notable-performance-team');
+    const metaEl = cardEl.querySelector('.notable-performance-meta');
+    const seasonEl = cardEl.querySelector('.notable-performance-season');
+
+    if (avatar) {
+        avatar.innerHTML = performance.game_icon_url
+            ? `<img src="${performance.game_icon_url}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='';">`
+            : '';
+    }
+    if (teamEl) teamEl.textContent = performance.team_name;
+    if (metaEl) metaEl.textContent = `${performance.placement} in ${performance.league_name}`;
+    if (seasonEl) seasonEl.textContent = performance.season_name;
+}
+
+/**
+ * Fade out one card slot, swap in the next performance, fade back in.
+ * Rotates through slots 0/1/2 and through the performances list in round-robin.
+ */
+function cycleNotableCard() {
+    const container = document.getElementById('notablePerformancesList');
+    if (!container || notablePerformances.length <= notableSlotCount) return;
+
+    const cards = container.querySelectorAll('.notable-performance-card');
+    const card = cards[notableNextSlot];
+    if (!card) return;
+
+    // Skip forward past any performance that's already showing in one of
+    // the other visible slots, so the same result never appears twice at once
+    let nextPerformance = notablePerformances[notableNextIndex];
+    let attempts = 0;
+    while (
+        notableVisibleIds.some((id, slot) => slot !== notableNextSlot && id === nextPerformance.id) &&
+        attempts < notablePerformances.length
+    ) {
+        notableNextIndex = (notableNextIndex + 1) % notablePerformances.length;
+        nextPerformance = notablePerformances[notableNextIndex];
+        attempts++;
+    }
+
+    card.classList.add('notable-performance-card--fading');
+    setTimeout(() => {
+        renderNotableCard(card, nextPerformance);
+        notableVisibleIds[notableNextSlot] = nextPerformance.id;
+        card.classList.remove('notable-performance-card--fading');
+    }, 300);
+
+    notableNextSlot = (notableNextSlot + 1) % notableSlotCount;
+    notableNextIndex = (notableNextIndex + 1) % notablePerformances.length;
+}
+
+// ============================================
+// EXPORT FUNCTIONALITY
+// ============================================
+function setupExportHandlers() {
+    // Export handlers are defined globally for onclick attributes
+    console.log('Export handlers ready');
 }
 
 // Export statistics to Excel format

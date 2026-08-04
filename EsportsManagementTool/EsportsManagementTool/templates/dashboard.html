@@ -1240,13 +1240,13 @@
 
                     <div class="form-group" id="scheduledLeagueGroup" style="display: none;">
                         <label for="scheduledLeagueSelect">League <span style="color: #ff5252;">*</span></label>
+                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                            Select the league this match is part of
+                        </small>
                         <select id="scheduledLeagueSelect" name="league_id">
                             <option value="">Select a league</option>
                             <!-- Options will be populated dynamically -->
                         </select>
-                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                            Select the league this match is part of
-                        </small>
                     </div>
 
                     <div class="form-group">
@@ -1315,26 +1315,26 @@
 
                     <div class="form-group">
                         <label for="scheduledVisibility">Visibility *</label>
+                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                            Match types events are only visible to this team.
+                        </small>
                         <select id="scheduledVisibility" name="visibility" required>
                             <option value="">Who can see this?</option>
                             <option value="team" id="visibilityTeamOption">Team Only</option>
                             <option value="game_players" id="visibilityPlayersOption">Players</option>
                             <option value="game_community" id="visibilityCommunityOption">Community Members</option>
                         </select>
-                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                            Events will be automatically created on the calendar based on this schedule
-                        </small>
                     </div>
 
                     <div class="form-group">
                         <label for="scheduledEndDate">Schedule End Date *</label>
+                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                            Events will stop being generated after this date
+                        </small>
                         <input type="date"
                                id="scheduledEndDate"
                                name="end_date"
                                required>
-                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                            Events will stop being generated after this date
-                        </small>
                     </div>
 
                     <div class="form-group">
@@ -2376,7 +2376,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <!-- Delete Modal js (must be called first) -->
 <script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
-<script src="{{ url_for('static', filename='modalDelete.js') }}"></script>
+<script src="{{ url_for('static', filename='notifications.js') }}"></script>
 <script src="{{ url_for('static', filename='photo-upload.js') }}"></script>
 <!-- Rest of js imports -->
 <script src="{{ url_for('static', filename='badges.js') }}"></script>
@@ -2388,7 +2388,6 @@
 <script src="{{ url_for('static', filename='suspensions.js') }}"></script>
 <script src="{{ url_for('static', filename='events.js') }}"></script>
 <script src="{{ url_for('static', filename='admin-panel.js') }}"></script>
-<script src="{{ url_for('static', filename='notifications.js') }}"></script>
 <script src="{{ url_for('static', filename='game.js') }}"></script>
 <script src="{{ url_for('static', filename='communities.js') }}"></script>
 <script src="{{ url_for('static', filename='scheduled-events.js') }}"></script>

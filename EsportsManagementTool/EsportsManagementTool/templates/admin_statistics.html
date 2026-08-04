@@ -65,6 +65,142 @@
 
     <div id="statsOverviewView">
     <!-- ================================ -->
+    <!-- PROGRAM TRENDS (All-Time view only) -->
+    <!-- ================================ -->
+    {% if not selected_season %}
+    <section class="stats-section trends-section">
+        <div class="trends-layout">
+
+            <!-- OVERALL TRENDS PANEL -->
+            <div class="trends-panel">
+                <div class="trends-panel-header">
+                    <h3>Overall Trends</h3>
+                </div>
+                <div class="trends-panel-chart">
+                    <div class="trends-chart-axis-wrap">
+                        <canvas id="overallTrendsAxisChart"></canvas>
+                    </div>
+                    <div class="trends-chart-scroll" id="overallTrendsScroll">
+                        <div class="trends-chart-inner" id="overallTrendsInner">
+                            <canvas id="overallTrendsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="trends-panel-filters">
+                    <div class="filter-box" id="overallStatFilterBox">
+                        <button class="filter-box-btn" onclick="toggleFilterBox('overallStatFilterPanel')">
+                            <span id="overallStatFilterLabel">Players</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="filter-box-panel" id="overallStatFilterPanel">
+                            <div class="filter-box-item active" onclick="setOverallTrendsStat('players', this)">Players</div>
+                            <div class="filter-box-item" onclick="setOverallTrendsStat('teams', this)">Teams</div>
+                            <div class="filter-box-item" onclick="setOverallTrendsStat('playoffs', this)">Playoff Qualifications</div>
+                        </div>
+                    </div>
+                    <div class="filter-box" id="overallDurationFilterBox">
+                        <button class="filter-box-btn" onclick="toggleFilterBox('overallDurationFilterPanel')">
+                            <span id="overallDurationFilterLabel">All-Time</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="filter-box-panel filter-box-panel--right" id="overallDurationFilterPanel">
+                            <div class="filter-box-item" id="overallDuration2Item" onclick="setOverallTrendsDuration('2', this)">Past 2 Seasons</div>
+                            <div class="filter-box-item" id="overallDuration4Item" onclick="setOverallTrendsDuration('4', this)">Past 4 Seasons</div>
+                            <div class="filter-box-item" id="overallDuration8Item" onclick="setOverallTrendsDuration('8', this)">Past 8 Seasons</div>
+                            <div class="filter-box-item active" onclick="setOverallTrendsDuration('all', this)">All-Time</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TRENDS BY LEAGUE PANEL -->
+            <div class="trends-panel">
+                <div class="trends-panel-header">
+                    <h3>Trends by League</h3>
+                </div>
+                <div class="trends-panel-chart">
+                    <div class="trends-chart-axis-wrap">
+                        <canvas id="leagueTrendsAxisChart"></canvas>
+                    </div>
+                    <div class="trends-chart-scroll" id="leagueTrendsScroll">
+                        <div class="trends-chart-inner" id="leagueTrendsInner">
+                            <canvas id="leagueTrendsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="trends-panel-filters">
+                    <div class="filter-box" id="leagueFilterBox">
+                        <button class="filter-box-btn" onclick="toggleFilterBox('leagueFilterPanel')">
+                            <span id="leagueFilterLabel">{{ statistics.league_breakdown[0].league_name if statistics.league_breakdown else 'League Filter' }}</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="filter-box-panel" id="leagueFilterPanel">
+                            {% for league in statistics.league_breakdown %}
+                            <div class="filter-box-item {% if loop.first %}active{% endif %}" onclick="setLeagueTrendsLeague({{ league.league_id }}, '{{ league.league_name }}', this)">{{ league.league_name }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="filter-box" id="leagueStatFilterBox">
+                        <button class="filter-box-btn" onclick="toggleFilterBox('leagueStatFilterPanel')">
+                            <span id="leagueStatFilterLabel">Players</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="filter-box-panel" id="leagueStatFilterPanel">
+                            <div class="filter-box-item active" onclick="setLeagueTrendsStat('players', this)">Players</div>
+                            <div class="filter-box-item" onclick="setLeagueTrendsStat('teams', this)">Teams</div>
+                            <div class="filter-box-item" onclick="setLeagueTrendsStat('playoffs', this)">Playoff Qualifications</div>
+                        </div>
+                    </div>
+                    <div class="filter-box" id="leagueDurationFilterBox">
+                        <button class="filter-box-btn" onclick="toggleFilterBox('leagueDurationFilterPanel')">
+                            <span id="leagueDurationFilterLabel">All-Time</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="filter-box-panel filter-box-panel--right" id="leagueDurationFilterPanel">
+                            <div class="filter-box-item" id="leagueDuration2Item" onclick="setLeagueTrendsDuration('2', this)">Past 2 Seasons</div>
+                            <div class="filter-box-item" id="leagueDuration4Item" onclick="setLeagueTrendsDuration('4', this)">Past 4 Seasons</div>
+                            <div class="filter-box-item" id="leagueDuration8Item" onclick="setLeagueTrendsDuration('8', this)">Past 8 Seasons</div>
+                            <div class="filter-box-item active" onclick="setLeagueTrendsDuration('all', this)">All-Time</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOTABLE PERFORMANCES -->
+        <div class="notable-performances">
+            <h3 class="notable-performances-title">Notable Performances</h3>
+            <div class="notable-performances-list" id="notablePerformancesList">
+                <div class="notable-performance-card">
+                    <span class="notable-performance-season">Season</span>
+                    <div class="notable-performance-avatar"></div>
+                    <div class="notable-performance-info">
+                        <span class="notable-performance-team">Team Name</span>
+                        <span class="notable-performance-meta">Placement in League</span>
+                    </div>
+                </div>
+                <div class="notable-performance-card">
+                    <span class="notable-performance-season">Season</span>
+                    <div class="notable-performance-avatar"></div>
+                    <div class="notable-performance-info">
+                        <span class="notable-performance-team">Team Name</span>
+                        <span class="notable-performance-meta">Placement in League</span>
+                    </div>
+                </div>
+                <div class="notable-performance-card">
+                    <span class="notable-performance-season">Season</span>
+                    <div class="notable-performance-avatar"></div>
+                    <div class="notable-performance-info">
+                        <span class="notable-performance-team">Team Name</span>
+                        <span class="notable-performance-meta">Placement in League</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- ================================ -->
     <!-- SCORECARD OVERVIEW -->
     <!-- ================================ -->
     <section class="stats-section">
@@ -82,29 +218,37 @@
                 </div>
 
                 <div class="scorecard-table">
-                    <div class="scorecard-table-row row-winner">
+                    <div class="scorecard-table-row row-winner" title="Teams that won a league championship">
                         <span>Winner</span><span>{{ statistics.playoffs_placements.winners }}</span>
                     </div>
-                    <div class="scorecard-table-row row-finals">
-                        <span>Finals / Top 2</span><span>{{ statistics.playoffs_placements.finals }}</span>
+                    <div class="scorecard-table-row row-finals" title="Teams that reached the finals or further">
+                        <span><span class="scorecard-label-full">Finals / Top 2</span><span class="scorecard-label-short">Finals</span></span><span>{{ statistics.playoffs_placements.finals }}</span>
                     </div>
-                    <div class="scorecard-table-row row-semifinals">
-                        <span>Semifinals / Top 4</span><span>{{ statistics.playoffs_placements.semifinals }}</span>
+                    <div class="scorecard-table-row row-semifinals" title="Teams that reached the semifinals or further">
+                        <span><span class="scorecard-label-full">Semifinals / Top 4</span><span class="scorecard-label-short">Semis</span></span><span>{{ statistics.playoffs_placements.semifinals }}</span>
                     </div>
-                    <div class="scorecard-table-row row-quarterfinals">
-                        <span>Quarterfinals / Top 8</span><span>{{ statistics.playoffs_placements.quarterfinals }}</span>
+                    <div class="scorecard-table-row row-quarterfinals" title="Teams that reached the quarterfinals or further">
+                        <span><span class="scorecard-label-full">Quarterfinals / Top 8</span><span class="scorecard-label-short">Quarterfinals</span></span><span>{{ statistics.playoffs_placements.quarterfinals }}</span>
                     </div>
-                    <div class="scorecard-table-row row-playoffs">
+                    <div class="scorecard-table-row row-playoffs" title="Teams with at least one recorded playoffs match">
                         <span>Playoffs</span><span>{{ statistics.playoffs_placements.playoffs }}</span>
                     </div>
-                    <div class="scorecard-table-row row-regular">
+                    {% if not selected_season %}
+                    <div class="scorecard-table-row row-playoffs-pct" title="Percentage of total teams that made playoffs">
+                        <span>Playoff %</span><span>{{ statistics.playoffs_placements.playoff_pct }}%</span>
+                    </div>
+                    {% endif %}
+                    {% if selected_season %}
+                    <div class="scorecard-table-row row-regular" title="Teams with at least one recorded match">
                         <span>Regular Season</span><span>{{ statistics.playoffs_placements.regular_season }}</span>
                     </div>
-                    <div class="scorecard-table-row row-inprogress">
+                    <div class="scorecard-table-row row-inprogress" title="Teams whose playoffs results haven't been finalized yet">
                         <span>In Progress</span><span>{{ statistics.playoffs_placements.in_progress }}</span>
                     </div>
+                    {% endif %}
                 </div>
 
+                {% if selected_season %}
                 <div class="scorecard-box">
                     <span class="scorecard-box-label">New Players</span>
                     <span class="scorecard-box-value">{{ statistics.player_stats.new_players }}</span>
@@ -113,7 +257,8 @@
                     <span class="scorecard-box-label">Did Not Return</span>
                     <span class="scorecard-box-value">{{ statistics.player_stats.did_not_return }}</span>
                 </div>
-                <div class="scorecard-box">
+                {% endif %}
+                <div class="scorecard-box scorecard-box--hide-mobile">
                     <span class="scorecard-box-label">Multi-Team Players</span>
                     <span class="scorecard-box-value">{{ statistics.player_stats.multi_team_players }}</span>
                 </div>
@@ -169,7 +314,11 @@
                     <div class="league-title">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
                             <div class="league-icon">
-                                <i class="fas fa-trophy"></i>
+                                {% if league.league_logo_url %}
+                                    <img src="{{ league.league_logo_url }}" alt="{{ league.league_name }}" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'fas fa-trophy\'></i>';">
+                                {% else %}
+                                    <i class="fas fa-trophy"></i>
+                                {% endif %}
                             </div>
                             <h3>{{ league.league_name }}</h3>
                         </div>
@@ -193,7 +342,7 @@
                                 <i class="fas fa-crown"></i>
                             </div>
                             <div class="placement-value">{{ league.winners }}</div>
-                            <div class="placement-label">Winners</div>
+                            <div class="placement-label" title="Teams that won this league's championship">Winners</div>
                         </div>
 
                         <div class="placement-card silver">
@@ -201,7 +350,7 @@
                                 <i class="fas fa-medal"></i>
                             </div>
                             <div class="placement-value">{{ league.finals }}</div>
-                            <div class="placement-label">Finals</div>
+                            <div class="placement-label" title="Teams that reached the finals or further">Finals</div>
                         </div>
 
                         <div class="placement-card bronze">
@@ -209,7 +358,7 @@
                                 <i class="fas fa-trophy"></i>
                             </div>
                             <div class="placement-value">{{ league.semifinals }}</div>
-                            <div class="placement-label">Semifinals</div>
+                            <div class="placement-label" title="Teams that reached the semifinals or further">Semifinals</div>
                         </div>
                     </div>
 
@@ -219,7 +368,7 @@
                                 <i class="fas fa-award"></i>
                             </div>
                             <div class="placement-value">{{ league.quarterfinals }}</div>
-                            <div class="placement-label">Quarterfinals</div>
+                            <div class="placement-label" title="Teams that reached the quarterfinals or further">Quarterfinals</div>
                         </div>
 
                         <div class="placement-card">
@@ -227,7 +376,7 @@
                                 <i class="fas fa-chevron-up"></i>
                             </div>
                             <div class="placement-value">{{ league.playoffs }}</div>
-                            <div class="placement-label">Playoffs</div>
+                            <div class="placement-label" title="Teams with at least one recorded playoffs match">Playoffs</div>
                         </div>
 
                         <div class="placement-card">
@@ -235,7 +384,7 @@
                                 <i class="fas fa-calendar-alt"></i>
                             </div>
                             <div class="placement-value">{{ league.regular_season }}</div>
-                            <div class="placement-label">Did Not Qualify</div>
+                            <div class="placement-label" title="Teams with at least one recorded match">Did Not Qualify</div>
                         </div>
 
                         <div class="placement-card">
@@ -243,7 +392,7 @@
                                 <i class="fas fa-clock"></i>
                             </div>
                             <div class="placement-value">{{ league.in_progress }}</div>
-                            <div class="placement-label">In Progress</div>
+                            <div class="placement-label" title="Teams who are still competing this season">In Progress</div>
                         </div>
                     </div>
                 </div>
@@ -266,13 +415,13 @@
             <h2>Export Options</h2>
             <div class="export-buttons">
                 <button class="btn btn-primary" onclick="exportToExcel()">
-                    <i class="fas fa-file-excel"></i> Export to Excel
+                    <i class="fas fa-file-excel"></i> <span class="export-label-full">Export to Excel</span><span class="export-label-short">Excel</span>
                 </button>
                 <button class="btn btn-secondary" onclick="exportToPDF()">
-                    <i class="fas fa-file-pdf"></i> Export to PDF
+                    <i class="fas fa-file-pdf"></i> <span class="export-label-full">Export to PDF</span><span class="export-label-short">PDF</span>
                 </button>
                 <button class="btn btn-secondary" onclick="printStatistics()">
-                    <i class="fas fa-print"></i> Print Report
+                    <i class="fas fa-print"></i> <span class="export-label-full">Print Report</span><span class="export-label-short">Print</span>
                 </button>
             </div>
         </div>
@@ -285,7 +434,7 @@
     <div id="statsGameView" style="display:none;">
         <section class="stats-section">
             <h2 id="gameViewTitle">
-                <i class="fas fa-gamepad"></i> <span></span>
+                <span class="game-view-title-icon"><i class="fas fa-gamepad"></i></span> <span id="gameViewTitleText"></span>
             </h2>
             <div id="gameStatsTableWrap" class="game-stats-table-wrap">
                 <table class="game-stats-table">
@@ -304,6 +453,10 @@
                     </tbody>
                 </table>
             </div>
+
+            <div id="gameStatsCardsWrap" class="game-stats-cards-wrap">
+                <!-- Cards injected by renderGameStatsTable() for mobile view -->
+            </div>
         </section>
     </div>
 </div>
@@ -318,12 +471,18 @@
         <div class="stats-floating-tabs-inner">
             <button class="stats-floating-tab active" data-game="overview">
                 <i class="fas fa-chart-pie"></i>
-                <span>Overview</span>
+                <span class="stats-floating-tab-label">Overview</span>
             </button>
             {% for game in statistics.active_games %}
-            <button class="stats-floating-tab" data-game="{{ game.game_id }}">
-                <i class="fas fa-gamepad"></i>
-                <span>{{ game.game_title }}</span>
+            <button class="stats-floating-tab" data-game="{{ game.game_id }}" data-icon="{{ game.icon_url or '' }}">
+                <span class="stats-floating-tab-icon">
+                    {% if game.icon_url %}
+                        <img src="{{ game.icon_url }}" alt="{{ game.game_title }}" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'fas fa-gamepad\'></i>';">
+                    {% else %}
+                        <i class="fas fa-gamepad"></i>
+                    {% endif %}
+                </span>
+                <span class="stats-floating-tab-label">{{ game.game_title }}</span>
             </button>
             {% endfor %}
         </div>
