@@ -3,6 +3,10 @@
    Comprehensive styling for program statistics
    ============================================ */
 
+main {
+    min-height: calc(100vh - 73px) !important;
+}
+
 /* ============================================
    HEADER & FILTERS
    ============================================ */
@@ -1070,6 +1074,16 @@
 /* ============================================
    States
    ============================================ */
+.game-stats-card-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
 .game-stats-loading-row td {
     text-align: center;
     padding: 2.5rem 1rem;

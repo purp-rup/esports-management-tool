@@ -256,6 +256,9 @@ function showGameView(gameId, gameTitle, gameIconUrl) {
             <td colspan="6"><i class="fas fa-spinner fa-spin"></i> Loading stats...</td>
         </tr>
     `;
+    document.getElementById('gameStatsCardsWrap').innerHTML = `
+        <div class="game-stats-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading stats...</div>
+    `;
 
     const seasonParam = window.selectedSeason ? `?season_id=${window.selectedSeason}` : '';
 

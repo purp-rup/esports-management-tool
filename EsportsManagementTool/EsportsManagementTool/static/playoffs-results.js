@@ -127,10 +127,6 @@ document.head.appendChild(style);
 // ============================================
 // RECORD RESULTS MODAL
 // ============================================
-
-/**
- * Open modal to record playoffs results
- */
 function openPlayoffsResultsModal() {
     // Load pending teams
     fetch('/api/playoffs-results/pending-teams')
@@ -154,9 +150,7 @@ function openPlayoffsResultsModal() {
         });
 }
 
-/**
- * Display the record results modal with pending teams
- */
+// Display the record results modal with pending teams
 function displayPlayoffsResultsModal(teams, season, placementOptions) {
     // Group teams by game
     const teamsByGame = {};
@@ -202,24 +196,63 @@ function displayPlayoffsResultsModal(teams, season, placementOptions) {
             const teamActions = document.createElement('div');
             teamActions.className = 'playoffs-team-actions';
             
-            // Select dropdown
-            const select = document.createElement('select');
-            select.className = 'playoffs-placement-select';
-            select.setAttribute('data-team-id', team.teamID);
-            select.setAttribute('data-league-id', team.league_id);
-            
-            const defaultOption = document.createElement('option');
-            defaultOption.value = '';
-            defaultOption.textContent = 'Select Placement';
-            select.appendChild(defaultOption);
-            
-            placementOptions.forEach(opt => {
-                const option = document.createElement('option');
-                option.value = opt;
-                option.textContent = opt;
-                select.appendChild(option);
+            // Placement dropdown — built as a universal filter-box
+            const panelId = `playoffsPlacementPanel-${team.teamID}-${team.league_id}`;
+
+            const comboBox = document.createElement('div');
+            comboBox.className = 'filter-box tag-select-box playoffs-placement-box';
+            comboBox.id = `playoffsPlacementBox-${team.teamID}-${team.league_id}`;
+
+            const trigger = document.createElement('div');
+            trigger.className = 'tag-select-trigger';
+            trigger.onclick = function() {
+                togglePlayoffsPlacementPanel(trigger, panelId);
+            };
+
+            const display = document.createElement('div');
+            display.className = 'combo-select-display';
+            display.id = `playoffsPlacementDisplay-${team.teamID}-${team.league_id}`;
+            display.innerHTML = '<span class="combo-placeholder">Select Placement</span>';
+
+            const arrow = document.createElement('i');
+            arrow.className = 'fas fa-chevron-down tag-select-arrow';
+
+            trigger.appendChild(display);
+            trigger.appendChild(arrow);
+
+            const panel = document.createElement('div');
+            panel.className = 'filter-box-panel tag-select-panel playoffs-placement-panel';
+            panel.id = panelId;
+            panel.addEventListener('click', e => e.stopPropagation());
+
+            // Teams with no recorded playoffs matches can only report
+            // "Did Not Qualify" — hide every other placement for them.
+            const availableOptions = team.has_playoffs_matches
+                ? placementOptions
+                : placementOptions.filter(opt => opt === 'Did Not Qualify');
+
+            availableOptions.forEach(opt => {
+                const item = document.createElement('div');
+                item.className = 'filter-box-item';
+                item.textContent = opt;
+                item.onclick = function(e) {
+                    e.stopPropagation();
+                    selectPlayoffsPlacement(team.teamID, team.league_id, opt);
+                };
+                panel.appendChild(item);
             });
-            
+
+            comboBox.appendChild(trigger);
+            comboBox.appendChild(panel);
+
+            // Hidden input holds the actual value recordSingleResult() reads
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.className = 'playoffs-placement-value';
+            hiddenInput.setAttribute('data-team-id', team.teamID);
+            hiddenInput.setAttribute('data-league-id', team.league_id);
+            hiddenInput.value = '';
+
             // Save button
             const saveBtn = document.createElement('button');
             saveBtn.className = 'btn btn-primary btn-sm';
@@ -227,8 +260,9 @@ function displayPlayoffsResultsModal(teams, season, placementOptions) {
             saveBtn.onclick = function() {
                 recordSingleResult(team.teamID, team.league_id, season.season_id);
             };
-            
-            teamActions.appendChild(select);
+
+            teamActions.appendChild(comboBox);
+            teamActions.appendChild(hiddenInput);
             teamActions.appendChild(saveBtn);
             
             teamCard.appendChild(teamInfo);
@@ -295,22 +329,21 @@ function displayPlayoffsResultsModal(teams, season, placementOptions) {
     modal.appendChild(modalContent);
     
     document.body.appendChild(modal);
+    lockBodyScroll('playoffsResultsModal');
 }
 
-/**
- * Record result for a single team
- */
+// Record playoffs result for a team
 function recordSingleResult(teamId, leagueId, seasonId) {
-    // Find the select element for this specific team-league combination
-    const select = document.querySelector(`select.playoffs-placement-select[data-team-id="${teamId}"][data-league-id="${leagueId}"]`);
-    
-    if (!select) {
-        console.error('Could not find select element for team:', teamId);
+    // Find the hidden input holding the selected placement for this team-league combination
+    const placementInput = document.querySelector(`input.playoffs-placement-value[data-team-id="${teamId}"][data-league-id="${leagueId}"]`);
+
+    if (!placementInput) {
+        console.error('Could not find placement input for team:', teamId);
         showModalMessage('error', 'Error: Could not find placement selector');
         return;
     }
-    
-    const placement = select.value;
+
+    const placement = placementInput.value;
     
     if (!placement || placement === '') {
         showModalMessage('error', 'Please select a placement');
@@ -390,13 +423,65 @@ function recordSingleResult(teamId, leagueId, seasonId) {
         }
     });
 }
+
+// Open/close a team's placement dropdown panel.
+function togglePlayoffsPlacementPanel(triggerEl, panelId) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+
+    const isOpen = panel.classList.contains('open');
+
+    closeAllFilterPanels();
+    document.querySelectorAll('.playoffs-placement-box .tag-select-trigger.active')
+        .forEach(t => t.classList.remove('active'));
+
+    if (isOpen) {
+        return;
+    }
+
+    if (panel.parentElement !== document.body) {
+        document.body.appendChild(panel);
+    }
+
+    const triggerRect = triggerEl.getBoundingClientRect();
+    panel.style.position = 'fixed';
+    panel.style.top = `${triggerRect.bottom + 4}px`;
+    panel.style.left = `${triggerRect.left}px`;
+    panel.style.width = `${triggerRect.width}px`;
+    panel.style.minWidth = `${triggerRect.width}px`;
+    panel.style.zIndex = '10000';
+
+    panel.classList.add('open');
+    triggerEl.classList.add('active');
+}
+
 /**
- * Close record results modal
+ * Handle selecting a placement from a team's tag-select-box dropdown.
+ * Updates the visible trigger text, stores the value in the hidden input,
+ * and closes the panel.
  */
+function selectPlayoffsPlacement(teamId, leagueId, placement) {
+    const display = document.getElementById(`playoffsPlacementDisplay-${teamId}-${leagueId}`);
+    const input = document.querySelector(`input.playoffs-placement-value[data-team-id="${teamId}"][data-league-id="${leagueId}"]`);
+
+    if (display) {
+        display.textContent = placement;
+    }
+    if (input) {
+        input.value = placement;
+    }
+
+    closeAllFilterPanels();
+}
+
+// Close playoffs results modal
 function closePlayoffsResultsModal() {
+    document.querySelectorAll('.playoffs-placement-panel').forEach(p => p.remove());
+
     const modal = document.getElementById('playoffsResultsModal');
     if (modal) {
         modal.remove();
+        unlockBodyScroll('playoffsResultsModal');
     }
 }
 
@@ -404,9 +489,7 @@ function closePlayoffsResultsModal() {
 // UTILITY FUNCTIONS
 // ============================================
 
-/**
- * Show message in modal
- */
+// Show message in modal
 function showModalMessage(type, message) {
     const messageDiv = document.getElementById('playoffsResultsMessage');
     if (messageDiv) {
@@ -450,6 +533,7 @@ document.head.appendChild(fadeStyle);
 // ============================================
 window.checkPendingResults = checkPendingResults;
 window.openPlayoffsResultsModal = openPlayoffsResultsModal;
+window.selectPlayoffsPlacement = selectPlayoffsPlacement;
 window.closePlayoffsResultsModal = closePlayoffsResultsModal;
 window.recordSingleResult = recordSingleResult;
 window.dismissPlayoffsBanner = dismissPlayoffsBanner;

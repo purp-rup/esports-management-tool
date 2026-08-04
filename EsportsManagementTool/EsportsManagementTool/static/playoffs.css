@@ -114,11 +114,15 @@ body.has-playoffs-banner {
    Playoffs Results Record Modal
    ============================================ */
 .playoffs-results-container {
-    overflow-y: auto;
     padding: 1rem;
     background: var(--background-secondary);
     border-radius: 12px;
     margin: 1.5rem 0;
+}
+
+.playoffs-placement-panel {
+    max-height: none;
+    overflow-y: visible;
 }
 
 /* Game Section */
@@ -169,7 +173,6 @@ body.has-playoffs-banner {
 
 .playoffs-team-card:hover {
     border-color: var(--stockton-blue);
-    transform: translateX(4px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 

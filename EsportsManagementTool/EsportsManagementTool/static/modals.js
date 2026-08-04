@@ -85,7 +85,7 @@ const MODAL_CLOSE_HANDLERS = {
 
     // Stats modal
     'recordMatchResultModal': () => closeRecordResultModal(),
-    'matchDetailsModal': () => closeMatchDetailsModal(),
+    'playoffsResultsModal': () => closePlayoffsResultsModal(),
 
     // VOD Modals
     'addVodModal': () => closeAddVodModal(),

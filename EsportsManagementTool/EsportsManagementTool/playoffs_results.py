@@ -55,9 +55,11 @@ def register_playoffs_results_routes(app, mysql, login_required, roles_required)
                 }), 200
             
             season_id = active_season['season_id']
-            
-            # Get teams managed by this GM that need results recorded
-            # Only include teams that are in leagues
+
+            """Get teams managed by this GM that need results recorded
+               Only include teams that are in leagues AND have at least one
+               recorded match in that league — a team that hasn't played yet
+               has nothing to report a final result for."""
             cursor.execute("""
                 SELECT 
                     t.teamID,
@@ -66,7 +68,19 @@ def register_playoffs_results_routes(app, mysql, login_required, roles_required)
                     g.GameID,
                     l.id as league_id,
                     l.name as league_name,
-                    COALESCE(COUNT(tr.result_id), 0) as has_result
+                    COALESCE(COUNT(tr.result_id), 0) as has_result,
+                    (
+                        SELECT COUNT(*) 
+                        FROM match_results mr2 
+                        JOIN generalevents ge2 ON mr2.event_id = ge2.EventID
+                        WHERE mr2.team_id = t.teamID AND ge2.league_id = l.id
+                    ) as total_matches,
+                    (
+                        SELECT COUNT(*) 
+                        FROM match_results mr2 
+                        JOIN generalevents ge2 ON mr2.event_id = ge2.EventID
+                        WHERE mr2.team_id = t.teamID AND ge2.league_id = l.id AND mr2.is_playoffs = 1
+                    ) as playoffs_matches
                 FROM teams t
                 JOIN games g ON t.gameID = g.GameID
                 JOIN team_leagues tl ON t.teamID = tl.team_id
@@ -79,12 +93,12 @@ def register_playoffs_results_routes(app, mysql, login_required, roles_required)
                 WHERE t.season_id = %s
                 AND g.gm_id = %s
                 GROUP BY t.teamID, t.teamName, g.GameTitle, g.GameID, l.id, l.name
-                HAVING has_result = 0
+                HAVING has_result = 0 AND total_matches > 0
                 ORDER BY g.GameTitle, l.name, t.teamName
             """, (season_id, season_id, gm_id))
-            
+
             teams = cursor.fetchall()
-            
+
             # Convert to list to ensure JSON serialization
             teams_list = []
             for team in teams:
@@ -94,7 +108,8 @@ def register_playoffs_results_routes(app, mysql, login_required, roles_required)
                     'GameTitle': team['GameTitle'],
                     'GameID': team['GameID'],
                     'league_id': team['league_id'],
-                    'league_name': team['league_name']
+                    'league_name': team['league_name'],
+                    'has_playoffs_matches': team['playoffs_matches'] > 0
                 })
             
             return jsonify({
@@ -161,13 +176,42 @@ def register_playoffs_results_routes(app, mysql, login_required, roles_required)
                 JOIN games g ON t.gameID = g.GameID
                 WHERE t.teamID = %s AND g.gm_id = %s
             """, (team_id, gm_id))
-            
+
             if not cursor.fetchone():
                 return jsonify({
                     'success': False,
                     'message': 'You do not manage this team'
                 }), 403
-            
+
+            """Make sure this placement is actually backed by recorded match data.
+              1) A team with zero recorded matches can't have a "final result" yet.
+              2) Any placement other than "Did Not Qualify" claims a playoffs run,
+                 so at least one match must be flagged is_playoffs = 1."""
+            cursor.execute("""
+                            SELECT 
+                                COUNT(*) as total_matches,
+                                SUM(CASE WHEN mr.is_playoffs = 1 THEN 1 ELSE 0 END) as playoffs_matches
+                            FROM match_results mr
+                            JOIN generalevents ge ON mr.event_id = ge.EventID
+                            WHERE mr.team_id = %s AND ge.league_id = %s
+                        """, (team_id, league_id))
+
+            match_counts = cursor.fetchone()
+            total_matches = match_counts['total_matches'] or 0
+            playoffs_matches = match_counts['playoffs_matches'] or 0
+
+            if total_matches == 0:
+                return jsonify({
+                    'success': False,
+                    'message': 'This team has no recorded matches in this league yet. Record match results before reporting a playoffs placement.'
+                }), 400
+
+            if placement != 'Did Not Qualify' and playoffs_matches == 0:
+                return jsonify({
+                    'success': False,
+                    'message': f'Cannot report "{placement}" — no playoffs matches have been recorded for this team in this league.'
+                }), 400
+
             # Insert or update playoffs result
             cursor.execute("""
                 INSERT INTO playoffs_results 
