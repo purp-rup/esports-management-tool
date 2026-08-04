@@ -228,37 +228,40 @@ function renderScheduleCards(schedules) {
     let html = '<div class="schedule-cards-grid">';
 
     schedules.forEach(schedule => {
-        const dayName = schedule.day_of_week_name || 'One-time';
+        const eventTypeClass = schedule.event_type.toLowerCase();
         const isOnce = schedule.frequency === 'Once';
+        const isMatch = schedule.event_type === 'Match';
+        const occurrenceText = buildScheduleOccurrenceText(schedule);
 
         html += `
-            <div class="schedule-card" onclick="openScheduleModal(${schedule.schedule_id})">
-                <div class="schedule-card-header">
-                    <div class="schedule-card-icon">
-                        <i class="fas fa-calendar-alt"></i>
-                    </div>
-                    <div class="schedule-card-title-section">
-                        <h4 class="schedule-card-title">${schedule.event_name}</h4>
-                        <span class="schedule-type-badge ${schedule.event_type.toLowerCase()}">${schedule.event_type}</span>
+            <div class="schedule-card type-${eventTypeClass}"
+                data-schedule-id="${schedule.schedule_id}"
+                onclick="toggleScheduleCardExpand(${schedule.schedule_id})"
+                onmouseenter="loadScheduleCardEventCount(${schedule.schedule_id})">
+
+                <div class="schedule-card-top-row">
+                    <h4 class="schedule-card-title">${schedule.event_name}</h4>
+                    <div class="schedule-card-top-actions" onclick="event.stopPropagation()">
+                        <button class="btn-icon-action btn-icon-edit schedule-card-edit-btn"
+                                style="display:none;"
+                                onclick="openEditScheduleMode(${schedule.schedule_id})"
+                                title="Edit schedule">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-icon-action btn-icon-delete schedule-card-delete-btn"
+                                style="display:none;"
+                                onclick="confirmDeleteSchedule(${schedule.schedule_id})"
+                                title="Delete schedule">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <span class="schedule-type-badge ${eventTypeClass}">${schedule.event_type}</span>
                     </div>
                 </div>
 
                 <div class="schedule-card-details">
                     <div class="schedule-card-detail">
                         <i class="fas fa-redo"></i>
-                        <span>${schedule.frequency}${!isOnce ? ' - ' + dayName : ''}</span>
-                    </div>
-
-                    ${isOnce ? `
-                        <div class="schedule-card-detail">
-                            <i class="fas fa-calendar-day"></i>
-                            <span>${schedule.specific_date}</span>
-                        </div>
-                    ` : ''}
-
-                    <div class="schedule-card-detail">
-                        <i class="fas fa-clock"></i>
-                        <span>${schedule.start_time} - ${schedule.end_time}</span>
+                        <span>${occurrenceText}</span>
                     </div>
 
                     <div class="schedule-card-detail">
@@ -270,15 +273,248 @@ function renderScheduleCards(schedules) {
                         <i class="fas fa-map-marker-alt"></i>
                         <span>${schedule.location || 'TBD'}</span>
                     </div>
+
+                    ${isMatch ? `
+                        <div class="schedule-card-detail">
+                            <i class="fas fa-trophy"></i>
+                            <span>${schedule.league_name || 'No league assigned'}</span>
+                        </div>
+                    ` : ''}
                 </div>
+
+                <div class="schedule-card-expand">
+                    <div class="schedule-card-detail">
+                        <i class="fas fa-info-circle"></i>
+                        <span>${schedule.description || 'No description provided'}</span>
+                    </div>
+                </div>
+                
+                ${!isOnce ? `
+                    <div class="schedule-event-count" id="scheduleEventCount-${schedule.schedule_id}">
+                        <i class="fas fa-calendar-check"></i> Loading&hellip;
+                    </div>
+                ` : ''}
+
+                <i class="fas fa-chevron-down schedule-card-chevron"></i>
             </div>
         `;
     });
 
-    html += '</div>';
-    schedulePanel.innerHTML = html;
+    html += '</div>'; 
+
+    schedulePanel.innerHTML = `
+        <div class="schedule-panel-grid">
+            <div class="schedule-cards-column">${html}</div>
+            ${renderScheduleWeekPanel()}
+        </div>
+    `;
+
+    schedules.forEach(schedule => configureScheduleCardButtons(schedule));
+
+    // Auto-open today's events in the weekly panel on load
+    const todayStr = formatDateISO(new Date());
+    const weekDates = getCurrentScheduleWeekDates();
+    const todayIndex = weekDates.findIndex(d => formatDateISO(d) === todayStr);
+    if (todayIndex !== -1) {
+        selectScheduleWeekDay(todayStr, todayIndex);
+    }
 }
 
+function toggleScheduleCardExpand(scheduleId) {
+    const card = document.querySelector(`.schedule-card[data-schedule-id="${scheduleId}"]`);
+    if (card) card.classList.toggle('expanded');
+}
+
+async function loadScheduleCardEventCount(scheduleId) {
+    const el = document.getElementById(`scheduleEventCount-${scheduleId}`);
+    if (!el || el.dataset.loaded) return;
+    el.dataset.loaded = '1';
+    const count = await fetchScheduleEventCount(scheduleId);
+    el.innerHTML = `<i class="fas fa-calendar-check"></i> ${count} ${count === 1 ? 'event' : 'events'}`;
+}
+
+
+// ============================================
+// WEEKLY ROTATING VIEW
+// ============================================
+
+function getCurrentScheduleWeekDates() {
+    const today = new Date();
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - today.getDay());
+    sunday.setHours(0, 0, 0, 0);
+
+    const week = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(sunday);
+        d.setDate(sunday.getDate() + i);
+        week.push(d);
+    }
+    return week;
+}
+
+function formatDateISO(date) {
+    return date.toISOString().split('T')[0];
+}
+
+function getSchedulesForDate(dateStr, dayName) {
+    return ScheduleState.currentSchedules.filter(schedule => {
+        if (schedule.frequency === 'Once') {
+            return schedule.specific_date === dateStr;
+        }
+        const withinRange = !schedule.schedule_end_date || dateStr <= schedule.schedule_end_date;
+        return withinRange && schedule.day_of_week_name === dayName;
+    });
+}
+
+function renderScheduleWeekPanel() {
+    const weekDates = getCurrentScheduleWeekDates();
+    const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const todayStr = formatDateISO(new Date());
+
+    const monthLabel = monthNames[weekDates[0].getMonth()];
+
+    let columnsHTML = '';
+    weekDates.forEach((date, index) => {
+        const dateStr = formatDateISO(date);
+        const dayName = dayNames[index];
+        const hasEvents = getSchedulesForDate(dateStr, dayName).length > 0;
+        const isToday = dateStr === todayStr;
+
+        columnsHTML += `
+            <div class="schedule-week-day-column">
+                <div class="schedule-week-day-label">${dayName.slice(0, 3)}</div>
+                <div class="schedule-week-day-circle ${isToday ? 'today' : ''}"
+                     data-date="${dateStr}"
+                     onclick="selectScheduleWeekDay('${dateStr}', ${index})">
+                    ${date.getDate()}
+                </div>
+                <div class="schedule-week-day-dot ${hasEvents ? 'visible' : ''}"></div>
+            </div>
+        `;
+    });
+
+    return `
+        <div class="schedule-week-panel">
+            <div class="schedule-week-top-spacer"></div>
+            <div class="schedule-week-popup-row" id="scheduleWeekPopupRow"></div>
+            <div class="schedule-week-anchor">
+                <div class="schedule-week-track">
+                    <div class="schedule-week-line"></div>
+                    ${columnsHTML}
+                </div>
+                <div class="schedule-week-month-label">${monthLabel}</div>
+            </div>
+            <div class="schedule-week-bottom-spacer"></div>
+        </div>
+    `;
+}
+
+function selectScheduleWeekDay(dateStr, columnIndex) {
+    document.querySelectorAll('.schedule-week-day-circle').forEach(el => {
+        el.classList.toggle('active', el.dataset.date === dateStr);
+    });
+
+    const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const eventsForDay = getSchedulesForDate(dateStr, dayNames[columnIndex]);
+    const popupRow = document.getElementById('scheduleWeekPopupRow');
+    if (!popupRow) return;
+
+    if (eventsForDay.length === 0) {
+        popupRow.innerHTML = '';
+        return;
+    }
+
+    popupRow.innerHTML = eventsForDay.map(schedule => {
+        const eventTypeClass = schedule.event_type.toLowerCase();
+        const leagueLine = schedule.event_type === 'Match' ? `
+            <div class="schedule-week-event-line"><i class="fas fa-trophy"></i><span>${schedule.league_name || 'No league'}</span></div>
+        ` : '';
+
+        return `
+            <div class="schedule-week-event-card type-${eventTypeClass}"
+                onclick="navigateToEventsTab(${schedule.schedule_id}, '${dateStr}')">
+                <div class="schedule-week-event-title">${schedule.event_name}</div>
+                <div class="schedule-week-event-line"><i class="fas fa-clock"></i><span>${schedule.start_time}</span></div>
+                <div class="schedule-week-event-line"><i class="fas fa-map-marker-alt"></i><span>${schedule.location || 'TBD'}</span></div>
+                ${leagueLine}
+            </div>
+        `;
+    }).join('');
+}
+
+
+async function navigateToEventsTab(scheduleId, dateStr) {
+    const eventsTabButton = document.querySelector('[data-tab="events"]');
+    if (!eventsTabButton) {
+        console.warn('Events tab button not found');
+        return;
+    }
+
+    let eventId = null;
+    try {
+        const response = await fetch(`/api/schedule/${scheduleId}/event-on-date?date=${dateStr}`);
+        const data = await response.json();
+        if (data.success) eventId = data.event_id;
+    } catch (error) {
+        console.error('Error resolving event for schedule click:', error);
+    }
+
+    eventsTabButton.click();
+
+    if (!eventId) return;
+
+    let attempts = 0;
+    const tryOpen = () => {
+        const container = document.getElementById('eventsContainer');
+        if (container && container.style.display !== 'none' && typeof window.openEventDetailPanel === 'function') {
+            window.openEventDetailPanel(eventId);
+        } else if (attempts < 30) {
+            attempts++;
+            setTimeout(tryOpen, 150);
+        }
+    };
+    setTimeout(tryOpen, 200);
+}
+
+async function configureScheduleCardButtons(schedule) {
+    const card = document.querySelector(`.schedule-card[data-schedule-id="${schedule.schedule_id}"]`);
+    if (!card) return;
+
+    const editBtn = card.querySelector('.schedule-card-edit-btn');
+    const deleteBtn = card.querySelector('.schedule-card-delete-btn');
+
+    const isActiveSeason = window.currentTeamSeasonIsActive === 1;
+    const isDeveloper = window.userPermissions?.is_developer || false;
+    const isAdmin = window.userPermissions?.is_admin || false;
+    const isGM = window.userPermissions?.is_gm || false;
+
+    // Edit button - only for active seasons
+    const canEdit = (isAdmin || isGM) && isActiveSeason;
+    if (editBtn) {
+        editBtn.style.display = canEdit ? 'flex' : 'none';
+    }
+
+    // Delete button - time-based permissions for GMs managing this game
+    if (deleteBtn) {
+        let canDelete = false;
+
+        if (isDeveloper) {
+            canDelete = true;
+        } else if (isActiveSeason) {
+            canDelete = await canUserDeleteSchedule(schedule);
+        }
+
+        if (canDelete) {
+            const timeRemaining = getScheduleDeletionTimeRemaining(schedule.created_at);
+            deleteBtn.title = timeRemaining ? `Delete schedule (${timeRemaining})` : 'Delete schedule';
+            deleteBtn.style.display = 'flex';
+        } else {
+            deleteBtn.style.display = 'none';
+        }
+    }
+}
 // ============================================
 // CREATE SCHEDULE MODAL
 // ============================================
@@ -420,6 +656,40 @@ function buildFrequencyText(schedule) {
         // Fallback for unknown frequencies
         return `${schedule.frequency} - ${schedule.day_of_week_name || 'N/A'}`;
     }
+}
+
+function getOrdinalWeekOfMonth(dateStr) {
+    const date = new Date(dateStr + 'T00:00:00');
+    const weekNumber = Math.floor((date.getDate() - 1) / 7) + 1;
+    const ordinals = ['first', 'second', 'third', 'fourth', 'fifth'];
+    return ordinals[weekNumber - 1] || `${weekNumber}th`;
+}
+
+function formatScheduleDateLong(dateStr) {
+    const date = new Date(dateStr + 'T00:00:00');
+    const monthNames = ['January','February','March','April','May','June',
+                         'July','August','September','October','November','December'];
+    return `${monthNames[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`;
+}
+
+function buildScheduleOccurrenceText(schedule) {
+    const timeRange = `${schedule.start_time} to ${schedule.end_time}`;
+
+    if (schedule.frequency === 'Once') {
+        return `${formatScheduleDateLong(schedule.specific_date)}, from ${timeRange}`;
+    }
+    if (schedule.frequency === 'Weekly') {
+        return `Every ${schedule.day_of_week_name}, from ${timeRange}`;
+    }
+    if (schedule.frequency === 'Biweekly') {
+        return `Every other ${schedule.day_of_week_name}, from ${timeRange}`;
+    }
+    if (schedule.frequency === 'Monthly') {
+        const anchorDate = schedule.created_at ? schedule.created_at.split('T')[0] : null;
+        const ordinal = anchorDate ? getOrdinalWeekOfMonth(anchorDate) : 'first';
+        return `Every ${ordinal} ${schedule.day_of_week_name}, from ${timeRange}`;
+    }
+    return `${schedule.frequency} - ${schedule.day_of_week_name || 'N/A'}`;
 }
 
 // Build dynamic visibility text with game/team context
@@ -568,89 +838,8 @@ async function handleScheduleSubmit(event) {
 // ============================================
 // VIEW SCHEDULE MODAL
 // ============================================
-async function openScheduleModal(scheduleId) {
-    const schedule = ScheduleState.findSchedule(scheduleId) ||
-                     currentSchedules.find(s => s.schedule_id === scheduleId);
 
-    if (!schedule) {
-        console.error('Schedule not found:', scheduleId);
-        return;
-    }
-
-    const modal = document.getElementById('scheduleDetailsModal');
-    if (!modal) {
-        console.error('Schedule details modal not found');
-        return;
-    }
-
-    // Set modal title
-    document.getElementById('scheduleModalTitle').textContent = schedule.event_name;
-
-    // Handle game icon in header
-    renderGameIcon(schedule);
-
-    // Build modal body content
-    renderScheduleDetails(schedule);
-
-    // Configure action buttons (edit/delete) based on permissions
-    await configureScheduleButtons(scheduleId);
-
-    // Show modal
-    modal.style.display = 'block';
-    lockBodyScroll('scheduleDetailsModal');
-}
-
-// Render game icon in modal header WITH event count
-async function renderGameIcon(schedule) {
-    const gameIconContainer = document.getElementById('scheduleModalGameIcon');
-    const titleElement = document.getElementById('scheduleModalTitle');
-
-    if (schedule.game_id && gameIconContainer) {
-        gameIconContainer.innerHTML = `
-            <img src="/game-image/${schedule.game_id}"
-                 alt="${schedule.game_title}"
-                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-            <div class="schedule-modal-game-icon-fallback" style="display: none;">
-                <i class="fas fa-gamepad"></i>
-            </div>
-        `;
-        gameIconContainer.style.display = 'flex';
-    } else if (gameIconContainer) {
-        gameIconContainer.style.display = 'none';
-    }
-
-    // ALWAYS remove any existing event count first
-    const existingCount = document.querySelector('.schedule-event-count');
-    if (existingCount) {
-        existingCount.remove();
-    }
-
-    // ONLY add event count for recurring schedules (not "Once")
-    if (schedule.frequency !== 'Once') {
-        const eventCount = await fetchScheduleEventCount(schedule.schedule_id);
-
-        // Create wrapper for title + count if it doesn't exist
-        let titleWrapper = titleElement.parentElement;
-        if (!titleWrapper.classList.contains('schedule-modal-title-wrapper')) {
-            titleWrapper = document.createElement('div');
-            titleWrapper.className = 'schedule-modal-title-wrapper';
-            titleElement.parentNode.insertBefore(titleWrapper, titleElement);
-            titleWrapper.appendChild(titleElement);
-        }
-
-        // Create and insert event count element
-        const countElement = document.createElement('div');
-        countElement.className = 'schedule-event-count';
-        countElement.innerHTML = `
-            <i class="fas fa-calendar-check"></i>
-            ${eventCount} ${eventCount === 1 ? 'event' : 'events'}
-        `;
-
-        titleWrapper.appendChild(countElement);
-    }
-}
-
-// Fetch the count of events associated with a schedule
+// Fetch the count of events associated with a schedule (kept for the # of events hover)
 async function fetchScheduleEventCount(scheduleId) {
     try {
         const response = await fetch(`/api/schedule/${scheduleId}/event-count`);
@@ -663,136 +852,6 @@ async function fetchScheduleEventCount(scheduleId) {
     } catch (error) {
         console.error('Error fetching event count:', error);
         return 0;
-    }
-}
-
-// Render schedule details in modal body
-function renderScheduleDetails(schedule) {
-    const modalBody = document.getElementById('scheduleModalBody');
-    const eventTypeClass = schedule.event_type.toLowerCase();
-
-    // Build league section HTML if this is a Match event
-    let leagueSection = '';
-    if (schedule.event_type === 'Match' && schedule.league_name) {
-        leagueSection = `
-            <div class="schedule-modal-section full-width">
-                <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-trophy"></i></div>
-                <div class="schedule-modal-content">
-                    <h3>League</h3>
-                    <p>${schedule.league_name}</p>
-                </div>
-            </div>
-        `;
-    }
-
-    modalBody.innerHTML = `
-        <div class="schedule-modal-grid">
-            <div class="schedule-modal-section">
-                <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-tag"></i></div>
-                <div class="schedule-modal-content">
-                    <h3>Event Type</h3>
-                    <span class="schedule-type-badge ${eventTypeClass}">${schedule.event_type}</span>
-                </div>
-            </div>
-
-            ${leagueSection}
-
-            <div class="schedule-modal-section full-width">
-                <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-redo"></i></div>
-                <div class="schedule-modal-content">
-                    <h3>Frequency</h3>
-                    <p>${buildFrequencyText(schedule)}</p>
-                </div>
-            </div>
-
-            <div class="schedule-modal-section full-width">
-                <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-eye"></i></div>
-                <div class="schedule-modal-content">
-                    <h3>Visibility</h3>
-                    <p>${buildVisibilityText(schedule)}</p>
-                </div>
-            </div>
-
-            <div class="schedule-modal-section full-width">
-                <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-map-marker-alt"></i></div>
-                <div class="schedule-modal-content">
-                    <h3>Location</h3>
-                    <p>${schedule.location || 'TBD'}</p>
-                </div>
-            </div>
-
-            ${schedule.description ? `
-                <div class="schedule-modal-section full-width">
-                    <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-info-circle"></i></div>
-                    <div class="schedule-modal-content">
-                        <h3>Description</h3>
-                        <p>${schedule.description}</p>
-                    </div>
-                </div>
-            ` : ''}
-
-            <div class="schedule-modal-section full-width">
-                <div class="schedule-modal-icon ${eventTypeClass}"><i class="fas fa-user"></i></div>
-                <div class="schedule-modal-content">
-                    <h3>Created By</h3>
-                    <p>${schedule.created_by_name}</p>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Configure edit and delete buttons based on user permissions
-async function configureScheduleButtons(scheduleId) {
-    const editBtn = document.getElementById('editScheduleBtn');
-    const deleteBtn = document.getElementById('deleteScheduleBtn');
-
-    const isActiveSeason = window.currentTeamSeasonIsActive === 1;
-    const isDeveloper = window.userPermissions?.is_developer || false;
-    const isAdmin = window.userPermissions?.is_admin || false;
-    const isGM = window.userPermissions?.is_gm || false;
-
-    // Get the schedule data
-    const schedule = ScheduleState.findSchedule(scheduleId) ||
-                     currentSchedules.find(s => s.schedule_id === scheduleId);
-
-    if (!schedule) {
-        if (editBtn) editBtn.style.display = 'none';
-        if (deleteBtn) deleteBtn.style.display = 'none';
-        return;
-    }
-
-    // Edit button - only for active seasons
-    const canEdit = (isAdmin || isGM) && isActiveSeason;
-    if (editBtn) {
-        editBtn.style.display = canEdit ? 'flex' : 'none';
-        if (canEdit) {
-            editBtn.onclick = () => openEditScheduleMode(scheduleId);
-        }
-    }
-
-    // Delete button - time-based permissions for GMs managing this game
-    if (deleteBtn) {
-        let canDelete = false;
-
-        if (isDeveloper) {
-            canDelete = true;
-        } else if (isActiveSeason) {
-            canDelete = await canUserDeleteSchedule(schedule);
-        }
-
-        if (canDelete) {
-            const timeRemaining = getScheduleDeletionTimeRemaining(schedule.created_at);
-            if (timeRemaining) {
-                deleteBtn.title = `Delete schedule (${timeRemaining})`;
-            } else {
-                deleteBtn.title = 'Delete schedule';
-            }
-            deleteBtn.style.display = 'flex';
-            deleteBtn.onclick = () => confirmDeleteSchedule(scheduleId);
-        } else {
-            deleteBtn.style.display = 'none';
-        }
     }
 }
 
@@ -824,7 +883,9 @@ function openEditScheduleMode(scheduleId) {
         alert('Cannot edit schedule: missing team information');
         return;
     }
-
+    const modal = document.getElementById('scheduleDetailsModal');
+    const titleElement = document.getElementById('scheduleModalTitle');
+    if (titleElement) titleElement.textContent = `Edit: ${schedule.event_name}`;
     const modalBody = document.getElementById('scheduleModalBody');
     const eventTypeClass = schedule.event_type.toLowerCase();
 
@@ -924,7 +985,7 @@ function openEditScheduleMode(scheduleId) {
             <div id="editScheduleMessage" class="form-message" style="display: none;"></div>
 
             <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="cancelEditSchedule(${scheduleId})">
+                <button type="button" class="btn btn-secondary" onclick="closeScheduleModal()">
                     Cancel
                 </button>
                 <button type="submit" class="btn btn-primary">
@@ -950,9 +1011,9 @@ function openEditScheduleMode(scheduleId) {
     // Character Counter
     attachCharacterCounter('editScheduleDescription', 250);
 
-    // Hide edit/delete buttons while in edit mode
-    document.getElementById('editScheduleBtn').style.display = 'none';
-    document.getElementById('deleteScheduleBtn').style.display = 'none';
+    // Show modal
+    modal.style.display = 'block';
+    lockBodyScroll('scheduleDetailsModal');
 }
 
 // Load leagues for edit modal
@@ -1415,12 +1476,15 @@ function handleScheduleDeleteError(message) {
 // ============================================
 window.openCreateScheduleModal = openCreateScheduleModal;
 window.closeCreateScheduleModal = closeCreateScheduleModal;
-window.openScheduleModal = openScheduleModal;
 window.closeScheduleModal = closeScheduleModal;
+window.toggleScheduleCardExpand = toggleScheduleCardExpand;
+window.loadScheduleCardEventCount = loadScheduleCardEventCount;
 
 //Team tab schedules
 window.initScheduleButton = initScheduleButton;
 window.loadScheduleTab = loadScheduleTab;
+window.selectScheduleWeekDay = selectScheduleWeekDay;
+window.navigateToEventsTab = navigateToEventsTab;
 
 //Editing
 window.openEditScheduleMode = openEditScheduleMode;
