@@ -16,6 +16,56 @@
 //Currently selected user ID in the admin panel
 let selectedUserId = null;
 
+// Name of the custom role currently entered for the role-management dropdown, if any.
+// Custom roles carry the same permissions as a Game Manager but display a custom label.
+let customRoleName = null;
+
+// ID of an EXISTING custom role selected from the list, if the admin picked one
+// instead of typing a brand new name. Mutually exclusive with typing a new name.
+let customRoleId = null;
+
+// Last non-"Custom" value the role-type dropdown held, used to revert if the custom role modal is cancelled.
+let previousRoleTypeValue = 'Game Manager';
+
+// Names of the custom roles the currently-open user already has, so the modal can
+// highlight them (and, when removing, only offer roles they actually have).
+let currentUserCustomRoleNames = [];
+
+// Color chosen for a brand-new custom role being created (defaults to purple).
+let customRoleColorChoice = 'purple';
+
+// Fixed palette a new custom role can be created with, and a cache mapping
+// existing custom role names -> their color, used to color badges anywhere
+// a custom role is displayed.
+const CUSTOM_ROLE_COLORS = [
+    { key: 'purple', hex: '#8e44ad', label: 'Purple' },
+    { key: 'blue',   hex: '#2980b9', label: 'Blue' },
+    { key: 'green',  hex: '#27ae60', label: 'Green' },
+    { key: 'orange', hex: '#e67e22', label: 'Orange' },
+    { key: 'red',    hex: '#c0392b', label: 'Red' },
+    { key: 'teal',   hex: '#16a085', label: 'Teal' },
+];
+const CUSTOM_ROLE_COLOR_HEX = Object.fromEntries(CUSTOM_ROLE_COLORS.map(c => [c.key, c.hex]));
+let adminCustomRoleColorsCache = null;
+
+// Maximum number of distinct custom roles a single user can hold at once —
+// mirrors MAX_CUSTOM_ROLES_PER_USER in dashboard.py, which is the real enforcement.
+const MAX_CUSTOM_ROLES_PER_USER = 3;
+
+// Fetches (and caches) a name -> color map for all custom roles, used to color badges.
+async function loadAdminCustomRoleColors() {
+    if (adminCustomRoleColorsCache) return adminCustomRoleColorsCache;
+    try {
+        const response = await fetch('/api/custom-roles/colors');
+        const data = await response.json();
+        adminCustomRoleColorsCache = data.success ? data.colors : {};
+    } catch (e) {
+        console.error('Error loading custom role colors:', e);
+        adminCustomRoleColorsCache = {};
+    }
+    return adminCustomRoleColorsCache;
+}
+
 // Maximum photos allowed in the landing page gallery.
 const MAX_LANDING_PHOTOS = 12;
 
@@ -29,6 +79,7 @@ let landingGalleryCommunitiesLoaded = false;
 // Initialize admin panel, refresh badges, and show user list once loaded
 async function initializeAdminPanel() {
     attachAdminEventListeners();
+    await loadAdminCustomRoleColors();
     await refreshUserListBadges();
     revealUserList();
     initPartnershipManagementFlyout();
@@ -236,19 +287,11 @@ function renderUserItems(users) {
         li.setAttribute('data-is-player', user.is_player ? '1' : '0');
         li.setAttribute('data-is-developer', user.is_developer ? '1' : '0');
         li.setAttribute('data-profile-picture', user.profile_picture || '');
+        li.setAttribute('data-custom-role-name', user.custom_role_names || '');
 
-        // Build role badges
-        const roles = [];
-        if (user.is_admin) roles.push('Admin');
-        if (user.is_developer) roles.push('Developer');
-        if (user.is_gm) roles.push('Game Manager');
-        if (user.is_player) roles.push('Player');
-
-        const badgesHTML = buildUniversalRoleBadges({
-            userId: user.id,
-            roles: roles,
-            contextGameId: null
-        });
+        // Build role badges via the shared helper so search results match the
+        // initial page-load rendering (including custom role labels)
+        const badgesHTML = buildBadgesFromUserItem(li);
 
         // Build user item HTML
         const initials = `${user.firstname[0]|upper}${user.lastname[0]|upper}`;
@@ -305,19 +348,40 @@ function buildBadgesFromUserItem(item) {
     const isPlayer = item.dataset.isPlayer === '1';
     const isDeveloper = item.dataset.isDeveloper ==='1';
 
-    // Build roles array based on data attributes
+    // A user can hold several custom roles at once; the attribute holds them
+    // comma-separated (e.g. "Tournament Organizer, Stream Coordinator")
+    const customRoleNames = (item.dataset.customRoleName || '')
+        .split(',')
+        .map(name => name.trim())
+        .filter(Boolean);
+
+    // Build roles array based on data attributes.
+    // A GM with one or more custom role labels shows those instead of the generic
+    // "Game Manager" badge (the underlying permission is still GM either way).
     const roles = [];
     if (isAdmin) roles.push('Admin');
-    if (isGm) roles.push('Game Manager');
+    if (isGm && customRoleNames.length === 0) roles.push('Game Manager');
     if (isPlayer) roles.push('Player');
     if (isDeveloper) roles.push('Developer');
 
     // Generate badges with icons using the universal badge builder
-    return buildUniversalRoleBadges({
+    let badgesHTML = buildUniversalRoleBadges({
         userId: userid,
         roles: roles,
         contextGameId: null
     });
+
+    // Custom roles aren't known to buildUniversalRoleBadges, so append their badges directly
+    if (isGm && customRoleNames.length > 0) {
+        badgesHTML += customRoleNames
+            .map(name => {
+                const color = (adminCustomRoleColorsCache && adminCustomRoleColorsCache[name]) || 'purple';
+                return `<span class="role-badge custom-${color}" title="Game Manager permissions">${escapeHtml(name)}</span>`;
+            })
+            .join('');
+    }
+
+    return badgesHTML;
 }
 
 /**
@@ -366,6 +430,18 @@ async function handleUserItemClick(item) {
     // Store selected user ID for reference by other functions
     selectedUserId = userid;
 
+    // Reset role-type dropdown state so a previous user's custom role selection doesn't carry over
+    customRoleName = null;
+    customRoleId = null;
+    previousRoleTypeValue = 'Game Manager';
+
+    // Track this user's existing custom roles so the modal can highlight/filter against them
+    currentUserCustomRoleNames = (item.dataset.customRoleName || '')
+        .split(',')
+        .map(name => name.trim())
+        .filter(Boolean);
+    customRoleColorChoice = 'purple';
+
     // Ensure GM mappings are loaded before generating badges
     if (typeof loadGMGameMappings === 'function' && !gmMappingsLoaded) {
         await loadGMGameMappings();
@@ -409,18 +485,20 @@ async function handleUserItemClick(item) {
                 </div>
 
                 <div class="filter-box" id="roleTypeFilterBox">
-                    <button class="filter-box-btn" onclick="toggleFilterBox('roleTypeFilterPanel')">
+                    <button class="filter-box-btn" onclick="toggleRoleTypeFilterBox()">
                         <span id="roleTypeFilterLabel">Game Manager</span>
                         <i class="fas fa-chevron-down"></i>
                     </button>
                     <div class="filter-box-panel" id="roleTypeFilterPanel">
                         <div class="filter-box-item active" data-value="Game Manager" onclick="applyRoleTypeFilter('Game Manager')">Game Manager</div>
                         <div class="filter-box-item" data-value="Admin" onclick="applyRoleTypeFilter('Admin')">Admin</div>
+                        <div class="filter-box-item" data-value="Custom" onclick="applyRoleTypeFilter('Custom')"><span><i class="fas fa-plus"></i> Custom Role</span></div>
                     </div>
                 </div>
                 <select id="roleTypeSelect" class="styled-dropdown" style="display: none;">
                     <option value="Game Manager" selected>Game Manager</option>
                     <option value="Admin">Admin</option>
+                    <option value="Custom">Custom Role</option>
                 </select>
 
                 <button id="roleGoBtn" class="btn-go">
@@ -473,16 +551,304 @@ async function handleUserItemClick(item) {
 // USER MANAGEMENT
 // ============================================
 
+// Opens/closes the role-type dropdown and repositions it as position:fixed, escaping
+// the user-details panel's overflow-y: auto clipping — same approach as toggleAuditFilterBox.
+function toggleRoleTypeFilterBox() {
+    toggleFilterBox('roleTypeFilterPanel');
+
+    const panel = document.getElementById('roleTypeFilterPanel');
+    if (!panel || !panel.classList.contains('open')) return;
+
+    const btn = panel.previousElementSibling;
+    if (!btn) return;
+
+    const rect = btn.getBoundingClientRect();
+    panel.style.top = `${rect.bottom + 4}px`;
+    panel.style.left = `${rect.left}px`;
+}
+
 // Selection handler for the role-type filter-box dropdown.
 function applyRoleTypeFilter(value) {
-    document.getElementById('roleTypeFilterLabel').textContent = value;
+    closeAllFilterPanels();
+
+    if (value === 'Custom') {
+        openCustomRoleModal();
+        return;
+    }
+
+    // Selecting a standard role clears any previously entered/selected custom role
+    customRoleName = null;
+    customRoleId = null;
+    previousRoleTypeValue = value;
+    setRoleTypeDropdown(value, value);
+}
+
+// Updates the filter-box label/select/highlighted item without re-triggering the Custom modal.
+function setRoleTypeDropdown(value, label) {
+    document.getElementById('roleTypeFilterLabel').textContent = label;
     document.getElementById('roleTypeSelect').value = value;
 
     document.querySelectorAll('#roleTypeFilterPanel .filter-box-item').forEach(item => {
         item.classList.toggle('active', item.getAttribute('data-value') === value);
     });
+}
 
-    closeAllFilterPanels();
+/* ===================================
+   Custom role modal
+   =================================== */
+
+// Opens a modal letting the admin either pick an existing custom role or name a new one.
+// Custom roles are assigned with the same underlying permissions as a Game Manager,
+// just with a different display label, and persist so they can be reused on other users.
+async function openCustomRoleModal() {
+    const isRemoving = document.querySelector('.role-toggle.active')?.dataset.action === 'remove';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.id = 'customRoleModal';
+
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 420px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-tag"></i> Custom Role</h2>
+                <span class="close" onclick="closeCustomRoleModal(true)">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-subtitle">
+                    ${isRemoving
+                        ? 'Pick one of this user\'s custom roles to remove.'
+                        : 'Custom roles carry the same permissions as a Game Manager, with a label of your choosing. A user can hold more than one.'}
+                </p>
+                <div id="customRoleExistingList">
+                    <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading existing roles...</div>
+                </div>
+                ${isRemoving ? '' : `
+                <div class="form-group" style="margin-bottom: 0;">
+                    <div class="custom-role-name-label-row">
+                        <label for="customRoleNameInput">Or create a new role</label>
+                        <span class="custom-role-char-count" id="customRoleCharCount">${(!customRoleId && customRoleName ? customRoleName.length : 0)}/8</span>
+                    </div>
+                    <input type="text" id="customRoleNameInput"
+                           placeholder="e.g. Caster" maxlength="8"
+                           value="${!customRoleId && customRoleName ? escapeQuotes(customRoleName) : ''}">
+                    <div class="custom-role-color-picker" id="customRoleColorPicker">
+                        ${CUSTOM_ROLE_COLORS.map(c => `
+                            <button type="button" class="custom-role-color-swatch${c.key === customRoleColorChoice ? ' active' : ''}"
+                                    data-color-key="${c.key}" style="background: ${c.hex};" title="${c.label}"
+                                    onclick="selectCustomRoleColor('${c.key}')"></button>
+                        `).join('')}
+                    </div>
+                </div>
+                `}
+            </div>
+            <div class="form-actions" style="padding: 1.5rem 2rem;">
+                <button class="btn btn-secondary" onclick="closeCustomRoleModal(true)">Cancel</button>
+                <button class="btn btn-primary" onclick="submitCustomRoleName()">Save</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    lockBodyScroll('customRoleModal');
+
+    // Click-outside and Escape are handled by the universal modal system (modals.js),
+    // since this modal is registered in MODAL_CLOSE_HANDLERS
+    const input = document.getElementById('customRoleNameInput');
+    const charCount = document.getElementById('customRoleCharCount');
+    input?.focus();
+    input?.addEventListener('input', () => {
+        // Typing a new name deselects whichever existing role was highlighted
+        customRoleId = null;
+        document.querySelectorAll('#customRoleExistingList .custom-role-option').forEach(el => el.classList.remove('active'));
+        if (charCount) {
+            charCount.textContent = `${input.value.length}/8`;
+            charCount.classList.toggle('at-limit', input.value.length >= 8);
+        }
+    });
+    input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submitCustomRoleName();
+        }
+    });
+
+    await loadCustomRolesList(isRemoving);
+}
+
+// Fetches (and caches on EventState) the list of existing, non-archived custom roles,
+// so previously-created roles can be reused instead of retyped/duplicated. Roles the
+// current user already has are highlighted with a checkmark; when removing, the list
+// is scoped down to only the roles they actually have.
+async function loadCustomRolesList(isRemoving) {
+    const list = document.getElementById('customRoleExistingList');
+    if (!list) return;
+
+    try {
+        if (!EventState.customRolesListCache) {
+            const response = await fetch('/api/admin/custom-roles');
+            const data = await response.json();
+            if (!data.success) throw new Error(data.message || 'Failed to load custom roles');
+            EventState.customRolesListCache = data.roles;
+        }
+
+        let roles = EventState.customRolesListCache;
+
+        if (isRemoving) {
+            roles = roles.filter(r => currentUserCustomRoleNames.includes(r.name));
+        }
+
+        if (!roles?.length) {
+            list.innerHTML = isRemoving
+                ? '<p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">This user has no custom roles to remove.</p>'
+                : '<p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">No custom roles yet — create one below.</p>';
+            return;
+        }
+
+        list.innerHTML = `
+            <div class="form-group">
+                <label>${isRemoving ? "This user's custom roles" : 'Use an existing role'}</label>
+                <div class="custom-role-option-list">
+                    ${roles.map(r => {
+                        const alreadyHas = currentUserCustomRoleNames.includes(r.name);
+                        const dotHex = CUSTOM_ROLE_COLOR_HEX[r.color] || CUSTOM_ROLE_COLOR_HEX.purple;
+                        return `
+                        <div class="custom-role-option${customRoleId === r.id ? ' active' : ''}${alreadyHas ? ' already-assigned' : ''}"
+                             data-role-id="${r.id}"
+                             ${alreadyHas ? 'title="This user already has this role"' : ''}
+                             onclick="selectExistingCustomRole(${r.id}, '${escapeQuotes(r.name)}')">
+                            <span class="custom-role-option-label">
+                                <span class="custom-role-dot" style="background: ${dotHex};"></span>
+                                ${escapeHtml(r.name)}
+                            </span>
+                            <span class="custom-role-option-actions">
+                                ${alreadyHas ? '<i class="fas fa-check"></i>' : ''}
+                                ${isRemoving ? '' : `
+                                <button type="button" class="custom-role-delete-btn" title="Delete this role"
+                                        onclick="event.stopPropagation(); deleteCustomRole(${r.id}, '${escapeQuotes(r.name)}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                `}
+                            </span>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        console.error('Error loading custom roles:', e);
+        list.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">Failed to load existing roles.</p>';
+    }
+}
+
+// Highlights the clicked existing role and clears the "new role" text input, since the two are mutually exclusive.
+function selectExistingCustomRole(id, name) {
+    customRoleId = id;
+    customRoleName = name;
+
+    document.querySelectorAll('#customRoleExistingList .custom-role-option').forEach(el => {
+        el.classList.toggle('active', Number(el.getAttribute('data-role-id')) === id);
+    });
+
+    const input = document.getElementById('customRoleNameInput');
+    if (input) input.value = '';
+}
+
+// Sets which color a brand-new custom role will be created with
+function selectCustomRoleColor(key) {
+    customRoleColorChoice = key;
+    document.querySelectorAll('#customRoleColorPicker .custom-role-color-swatch').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-color-key') === key);
+    });
+}
+
+// Opens the universal delete confirmation modal (modalDelete.js) for a custom role,
+// instead of a browser confirm()/alert() dialog
+function deleteCustomRole(id, name) {
+    openDeleteConfirmModal({
+        title: 'Delete Custom Role?',
+        itemName: name,
+        message: `Are you sure you want to delete the "${name}" role?`,
+        additionalInfo: '<div style="margin-top: 0.75rem; color: var(--text-secondary); font-size: 0.85rem;">Anyone whose only source of Game Manager access is this role will lose it. Users with another GM source (a standard grant or a different custom role) are unaffected.</div>',
+        buttonText: 'Delete Role',
+        onConfirm: confirmDeleteCustomRole,
+        itemId: id
+    });
+}
+
+// Executes the deletion once confirmed. The modal system (modalDelete.js) requires
+// this callback to close the modal and surface its own success/error feedback.
+async function confirmDeleteCustomRole(roleId) {
+    try {
+        const response = await fetch(`/api/admin/custom-roles/${roleId}/archive`, { method: 'POST' });
+        const data = await response.json();
+
+        closeDeleteConfirmModal();
+
+        if (data.success) {
+            showDeleteSuccessMessage(data.message || 'Custom role deleted successfully');
+
+            // Deleting a role can change GM status/badges for every user who held it,
+            // so a full reload keeps the whole admin panel in sync rather than
+            // patching each affected user's row individually
+            setTimeout(() => window.location.reload(), 1200);
+        } else {
+            showDeleteErrorMessage(data.message || 'Failed to delete custom role');
+        }
+    } catch (e) {
+        console.error('Error deleting custom role:', e);
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('Failed to delete custom role');
+    }
+}
+
+// Closes the custom role modal. If `revert` is true (cancel/escape/backdrop click) and no
+// custom role had already been saved, the dropdown falls back to its last real selection.
+function closeCustomRoleModal(revert) {
+    const modal = document.getElementById('customRoleModal');
+    if (modal) {
+        modal.remove();
+        unlockBodyScroll('customRoleModal');
+    }
+
+    if (revert && !customRoleName) {
+        customRoleId = null;
+        setRoleTypeDropdown(previousRoleTypeValue, previousRoleTypeValue);
+    }
+}
+
+// Saves either the selected existing role or the newly typed name, then reflects it in the dropdown.
+function submitCustomRoleName() {
+    if (customRoleId) {
+        previousRoleTypeValue = 'Custom';
+        setRoleTypeDropdown('Custom', customRoleName);
+        closeCustomRoleModal(false);
+        return;
+    }
+
+    const input = document.getElementById('customRoleNameInput');
+    if (!input) {
+        // No text input rendered means we're in remove mode and nothing was picked
+        const list = document.getElementById('customRoleExistingList');
+        if (list && !list.querySelector('.custom-role-option')) {
+            alert('This user has no custom roles to remove.');
+            return;
+        }
+        alert('Select a custom role to remove.');
+        return;
+    }
+
+    const name = input.value.trim();
+    if (!name) {
+        input.focus();
+        return;
+    }
+
+    customRoleName = name;
+    previousRoleTypeValue = 'Custom';
+    setRoleTypeDropdown('Custom', name);
+    closeCustomRoleModal(false);
 }
 
 // Add or remove a role from a user (Admin or GM)
@@ -498,7 +864,29 @@ async function handleRoleChange(username) {
 
     // Get selected action and role
     const action = activeToggle.dataset.action;  // 'assign' or 'remove'
-    const role = roleSelect.value;      // 'Admin' or 'Game Manager'
+    const role = roleSelect.value;      // 'Admin', 'Game Manager', or 'Custom'
+
+    // Custom roles are assigned with Game Manager permissions under a custom label
+    const isCustomRole = role === 'Custom';
+    if (isCustomRole && !customRoleName) {
+        openCustomRoleModal();
+        return;
+    }
+
+    // Enforce the custom-role cap before hitting the server — skipped if this is just
+    // re-selecting a role the user already has, since that's a harmless no-op
+    if (isCustomRole && action === 'assign' &&
+        currentUserCustomRoleNames.length >= MAX_CUSTOM_ROLES_PER_USER &&
+        !currentUserCustomRoleNames.includes(customRoleName)) {
+        statusMessage.style.display = 'block';
+        statusMessage.style.backgroundColor = '#f8d7da';
+        statusMessage.style.color = '#721c24';
+        statusMessage.style.border = '1px solid #f5c6cb';
+        statusMessage.innerHTML = `
+            <i class="fas fa-exclamation-circle"></i> This user already has the maximum of ${MAX_CUSTOM_ROLES_PER_USER} custom roles. Remove one before adding another.
+        `;
+        return;
+    }
 
     // Disable button during request to prevent duplicate submissions
     goBtn.disabled = true;
@@ -517,7 +905,10 @@ async function handleRoleChange(username) {
             body: JSON.stringify({
                 username: username,
                 action: action,
-                role: role
+                role: isCustomRole ? 'Game Manager' : role,
+                custom_role_id: isCustomRole ? customRoleId : null,
+                custom_role_name: (isCustomRole && !customRoleId) ? customRoleName : null,
+                custom_role_color: (isCustomRole && !customRoleId) ? customRoleColorChoice : null
             })
         });
 
@@ -527,6 +918,13 @@ async function handleRoleChange(username) {
         statusMessage.style.display = 'block';
 
         if (data.success) {
+            // If a brand new custom role name may have just been created server-side,
+            // drop the cache so it appears in the list next time the modal opens.
+            if (isCustomRole && !customRoleId) {
+                EventState.customRolesListCache = null;
+                adminCustomRoleColorsCache = null;
+            }
+
             // Display success message with green styling
             statusMessage.style.backgroundColor = '#d4edda';
             statusMessage.style.color = '#155724';
@@ -1047,3 +1445,4 @@ window.renderLandingGalleryCommunities = renderLandingGalleryCommunities;
 window.openAuditLogModal  = openAuditLogModal;
 window.closeAuditLogModal = closeAuditLogModal;
 window.toggleAuditFilterBox = toggleAuditFilterBox;
+window.toggleRoleTypeFilterBox = toggleRoleTypeFilterBox;

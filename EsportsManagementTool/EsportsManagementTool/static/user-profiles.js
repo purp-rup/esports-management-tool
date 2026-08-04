@@ -12,8 +12,26 @@
 // Initialization
 let userProfileOpen = false;
 
+// Cache mapping custom role name -> color key, used to color custom role badges.
+// Uses the same public endpoint the admin panel does, since any logged-in user
+// viewing a profile popup needs this (not just admins).
+let profileCustomRoleColorsCache = null;
+
+async function loadProfileCustomRoleColors() {
+    if (profileCustomRoleColorsCache) return profileCustomRoleColorsCache;
+    try {
+        const response = await fetch('/api/custom-roles/colors');
+        const data = await response.json();
+        profileCustomRoleColorsCache = data.success ? data.colors : {};
+    } catch (e) {
+        console.error('Error loading custom role colors:', e);
+        profileCustomRoleColorsCache = {};
+    }
+    return profileCustomRoleColorsCache;
+}
+
 // Opens or closes the user profile popup
-function toggleUserProfilePopup(e, member) {
+async function toggleUserProfilePopup(e, member) {
     e.stopPropagation();
     const popup = document.getElementById('userProfilePopup');
     if (!popup) return;
@@ -35,6 +53,8 @@ function toggleUserProfilePopup(e, member) {
     } else {
         positionUserProfilePopup(e.currentTarget);
     }
+
+    await loadProfileCustomRoleColors();
 
     // Foundation only — profile content is built out in a later step
     popup.innerHTML = buildUserProfileHeader(member);
@@ -129,17 +149,29 @@ function buildCommunitiesSection(member, firstName) {
 // Constructs the roles section on the community page profile popup
 function buildRolesSection(member, seasonId = null) {
     const roles = member.roles || [];
-    const isMemberOnly = roles.length === 0 || (roles.length === 1 && roles[0] === 'Member');
+    const customRoles = member.custom_roles || [];
+    const isMemberOnly = customRoles.length === 0 && (roles.length === 0 || (roles.length === 1 && roles[0] === 'Member'));
     if (isMemberOnly) return '';
 
     const contextGameId = Number(document.getElementById('communityGameId')?.value);
 
-    const badgesHtml = window.buildUniversalRoleBadges({
+    let badgesHtml = window.buildUniversalRoleBadges({
         userId: member.id,
         roles: roles,
         contextGameId: contextGameId || null,
         seasonId: seasonId
     });
+
+    // Custom roles aren't known to buildUniversalRoleBadges, so append their badges
+    // directly — same treatment as the admin panel's "Current Roles" list
+    if (customRoles.length > 0) {
+        badgesHtml += customRoles
+            .map(name => {
+                const color = (profileCustomRoleColorsCache && profileCustomRoleColorsCache[name]) || 'purple';
+                return `<span class="role-badge custom-${color}" title="Game Manager permissions">${escapeHtml(name)}</span>`;
+            })
+            .join('');
+    }
 
     return `
         <div class="profile-roles-section">

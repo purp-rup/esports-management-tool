@@ -95,7 +95,10 @@ const MODAL_CLOSE_HANDLERS = {
     'manageSeasonsModal': () => closeManageSeasonsModal(),
 
     // Leagues Modal
-    'manageLeaguesModal': () => closeManageLeaguesModal()
+    'manageLeaguesModal': () => closeManageLeaguesModal(),
+
+    // Custom role modal (admin panel role management)
+    'customRoleModal': () => closeCustomRoleModal(true)
 };
 
 // ============================================
