@@ -251,7 +251,163 @@ class EsportsStatistics:
             for league in leagues
         ]
 
-    
+    # =====================================
+    # COMMUNITY EVENT TRENDS
+    # =====================================
+    COMMUNITY_EVENT_TYPES = ['Match', 'Practice', 'Tournament', 'Event', 'Misc']
+
+    def get_community_trends(self):
+        """
+        Get per-season event totals for the All-Time "Overall Event Trends"
+        chart: total events, a breakdown by EventType, events with at least
+        one linked partnership, and events created via the recurring
+        schedule system (is_scheduled = TRUE).
+
+        Returns: list of dicts ordered oldest -> newest season.
+        """
+        cursor = self.cursor
+
+        cursor.execute("""
+            SELECT season_id, season_name
+            FROM seasons
+            ORDER BY start_date ASC
+        """)
+        seasons = cursor.fetchall()
+
+        trends = []
+        for season in seasons:
+            season_id = season['season_id']
+
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM generalevents
+                WHERE season_id = %s
+            """, (season_id,))
+            total_row = cursor.fetchone()
+
+            cursor.execute("""
+                SELECT EventType, COUNT(*) as count
+                FROM generalevents
+                WHERE season_id = %s
+                GROUP BY EventType
+            """, (season_id,))
+            events_by_type = {t: 0 for t in self.COMMUNITY_EVENT_TYPES}
+            for row in cursor.fetchall():
+                if row['EventType'] in events_by_type:
+                    events_by_type[row['EventType']] = row['count']
+
+            cursor.execute("""
+                SELECT COUNT(DISTINCT ge.EventID) as count
+                FROM generalevents ge
+                JOIN event_partnerships ep ON ep.event_id = ge.EventID
+                WHERE ge.season_id = %s
+            """, (season_id,))
+            partnerships_row = cursor.fetchone()
+
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM generalevents
+                WHERE season_id = %s AND is_scheduled = TRUE
+            """, (season_id,))
+            scheduled_row = cursor.fetchone()
+
+            trends.append({
+                'season_id': season_id,
+                'season_name': season['season_name'],
+                'total_events': total_row['count'] if total_row else 0,
+                'events_by_type': events_by_type,
+                'events_with_partnerships': partnerships_row['count'] if partnerships_row else 0,
+                'scheduled_events': scheduled_row['count'] if scheduled_row else 0,
+            })
+
+        return trends
+
+    def get_community_game_trends(self, game_id):
+        """
+        Same as get_community_trends(), but scoped to a single game via the
+        event_games junction table (an event may list multiple games, so
+        this matches the filtering convention already used in events.py's
+        game filter rather than the denormalized generalevents.game_id).
+        Used by the "Trends by Game" chart.
+        """
+        cursor = self.cursor
+
+        cursor.execute("""
+            SELECT season_id, season_name
+            FROM seasons
+            ORDER BY start_date ASC
+        """)
+        seasons = cursor.fetchall()
+
+        trends = []
+        for season in seasons:
+            season_id = season['season_id']
+
+            cursor.execute("""
+                SELECT COUNT(DISTINCT ge.EventID) as count
+                FROM generalevents ge
+                JOIN event_games eg ON eg.event_id = ge.EventID
+                WHERE ge.season_id = %s AND eg.game_id = %s
+            """, (season_id, game_id))
+            total_row = cursor.fetchone()
+
+            cursor.execute("""
+                SELECT ge.EventType, COUNT(DISTINCT ge.EventID) as count
+                FROM generalevents ge
+                JOIN event_games eg ON eg.event_id = ge.EventID
+                WHERE ge.season_id = %s AND eg.game_id = %s
+                GROUP BY ge.EventType
+            """, (season_id, game_id))
+            events_by_type = {t: 0 for t in self.COMMUNITY_EVENT_TYPES}
+            for row in cursor.fetchall():
+                if row['EventType'] in events_by_type:
+                    events_by_type[row['EventType']] = row['count']
+
+            cursor.execute("""
+                SELECT COUNT(DISTINCT ge.EventID) as count
+                FROM generalevents ge
+                JOIN event_games eg ON eg.event_id = ge.EventID
+                JOIN event_partnerships ep ON ep.event_id = ge.EventID
+                WHERE ge.season_id = %s AND eg.game_id = %s
+            """, (season_id, game_id))
+            partnerships_row = cursor.fetchone()
+
+            cursor.execute("""
+                SELECT COUNT(DISTINCT ge.EventID) as count
+                FROM generalevents ge
+                JOIN event_games eg ON eg.event_id = ge.EventID
+                WHERE ge.season_id = %s AND eg.game_id = %s AND ge.is_scheduled = TRUE
+            """, (season_id, game_id))
+            scheduled_row = cursor.fetchone()
+
+            trends.append({
+                'season_id': season_id,
+                'season_name': season['season_name'],
+                'total_events': total_row['count'] if total_row else 0,
+                'events_by_type': events_by_type,
+                'events_with_partnerships': partnerships_row['count'] if partnerships_row else 0,
+                'scheduled_events': scheduled_row['count'] if scheduled_row else 0,
+            })
+
+        return trends
+
+    def get_all_community_game_trends(self):
+        """
+        Get per-season event trend data for every active game, keyed by
+        game, for the "Trends by Game" chart's Game Filter. Only needed
+        for All-Time.
+        """
+        games = self.get_active_games()
+
+        return [
+            {
+                'game_id': game['game_id'],
+                'game_title': game['game_title'],
+                'trends': self.get_community_game_trends(game['game_id'])
+            }
+            for game in games
+        ]
+
     def get_total_games_in_database(self):
         """Count all games in database (including non-competitive)"""
         query = "SELECT COUNT(DISTINCT GameID) as count FROM games"
@@ -1066,6 +1222,8 @@ class EsportsStatistics:
             'program_trends': self.get_program_trends() if not self.season_id else [],
             'league_trends': self.get_all_league_trends() if not self.season_id else [],
             'notable_performances': self.get_notable_performances() if not self.season_id else [],
+            'community_trends': self.get_community_trends() if not self.season_id else [],
+            'community_game_trends': self.get_all_community_game_trends() if not self.season_id else [],
         }
         
         return stats

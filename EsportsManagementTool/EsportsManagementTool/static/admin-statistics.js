@@ -10,7 +10,9 @@
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Admin statistics page loaded');
-    
+
+    initFlyoutTriggers();
+
     // Initialize charts
     initializeLeagueCharts();
     initializeOverallTrendsChart();
@@ -113,6 +115,11 @@ function initializeLeagueCharts() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 10
+                    }
+                },
                 plugins: {
                     legend: {
                         display: false
@@ -445,7 +452,9 @@ const TRENDS_STAT_COLORS = {
 // Chart.js instances for each trends panel, keyed by panel name
 const trendsChartInstances = {
     overall: { main: null, axis: null },
-    league: { main: null, axis: null }
+    league: { main: null, axis: null },
+    communityOverall: { main: null, axis: null },
+    communityGame: { main: null, axis: null }
 };
 
 /**
@@ -475,19 +484,19 @@ function initializeTrendsDurationLabels() {
     const label4 = formatDurationRangeLabel(4);
     const label8 = formatDurationRangeLabel(8);
 
-    ['overallDuration2Item', 'leagueDuration2Item'].forEach(id => {
+    ['overallDuration2Item', 'leagueDuration2Item', 'communityOverallDuration2Item', 'communityGameDuration2Item'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         el.textContent = label2;
         el.style.display = totalSeasons < 2 ? 'none' : '';
     });
-    ['overallDuration4Item', 'leagueDuration4Item'].forEach(id => {
+    ['overallDuration4Item', 'leagueDuration4Item', 'communityOverallDuration4Item', 'communityGameDuration4Item'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         el.textContent = label4;
         el.style.display = totalSeasons < 4 ? 'none' : '';
     });
-    ['overallDuration8Item', 'leagueDuration8Item'].forEach(id => {
+    ['overallDuration8Item', 'leagueDuration8Item', 'communityOverallDuration8Item', 'communityGameDuration8Item'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         el.textContent = label8;
@@ -508,36 +517,65 @@ function getOverallTrendsFilteredData() {
 }
 
 /**
- * Shared renderer for any "seasons on the x-axis" trends chart: builds the
- * scrollable main chart plus its frozen y-axis twin. Used by both the
- * Overall Trends panel and the Trends by League panel.
+ * Reads the main chart's own computed tick pixel positions and draws
+ * matching text into the frozen overlay div. Because these positions come
+ * from the real chart's scale (not a second chart re-deriving the same
+ * layout), they can't drift out of sync with the bars/gridlines.
  */
+function syncFrozenAxisLabels(chart, axisEl) {
+    if (!axisEl) return;
+    axisEl.innerHTML = '';
+
+    const yScale = chart.scales.y;
+    const LABEL_HALF_HEIGHT = 7; // ~half the label's own line-height at 11px font
+
+    yScale.ticks.forEach(tick => {
+        const pixel = yScale.getPixelForValue(tick.value);
+        // Clamp so a centered label can never render above the visible box,
+        // no matter what the chart's own layout padding works out to.
+        const safeTop = Math.max(pixel, LABEL_HALF_HEIGHT);
+
+        const label = document.createElement('div');
+        label.className = 'trends-chart-axis-label';
+        label.style.top = `${safeTop}px`;
+        label.textContent = tick.label ?? tick.value;
+        axisEl.appendChild(label);
+    });
+}
+
+// Render a trend chart based on provided data and applied filters
 function renderTrendsChart(key, elIds, data, statKey, statLabel, color) {
     const canvas = document.getElementById(elIds.canvas);
-    const axisCanvas = document.getElementById(elIds.axisCanvas);
+    const axisEl = document.getElementById(elIds.axisCanvas);
     const scrollWrap = document.getElementById(elIds.scrollWrap);
     const innerWrap = document.getElementById(elIds.innerWrap);
-    if (!canvas || !axisCanvas) return;
+    if (!canvas) return;
 
     const labels = data.map(d => d.season_name);
     const values = data.map(d => d[statKey]);
 
-    const PX_PER_BAR = 90;
     const MIN_VISIBLE_BARS = 4;
     const needsScroll = data.length > MIN_VISIBLE_BARS;
 
-    innerWrap.style.width = needsScroll ? `${data.length * PX_PER_BAR}px` : '100%';
+    const viewportWidth = scrollWrap ? scrollWrap.clientWidth : 0;
+    const pxPerBar = viewportWidth > 0 ? viewportWidth / MIN_VISIBLE_BARS : 90;
 
-    // Shared y-axis bounds so the frozen axis lines up with the scrolling bars
+    innerWrap.style.width = needsScroll ? `${data.length * pxPerBar}px` : '100%';
+
     const maxValue = values.length ? Math.max(...values) : 0;
     const yMax = maxValue > 0 ? Math.ceil(maxValue * 1.2) : 5;
+
+    // Widen the frozen axis strip to fit however many digits the largest
+    // tick label needs.
+    const axisWrap = axisEl ? axisEl.closest('.trends-chart-axis-wrap') : null;
+    const digitCount = String(yMax).length;
+    const axisWidth = Math.max(42, 26 + digitCount * 9);
+    if (axisWrap) axisWrap.style.width = `${axisWidth}px`;
+    if (scrollWrap) scrollWrap.style.paddingLeft = `${axisWidth}px`;
 
     const instances = trendsChartInstances[key];
     if (instances.main) {
         instances.main.destroy();
-    }
-    if (instances.axis) {
-        instances.axis.destroy();
     }
 
     const ctx = canvas.getContext('2d');
@@ -577,7 +615,9 @@ function renderTrendsChart(key, elIds, data, statKey, statLabel, color) {
                     min: 0,
                     max: yMax,
                     ticks: {
-                        display: false
+                        display: false, // drawn separately in the frozen overlay
+                        precision: 0,
+                        maxTicksLimit: 6
                     },
                     grid: {
                         color: 'rgba(156, 163, 175, 0.1)'
@@ -595,54 +635,13 @@ function renderTrendsChart(key, elIds, data, statKey, statLabel, color) {
                     }
                 }
             }
-        }
-    });
-
-    // Frozen axis-only chart: same y range, no visible bars, pinned on top-left
-    const axisCtx = axisCanvas.getContext('2d');
-    instances.axis = new Chart(axisCtx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values,
-                backgroundColor: 'transparent',
-                borderColor: 'transparent',
-                borderWidth: 0
-            }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            events: [],
-            plugins: {
-                legend: { display: false },
-                tooltip: { enabled: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    min: 0,
-                    max: yMax,
-                    ticks: {
-                        color: '#9ca3af',
-                        font: {
-                            size: 11
-                        },
-                        precision: 0
-                    },
-                    grid: {
-                        display: false
-                    }
-                },
-                x: {
-                    display: false
-                }
-            }
-        }
+        plugins: [{
+            id: 'frozenAxisSync',
+            afterUpdate: (chart) => syncFrozenAxisLabels(chart, axisEl)
+        }]
     });
 
-    // When scrolling is active, default to showing the most recent seasons
     if (needsScroll && scrollWrap) {
         requestAnimationFrame(() => {
             scrollWrap.scrollLeft = scrollWrap.scrollWidth;
@@ -750,6 +749,201 @@ function setOverallTrendsDuration(duration, el) {
     el.classList.add('active');
     closeAllFilterPanels();
     initializeOverallTrendsChart();
+}
+
+// ============================================
+// COMMUNITY: OVERALL EVENT TRENDS CHART
+// ============================================
+let communityOverallStat = 'total';
+let communityOverallEventType = null;
+let communityOverallDuration = 'all';
+let communityChartsInitialized = false;
+
+const COMMUNITY_STAT_LABELS = {
+    total: 'Total Events',
+    partnerships: 'Events with Partnerships',
+    scheduled: 'Scheduled Events'
+};
+
+const COMMUNITY_TREND_COLORS = {
+    total: { bg: 'rgba(121, 189, 233, 0.7)', border: 'rgba(121, 189, 233, 1)' },
+    partnerships: { bg: 'rgba(46, 204, 113, 0.7)', border: 'rgba(46, 204, 113, 1)' },
+    scheduled: { bg: 'rgba(255, 152, 0, 0.7)', border: 'rgba(255, 152, 0, 1)' },
+    // Matches the .legend-color swatch colors
+    type: {
+        Tournament: { bg: 'rgba(167, 139, 250, 0.7)', border: 'rgba(167, 139, 250, 1)' },
+        Match: { bg: 'rgba(252, 165, 165, 0.7)', border: 'rgba(252, 165, 165, 1)' },
+        Practice: { bg: 'rgba(134, 239, 172, 0.7)', border: 'rgba(134, 239, 172, 1)' },
+        Event: { bg: 'rgba(147, 197, 253, 0.7)', border: 'rgba(147, 197, 253, 1)' },
+        Misc: { bg: 'rgba(250, 204, 21, 0.7)', border: 'rgba(250, 204, 21, 1)' }
+    }
+};
+
+/* Pulls the right count off a community_trends/community_game_trends season
+ * entry based on the current stat filter (and event type, when stat === 'type')
+ */
+function getCommunityStatValue(entry, stat, eventType) {
+    if (stat === 'type') return (entry.events_by_type && entry.events_by_type[eventType]) || 0;
+    if (stat === 'partnerships') return entry.events_with_partnerships;
+    if (stat === 'scheduled') return entry.scheduled_events;
+    return entry.total_events;
+}
+
+function getCommunityStatColor(stat, eventType) {
+    if (stat === 'type') return COMMUNITY_TREND_COLORS.type[eventType] || COMMUNITY_TREND_COLORS.total;
+    return COMMUNITY_TREND_COLORS[stat] || COMMUNITY_TREND_COLORS.total;
+}
+
+function getCommunityStatLabel(stat, eventType) {
+    return stat === 'type' ? `${eventType} Events` : COMMUNITY_STAT_LABELS[stat];
+}
+
+/**
+ * Return community_trends data trimmed to the current duration filter and
+ * resolved to a flat { season_name, value } shape renderTrendsChart can
+ * consume the same way it consumes program_trends/league_trends.
+ */
+function getCommunityOverallTrendsFilteredData() {
+    const allData = (window.statisticsData && window.statisticsData.community_trends) || [];
+    let trimmed = allData;
+    if (communityOverallDuration === '2') trimmed = allData.slice(-2);
+    else if (communityOverallDuration === '4') trimmed = allData.slice(-4);
+    else if (communityOverallDuration === '8') trimmed = allData.slice(-8);
+
+    return trimmed.map(entry => ({
+        season_name: entry.season_name,
+        value: getCommunityStatValue(entry, communityOverallStat, communityOverallEventType)
+    }));
+}
+
+function initializeCommunityOverallTrendsChart() {
+    const data = getCommunityOverallTrendsFilteredData();
+    renderTrendsChart(
+        'communityOverall',
+        { canvas: 'communityOverallTrendsChart', axisCanvas: 'communityOverallTrendsAxisChart', scrollWrap: 'communityOverallTrendsScroll', innerWrap: 'communityOverallTrendsInner' },
+        data,
+        'value',
+        getCommunityStatLabel(communityOverallStat, communityOverallEventType),
+        getCommunityStatColor(communityOverallStat, communityOverallEventType)
+    );
+}
+
+function setCommunityOverallStat(stat, el) {
+    communityOverallStat = stat;
+    communityOverallEventType = null;
+    document.getElementById('communityOverallStatFilterLabel').textContent = COMMUNITY_STAT_LABELS[stat];
+    document.querySelectorAll('#communityOverallStatFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('#communityOverallStatFilterPanel .filter-box-flyout-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeCommunityOverallTrendsChart();
+}
+
+function setCommunityOverallEventType(type, el) {
+    communityOverallStat = 'type';
+    communityOverallEventType = type;
+    document.getElementById('communityOverallStatFilterLabel').textContent = `Event Type: ${type}`;
+    document.querySelectorAll('#communityOverallStatFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('#communityOverallStatFilterPanel .filter-box-flyout-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeCommunityOverallTrendsChart();
+}
+
+function setCommunityOverallDuration(duration, el) {
+    communityOverallDuration = duration;
+    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
+    document.getElementById('communityOverallDurationFilterLabel').textContent = labelText;
+    document.querySelectorAll('#communityOverallDurationFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeCommunityOverallTrendsChart();
+}
+
+// ============================================
+// COMMUNITY: TRENDS BY GAME CHART
+// ============================================
+let communityGameTrendsGameId = null;
+let communityGameTrendsStat = 'total';
+let communityGameTrendsEventType = null;
+let communityGameTrendsDuration = 'all';
+
+/**
+ * Return the currently-selected game's trend data, trimmed to the current
+ * duration filter and resolved to a flat { season_name, value } shape.
+ * Defaults to the first game on first render, same as leagueTrendsLeagueId.
+ */
+function getCommunityGameTrendsFilteredData() {
+    const allGameTrends = (window.statisticsData && window.statisticsData.community_game_trends) || [];
+    if (communityGameTrendsGameId === null && allGameTrends.length) {
+        communityGameTrendsGameId = allGameTrends[0].game_id;
+    }
+
+    const gameEntry = allGameTrends.find(g => g.game_id === communityGameTrendsGameId);
+    const seasonData = gameEntry ? gameEntry.trends : [];
+
+    let trimmed = seasonData;
+    if (communityGameTrendsDuration === '2') trimmed = seasonData.slice(-2);
+    else if (communityGameTrendsDuration === '4') trimmed = seasonData.slice(-4);
+    else if (communityGameTrendsDuration === '8') trimmed = seasonData.slice(-8);
+
+    return trimmed.map(entry => ({
+        season_name: entry.season_name,
+        value: getCommunityStatValue(entry, communityGameTrendsStat, communityGameTrendsEventType)
+    }));
+}
+
+function initializeCommunityGameTrendsChart() {
+    const data = getCommunityGameTrendsFilteredData();
+    renderTrendsChart(
+        'communityGame',
+        { canvas: 'communityGameTrendsChart', axisCanvas: 'communityGameTrendsAxisChart', scrollWrap: 'communityGameTrendsScroll', innerWrap: 'communityGameTrendsInner' },
+        data,
+        'value',
+        getCommunityStatLabel(communityGameTrendsStat, communityGameTrendsEventType),
+        getCommunityStatColor(communityGameTrendsStat, communityGameTrendsEventType)
+    );
+}
+
+function setCommunityGameTrendsGame(gameId, gameTitle, el) {
+    communityGameTrendsGameId = gameId;
+    document.getElementById('communityGameFilterLabel').textContent = gameTitle;
+    document.querySelectorAll('#communityGameFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeCommunityGameTrendsChart();
+}
+
+function setCommunityGameTrendsStat(stat, el) {
+    communityGameTrendsStat = stat;
+    communityGameTrendsEventType = null;
+    document.getElementById('communityGameStatFilterLabel').textContent = COMMUNITY_STAT_LABELS[stat];
+    document.querySelectorAll('#communityGameStatFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('#communityGameStatFilterPanel .filter-box-flyout-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeCommunityGameTrendsChart();
+}
+
+function setCommunityGameTrendsEventType(type, el) {
+    communityGameTrendsStat = 'type';
+    communityGameTrendsEventType = type;
+    document.getElementById('communityGameStatFilterLabel').textContent = `Event Type: ${type}`;
+    document.querySelectorAll('#communityGameStatFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('#communityGameStatFilterPanel .filter-box-flyout-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeCommunityGameTrendsChart();
+}
+
+function setCommunityGameTrendsDuration(duration, el) {
+    communityGameTrendsDuration = duration;
+    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
+    document.getElementById('communityGameDurationFilterLabel').textContent = labelText;
+    document.querySelectorAll('#communityGameDurationFilterPanel .filter-box-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    initializeCommunityGameTrendsChart();
 }
 
 // ============================================
@@ -973,15 +1167,33 @@ function calculatePercentage(part, total) {
     return ((part / total) * 100).toFixed(1);
 }
 
-/**
- * Placeholder toggle for the Competitive / Community view tabs.
- * Purely visual for now — no content switching until the split is built.
- */
+// Toggles the Competitive / Community view tabs and swaps the corresponding content containers.
 function switchStatsView(view, btnEl) {
     document.querySelectorAll('.stats-view-tabs .tab-button').forEach(btn => {
         btn.classList.remove('active');
     });
     btnEl.classList.add('active');
+
+    const overviewView = document.getElementById('statsOverviewView');
+    const communityView = document.getElementById('statsCommunityView');
+
+    if (view === 'community') {
+        overviewView.style.display = 'none';
+        communityView.style.display = '';
+
+        // Community charts live in a display:none container on load, so
+        // Chart.js can't measure them until the container is actually
+        // visible — init them the first time this tab is shown instead
+        // of on DOMContentLoaded.
+        if (!communityChartsInitialized) {
+            communityChartsInitialized = true;
+            initializeCommunityOverallTrendsChart();
+            initializeCommunityGameTrendsChart();
+        }
+    } else {
+        overviewView.style.display = '';
+        communityView.style.display = 'none';
+    }
 }
 
 // ============================================

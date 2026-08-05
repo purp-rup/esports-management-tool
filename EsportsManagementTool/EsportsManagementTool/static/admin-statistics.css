@@ -141,7 +141,7 @@ main {
 }
 
 .trends-panel-chart {
-    height: 260px;
+    height: 300px;
     min-width: 0;
     overflow: hidden;
     display: flex;
@@ -156,10 +156,26 @@ main {
     left: 0;
     top: 0;
     bottom: 0;
-    width: 42px;
     background: var(--dark-bg);
     z-index: 2;
     pointer-events: none;
+}
+
+.trends-chart-axis-labels {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.trends-chart-axis-label {
+    position: absolute;
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
+    text-align: center;
+    color: #9ca3af;
+    font-size: 11px;
+    white-space: nowrap;
 }
 
 .trends-chart-scroll {
@@ -169,7 +185,6 @@ main {
     overflow-x: auto;
     overflow-y: hidden;
     box-sizing: border-box;
-    padding-left: 42px;
 }
 
 .trends-chart-inner {
