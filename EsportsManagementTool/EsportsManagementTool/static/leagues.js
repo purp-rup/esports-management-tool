@@ -332,9 +332,16 @@ async function submitLeagueForm(event) {
             clearCroppedImageBlob('league');
 
             // Reload leagues after a short delay (modal stays open)
-            setTimeout(() => {
-                loadLeagues();
-            }, 1500);
+            if (isEditing) {
+                 setTimeout(() => {
+                     loadLeagues();
+                 }, 1500);
+            } else {
+                 // Force a full reload once the success message has had a moment to show
+                 setTimeout(() => {
+                     window.location.reload();
+                }, 1500);
+            }
         } else {
             // Show error message in form (not notification)
             showLeagueMessage(data.error || 'Failed to save league', 'error');
@@ -421,7 +428,7 @@ async function executeLeagueDeletion(leagueId) {
 
             // Reload leagues after a short delay (modal stays open)
             setTimeout(() => {
-                loadLeagues();
+                window.location.reload();
             }, 1500);
         } else {
             // Close modal and show error notification
@@ -633,8 +640,8 @@ function updateTeamLeagueTags(context = 'create') {
         tag.className = 'game-tag'; // Reuse game tag styling
 
         const logoHTML = league.logo
-            ? `<img src="${league.logo}" alt="${league.name}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover;">`
-            : '<i class="fas fa-trophy game-tag-icon"></i>';
+            ? `<img src="${league.logo}" alt="${league.name}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">`
+            : `<span class="game-tag-icon" style="display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--dark-bg); flex-shrink: 0;"><i class="fas fa-trophy" style="font-size: 0.65rem; color: var(--text-secondary);"></i></span>`;
 
         tag.innerHTML = `
             ${logoHTML}
