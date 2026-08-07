@@ -13,6 +13,13 @@ let currentFetchController = null; // AbortController for the in-flight event fe
 window.currentEventId = null;
 window.currentEventData = null;
 
+// Mobile day-sheet state
+let _activeDayKey      = null;
+let _activeDayEvents   = null;
+let _showBackButton    = false;
+let _backButtonDayKey  = null;
+let _backButtonDayEvents = null;
+
 const CALENDAR_MOBILE_BREAKPOINT = 768; // matches .mobile-sheet breakpoint in dashboard-base.css
 
 function isCalendarMobileView() {
@@ -37,6 +44,7 @@ function ensureCalendarPopupBackdrop() {
 // If the viewport crosses the mobile breakpoint while a popup is open,
 // close it rather than leaving it in a mismatched state (sheet vs anchored popover)
 window.addEventListener('resize', () => {
+    updateCalendarHeader();
     const popup = document.getElementById('landingEventPopup');
     if (!popup) return;
     const isSheet = popup.classList.contains('mobile-sheet');
@@ -152,22 +160,25 @@ function updateCalendar() {
 }
 
 function updateCalendarHeader() {
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                        'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthNames = ['January','February','March','April','May','June',
+                          'July','August','September','October','November','December'];
+    const monthAbbrevs = ['Jan','Feb','Mar','Apr','May','Jun',
+                          'Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    const monthYear = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
     const header = document.getElementById('currentMonthYear');
+    if (!header) return;
 
-    if (header) {
-        header.textContent = monthYear;
-        console.log('Updated header to:', monthYear);
+    if (isCalendarMobileView()) {
+        const yr = String(currentDate.getFullYear());
+        header.textContent = `${monthAbbrevs[currentDate.getMonth()]} ${yr}`;
     } else {
-        console.error('Could not find currentMonthYear element!');
+        header.textContent = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
     }
 }
 
 function renderCalendar() {
     closeOverflowPanel();
+    closeDaySheet();
     const grid = document.getElementById('calendarGrid');
     if (!grid) {
         console.error('Calendar grid element not found!');
@@ -208,11 +219,25 @@ function renderCalendar() {
         dayNumber.textContent = day;
         cell.appendChild(dayNumber);
 
+        const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
         const eventsContainer = document.createElement('div');
         eventsContainer.className = 'events-container';
-        const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         eventsContainer.id = `events-${dateKey}`;
         cell.appendChild(eventsContainer);
+
+        // Display dots for event types
+        const mobileDots = document.createElement('div');
+        mobileDots.className = 'mobile-event-dots';
+        mobileDots.id = `dots-${dateKey}`;
+        cell.appendChild(mobileDots);
+
+        // Open mobile day sheet
+        cell.addEventListener('click', function(e) {
+            if (!isCalendarMobileView()) return;
+            if (e.target.closest('.calendar-overflow-panel')) return;
+            openDaySheet(dateKey, calendarEventsData[dateKey] || []);
+        });
 
         grid.appendChild(cell);
     }
@@ -291,6 +316,11 @@ function displayEvents() {
             });
             container.appendChild(overflow);
         }
+    });
+
+    // Always populate dots, visible on mobile, hidden on desktop
+    Object.keys(calendarEventsData).forEach(dateKey => {
+        renderMobileDots(dateKey, calendarEventsData[dateKey] || []);
     });
 
     console.log(`Displayed ${eventCount} events`);
@@ -500,9 +530,9 @@ function openEventPopup(event_id, clickedElement) {
     // the anchored popover stays hidden until positionPopup() places it
     popup.style.visibility = mobileView ? 'visible' : 'hidden';
 
-    popup.innerHTML = `
-        <div class="popup-arrow"></div>
-    `;
+    popup.innerHTML = mobileView
+        ? `<div class="calendar-popup-loading"><i class="fas fa-spinner fa-spin"></i></div>`
+        : `<div class="popup-arrow"></div>`;
 
     if (mobileView) {
 
@@ -668,6 +698,24 @@ function displayEventPopupDetails(data, popup, clickedElement){
     // No-ops on mobile since clickedElement is passed as null there.
     if (clickedElement) {
         positionPopup(popup, clickedElement, true);
+    }
+
+    // If opened from the day sheet on mobile, add a back button
+    if (_showBackButton && isCalendarMobileView()) {
+        _showBackButton = false;
+        const backBtn = document.createElement('button');
+        backBtn.className = 'calendar-popup-back-btn';
+        backBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+        backBtn.addEventListener('click', () => {
+            const dayKey    = _backButtonDayKey;
+            const dayEvents = _backButtonDayEvents;
+            _backButtonDayKey    = null;
+            _backButtonDayEvents = null;
+            window.closeEventPopup();
+            openDaySheet(dayKey, dayEvents);
+        });
+        const inner = popup.querySelector('.event-popup-details');
+        if (inner) inner.insertBefore(backBtn, inner.firstChild);
     }
 }
 
@@ -843,6 +891,120 @@ function handleOverflowReposition() {
 }
 
 window.addEventListener('resize', handleOverflowReposition);
+
+// ============================================
+// MOBILE DAY SHEET
+// ============================================
+
+/** Render one colored dot per unique event type for a day */
+function renderMobileDots(dateKey, events) {
+    const container = document.getElementById(`dots-${dateKey}`);
+    if (!container) return;
+    container.innerHTML = '';
+
+    const seen = new Set();
+    events.forEach(e => { if (e.event_type) seen.add(e.event_type.toLowerCase()); });
+
+    ['tournament', 'match', 'practice', 'event', 'misc'].forEach(type => {
+        if (seen.has(type)) {
+            const dot = document.createElement('div');
+            dot.className = `mobile-event-dot mobile-event-dot--${type}`;
+            container.appendChild(dot);
+        }
+    });
+}
+
+/** Create the day-sheet and backdrop in the DOM once */
+function _ensureDaySheet() {
+    if (document.getElementById('calendarDaySheet')) return;
+
+    const sheet = document.createElement('div');
+    sheet.id = 'calendarDaySheet';
+    sheet.className = 'mobile-sheet';
+    document.body.appendChild(sheet);
+
+    const backdrop = document.createElement('div');
+    backdrop.id = 'calendarDaySheetBackdrop';
+    backdrop.className = 'sheet-backdrop';
+    backdrop.addEventListener('click', closeDaySheet);
+    document.body.appendChild(backdrop);
+}
+
+/** Open the bottom sheet listing all events for a given day */
+function openDaySheet(dateKey, events) {
+    _ensureDaySheet();
+
+    _activeDayKey    = dateKey;
+    _activeDayEvents = events;
+
+    const sheet    = document.getElementById('calendarDaySheet');
+    const backdrop = document.getElementById('calendarDaySheetBackdrop');
+
+    const [y, m, d] = dateKey.split('-').map(Number);
+    const date  = new Date(y, m - 1, d);
+    const title = date.toLocaleDateString('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric'
+    });
+
+    let html = `<h3 class="calendar-day-sheet-title">${title}</h3>`;
+
+    if (!events || events.length === 0) {
+        html += `<p class="calendar-day-sheet-empty">No events this day.</p>`;
+    } else {
+        html += `<div class="calendar-day-sheet-list">`;
+        events.forEach(event => {
+            const timeStr   = event.start_time ? formatTime(event.start_time) : 'All day';
+            const typeLabel = capitalizeFirst(event.event_type || 'event');
+            html += `
+                <div class="calendar-day-sheet-event" data-event-id="${event.id}">
+                    <div class="calendar-day-sheet-event-meta">
+                        <span class="calendar-day-sheet-event-time">${timeStr}</span>
+                        <span class="today-event-type ${event.event_type || 'event'}">${typeLabel}</span>
+                    </div>
+                    <div class="calendar-day-sheet-event-title">${event.title}</div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    sheet.innerHTML = html;
+
+    sheet.querySelectorAll('.calendar-day-sheet-event').forEach(item => {
+        item.addEventListener('click', () => {
+            openEventFromDaySheet(parseInt(item.dataset.eventId, 10));
+        });
+    });
+
+    sheet.classList.add('sheet-open');
+    backdrop.classList.add('open');
+    lockBodyScroll('calendarDaySheet');
+}
+
+/** Close the day sheet */
+function closeDaySheet() {
+    const sheet    = document.getElementById('calendarDaySheet');
+    const backdrop = document.getElementById('calendarDaySheetBackdrop');
+    sheet?.classList.remove('sheet-open');
+    backdrop?.classList.remove('open');
+    unlockBodyScroll('calendarDaySheet');
+    _activeDayKey    = null;
+    _activeDayEvents = null;
+}
+
+/**
+ * Open an event's detail from the day sheet.
+ * Closes the sheet, opens the existing mobile popup, and sets a flag
+ * so displayEventPopupDetails injects a back button.
+ */
+function openEventFromDaySheet(eventId) {
+    _backButtonDayKey    = _activeDayKey;
+    _backButtonDayEvents = _activeDayEvents;
+    _showBackButton      = true;
+
+    closeDaySheet();
+    openEventPopup(eventId, null);
+}
 
 // ============================================
 // EVENT SUBSCRIPTION FUNCTIONS
