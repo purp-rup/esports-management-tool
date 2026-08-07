@@ -33,6 +33,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (getNotableSlotCount() !== notableSlotCount) {
             initNotablePerformances();
         }
+        if (getPartnershipSlotCount() !== partnershipSlotCount) {
+            initCommunityPartnerships();
+        }
+        if (getPartnershipSlotCount() !== communityGamePartnershipSlotCount &&
+            document.getElementById('statsGameCommunityView').style.display !== 'none') {
+            initCommunityGamePartnerships(communityGamePartnerships);
+        }
     });
 });
 
@@ -54,9 +61,7 @@ function filterBySeason(seasonId) {
 // CHART INITIALIZATION
 // ============================================
 
-/**
- * Initialize bar charts for each league
- */
+// Initialize bar charts for each league
 function initializeLeagueCharts() {
     if (!window.statisticsData || !window.statisticsData.league_breakdown) {
         console.log('No league data available for charts');
@@ -163,6 +168,97 @@ function initializeLeagueCharts() {
                     }
                 }
             }
+       });
+    });
+}
+
+// Fixed palette cycled by bar index, matches COMMUNITY_TREND_COLORS.type
+// where possible so game bars stay visually distinct within a panel.
+const DIVISION_CHART_PALETTE = [
+    { bg: 'rgba(121, 189, 233, 0.7)', border: 'rgba(121, 189, 233, 1)' },
+    { bg: 'rgba(167, 139, 250, 0.7)', border: 'rgba(167, 139, 250, 1)' },
+    { bg: 'rgba(134, 239, 172, 0.7)', border: 'rgba(134, 239, 172, 1)' },
+    { bg: 'rgba(250, 204, 21, 0.7)', border: 'rgba(250, 204, 21, 1)' },
+    { bg: 'rgba(252, 165, 165, 0.7)', border: 'rgba(252, 165, 165, 1)' },
+    { bg: 'rgba(147, 197, 253, 0.7)', border: 'rgba(147, 197, 253, 1)' }
+];
+
+/**
+ * Initialize bar charts for each division panel on the Community
+ * Events Scorecard — bars are the games within that division, values
+ * are each game's event count.
+ */
+function initializeDivisionCharts() {
+    if (!window.statisticsData || !window.statisticsData.community_division_breakdown) {
+        console.log('No community division data available for charts');
+        return;
+    }
+
+    const divisions = window.statisticsData.community_division_breakdown;
+
+    divisions.forEach((division, index) => {
+        const canvasId = `divisionChart${index + 1}`;
+        const canvas = document.getElementById(canvasId);
+
+        if (!canvas) {
+            console.warn(`Canvas ${canvasId} not found`);
+            return;
+        }
+
+        const ctx = canvas.getContext('2d');
+        const games = division.games || [];
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: games.map(g => g.game_abbreviation),
+                datasets: [{
+                    label: division.division_name,
+                    data: games.map(g => g.event_count),
+                    backgroundColor: games.map((g, i) => DIVISION_CHART_PALETTE[i % DIVISION_CHART_PALETTE.length].bg),
+                    borderColor: games.map((g, i) => DIVISION_CHART_PALETTE[i % DIVISION_CHART_PALETTE.length].border),
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: { top: 10 }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 13 }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#9ca3af',
+                            font: { size: 11 }
+                        },
+                        grid: {
+                            color: 'rgba(156, 163, 175, 0.1)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#9ca3af',
+                            font: { size: 10 },
+                            maxRotation: 45,
+                            minRotation: 45
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
         });
     });
 }
@@ -185,6 +281,8 @@ function initStatsFloatingTabs() {
             const gameId = btn.dataset.game;
             if (gameId === 'overview') {
                 showOverviewView();
+            } else if (currentStatsView === 'community') {
+                showCommunityGameView(gameId, btn.querySelector('.stats-floating-tab-label').textContent, btn.dataset.icon);
             } else {
                 showGameView(gameId, btn.querySelector('.stats-floating-tab-label').textContent, btn.dataset.icon);
             }
@@ -240,17 +338,33 @@ function initStatsFloatingTabs() {
 // PER-GAME DETAIL VIEW
 // ============================================
 function showOverviewView() {
-    document.getElementById('statsOverviewView').style.display = '';
     document.getElementById('statsGameView').style.display = 'none';
+    document.getElementById('statsGameCommunityView').style.display = 'none';
+
+    if (currentStatsView === 'community') {
+        document.getElementById('statsOverviewView').style.display = 'none';
+        document.getElementById('statsCommunityView').style.display = '';
+
+        if (!communityTrendsChartsRendered) {
+            communityTrendsChartsRendered = true;
+            initializeCommunityOverallTrendsChart();
+            initializeCommunityGameTrendsChart();
+        }
+    } else {
+        document.getElementById('statsOverviewView').style.display = '';
+        document.getElementById('statsCommunityView').style.display = 'none';
+    }
 }
 
 // Pulls a game's data after selecting its tab
 function showGameView(gameId, gameTitle, gameIconUrl) {
     document.getElementById('statsOverviewView').style.display = 'none';
+    document.getElementById('statsCommunityView').style.display = 'none';
+    document.getElementById('statsGameCommunityView').style.display = 'none';
     document.getElementById('statsGameView').style.display = '';
     document.getElementById('gameViewTitleText').textContent = gameTitle;
 
-    const titleIcon = document.querySelector('.game-view-title-icon');
+    const titleIcon = document.querySelector('#statsGameView .game-view-title-icon');
     if (titleIcon) {
         titleIcon.innerHTML = gameIconUrl
             ? `<img src="${gameIconUrl}" alt="${gameTitle}" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fas fa-gamepad\\'></i>';">`
@@ -258,21 +372,68 @@ function showGameView(gameId, gameTitle, gameIconUrl) {
     }
 
     // Immediate feedback while the fetch below is in flight
-    document.getElementById('gameStatsTableBody').innerHTML = `
-        <tr class="game-stats-loading-row">
-            <td colspan="6"><i class="fas fa-spinner fa-spin"></i> Loading stats...</td>
-        </tr>
-    `;
-    document.getElementById('gameStatsCardsWrap').innerHTML = `
-        <div class="game-stats-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading stats...</div>
-    `;
+    document.getElementById('gameStatsTableWrap').style.display = 'none';
+    document.getElementById('gameStatsCardsWrap').style.display = 'none';
+    document.getElementById('gameStatsLoading').style.display = '';
 
     const seasonParam = window.selectedSeason ? `?season_id=${window.selectedSeason}` : '';
 
     fetch(`/api/admin/statistics/game/${gameId}${seasonParam}`)
         .then(res => res.json())
-        .then(data => renderGameStatsTable(data.statistics))
-        .catch(() => renderGameStatsTable(getMockGameStats())); // TEMP fallback until backend returns real match data
+        .then(data => {
+            // Reveal the content before rendering into it
+            document.getElementById('gameStatsLoading').style.display = 'none';
+            document.getElementById('gameStatsTableWrap').style.display = '';
+            document.getElementById('gameStatsCardsWrap').style.display = '';
+            renderGameStatsTable(data.statistics);
+        })
+        .catch(() => {
+            document.getElementById('gameStatsLoading').style.display = 'none';
+            document.getElementById('gameStatsTableWrap').style.display = '';
+            document.getElementById('gameStatsCardsWrap').style.display = '';
+            renderGameStatsTable(getMockGameStats()); // TEMP fallback until backend returns real match data
+        });
+}
+
+// Pulls a game's Community-tab data (partnerships for now; the event-type
+// chart and event list join this once the backend returns them)
+function showCommunityGameView(gameId, gameTitle, gameIconUrl) {
+    document.getElementById('statsOverviewView').style.display = 'none';
+    document.getElementById('statsCommunityView').style.display = 'none';
+    document.getElementById('statsGameView').style.display = 'none';
+    document.getElementById('statsGameCommunityView').style.display = '';
+    document.getElementById('communityGameViewTitleText').textContent = gameTitle;
+
+    const titleIcon = document.querySelector('#statsGameCommunityView .game-view-title-icon');
+    if (titleIcon) {
+        titleIcon.innerHTML = gameIconUrl
+            ? `<img src="${gameIconUrl}" alt="${gameTitle}" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fas fa-gamepad\\'></i>';">`
+            : '<i class="fas fa-gamepad"></i>';
+    }
+
+    // Immediate feedback while the fetch below is in flight
+    document.getElementById('communityGameContent').style.display = 'none';
+    document.getElementById('communityGameLoading').style.display = '';
+
+    const seasonParam = window.selectedSeason ? `?season_id=${window.selectedSeason}` : '';
+
+    fetch(`/api/admin/statistics/game/${gameId}/community${seasonParam}`)
+        .then(res => res.json())
+        .then(data => {
+            // Reveal the content before rendering into it
+            document.getElementById('communityGameLoading').style.display = 'none';
+            document.getElementById('communityGameContent').style.display = '';
+            initCommunityGamePartnerships(data.statistics.partnerships);
+            renderCommunityGameEventTypeChart(data.statistics.events_by_type);
+            renderCommunityGameEventsList(data.statistics.events);
+        })
+        .catch(() => {
+            document.getElementById('communityGameLoading').style.display = 'none';
+            document.getElementById('communityGameContent').style.display = '';
+            initCommunityGamePartnerships([]);
+            renderCommunityGameEventTypeChart({});
+            renderCommunityGameEventsList([]);
+        });
 }
 
 // Builds the game tab data sheet (table for desktop, cards for mobile)
@@ -391,6 +552,149 @@ function renderGameStatsTable(gameStats) {
             </div>
         `;
         cardsWrap.appendChild(card);
+    });
+}
+
+// Builds the game's full event list (table for desktop, cards for mobile),
+// grouped/collapsible by season in the All-Time view — same idea as
+// renderGameStatsTable() below, but for events instead of teams, and
+// scoped to its own containers/toggle function so collapsing a season
+// here never touches the Competitive game table's identical class names.
+function renderCommunityGameEventsList(events) {
+    const tbody = document.getElementById('communityGameEventsTableBody');
+    const cardsWrap = document.getElementById('communityGameEventsCardsWrap');
+    tbody.innerHTML = '';
+    cardsWrap.innerHTML = '';
+
+    const titleEl = document.getElementById('communityGameEventsTitle');
+    if (titleEl) titleEl.textContent = `All Events (${events ? events.length : 0})`;
+
+    if (!events || events.length === 0) {
+        tbody.innerHTML = `
+            <tr class="game-stats-loading-row">
+                <td colspan="6">No events recorded for this period</td>
+            </tr>
+        `;
+        cardsWrap.innerHTML = `<div class="game-stats-card-loading">No events recorded for this period</div>`;
+        return;
+    }
+
+    const blockClasses = ['game-team-block-a', 'game-team-block-b', 'game-team-block-c'];
+    let previousSeason; // stays undefined for season-filtered views (no season_name sent)
+    let seasonIndex = -1;
+
+    events.forEach((event, i) => {
+        const seasonChanged = event.season_name != null && event.season_name !== previousSeason;
+
+        if (seasonChanged) {
+            seasonIndex++;
+            const currentSeasonIdx = seasonIndex;
+
+            if (i > 0) {
+                const seasonGapRow = document.createElement('tr');
+                seasonGapRow.className = 'game-stats-league-gap';
+                seasonGapRow.dataset.seasonIdx = currentSeasonIdx - 1;
+                seasonGapRow.innerHTML = '<td colspan="6"></td>';
+                tbody.appendChild(seasonGapRow);
+            }
+
+            const seasonRow = document.createElement('tr');
+            seasonRow.className = 'game-stats-season-header game-stats-season-header-toggle';
+            seasonRow.dataset.seasonIdx = currentSeasonIdx;
+            seasonRow.innerHTML = `
+                <td colspan="6">
+                    <i class="fas fa-chevron-down game-stats-season-chevron"></i>
+                    ${event.season_name || 'Unknown Season'}
+                </td>
+            `;
+            seasonRow.onclick = () => toggleCommunityEventsSeason(currentSeasonIdx);
+            tbody.appendChild(seasonRow);
+
+            const seasonCard = document.createElement('div');
+            seasonCard.className = 'game-stats-card-season-header game-stats-season-header-toggle';
+            seasonCard.dataset.seasonIdx = currentSeasonIdx;
+            seasonCard.innerHTML = `
+                <span class="game-stats-card-season-title">
+                    <i class="fas fa-chevron-down game-stats-season-chevron"></i>
+                    ${event.season_name || 'Unknown Season'}
+                </span>
+            `;
+            seasonCard.onclick = () => toggleCommunityEventsSeason(currentSeasonIdx);
+            cardsWrap.appendChild(seasonCard);
+        }
+
+        previousSeason = event.season_name;
+
+        const blockClass = blockClasses[i % blockClasses.length];
+        const associatedGames = (event.associated_games && event.associated_games.length)
+            ? event.associated_games.join(', ')
+            : '—';
+
+        const row = document.createElement('tr');
+        row.className = `${blockClass} game-stats-season-body`;
+        row.dataset.seasonIdx = seasonIndex;
+        row.innerHTML = `
+            <td class="game-stats-team-name">${event.name}</td>
+            <td>${event.date || '—'}</td>
+            <td>${event.event_type}</td>
+            <td>${event.start_time || '—'}</td>
+            <td class="game-stats-cell-wrap">${associatedGames}</td>
+            <td class="game-stats-cell-wrap">${event.description}</td>
+        `;
+        tbody.appendChild(row);
+
+        const card = document.createElement('div');
+        card.className = `game-stats-card ${blockClass} game-stats-season-body`;
+        card.dataset.seasonIdx = seasonIndex;
+        card.innerHTML = `
+            <div class="game-stats-card-header">
+                <span class="game-stats-card-team">${event.name}</span>
+                <span class="game-stats-card-conference">${event.event_type}</span>
+            </div>
+            <div class="game-stats-card-row">
+                <span class="game-stats-card-label">Date</span>
+                <span class="game-stats-card-value">${event.date || '—'}</span>
+            </div>
+            <div class="game-stats-card-row">
+                <span class="game-stats-card-label">Start Time</span>
+                <span class="game-stats-card-value">${event.start_time || '—'}</span>
+            </div>
+            <div class="game-stats-card-row">
+                <span class="game-stats-card-label">Associated Games</span>
+                <span class="game-stats-card-value game-stats-cell-wrap">${associatedGames}</span>
+            </div>
+            <div class="game-stats-card-row">
+                <span class="game-stats-card-label">Description</span>
+                <span class="game-stats-card-value game-stats-cell-wrap">${event.description}</span>
+            </div>
+        `;
+        cardsWrap.appendChild(card);
+    });
+}
+
+// Expands/collapses a season's events in the Community per-game events list.
+// Scoped to its own containers (unlike toggleGameStatsSeason below, which
+// queries the whole document) so it never collapses/expands rows in the
+// Competitive game table, which reuses the same season-header classes.
+function toggleCommunityEventsSeason(seasonIdx) {
+    const header = document.querySelector(
+        `#communityGameEventsTableBody .game-stats-season-header-toggle[data-season-idx="${seasonIdx}"]`
+    );
+    if (!header) return;
+    const isCollapsing = !header.classList.contains('game-stats-season-collapsed');
+
+    document.querySelectorAll(
+        `#communityGameEventsTableBody .game-stats-season-header-toggle[data-season-idx="${seasonIdx}"], ` +
+        `#communityGameEventsCardsWrap .game-stats-season-header-toggle[data-season-idx="${seasonIdx}"]`
+    ).forEach(h => h.classList.toggle('game-stats-season-collapsed', isCollapsing));
+
+    document.querySelectorAll(
+        `#communityGameEventsTableBody [data-season-idx="${seasonIdx}"], ` +
+        `#communityGameEventsCardsWrap [data-season-idx="${seasonIdx}"]`
+    ).forEach(el => {
+        if (!el.classList.contains('game-stats-season-header-toggle')) {
+            el.style.display = isCollapsing ? 'none' : '';
+        }
     });
 }
 
@@ -565,8 +869,7 @@ function renderTrendsChart(key, elIds, data, statKey, statLabel, color) {
     const maxValue = values.length ? Math.max(...values) : 0;
     const yMax = maxValue > 0 ? Math.ceil(maxValue * 1.2) : 5;
 
-    // Widen the frozen axis strip to fit however many digits the largest
-    // tick label needs.
+    // Widen the frozen axis strip to fit however many digits the largest tick label needs.
     const axisWrap = axisEl ? axisEl.closest('.trends-chart-axis-wrap') : null;
     const digitCount = String(yMax).length;
     const axisWidth = Math.max(42, 26 + digitCount * 9);
@@ -752,12 +1055,174 @@ function setOverallTrendsDuration(duration, el) {
 }
 
 // ============================================
+// COMMUNITY: PER-GAME PARTNERSHIPS (game tab view)
+// ============================================
+let communityGamePartnerships = [];
+let communityGamePartnershipNextSlot = 0;
+let communityGamePartnershipNextIndex = 0;
+let communityGamePartnershipIntervalId = null;
+let communityGamePartnershipVisibleIds = [];
+let communityGamePartnershipSlotCount = 3;
+
+// Same shape/behavior as initCommunityPartnerships(), but fed data directly
+// from the per-game fetch rather than window.statisticsData, and scoped to
+// its own container so it never collides with the Overview tab's carousel.
+function initCommunityGamePartnerships(partnerships) {
+    const section = document.querySelector('.community-game-partnerships');
+    const container = document.getElementById('communityGamePartnershipsList');
+    if (!section || !container) return;
+
+    communityGamePartnerships = partnerships || [];
+
+    if (communityGamePartnershipIntervalId) {
+        clearInterval(communityGamePartnershipIntervalId);
+        communityGamePartnershipIntervalId = null;
+    }
+
+    if (communityGamePartnerships.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = '';
+    communityGamePartnershipSlotCount = getPartnershipSlotCount();
+    const cards = Array.from(container.querySelectorAll('.notable-performance-card'));
+    const visibleCount = Math.min(communityGamePartnershipSlotCount, communityGamePartnerships.length);
+
+    communityGamePartnershipVisibleIds = [];
+    cards.forEach((card, i) => {
+        if (i < visibleCount) {
+            card.style.display = '';
+            renderPartnershipCard(card, communityGamePartnerships[i]);
+            communityGamePartnershipVisibleIds[i] = communityGamePartnerships[i].id;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    container.classList.toggle('notable-performances-list--centered', communityGamePartnerships.length < communityGamePartnershipSlotCount);
+
+    if (communityGamePartnerships.length > visibleCount) {
+        communityGamePartnershipNextSlot = 0;
+        communityGamePartnershipNextIndex = visibleCount % communityGamePartnerships.length;
+        communityGamePartnershipIntervalId = setInterval(cycleCommunityGamePartnershipCard, 4000);
+    }
+}
+
+function cycleCommunityGamePartnershipCard() {
+    const container = document.getElementById('communityGamePartnershipsList');
+    if (!container || communityGamePartnerships.length <= communityGamePartnershipSlotCount) return;
+
+    const cards = container.querySelectorAll('.notable-performance-card');
+    const card = cards[communityGamePartnershipNextSlot];
+    if (!card) return;
+
+    let nextPartnership = communityGamePartnerships[communityGamePartnershipNextIndex];
+    let attempts = 0;
+    while (
+        communityGamePartnershipVisibleIds.some((id, slot) => slot !== communityGamePartnershipNextSlot && id === nextPartnership.id) &&
+        attempts < communityGamePartnerships.length
+    ) {
+        communityGamePartnershipNextIndex = (communityGamePartnershipNextIndex + 1) % communityGamePartnerships.length;
+        nextPartnership = communityGamePartnerships[communityGamePartnershipNextIndex];
+        attempts++;
+    }
+
+    card.classList.add('notable-performance-card--fading');
+    setTimeout(() => {
+        renderPartnershipCard(card, nextPartnership);
+        communityGamePartnershipVisibleIds[communityGamePartnershipNextSlot] = nextPartnership.id;
+        card.classList.remove('notable-performance-card--fading');
+    }, 300);
+
+    communityGamePartnershipNextSlot = (communityGamePartnershipNextSlot + 1) % communityGamePartnershipSlotCount;
+    communityGamePartnershipNextIndex = (communityGamePartnershipNextIndex + 1) % communityGamePartnerships.length;
+}
+
+// ============================================
+// COMMUNITY: PER-GAME EVENTS-BY-TYPE CHART (game tab view)
+// ============================================
+let communityGameChartInstance = null;
+
+const COMMUNITY_GAME_EVENT_TYPE_IDS = {
+    Tournament: 'communityGameCountTournament',
+    Match: 'communityGameCountMatch',
+    Practice: 'communityGameCountPractice',
+    Event: 'communityGameCountEvent',
+    Misc: 'communityGameCountMisc'
+};
+
+// Fills the league-panel-row counts and (re)draws the 5-bar chart for a
+// game's events-by-type breakdown. Colors are pulled from
+// COMMUNITY_TREND_COLORS.type further down this file so they stay in sync
+// with the matching .row-tournament/.row-match/etc tints and the trends legend.
+function renderCommunityGameEventTypeChart(eventsByType) {
+    eventsByType = eventsByType || {};
+
+    Object.entries(COMMUNITY_GAME_EVENT_TYPE_IDS).forEach(([type, id]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = eventsByType[type] || 0;
+    });
+
+    const canvas = document.getElementById('communityGameEventTypeChart');
+    if (!canvas) return;
+
+    if (communityGameChartInstance) {
+        communityGameChartInstance.destroy();
+    }
+
+    const labels = Object.keys(COMMUNITY_GAME_EVENT_TYPE_IDS);
+    const colors = labels.map(type => COMMUNITY_TREND_COLORS.type[type]);
+
+    const ctx = canvas.getContext('2d');
+    communityGameChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Events',
+                data: labels.map(t => eventsByType[t] || 0),
+                backgroundColor: colors.map(c => c.bg),
+                borderColor: colors.map(c => c.border),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 10 } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: '#9ca3af', font: { size: 11 } },
+                    grid: { color: 'rgba(156, 163, 175, 0.1)' }
+                },
+                x: {
+                    ticks: { color: '#9ca3af', font: { size: 10 }, maxRotation: 45, minRotation: 45 },
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+}
+
+// ============================================
 // COMMUNITY: OVERALL EVENT TRENDS CHART
 // ============================================
 let communityOverallStat = 'total';
 let communityOverallEventType = null;
 let communityOverallDuration = 'all';
 let communityChartsInitialized = false;
+let communityTrendsChartsRendered = false;
 
 const COMMUNITY_STAT_LABELS = {
     total: 'Total Events',
@@ -1061,6 +1526,109 @@ function cycleNotableCard() {
 }
 
 // ============================================
+// COMMUNITY PARTNERSHIPS
+// ============================================
+let communityPartnerships = [];
+let partnershipNextSlot = 0;
+let partnershipNextIndex = 0;
+let partnershipIntervalId = null;
+let partnershipVisibleIds = [];
+let partnershipSlotCount = 3;
+
+function getPartnershipSlotCount() {
+    return window.matchMedia('(max-width: 768px)').matches ? 1 : 3;
+}
+
+function initCommunityPartnerships() {
+    const section = document.querySelector('.community-partnerships');
+    const container = document.getElementById('communityPartnershipsList');
+    if (!section || !container) return;
+
+    communityPartnerships = (window.statisticsData && window.statisticsData.community_partnerships) || [];
+
+    if (partnershipIntervalId) {
+        clearInterval(partnershipIntervalId);
+        partnershipIntervalId = null;
+    }
+
+    if (communityPartnerships.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = '';
+    partnershipSlotCount = getPartnershipSlotCount();
+    const cards = Array.from(container.querySelectorAll('.notable-performance-card'));
+    const visibleCount = Math.min(partnershipSlotCount, communityPartnerships.length);
+
+    partnershipVisibleIds = [];
+    cards.forEach((card, i) => {
+        if (i < visibleCount) {
+            card.style.display = '';
+            renderPartnershipCard(card, communityPartnerships[i]);
+            partnershipVisibleIds[i] = communityPartnerships[i].id;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    container.classList.toggle('notable-performances-list--centered', communityPartnerships.length < partnershipSlotCount);
+
+    if (communityPartnerships.length > visibleCount) {
+        partnershipNextSlot = 0;
+        partnershipNextIndex = visibleCount % communityPartnerships.length;
+        partnershipIntervalId = setInterval(cyclePartnershipCard, 4000);
+    }
+}
+
+// Fill a single partnership card with data
+function renderPartnershipCard(cardEl, partnership) {
+    const avatar = cardEl.querySelector('.notable-performance-avatar');
+    const nameEl = cardEl.querySelector('.notable-performance-team');
+    const metaEl = cardEl.querySelector('.notable-performance-meta');
+    const seasonEl = cardEl.querySelector('.notable-performance-season');
+
+    if (avatar) {
+        avatar.innerHTML = partnership.game_icon_url
+            ? `<img src="${partnership.game_icon_url}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='';">`
+            : '';
+    }
+    if (nameEl) nameEl.textContent = partnership.partnership_name;
+    if (metaEl) metaEl.textContent = partnership.event_name;
+    if (seasonEl) seasonEl.textContent = partnership.season_name;
+}
+
+function cyclePartnershipCard() {
+    const container = document.getElementById('communityPartnershipsList');
+    if (!container || communityPartnerships.length <= partnershipSlotCount) return;
+
+    const cards = container.querySelectorAll('.notable-performance-card');
+    const card = cards[partnershipNextSlot];
+    if (!card) return;
+
+    let nextPartnership = communityPartnerships[partnershipNextIndex];
+    let attempts = 0;
+    while (
+        partnershipVisibleIds.some((id, slot) => slot !== partnershipNextSlot && id === nextPartnership.id) &&
+        attempts < communityPartnerships.length
+    ) {
+        partnershipNextIndex = (partnershipNextIndex + 1) % communityPartnerships.length;
+        nextPartnership = communityPartnerships[partnershipNextIndex];
+        attempts++;
+    }
+
+    card.classList.add('notable-performance-card--fading');
+    setTimeout(() => {
+        renderPartnershipCard(card, nextPartnership);
+        partnershipVisibleIds[partnershipNextSlot] = nextPartnership.id;
+        card.classList.remove('notable-performance-card--fading');
+    }, 300);
+
+    partnershipNextSlot = (partnershipNextSlot + 1) % partnershipSlotCount;
+    partnershipNextIndex = (partnershipNextIndex + 1) % communityPartnerships.length;
+}
+
+// ============================================
 // EXPORT FUNCTIONALITY
 // ============================================
 function setupExportHandlers() {
@@ -1167,32 +1735,37 @@ function calculatePercentage(part, total) {
     return ((part / total) * 100).toFixed(1);
 }
 
+// Tracks which top-level tab (Competitive/Community) is active, so the
+// floating game tabs know which per-game view to render.
+let currentStatsView = 'competitive';
+
 // Toggles the Competitive / Community view tabs and swaps the corresponding content containers.
 function switchStatsView(view, btnEl) {
     document.querySelectorAll('.stats-view-tabs .tab-button').forEach(btn => {
         btn.classList.remove('active');
     });
     btnEl.classList.add('active');
-
-    const overviewView = document.getElementById('statsOverviewView');
-    const communityView = document.getElementById('statsCommunityView');
+    currentStatsView = view;
 
     if (view === 'community') {
-        overviewView.style.display = 'none';
-        communityView.style.display = '';
-
-        // Community charts live in a display:none container on load, so
-        // Chart.js can't measure them until the container is actually
-        // visible — init them the first time this tab is shown instead
-        // of on DOMContentLoaded.
         if (!communityChartsInitialized) {
             communityChartsInitialized = true;
-            initializeCommunityOverallTrendsChart();
-            initializeCommunityGameTrendsChart();
+            initCommunityPartnerships();
+            initializeDivisionCharts();
         }
+    }
+
+    // Re-render whichever floating tab (Overview or a specific game) is
+    // currently selected so it reflects the newly active Competitive/Community view
+    const activeTab = document.querySelector('.stats-floating-tab.active');
+    const gameId = activeTab ? activeTab.dataset.game : 'overview';
+
+    if (gameId === 'overview') {
+        showOverviewView();
+    } else if (view === 'community') {
+        showCommunityGameView(gameId, activeTab.querySelector('.stats-floating-tab-label').textContent, activeTab.dataset.icon);
     } else {
-        overviewView.style.display = '';
-        communityView.style.display = 'none';
+        showGameView(gameId, activeTab.querySelector('.stats-floating-tab-label').textContent, activeTab.dataset.icon);
     }
 }
 

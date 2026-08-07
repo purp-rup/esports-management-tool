@@ -147,7 +147,7 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 1.25rem;
+    margin-bottom: 0.75rem;
     position: relative;
 }
 
@@ -159,6 +159,9 @@ main {
     background: var(--dark-bg);
     z-index: 2;
     pointer-events: none;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform;
 }
 
 .trends-chart-axis-labels {
@@ -189,6 +192,7 @@ main {
 
 .trends-chart-inner {
     height: 100%;
+    box-sizing: border-box;
 }
 
 .trends-chart-scroll::-webkit-scrollbar {
@@ -254,6 +258,7 @@ main {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    min-width: 415px;
     border: 2px solid transparent;
     border-radius: 999px;
     padding: 0.6rem 1.75rem 0.6rem 1.25rem;
@@ -438,6 +443,31 @@ main {
 .row-regular       { background: linear-gradient(rgba(169,129,187,0.40), rgba(169,129,187,0.40)), var(--background-secondary); }
 .row-inprogress    { background: linear-gradient(rgba(238,9,121,0.40), rgba(238,9,121,0.40)), var(--background-secondary); }
 
+/* Event-type tints — match COMMUNITY_TREND_COLORS.type in admin-statistics.js */
+.row-tournament    { background: linear-gradient(rgba(167,139,250,0.40), rgba(167,139,250,0.40)), var(--background-secondary); }
+.row-match         { background: linear-gradient(rgba(252,165,165,0.40), rgba(252,165,165,0.40)), var(--background-secondary); }
+.row-practice      { background: linear-gradient(rgba(134,239,172,0.40), rgba(134,239,172,0.40)), var(--background-secondary); }
+.row-event-type    { background: linear-gradient(rgba(147,197,253,0.40), rgba(147,197,253,0.40)), var(--background-secondary); }
+.row-misc          { background: linear-gradient(rgba(250,204,21,0.40), rgba(250,204,21,0.40)), var(--background-secondary); }
+
+/* Same tints, but on .league-panel-row: bumped to a two-class selector so
+   they actually beat .league-panel-row's own background declaration
+   (equal specificity + later source order would otherwise win) */
+.league-panel-row.row-tournament { background: linear-gradient(rgba(167,139,250,0.40), rgba(167,139,250,0.40)), var(--background-secondary); }
+.league-panel-row.row-match      { background: linear-gradient(rgba(252,165,165,0.40), rgba(252,165,165,0.40)), var(--background-secondary); }
+.league-panel-row.row-practice   { background: linear-gradient(rgba(134,239,172,0.40), rgba(134,239,172,0.40)), var(--background-secondary); }
+.league-panel-row.row-event-type { background: linear-gradient(rgba(147,197,253,0.40), rgba(147,197,253,0.40)), var(--background-secondary); }
+.league-panel-row.row-misc       { background: linear-gradient(rgba(250,204,21,0.40), rgba(250,204,21,0.40)), var(--background-secondary); }
+
+.scorecard-subheading {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-secondary);
+    margin: 0.25rem 0 -0.25rem;
+}
+
 /* ============================================
    SCORECARD OVERVIEW - LEAGUE PANELS
    (right side: per-league table + chart)
@@ -461,7 +491,7 @@ main {
 .league-panel-table {
     display: flex;
     flex-direction: column;
-    width: 40%;
+    width: 35%;
     flex-shrink: 0;
 }
 
@@ -527,9 +557,31 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 160px;
-    max-height: 220px;
 }
+
+/* Division panels: game titles can run longer than league names and
+   wrap to two lines, so give rows a little more breathing room than
+   the competitive .league-panel-row default. */
+.division-panel .league-panel-name,
+.division-panel .league-panel-row {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    line-height: 1.35;
+}
+
+.division-panel .league-panel-row span:first-child {
+    overflow-wrap: break-word;
+    padding-right: 0.5rem;
+}
+
+/* Cycled per-game tints, same hues as DIVISION_CHART_PALETTE in
+   admin-statistics.js so a game's row and its bar read as a pair. */
+.division-panel .row-color-1 { background: linear-gradient(rgba(121,189,233,0.35), rgba(121,189,233,0.35)), var(--background-secondary); }
+.division-panel .row-color-2 { background: linear-gradient(rgba(167,139,250,0.35), rgba(167,139,250,0.35)), var(--background-secondary); }
+.division-panel .row-color-3 { background: linear-gradient(rgba(134,239,172,0.35), rgba(134,239,172,0.35)), var(--background-secondary); }
+.division-panel .row-color-4 { background: linear-gradient(rgba(250,204,21,0.35), rgba(250,204,21,0.35)), var(--background-secondary); }
+.division-panel .row-color-5 { background: linear-gradient(rgba(252,165,165,0.35), rgba(252,165,165,0.35)), var(--background-secondary); }
+.division-panel .row-color-6 { background: linear-gradient(rgba(147,197,253,0.35), rgba(147,197,253,0.35)), var(--background-secondary); }
 
 /* ============================================
    PLAYOFFS PERFORMANCE BY LEAGUE
@@ -777,6 +829,15 @@ main {
     border-bottom: 1px solid var(--border-color);
     color: var(--text-primary);
     font-size: 0.875rem;
+}
+
+/* Community per-game events table: Associated Games and Description can
+   run long, so left-align and cap those two columns instead of the
+   centered look that suits the shorter columns fine */
+.game-stats-table td.game-stats-cell-wrap,
+.game-stats-card-value.game-stats-cell-wrap {
+    text-align: left;
+    max-width: 260px;
 }
 
 /* Alternating team blocks — swap the three colors below for whatever fits your palette */
@@ -1099,19 +1160,6 @@ main {
     font-size: 0.9rem;
 }
 
-.game-stats-loading-row td {
-    text-align: center;
-    padding: 2.5rem 1rem;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    border-bottom: none;
-}
-
-.game-stats-loading-row i {
-    margin-right: 0.5rem;
-    color: var(--stockton-blue);
-}
-
 .empty-state {
     text-align: center;
     padding: 4rem 2rem;
@@ -1211,6 +1259,10 @@ main {
 
     .trends-panel-filters {
         gap: 0.2rem;
+    }
+
+    .notable-performance-card {
+        min-width: 0;
     }
 
     .notable-performances-list {

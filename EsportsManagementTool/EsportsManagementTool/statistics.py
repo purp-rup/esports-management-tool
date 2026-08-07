@@ -3,6 +3,7 @@ Esports Program Statistics Module
 Calculates comprehensive statistics for the admin statistics page
 """
 from EsportsManagementTool import playoffs_results
+from EsportsManagementTool.universal_helpers import format_time_to_12hr
 import MySQLdb.cursors
 
 class EsportsStatistics:
@@ -407,6 +408,355 @@ class EsportsStatistics:
             }
             for game in games
         ]
+
+
+    def get_community_partnerships(self):
+        """
+        Get community partnerships for the "Partnerships" cards on the
+        All-Time community overview. Mirrors get_notable_performances():
+        one card per event/partnership pairing, most recent season first.
+
+        An event can be tied to multiple games via event_games, but the
+        card only shows one icon, so we take the lowest game_id per event.
+        """
+        cursor = self.cursor
+
+        query = """
+            SELECT
+                ep.event_id as event_id,
+                p.partnership_id as partnership_id,
+                p.partnership_name as partnership_name,
+                ge.EventName as event_name,
+                s.season_name,
+                s.start_date,
+                (
+                    SELECT eg.game_id
+                    FROM event_games eg
+                    WHERE eg.event_id = ge.EventID
+                    ORDER BY eg.game_id ASC
+                    LIMIT 1
+                ) as game_id
+            FROM event_partnerships ep
+            JOIN partnerships p ON ep.partnership_id = p.partnership_id
+            JOIN generalevents ge ON ep.event_id = ge.EventID
+            JOIN seasons s ON ge.season_id = s.season_id
+            WHERE p.is_active = 1
+        """
+
+        if self.season_id:
+            query += " AND ge.season_id = %s"
+            cursor.execute(query, (self.season_id,))
+        else:
+            cursor.execute(query)
+
+        rows = cursor.fetchall()
+
+        # Look up which of the referenced games actually have an icon,
+        # same convention as get_active_games()/get_notable_performances()
+        game_ids = {row['game_id'] for row in rows if row['game_id'] is not None}
+        has_image = {}
+        if game_ids:
+            placeholders = ','.join(['%s'] * len(game_ids))
+            cursor.execute(f"""
+                SELECT GameID as game_id, CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image
+                FROM games
+                WHERE GameID IN ({placeholders})
+            """, tuple(game_ids))
+            has_image = {r['game_id']: r['has_image'] for r in cursor.fetchall()}
+
+        partnerships = []
+        for row in rows:
+            partnerships.append({
+                'id': f"{row['event_id']}-{row['partnership_id']}",
+                'partnership_name': row['partnership_name'],
+                'event_name': row['event_name'],
+                'game_icon_url': f"/game-image/{row['game_id']}" if has_image.get(row['game_id']) else None,
+                'season_name': row['season_name'],
+                '_start_date': row['start_date'],
+            })
+
+        partnerships.sort(key=lambda p: (p['_start_date'] is None,
+                                         p['_start_date'].toordinal() * -1 if p['_start_date'] else 0))
+
+        for p in partnerships:
+            p.pop('_start_date', None)
+
+        return partnerships
+
+    def get_community_partnerships_for_game(self, game_id):
+        """
+        Same as get_community_partnerships(), but scoped to a single game via
+        the event_games junction table (mirrors the join used by
+        get_community_game_trends()). Used by the Community tab's per-game
+        Partnerships section.
+        """
+        cursor = self.cursor
+
+        query = """
+                SELECT
+                    ep.event_id as event_id,
+                    p.partnership_id as partnership_id,
+                    p.partnership_name as partnership_name,
+                    ge.EventName as event_name,
+                    s.season_name,
+                    s.start_date
+                FROM event_partnerships ep
+                JOIN partnerships p ON ep.partnership_id = p.partnership_id
+                JOIN generalevents ge ON ep.event_id = ge.EventID
+                JOIN event_games eg ON eg.event_id = ge.EventID
+                JOIN seasons s ON ge.season_id = s.season_id
+                WHERE p.is_active = 1 AND eg.game_id = %s
+            """
+        params = [game_id]
+
+        if self.season_id:
+            query += " AND ge.season_id = %s"
+            params.append(self.season_id)
+
+        cursor.execute(query, tuple(params))
+        rows = cursor.fetchall()
+
+        # Same convention as get_community_partnerships()/get_active_games():
+        # only show an icon if the game actually has one uploaded
+        cursor.execute("""
+                SELECT CASE WHEN GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image
+                FROM games WHERE GameID = %s
+            """, (game_id,))
+        image_row = cursor.fetchone()
+        icon_url = f"/game-image/{game_id}" if image_row and image_row['has_image'] else None
+
+        partnerships = []
+        for row in rows:
+            partnerships.append({
+                'id': f"{row['event_id']}-{row['partnership_id']}",
+                'partnership_name': row['partnership_name'],
+                'event_name': row['event_name'],
+                'game_icon_url': icon_url,
+                'season_name': row['season_name'],
+                '_start_date': row['start_date'],
+            })
+
+        partnerships.sort(key=lambda p: (p['_start_date'] is None,
+                                         p['_start_date'].toordinal() * -1 if p['_start_date'] else 0))
+
+        for p in partnerships:
+            p.pop('_start_date', None)
+
+        return partnerships
+
+
+    def get_community_event_types_for_game(self, game_id):
+        """
+        Count events of each type for a single game/season, for the
+        Community tab's per-game league-panel row + bar chart.
+
+        Reuses get_community_game_trends() instead of re-querying
+        """
+        trends = self.get_community_game_trends(game_id)
+
+        if self.season_id:
+            season_trend = next((t for t in trends if t['season_id'] == self.season_id), None)
+            return dict(season_trend['events_by_type']) if season_trend else {t: 0 for t in self.COMMUNITY_EVENT_TYPES}
+
+        events_by_type_total = {t: 0 for t in self.COMMUNITY_EVENT_TYPES}
+        for trend in trends:
+            for event_type, count in trend['events_by_type'].items():
+                events_by_type_total[event_type] += count
+
+        return events_by_type_total
+
+    def get_community_events_for_game(self, game_id):
+        """
+        Get the full list of events for a single game/season, formatted
+        for the Community tab's per-game event table.
+
+        Mirrors get_game_statistics()'s season-grouping convention.
+        """
+        cursor = self.cursor
+
+        season_names = {}
+        season_order = {}
+        if not self.season_id:
+            cursor.execute("SELECT season_id, season_name FROM seasons ORDER BY start_date DESC")
+            all_seasons = cursor.fetchall()
+            season_names = {s['season_id']: s['season_name'] for s in all_seasons}
+            season_order = {s['season_id']: idx for idx, s in enumerate(all_seasons)}
+
+        query = """
+                SELECT DISTINCT ge.EventID, ge.EventName, ge.Date, ge.StartTime,
+                       ge.EventType, ge.Description, ge.season_id
+                FROM generalevents ge
+                JOIN event_games eg ON eg.event_id = ge.EventID
+                WHERE eg.game_id = %s
+            """
+        params = [game_id]
+        if self.season_id:
+            query += " AND ge.season_id = %s"
+            params.append(self.season_id)
+        query += " ORDER BY ge.Date DESC, ge.StartTime DESC"
+
+        cursor.execute(query, tuple(params))
+        events = cursor.fetchall()
+
+        if not events:
+            return []
+
+        # An event can list more than one game — pull the full associated
+        # list per event in one query rather than one query per event
+        event_ids = [e['EventID'] for e in events]
+        placeholders = ','.join(['%s'] * len(event_ids))
+        cursor.execute(f"""
+                SELECT eg.event_id, g.GameTitle
+                FROM event_games eg
+                JOIN games g ON eg.game_id = g.GameID
+                WHERE eg.event_id IN ({placeholders})
+                ORDER BY g.GameTitle ASC
+            """, tuple(event_ids))
+        games_by_event = {}
+        for row in cursor.fetchall():
+            games_by_event.setdefault(row['event_id'], []).append(row['GameTitle'])
+
+        result = []
+        for event in events:
+            result.append({
+                'id': event['EventID'],
+                'name': event['EventName'],
+                'date': event['Date'].strftime('%B %d, %Y') if event['Date'] else None,
+                'start_time': format_time_to_12hr(event['StartTime']) if event['StartTime'] else None,
+                'event_type': event['EventType'] or 'Event',
+                'associated_games': games_by_event.get(event['EventID'], []),
+                'description': event['Description'] or 'No description provided',
+                'season_id': event['season_id'],
+                'season_name': None if self.season_id else season_names.get(event['season_id']),
+            })
+
+        # All-Time view: group by season, most recent first — a stable sort
+        # on season rank alone is enough since the SQL above already sorted
+        # each season's events by date descending
+        if not self.season_id:
+            result.sort(key=lambda r: season_order.get(r['season_id'], len(season_order)))
+
+        return result
+
+    def get_community_scorecard(self):
+        """
+        Community "Events Scorecard" summary stats: totals, breakdown by
+        event type, the highest single-season event count, total scheduled
+        events, and the per-type average per season.
+
+        All-Time aggregates across every season via community_trends.
+        """
+        if self.season_id:
+            cursor = self.cursor
+
+            cursor.execute("SELECT COUNT(*) as count FROM generalevents WHERE season_id = %s",
+                            (self.season_id,))
+            total_events = cursor.fetchone()['count']
+
+            cursor.execute("""
+                SELECT EventType, COUNT(*) as count
+                FROM generalevents
+                WHERE season_id = %s
+                GROUP BY EventType
+            """, (self.season_id,))
+            events_by_type = {t: 0 for t in self.COMMUNITY_EVENT_TYPES}
+            for row in cursor.fetchall():
+                if row['EventType'] in events_by_type:
+                    events_by_type[row['EventType']] = row['count']
+
+            cursor.execute("SELECT COUNT(*) as count FROM generalevents WHERE season_id = %s AND is_scheduled = TRUE",
+                            (self.season_id,))
+            total_scheduled = cursor.fetchone()['count']
+
+            cursor.execute("SELECT season_name FROM seasons WHERE season_id = %s", (self.season_id,))
+            season_row = cursor.fetchone()
+
+            # Single season: "highest" and "avg" both just reflect this
+            # one season since there's nothing else to compare/average.
+            return {
+                'total_events': total_events,
+                'events_by_type': events_by_type,
+                'highest_season_event_count': total_events,
+                'highest_season_name': season_row['season_name'] if season_row else None,
+                'total_scheduled_events': total_scheduled,
+                'avg_events_by_type': events_by_type,
+            }
+
+        trends = self.get_community_trends()
+
+        total_events = sum(t['total_events'] for t in trends)
+        total_scheduled = sum(t['scheduled_events'] for t in trends)
+
+        events_by_type_total = {t: 0 for t in self.COMMUNITY_EVENT_TYPES}
+        for t in trends:
+            for event_type, count in t['events_by_type'].items():
+                events_by_type_total[event_type] += count
+
+        season_count = len(trends) or 1
+        avg_events_by_type = {
+            event_type: round(count / season_count, 1)
+            for event_type, count in events_by_type_total.items()
+        }
+
+        highest_season = max(trends, key=lambda t: t['total_events'], default=None)
+
+        return {
+            'total_events': total_events,
+            'events_by_type': events_by_type_total,
+            'highest_season_event_count': highest_season['total_events'] if highest_season else 0,
+            'highest_season_name': highest_season['season_name'] if highest_season else None,
+            'total_scheduled_events': total_scheduled,
+            'avg_events_by_type': avg_events_by_type,
+        }
+
+    def get_community_division_breakdown(self):
+        """
+        Get event counts per game, grouped by game Division, for the
+        "Events Scorecard" panels (one panel per division, bars = games
+        in that division, bar height = event count).
+        """
+        cursor = self.cursor
+
+        query = """
+            SELECT
+                COALESCE(g.Division, 'Other') as division,
+                g.GameID as game_id,
+                g.GameTitle as game_title,
+                g.Abbreviation as game_abbreviation,
+                COUNT(DISTINCT eg.event_id) as event_count
+            FROM games g
+            JOIN event_games eg ON eg.game_id = g.GameID
+            JOIN generalevents ge ON ge.EventID = eg.event_id
+        """
+
+        if self.season_id:
+            query += " WHERE ge.season_id = %s"
+            query += " GROUP BY COALESCE(g.Division, 'Other'), g.GameID, g.GameTitle ORDER BY division ASC, event_count DESC"
+            cursor.execute(query, (self.season_id,))
+        else:
+            query += " GROUP BY COALESCE(g.Division, 'Other'), g.GameID, g.GameTitle ORDER BY division ASC, event_count DESC"
+            cursor.execute(query)
+
+        rows = cursor.fetchall()
+
+        divisions = {}
+        for row in rows:
+            divisions.setdefault(row['division'], []).append({
+                'game_id': row['game_id'],
+                'game_title': row['game_title'],
+                'game_abbreviation': row['game_abbreviation'] or row['game_title'],
+                'event_count': row['event_count'],
+            })
+
+        # Stable ordering matching the create/edit game form's division list
+        division_order = ['Strategy', 'Shooter', 'Sports', 'Other']
+
+        return [
+            {'division_name': division, 'games': divisions[division]}
+            for division in division_order
+            if division in divisions
+        ]
+
 
     def get_total_games_in_database(self):
         """Count all games in database (including non-competitive)"""
@@ -1224,6 +1574,9 @@ class EsportsStatistics:
             'notable_performances': self.get_notable_performances() if not self.season_id else [],
             'community_trends': self.get_community_trends() if not self.season_id else [],
             'community_game_trends': self.get_all_community_game_trends() if not self.season_id else [],
+            'community_partnerships': self.get_community_partnerships(),
+            'community_scorecard': self.get_community_scorecard(),
+            'community_division_breakdown': self.get_community_division_breakdown(),
         }
         
         return stats
@@ -1291,7 +1644,7 @@ def register_statistics_routes(app, mysql, login_required, roles_required):
             'success': True,
             'statistics': all_stats
         }), 200
-    
+
     @app.route('/api/admin/statistics/game/<int:game_id>')
     @login_required
     @roles_required('admin', 'developer')
@@ -1300,11 +1653,37 @@ def register_statistics_routes(app, mysql, login_required, roles_required):
         Get detailed statistics for a specific game
         """
         season_id = request.args.get('season_id', type=int)
-        
+
         with EsportsStatistics(mysql, season_id) as stats:
             game_stats = stats.get_game_statistics(game_id)
-        
+
         return jsonify({
             'success': True,
             'statistics': game_stats
+        }), 200
+
+    @app.route('/api/admin/statistics/game/<int:game_id>/community')
+    @login_required
+    @roles_required('admin', 'developer')
+    def api_game_community_statistics(game_id):
+        """
+        Get community statistics for a specific game (Community tab's
+        per-game view): game-scoped partnerships, event-type totals for
+        the league-panel bar chart, and the full event list.
+        """
+        season_id = request.args.get('season_id', type=int)
+
+        with EsportsStatistics(mysql, season_id) as stats:
+            partnerships = stats.get_community_partnerships_for_game(game_id)
+            events_by_type = stats.get_community_event_types_for_game(game_id)
+            events = stats.get_community_events_for_game(game_id)
+
+        return jsonify({
+            'success': True,
+            'statistics': {
+                'game_id': game_id,
+                'partnerships': partnerships,
+                'events_by_type': events_by_type,
+                'events': events,
+            }
         }), 200
