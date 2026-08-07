@@ -33,7 +33,8 @@ async function selectTeam(teamId) {
     document.querySelector(`[data-team-id="${teamId}"]`)?.classList.add('active');
 
     document.getElementById('teamsWelcomeState').style.display = 'none';
-    document.getElementById('teamsDetailContent').style.display = 'block';
+    document.getElementById('teamsDetailContent').style.display = 'none';
+    document.getElementById('teamDetailsLoadingSpinner').style.display = 'block';
 
     document.querySelectorAll('.team-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.team-tab-panel').forEach(panel => panel.classList.remove('active'));
@@ -188,7 +189,17 @@ async function loadTeamDetails(teamId) {
         }
     } catch (error) {
         console.error('Error loading team details:', error);
+    } finally {
+        revealTeamDetails();
     }
+}
+
+// Show team details panel once loaded, matching revealUserList() in admin-panel.js
+function revealTeamDetails() {
+    const spinner = document.getElementById('teamDetailsLoadingSpinner');
+    const content = document.getElementById('teamsDetailContent');
+    if (spinner) spinner.style.display = 'none';
+    if (content) content.style.display = 'block';
 }
 
 // ============================================
@@ -825,19 +836,24 @@ async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSize
     teamIdField.value = teamId;
     teamTitleInput.value = teamName;
 
+    sizeContainer.innerHTML = '<div style="color: var(--text-secondary); font-size: 0.875rem; padding: 0.5rem;"><i class="fas fa-spinner fa-spin"></i> Loading sizes...</div>';
+    modal.style.display = 'block';
+    lockBodyScroll('editTeamModal');
+
     try {
-        // Fetch current team leagues
-        const leaguesResponse = await fetch(`/api/teams/${teamId}/leagues`);
+        // Fetch team leagues and team details in parallel
+        const [leaguesResponse, detailsResponse] = await Promise.all([
+            fetch(`/api/teams/${teamId}/leagues`),
+            fetch(`/api/teams/${teamId}/details`)
+        ]);
+
         const leaguesData = await leaguesResponse.json();
+        const data = await detailsResponse.json();
 
         const currentLeagueIds = leaguesData.success && leaguesData.leagues ?
             leaguesData.leagues.map(l => l.id) : [];
 
         console.log('Current team leagues:', currentLeagueIds);
-
-        // Fetch game details for available sizes
-        const response = await fetch(`/api/teams/${teamId}/details`);
-        const data = await response.json();
 
         if (data.success) {
             const team = data.team;
@@ -869,11 +885,9 @@ async function openEditTeamModal(teamId, teamName, currentMaxSize, availableSize
     } catch (error) {
         console.error('Error loading team details for edit:', error);
         alert('Failed to load team information. Please try again.');
+        closeEditTeamModal();
         return;
     }
-
-    modal.style.display = 'block';
-    lockBodyScroll('editTeamModal');
 }
 
 // Close edit team modal

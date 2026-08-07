@@ -100,7 +100,7 @@ function openSuspendModal(userId, username, fullName) {
 
                     <!-- Custom Reason Input (shown when "Other" is selected) -->
                     <div class="form-group" id="customReasonGroup" style="display: none; margin-top: 0.5rem;">
-                        <label for="customReason">Custom Reason</label>
+                        <label for="customReason">Custom Reason *</label>
                         <input type="text"
                                id="customReason"
                                placeholder="Enter custom reason"
@@ -382,6 +382,26 @@ async function loadSuspensionStatus(userId) {
 }
 
 /**
+ * Finds corresponding user values by their username
+ * Helper function for lifting suspension functionality
+ *
+ * @param {String} labelText - Username of user
+ */
+function getUserDetailValue(labelText) {
+    const labels = document.querySelectorAll('.user-detail-info .user-detail-label');
+
+    for (const label of labels) {
+        const text = label.textContent.trim().replace(/:$/, '');
+        if (text.toLowerCase() === labelText.toLowerCase()) {
+            const value = label.nextElementSibling;
+            return value ? value.textContent.trim() : null;
+        }
+    }
+
+    return null;
+}
+
+/**
  * Update user details panel to show suspension status
  * Displays suspension banner and changes suspend button to lift suspension
  *
@@ -402,7 +422,7 @@ async function updateUserDetailsWithSuspension(userId) {
         if (suspendBtn) {
             suspendBtn.innerHTML = '<i class="fas fa-user-check"></i> Lift Suspension';
             suspendBtn.onclick = function() {
-                const username = document.querySelector('.user-detail-info p:nth-child(2)').textContent.split('@')[1];
+                const username = getUserDetailValue('Username');
                 liftSuspension(userId, username);
             };
         }
