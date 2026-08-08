@@ -78,7 +78,7 @@
                 </div>
                 <div class="trends-panel-chart">
                     <div class="trends-chart-axis-wrap">
-                        <canvas id="overallTrendsAxisChart"></canvas>
+                        <div id="overallTrendsAxisChart" class="trends-chart-axis-labels"></div>
                     </div>
                     <div class="trends-chart-scroll" id="overallTrendsScroll">
                         <div class="trends-chart-inner" id="overallTrendsInner">
@@ -120,7 +120,7 @@
                 </div>
                 <div class="trends-panel-chart">
                     <div class="trends-chart-axis-wrap">
-                        <canvas id="leagueTrendsAxisChart"></canvas>
+                        <div id="leagueTrendsAxisChart" class="trends-chart-axis-labels"></div>
                     </div>
                     <div class="trends-chart-scroll" id="leagueTrendsScroll">
                         <div class="trends-chart-inner" id="leagueTrendsInner">
@@ -429,6 +429,284 @@
     </div><!-- /#statsOverviewView -->
 
     <!-- ================================ -->
+    <!-- COMMUNITY STATISTICS VIEW -->
+    <!-- ================================ -->
+    <div id="statsCommunityView" style="display:none;">
+        {% if not selected_season %}
+
+        <!-- ================================ -->
+        <!-- COMMUNITY EVENT TRENDS (All-Time view only) -->
+        <!-- ================================ -->
+        <section class="stats-section trends-section community-trends-section">
+            <div class="trends-layout">
+
+                <!-- OVERALL EVENT TRENDS PANEL -->
+                <div class="trends-panel">
+                    <div class="trends-panel-header">
+                        <h3>Overall Event Trends</h3>
+                    </div>
+                    <div class="trends-panel-chart">
+                        <div class="trends-chart-axis-wrap">
+                            <div id="communityOverallTrendsAxisChart" class="trends-chart-axis-labels"></div>
+                        </div>
+                        <div class="trends-chart-scroll" id="communityOverallTrendsScroll">
+                            <div class="trends-chart-inner" id="communityOverallTrendsInner">
+                                <canvas id="communityOverallTrendsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="trends-panel-filters">
+                        <div class="filter-box" id="communityOverallStatFilterBox">
+                            <button class="filter-box-btn" onclick="toggleFilterBox('communityOverallStatFilterPanel')">
+                                <span id="communityOverallStatFilterLabel">Total Events</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="filter-box-panel" id="communityOverallStatFilterPanel">
+                                <div class="filter-box-item active" onclick="setCommunityOverallStat('total', this)">Total Events</div>
+                                <div class="filter-box-item filter-box-item--flyout">
+                                    Event Type <i class="fas fa-chevron-right"></i>
+                                    <div class="filter-box-flyout">
+                                        <div class="filter-box-flyout-item" onclick="setCommunityOverallEventType('Match', this)">Match</div>
+                                        <div class="filter-box-flyout-item" onclick="setCommunityOverallEventType('Practice', this)">Practice</div>
+                                        <div class="filter-box-flyout-item" onclick="setCommunityOverallEventType('Tournament', this)">Tournament</div>
+                                        <div class="filter-box-flyout-item" onclick="setCommunityOverallEventType('Event', this)">Event</div>
+                                        <div class="filter-box-flyout-item" onclick="setCommunityOverallEventType('Misc', this)">Misc</div>
+                                    </div>
+                                </div>
+                                <div class="filter-box-item" onclick="setCommunityOverallStat('partnerships', this)">Events with Partnerships</div>
+                                <div class="filter-box-item" onclick="setCommunityOverallStat('scheduled', this)">Scheduled Events</div>
+                            </div>
+                        </div>
+                        <div class="filter-box" id="communityOverallDurationFilterBox">
+                            <button class="filter-box-btn" onclick="toggleFilterBox('communityOverallDurationFilterPanel')">
+                                <span id="communityOverallDurationFilterLabel">All-Time</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="filter-box-panel filter-box-panel--right" id="communityOverallDurationFilterPanel">
+                                <div class="filter-box-item" id="communityOverallDuration2Item" onclick="setCommunityOverallDuration('2', this)">Past 2 Seasons</div>
+                                <div class="filter-box-item" id="communityOverallDuration4Item" onclick="setCommunityOverallDuration('4', this)">Past 4 Seasons</div>
+                                <div class="filter-box-item" id="communityOverallDuration8Item" onclick="setCommunityOverallDuration('8', this)">Past 8 Seasons</div>
+                                <div class="filter-box-item active" onclick="setCommunityOverallDuration('all', this)">All-Time</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TRENDS BY GAME PANEL -->
+                <div class="trends-panel">
+                    <div class="trends-panel-header">
+                        <h3>Trends by Game</h3>
+                    </div>
+                    <div class="trends-panel-chart">
+                        <div class="trends-chart-axis-wrap">
+                            <div id="communityGameTrendsAxisChart" class="trends-chart-axis-labels"></div>
+                        </div>
+                        <div class="trends-chart-scroll" id="communityGameTrendsScroll">
+                            <div class="trends-chart-inner" id="communityGameTrendsInner">
+                                <canvas id="communityGameTrendsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="trends-panel-filters">
+                        <div class="filter-box" id="communityGameFilterBox">
+                            <button class="filter-box-btn" onclick="toggleFilterBox('communityGameFilterPanel')">
+                                <span id="communityGameFilterLabel">{{ statistics.active_games[0].game_title if statistics.active_games else 'Game Filter' }}</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="filter-box-panel" id="communityGameFilterPanel">
+                                {% for game in statistics.active_games %}
+                                <div class="filter-box-item {% if loop.first %}active{% endif %}" onclick="setCommunityGameTrendsGame({{ game.game_id }}, '{{ game.game_title }}', this)">{{ game.game_title }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="filter-box" id="communityGameStatFilterBox">
+                            <button class="filter-box-btn" onclick="toggleFilterBox('communityGameStatFilterPanel')">
+                                <span id="communityGameStatFilterLabel">Total Events</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="filter-box-panel" id="communityGameStatFilterPanel">
+                                <div class="filter-box-item active" onclick="setCommunityGameTrendsStat('total', this)">Total Events</div>
+                                <div class="filter-box-item filter-box-item--flyout">
+                                    Event Type <i class="fas fa-chevron-right"></i>
+                                    <div class="filter-box-flyout">
+                                        <div class="filter-box-flyout-item" onclick="setCommunityGameTrendsEventType('Match', this)">Match</div>
+                                        <div class="filter-box-flyout-item" onclick="setCommunityGameTrendsEventType('Practice', this)">Practice</div>
+                                        <div class="filter-box-flyout-item" onclick="setCommunityGameTrendsEventType('Tournament', this)">Tournament</div>
+                                        <div class="filter-box-flyout-item" onclick="setCommunityGameTrendsEventType('Event', this)">Event</div>
+                                        <div class="filter-box-flyout-item" onclick="setCommunityGameTrendsEventType('Misc', this)">Misc</div>
+                                    </div>
+                                </div>
+                                <div class="filter-box-item" onclick="setCommunityGameTrendsStat('partnerships', this)">Events with Partnerships</div>
+                                <div class="filter-box-item" onclick="setCommunityGameTrendsStat('scheduled', this)">Scheduled Events</div>
+                            </div>
+                        </div>
+                        <div class="filter-box" id="communityGameDurationFilterBox">
+                            <button class="filter-box-btn" onclick="toggleFilterBox('communityGameDurationFilterPanel')">
+                                <span id="communityGameDurationFilterLabel">All-Time</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="filter-box-panel filter-box-panel--right" id="communityGameDurationFilterPanel">
+                                <div class="filter-box-item" id="communityGameDuration2Item" onclick="setCommunityGameTrendsDuration('2', this)">Past 2 Seasons</div>
+                                <div class="filter-box-item" id="communityGameDuration4Item" onclick="setCommunityGameTrendsDuration('4', this)">Past 4 Seasons</div>
+                                <div class="filter-box-item" id="communityGameDuration8Item" onclick="setCommunityGameTrendsDuration('8', this)">Past 8 Seasons</div>
+                                <div class="filter-box-item active" onclick="setCommunityGameTrendsDuration('all', this)">All-Time</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {% endif %}
+
+        <!-- ================================ -->
+        <!-- PARTNERSHIPS -->
+        <!-- ================================ -->
+        <section class="stats-section">
+            <div class="notable-performances community-partnerships">
+                <h3 class="notable-performances-title">Partnerships</h3>
+                <div class="notable-performances-list" id="communityPartnershipsList">
+                    <div class="notable-performance-card">
+                        <span class="notable-performance-season">Season</span>
+                        <div class="notable-performance-avatar"></div>
+                        <div class="notable-performance-info">
+                            <span class="notable-performance-team">Partner Name</span>
+                            <span class="notable-performance-meta">Partnership Detail</span>
+                        </div>
+                    </div>
+                    <div class="notable-performance-card">
+                        <span class="notable-performance-season">Season</span>
+                        <div class="notable-performance-avatar"></div>
+                        <div class="notable-performance-info">
+                            <span class="notable-performance-team">Partner Name</span>
+                            <span class="notable-performance-meta">Partnership Detail</span>
+                        </div>
+                    </div>
+                    <div class="notable-performance-card">
+                        <span class="notable-performance-season">Season</span>
+                        <div class="notable-performance-avatar"></div>
+                        <div class="notable-performance-info">
+                            <span class="notable-performance-team">Partner Name</span>
+                            <span class="notable-performance-meta">Partnership Detail</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================ -->
+        <!-- EVENTS SCORECARD -->
+        <!-- ================================ -->
+        <section class="stats-section">
+            <div class="scorecard-layout events-scorecard-layout">
+
+                <!-- LEFT COLUMN: program-wide event metrics -->
+                <div class="scorecard-column">
+                    <div class="scorecard-box">
+                        <span class="scorecard-box-label">Total Events</span>
+                        <span class="scorecard-box-value">{{ statistics.community_scorecard.total_events }}</span>
+                    </div>
+                    {% if not selected_season %}
+                    <div class="scorecard-box">
+                        <span class="scorecard-box-label">Highest Season{% if statistics.community_scorecard.highest_season_name %} ({{ statistics.community_scorecard.highest_season_name }}){% endif %}</span>
+                        <span class="scorecard-box-value">{{ statistics.community_scorecard.highest_season_event_count }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="scorecard-box">
+                        <span class="scorecard-box-label">Scheduled Events</span>
+                        <span class="scorecard-box-value">{{ statistics.community_scorecard.total_scheduled_events }}</span>
+                    </div>
+
+                    <div class="scorecard-table">
+                        <div class="scorecard-table-row row-tournament" title="Total Tournament events recorded">
+                            <span>Tournament</span><span>{{ statistics.community_scorecard.events_by_type.Tournament }}</span>
+                        </div>
+                        <div class="scorecard-table-row row-match" title="Total Match events recorded">
+                            <span>Match</span><span>{{ statistics.community_scorecard.events_by_type.Match }}</span>
+                        </div>
+                        <div class="scorecard-table-row row-practice" title="Total Practice events recorded">
+                            <span>Practice</span><span>{{ statistics.community_scorecard.events_by_type.Practice }}</span>
+                        </div>
+                        <div class="scorecard-table-row row-event-type" title="Total Event-type events recorded">
+                            <span>Event</span><span>{{ statistics.community_scorecard.events_by_type.Event }}</span>
+                        </div>
+                        <div class="scorecard-table-row row-misc" title="Total Misc events recorded">
+                            <span>Misc</span><span>{{ statistics.community_scorecard.events_by_type.Misc }}</span>
+                        </div>
+                    </div>
+
+                    {% if not selected_season %}
+                    <div class="scorecard-subheading">Avg / Season</div>
+                    <div class="scorecard-table">
+                        <div class="scorecard-table-row row-tournament" title="Average Tournament events per season">
+                            <span>Tournament</span><span>{{ statistics.community_scorecard.avg_events_by_type.Tournament }}</span>
+                        </div>
+                        <div class="scorecard-table-row row-match" title="Average Match events per season">
+                            <span>Match</span><span>{{ statistics.community_scorecard.avg_events_by_type.Match }}</span>
+                        </div>
+                        <div class="scorecard-table-row row-practice" title="Average Practice events per season">
+                            <span>Practice</span><span>{{ statistics.community_scorecard.avg_events_by_type.Practice }}</span>
+                        </div>
+                        <div class="scorecard-table-row row-event-type" title="Average Event-type events per season">
+                            <span>Event</span><span>{{ statistics.community_scorecard.avg_events_by_type.Event }}</span>
+                        </div>
+                        <div class="scorecard-table-row row-misc" title="Average Misc events per season">
+                            <span>Misc</span><span>{{ statistics.community_scorecard.avg_events_by_type.Misc }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- RIGHT SIDE: per-division panels, bars = games in that division -->
+                <div class="scorecard-panels">
+                    {% if statistics.community_division_breakdown %}
+                    {% for division in statistics.community_division_breakdown %}
+                    <div class="league-panel division-panel">
+                        <div class="league-panel-table">
+                            <div class="league-panel-name">{{ division.division_name }}</div>
+                            {% for game in division.games %}
+                            <div class="league-panel-row row-color-{{ loop.index0 % 6 + 1 }}">
+                                <span>{{ game.game_title }}</span><span>{{ game.event_count }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="league-panel-chart">
+                            <canvas id="divisionChart{{ loop.index }}"></canvas>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-chart-bar"></i>
+                        <p>No community event data available for this period</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================ -->
+        <!-- EXPORT ACTIONS -->
+        <!-- ================================ -->
+        <section class="stats-section">
+            <div class="export-actions">
+                <h2>Export Options</h2>
+                <div class="export-buttons">
+                    <button class="btn btn-primary" onclick="exportToExcel()">
+                        <i class="fas fa-file-excel"></i> <span class="export-label-full">Export to Excel</span><span class="export-label-short">Excel</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportToPDF()">
+                        <i class="fas fa-file-pdf"></i> <span class="export-label-full">Export to PDF</span><span class="export-label-short">PDF</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="printStatistics()">
+                        <i class="fas fa-print"></i> <span class="export-label-full">Print Report</span><span class="export-label-short">Print</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div><!-- /#statsCommunityView -->
+
+    <!-- ================================ -->
     <!-- PER-GAME DETAIL VIEW -->
     <!-- ================================ -->
     <div id="statsGameView" style="display:none;">
@@ -436,6 +714,13 @@
             <h2 id="gameViewTitle">
                 <span class="game-view-title-icon"><i class="fas fa-gamepad"></i></span> <span id="gameViewTitleText"></span>
             </h2>
+
+            <!-- Shown while a game's competitive stats are being fetched, in place
+                 of the (possibly stale) previous game's table/cards -->
+            <div id="gameStatsLoading" class="game-stats-card-loading" style="display:none;">
+                <i class="fas fa-spinner fa-spin"></i> Loading stats...
+            </div>
+
             <div id="gameStatsTableWrap" class="game-stats-table-wrap">
                 <table class="game-stats-table">
                     <thead>
@@ -458,6 +743,113 @@
                 <!-- Cards injected by renderGameStatsTable() for mobile view -->
             </div>
         </section>
+    </div>
+
+    <!-- ================================ -->
+    <!-- PER-GAME COMMUNITY DETAIL VIEW -->
+    <!-- ================================ -->
+    <div id="statsGameCommunityView" style="display:none;">
+        <section class="stats-section">
+            <h2 id="communityGameViewTitle">
+                <span class="game-view-title-icon"><i class="fas fa-gamepad"></i></span> <span id="communityGameViewTitleText"></span>
+            </h2>
+        </section>
+
+        <!-- Shown while a game's community stats are being fetched, in place
+             of the (possibly stale) previous game's content -->
+        <div id="communityGameLoading" class="game-stats-card-loading" style="display:none;">
+            <i class="fas fa-spinner fa-spin"></i> Loading stats...
+        </div>
+
+        <div id="communityGameContent">
+        <section class="stats-section">
+
+            <!-- PARTNERSHIPS (same form as the Community overview tab, scoped to this game/season) -->
+            <div class="notable-performances community-game-partnerships">
+                <div class="notable-performances-list" id="communityGamePartnershipsList">
+                    <div class="notable-performance-card">
+                        <span class="notable-performance-season">Season</span>
+                        <div class="notable-performance-avatar"></div>
+                        <div class="notable-performance-info">
+                            <span class="notable-performance-team">Partner Name</span>
+                            <span class="notable-performance-meta">Partnership Detail</span>
+                        </div>
+                    </div>
+                    <div class="notable-performance-card">
+                        <span class="notable-performance-season">Season</span>
+                        <div class="notable-performance-avatar"></div>
+                        <div class="notable-performance-info">
+                            <span class="notable-performance-team">Partner Name</span>
+                            <span class="notable-performance-meta">Partnership Detail</span>
+                        </div>
+                    </div>
+                    <div class="notable-performance-card">
+                        <span class="notable-performance-season">Season</span>
+                        <div class="notable-performance-avatar"></div>
+                        <div class="notable-performance-info">
+                            <span class="notable-performance-team">Partner Name</span>
+                            <span class="notable-performance-meta">Partnership Detail</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- EVENTS BY TYPE (same design as a single league-panel-row) -->
+        <section class="stats-section">
+            <div class="scorecard-panels community-game-scorecard-panels">
+                <div class="league-panel">
+                    <div class="league-panel-table">
+                        <div class="league-panel-name">Events by Type</div>
+                        <div class="league-panel-row row-tournament">
+                            <span>Tournament</span><span id="communityGameCountTournament">0</span>
+                        </div>
+                        <div class="league-panel-row row-match">
+                            <span>Match</span><span id="communityGameCountMatch">0</span>
+                        </div>
+                        <div class="league-panel-row row-practice">
+                            <span>Practice</span><span id="communityGameCountPractice">0</span>
+                        </div>
+                        <div class="league-panel-row row-event-type">
+                            <span>Event</span><span id="communityGameCountEvent">0</span>
+                        </div>
+                        <div class="league-panel-row row-misc">
+                            <span>Misc</span><span id="communityGameCountMisc">0</span>
+                        </div>
+                    </div>
+                    <div class="league-panel-chart">
+                        <canvas id="communityGameEventTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FULL EVENT LIST (same table/card + season-collapse functionality as the Competitive game tab) -->
+        <section class="stats-section">
+            <h3 class="notable-performances-title" id="communityGameEventsTitle">All Events (0)</h3>
+            <div id="communityGameEventsTableWrap" class="game-stats-table-wrap">
+                <table class="game-stats-table">
+                    <thead>
+                        <tr>
+                            <th>Event Name</th>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Start Time</th>
+                            <th>Associated Games</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="communityGameEventsTableBody">
+                        <!-- Rows injected by renderCommunityGameEventsList() -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="communityGameEventsCardsWrap" class="game-stats-cards-wrap">
+                <!-- Cards injected by renderCommunityGameEventsList() for mobile view -->
+            </div>
+        </section>
+        </div><!-- /#communityGameContent -->
     </div>
 </div>
 
