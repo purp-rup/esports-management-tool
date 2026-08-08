@@ -334,10 +334,49 @@ function renderEvents(events, isAdmin, isGm) {
     setElementDisplay(emptyStateDiv, 'none');
 }
 
+// Check if event has already passed
+function isEventPast(event) {
+    if (!event.date_raw) return false;
+
+    let endTime = event.end_time_raw || event.start_time_raw || '23:59';
+
+    // Only append ':00' if the time format is strictly HH:MM
+    if (endTime.split(':').length === 2) {
+        endTime += ':00';
+    }
+
+    const endDateTime = new Date(`${event.date_raw}T${endTime}`);
+
+    if (isNaN(endDateTime.getTime())) return false;
+
+    return endDateTime.getTime() < Date.now();
+}
+
+function isTimeOngoing(event) {
+    if (!event.date_raw || !event.start_time_raw || !event.end_time_raw) return false;
+
+    let startTime = event.start_time_raw;
+    if (startTime.split(':').length === 2) startTime += ':00';
+
+    let endTime = event.end_time_raw;
+    if (endTime.split(':').length === 2) endTime += ':00';
+
+    const startDateTime = new Date(`${event.date_raw}T${startTime}`).getTime();
+    const endDateTime = new Date(`${event.date_raw}T${endTime}`).getTime();
+    const now = Date.now();
+
+    if (isNaN(startDateTime) || isNaN(endDateTime)) return false;
+
+    return now >= startDateTime && now < endDateTime;
+}
+
 // Builds individual event cards
 function createEventCard(event, isAdmin, isGm) {
     const canDelete = canUserDeleteEvent(event);
-    const ongoingIndicator = event.is_ongoing
+
+    const isCurrentlyLive = event.is_ongoing || isTimeOngoing(event);
+
+    const ongoingIndicator = isCurrentlyLive
         ? '<div class="event-ongoing-indicator" title="Event is currently ongoing"></div>'
         : '';
 
@@ -346,16 +385,23 @@ function createEventCard(event, isAdmin, isGm) {
     const scheduledClass = event.is_scheduled ? 'scheduled-event' : '';
     const timeDisplay = event.start_time ? event.start_time : '';
 
+    let dateStatusClass = '';
+    if (isCurrentlyLive) {
+        dateStatusClass = 'event-card-date--ongoing';
+    } else if (isEventPast(event)) {
+        dateStatusClass = 'event-card-date--past';
+    }
+
     return `
-        <div class="event-card ${scheduledClass}" data-event-type="${eventTypeClass}" data-event-id="${event.id}" ...>
+        <div class="event-card ${scheduledClass}" data-event-type="${eventTypeClass}" data-event-id="${event.id}">
             ${ongoingIndicator}
             <div class="event-card-top">
                 <span class="event-card-name">${event.name}</span>
                 <span class="event-card-game">${gameDisplay}</span>
             </div>
             <div class="event-card-bottom">
-                <span class="event-card-date"><i class="fas fa-calendar"></i>${event.date}</span>
-                ${timeDisplay ? `<span class="event-card-time">${timeDisplay}</span>` : ''}
+                <span class="event-card-date ${dateStatusClass}"><i class="fas fa-calendar"></i>${event.date}</span>
+                ${timeDisplay ? `<span class="event-card-time ${dateStatusClass}">${timeDisplay}</span>` : ''}
             </div>
         </div>
     `;

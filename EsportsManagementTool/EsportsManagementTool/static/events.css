@@ -121,7 +121,7 @@
 .events-detail-banner-actions {
     position: absolute;
     top: 0.5rem;
-    right: 0;
+    right: 0.5rem;
     display: flex;
     gap: 0.4rem;
     opacity: 0;
@@ -416,6 +416,19 @@ textarea.panel-edit-input {
     width: 12px;
 }
 
+.event-card-date--past,
+.event-card-date--past i {
+    color: #F28A8A;
+    opacity: 1;
+}
+
+.event-card-date--ongoing,
+.event-card-date--ongoing i,
+.event-card-time.event-card-date--ongoing {
+    color: #4dc66e;
+    opacity: 1;
+}
+
 .event-card-time {
     font-variant-numeric: tabular-nums;
     color: var(--text-primary);
@@ -542,6 +555,10 @@ textarea.panel-edit-input {
     background-color: #1e1e2f;
     border-radius: 10px;
     color: white;
+}
+
+.events-detail-panel .notification-opt-in {
+    width: 100%;
 }
 
 .notification-info {

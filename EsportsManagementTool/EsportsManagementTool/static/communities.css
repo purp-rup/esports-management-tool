@@ -953,12 +953,14 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    text-decoration: none;
 }
 
 .community-discord-box:hover {
     border-color: #5865F2;
     background: rgba(88, 101, 242, 0.1);
     transform: translateY(-1px);
+    text-decoration: none;
 }
 
 .community-discord-icon {
@@ -980,6 +982,7 @@
     line-height: 1.2;
     color: var(--text-secondary);
     letter-spacing: 0.05em;
+    text-decoration: none;
 }
 
 /* -- Next Scheduled Event Card -- */

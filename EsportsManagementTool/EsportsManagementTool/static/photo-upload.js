@@ -47,20 +47,19 @@ function openImageCropper(file, context = null) {
     const reader = new FileReader();
     reader.onload = (e) => {
         const imageElement = document.getElementById('imageToCrop');
-        imageElement.src = e.target.result;
 
         modal.style.display = 'flex';
         lockBodyScroll('imageCropperModal');
 
         // Initialize Cropper.js after a short delay to ensure image is loaded
-        setTimeout(() => {
+        imageElement.onload = () => {
             if (cropper) {
                 cropper.destroy();
             }
 
             cropper = new Cropper(imageElement, {
                 aspectRatio: currentImageField === 'banner'   ? 16 / 5  :
-                             currentImageField === 'gallery' ? 16 / 9  : 1,
+                             (currentImageField === 'gallery' || currentImageField === 'carousel') ? 16 / 9  : 1,
                 viewMode: 1,
                 dragMode: 'move',
                 autoCropArea: 0.8,
@@ -72,7 +71,9 @@ function openImageCropper(file, context = null) {
                 cropBoxResizable: true,
                 toggleDragModeOnDblclick: false,
             });
-        }, 100);
+        };
+
+        imageElement.src = e.target.result;
     };
     reader.readAsDataURL(file);
 }
@@ -151,6 +152,7 @@ function applyCrop() {
             handleBannerCrop(cropSettings);
             break;
         case 'gallery':
+        case 'carousel':
             handleGalleryCrop(cropSettings);
             break;
         default:
@@ -246,6 +248,8 @@ function handleBannerCrop(settings) {
 
                     const btn = document.querySelector('.banner-upload-btn');
                     if (btn) btn.innerHTML = '<i class="fas fa-camera"></i> Change Banner';
+
+                    showDeleteSuccessMessage('Banner updated successfully!');
                 } else {
                     alert('Banner upload failed: ' + data.message);
                 }
@@ -288,6 +292,7 @@ function handleGalleryCrop(settings) {
                         carouselPhotos.push(data.photo);
                         carouselIndex = carouselPhotos.length - 1;
                         renderCarousel();
+                        showDeleteSuccessMessage('Photo uploaded successfully!');
                     } else {
                         onLandingPhotoUploaded(data.photo);
                     }
