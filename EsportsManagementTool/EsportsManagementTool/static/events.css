@@ -418,7 +418,14 @@ textarea.panel-edit-input {
 
 .event-card-date--past,
 .event-card-date--past i {
-    color: #ef4444;
+    color: #F28A8A;
+    opacity: 1;
+}
+
+.event-card-date--ongoing,
+.event-card-date--ongoing i,
+.event-card-time.event-card-date--ongoing {
+    color: #4dc66e;
     opacity: 1;
 }
 
