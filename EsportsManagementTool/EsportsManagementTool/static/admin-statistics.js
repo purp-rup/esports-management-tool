@@ -45,242 +45,46 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================================
-// SEASON FILTERING
+// VIEW STATE & NAVIGATION
 // ============================================
+// Tracks which top-level tab (Competitive/Community) is active, so the
+// floating game tabs know which per-game view to render.
+let currentStatsView = 'competitive';
 
-// Reloads the page with the selected season as a query param
-function filterBySeason(seasonId) {
-    window.location.href = seasonId
-        ? `/admin/statistics?season_id=${seasonId}`
-        : '/admin/statistics?season_id=all';
-}
+// Guards so community charts/carousels only render once, the first time their tab is opened
+let communityChartsInitialized = false;
+let communityTrendsChartsRendered = false;
 
-// ============================================
-// CHART INITIALIZATION
-// ============================================
+// Toggles the Competitive / Community view tabs and swaps the corresponding content containers.
+function switchStatsView(view, btnEl) {
+    document.querySelectorAll('.stats-view-tabs .tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    btnEl.classList.add('active');
+    currentStatsView = view;
 
-/**
- * Shared look for the standard bar charts (league cards, division panels,
- * per-game event-type chart): flat bars, no legend, dark tooltip, muted
- * axis labels. Pass overrides for anything chart-specific — they get
- * shallow-merged over the defaults.
- */
-function buildBarChartOptions(overrides = {}) {
-    return {
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: { padding: { top: 10 } },
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                padding: 12,
-                titleFont: { size: 14 },
-                bodyFont: { size: 13 }
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: { color: '#9ca3af', font: { size: 11 } },
-                grid: { color: 'rgba(156, 163, 175, 0.1)' }
-            },
-            x: {
-                ticks: { color: '#9ca3af', font: { size: 10 }, maxRotation: 45, minRotation: 45 },
-                grid: { display: false }
-            }
-        },
-        ...overrides
-    };
-}
-
-// Initialize bar charts for each league
-function initializeLeagueCharts() {
-    if (!window.statisticsData || !window.statisticsData.league_breakdown) {
-        console.log('No league data available for charts');
-        return;
-    }
-    
-    const leagues = window.statisticsData.league_breakdown;
-    
-    leagues.forEach((league, index) => {
-        const canvasId = `leagueChart${index + 1}`;
-        const canvas = document.getElementById(canvasId);
-        
-        if (!canvas) {
-            console.warn(`Canvas ${canvasId} not found`);
-            return;
+    if (view === 'community') {
+        if (!communityChartsInitialized) {
+            communityChartsInitialized = true;
+            partnershipsCarousel.init(window.statisticsData && window.statisticsData.community_partnerships);
+            initializeDivisionCharts();
         }
-        
-        const ctx = canvas.getContext('2d');
-        
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: [
-                    'Unique Players',
-                    'Unique Esports',
-                    'Community Members',
-                    'Fielded Players',
-                    'Unique Teams'
-                ],
-                datasets: [{
-                    label: league.league_name || 'No League',
-                    data: [
-                        league.unique_players,
-                        league.unique_esports,
-                        league.community_members,
-                        league.fielded_players,
-                        league.unique_teams
-                    ],
-                    backgroundColor: [
-                        'rgba(121, 189, 233, 0.7)',
-                        'rgba(76, 175, 80, 0.7)',
-                        'rgba(255, 152, 0, 0.7)',
-                        'rgba(156, 39, 176, 0.7)',
-                        'rgba(244, 67, 54, 0.7)'
-                    ],
-                    borderColor: [
-                        'rgba(121, 189, 233, 1)',
-                        'rgba(76, 175, 80, 1)',
-                        'rgba(255, 152, 0, 1)',
-                        'rgba(156, 39, 176, 1)',
-                        'rgba(244, 67, 54, 1)'
-                    ],
-                    borderWidth: 2
-                }]
-            },
-            options: buildBarChartOptions()
-       });
-    });
-}
-
-// Fixed palette cycled by bar index, matches COMMUNITY_TREND_COLORS.type
-// where possible so game bars stay visually distinct within a panel.
-const DIVISION_CHART_PALETTE = [
-    { bg: 'rgba(121, 189, 233, 0.7)', border: 'rgba(121, 189, 233, 1)' },
-    { bg: 'rgba(167, 139, 250, 0.7)', border: 'rgba(167, 139, 250, 1)' },
-    { bg: 'rgba(134, 239, 172, 0.7)', border: 'rgba(134, 239, 172, 1)' },
-    { bg: 'rgba(250, 204, 21, 0.7)', border: 'rgba(250, 204, 21, 1)' },
-    { bg: 'rgba(252, 165, 165, 0.7)', border: 'rgba(252, 165, 165, 1)' },
-    { bg: 'rgba(147, 197, 253, 0.7)', border: 'rgba(147, 197, 253, 1)' }
-];
-
-/**
- * One bar chart per division panel on the Community Events Scorecard —
- * bars are that division's games, values are each game's event count.
- */
-function initializeDivisionCharts() {
-    if (!window.statisticsData || !window.statisticsData.community_division_breakdown) {
-        console.log('No community division data available for charts');
-        return;
     }
 
-    const divisions = window.statisticsData.community_division_breakdown;
+    // Re-render whichever floating tab (Overview or a specific game) is
+    // currently selected so it reflects the newly active Competitive/Community view
+    const activeTab = document.querySelector('.stats-floating-tab.active');
+    const gameId = activeTab ? activeTab.dataset.game : 'overview';
 
-    divisions.forEach((division, index) => {
-        const canvasId = `divisionChart${index + 1}`;
-        const canvas = document.getElementById(canvasId);
-
-        if (!canvas) {
-            console.warn(`Canvas ${canvasId} not found`);
-            return;
-        }
-
-        const ctx = canvas.getContext('2d');
-        const games = division.games || [];
-
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: games.map(g => g.game_abbreviation),
-                datasets: [{
-                    label: division.division_name,
-                    data: games.map(g => g.event_count),
-                    backgroundColor: games.map((g, i) => DIVISION_CHART_PALETTE[i % DIVISION_CHART_PALETTE.length].bg),
-                    borderColor: games.map((g, i) => DIVISION_CHART_PALETTE[i % DIVISION_CHART_PALETTE.length].border),
-                    borderWidth: 2
-                }]
-            },
-            options: buildBarChartOptions()
-        });
-    });
-}
-
-/**
- * Set up left/right pan arrows for the floating game tabs strip.
- * Arrows only appear when the tabs overflow the visible track width.
- */
-function initStatsFloatingTabs() {
-    const track = document.getElementById('statsFloatingTabsTrack');
-    const leftArrow = document.getElementById('statsFloatingTabsArrowLeft');
-    const rightArrow = document.getElementById('statsFloatingTabsArrowRight');
-
-    // Wire up each floating tab (Overview + per-game) to switch views
-    document.querySelectorAll('.stats-floating-tab').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.stats-floating-tab').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            const gameId = btn.dataset.game;
-            if (gameId === 'overview') {
-                showOverviewView();
-            } else if (currentStatsView === 'community') {
-                showCommunityGameView(gameId, btn.querySelector('.stats-floating-tab-label').textContent, btn.dataset.icon);
-            } else {
-                showGameView(gameId, btn.querySelector('.stats-floating-tab-label').textContent, btn.dataset.icon);
-            }
-        });
-    });
-
-    if (!track || !leftArrow || !rightArrow) return;
-
-    function updateArrows() {
-        const maxScroll = track.scrollWidth - track.clientWidth;
-        leftArrow.style.display = track.scrollLeft > 4 ? 'flex' : 'none';
-        rightArrow.style.display = track.scrollLeft < maxScroll - 4 ? 'flex' : 'none';
-    }
-
-    leftArrow.addEventListener('click', () => {
-        track.scrollBy({ left: -220, behavior: 'smooth' });
-    });
-
-    rightArrow.addEventListener('click', () => {
-        track.scrollBy({ left: 220, behavior: 'smooth' });
-    });
-
-    track.addEventListener('scroll', updateArrows);
-    window.addEventListener('resize', updateArrows);
-
-    updateArrows();
-
-    // Hide the tab bar once the user scrolls near the bottom of the page,
-    // so it doesn't sit on top of the footer.
-    const wrapper = document.querySelector('.stats-floating-tabs-wrapper');
-    if (wrapper) {
-        const BOTTOM_THRESHOLD = 100; // px from the true bottom before hiding
-
-        function updateWrapperVisibility() {
-            const distanceFromBottom =
-                document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
-
-            if (distanceFromBottom < BOTTOM_THRESHOLD) {
-                wrapper.classList.add('stats-floating-tabs-hidden');
-            } else {
-                wrapper.classList.remove('stats-floating-tabs-hidden');
-            }
-        }
-
-        window.addEventListener('scroll', updateWrapperVisibility);
-        window.addEventListener('resize', updateWrapperVisibility);
-
-        updateWrapperVisibility();
+    if (gameId === 'overview') {
+        showOverviewView();
+    } else if (view === 'community') {
+        showCommunityGameView(gameId, activeTab.querySelector('.stats-floating-tab-label').textContent, activeTab.dataset.icon);
+    } else {
+        showGameView(gameId, activeTab.querySelector('.stats-floating-tab-label').textContent, activeTab.dataset.icon);
     }
 }
 
-// ============================================
-// PER-GAME DETAIL VIEW
-// ============================================
 function showOverviewView() {
     document.getElementById('statsGameView').style.display = 'none';
     document.getElementById('statsGameCommunityView').style.display = 'none';
@@ -379,6 +183,785 @@ function showCommunityGameView(gameId, gameTitle, gameIconUrl) {
         });
 }
 
+/**
+ * Set up left/right pan arrows for the floating game tabs strip.
+ * Arrows only appear when the tabs overflow the visible track width.
+ */
+function initStatsFloatingTabs() {
+    const track = document.getElementById('statsFloatingTabsTrack');
+    const leftArrow = document.getElementById('statsFloatingTabsArrowLeft');
+    const rightArrow = document.getElementById('statsFloatingTabsArrowRight');
+
+    // Wire up each floating tab (Overview + per-game) to switch views
+    document.querySelectorAll('.stats-floating-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.stats-floating-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const gameId = btn.dataset.game;
+            if (gameId === 'overview') {
+                showOverviewView();
+            } else if (currentStatsView === 'community') {
+                showCommunityGameView(gameId, btn.querySelector('.stats-floating-tab-label').textContent, btn.dataset.icon);
+            } else {
+                showGameView(gameId, btn.querySelector('.stats-floating-tab-label').textContent, btn.dataset.icon);
+            }
+        });
+    });
+
+    if (!track || !leftArrow || !rightArrow) return;
+
+    function updateArrows() {
+        const maxScroll = track.scrollWidth - track.clientWidth;
+        leftArrow.style.display = track.scrollLeft > 4 ? 'flex' : 'none';
+        rightArrow.style.display = track.scrollLeft < maxScroll - 4 ? 'flex' : 'none';
+    }
+
+    leftArrow.addEventListener('click', () => {
+        track.scrollBy({ left: -220, behavior: 'smooth' });
+    });
+
+    rightArrow.addEventListener('click', () => {
+        track.scrollBy({ left: 220, behavior: 'smooth' });
+    });
+
+    track.addEventListener('scroll', updateArrows);
+    window.addEventListener('resize', updateArrows);
+
+    updateArrows();
+
+    // Hide the tab bar once the user scrolls near the bottom of the page,
+    // so it doesn't sit on top of the footer.
+    const wrapper = document.querySelector('.stats-floating-tabs-wrapper');
+    if (wrapper) {
+        const BOTTOM_THRESHOLD = 100; // px from the true bottom before hiding
+
+        function updateWrapperVisibility() {
+            const distanceFromBottom =
+                document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+
+            if (distanceFromBottom < BOTTOM_THRESHOLD) {
+                wrapper.classList.add('stats-floating-tabs-hidden');
+            } else {
+                wrapper.classList.remove('stats-floating-tabs-hidden');
+            }
+        }
+
+        window.addEventListener('scroll', updateWrapperVisibility);
+        window.addEventListener('resize', updateWrapperVisibility);
+
+        updateWrapperVisibility();
+    }
+}
+
+// ============================================
+// SEASON FILTERING
+// ============================================
+// Reloads the page with the selected season as a query param
+function filterBySeason(seasonId) {
+    window.location.href = seasonId
+        ? `/admin/statistics?season_id=${seasonId}`
+        : '/admin/statistics?season_id=all';
+}
+
+// ============================================
+// CHART HELPERS (SHARED)
+// ============================================
+/**
+ * Shared look for the standard bar charts (league cards, division panels,
+ * per-game event-type chart): flat bars, no legend, dark tooltip, muted
+ * axis labels. Pass overrides for anything chart-specific — they get
+ * shallow-merged over the defaults.
+ */
+function buildBarChartOptions(overrides = {}) {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 10 } },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                padding: 12,
+                titleFont: { size: 14 },
+                bodyFont: { size: 13 }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { color: '#9ca3af', font: { size: 11 } },
+                grid: { color: 'rgba(156, 163, 175, 0.1)' }
+            },
+            x: {
+                ticks: { color: '#9ca3af', font: { size: 10 }, maxRotation: 45, minRotation: 45 },
+                grid: { display: false }
+            }
+        },
+        ...overrides
+    };
+}
+
+// Chart.js instances for each trends panel, keyed by panel name
+const trendsChartInstances = {
+    overall: { main: null, axis: null },
+    league: { main: null, axis: null },
+    communityOverall: { main: null, axis: null },
+    communityGame: { main: null, axis: null }
+};
+
+/**
+ * Draws y-axis labels into the frozen overlay using the chart's own
+ * computed tick positions, so they can't drift out of sync with the bars.
+ */
+function syncFrozenAxisLabels(chart, axisEl) {
+    if (!axisEl) return;
+    axisEl.innerHTML = '';
+
+    const yScale = chart.scales.y;
+    const LABEL_HALF_HEIGHT = 7; // ~half the label's own line-height at 11px font
+
+    yScale.ticks.forEach(tick => {
+        const pixel = yScale.getPixelForValue(tick.value);
+        // Clamp so a centered label can never render above the visible box,
+        // no matter what the chart's own layout padding works out to.
+        const safeTop = Math.max(pixel, LABEL_HALF_HEIGHT);
+
+        const label = document.createElement('div');
+        label.className = 'trends-chart-axis-label';
+        label.style.top = `${safeTop}px`;
+        label.textContent = tick.label ?? tick.value;
+        axisEl.appendChild(label);
+    });
+}
+
+// Render a trend chart based on provided data and applied filters
+function renderTrendsChart(key, elIds, data, statKey, statLabel, color) {
+    const canvas = document.getElementById(elIds.canvas);
+    const axisEl = document.getElementById(elIds.axisCanvas);
+    const scrollWrap = document.getElementById(elIds.scrollWrap);
+    const innerWrap = document.getElementById(elIds.innerWrap);
+    if (!canvas) return;
+
+    const labels = data.map(d => d.season_name);
+    const values = data.map(d => d[statKey]);
+
+    const MIN_VISIBLE_BARS = 4;
+    const needsScroll = data.length > MIN_VISIBLE_BARS;
+
+    const viewportWidth = scrollWrap ? scrollWrap.clientWidth : 0;
+    const pxPerBar = viewportWidth > 0 ? viewportWidth / MIN_VISIBLE_BARS : 90;
+
+    innerWrap.style.width = needsScroll ? `${data.length * pxPerBar}px` : '100%';
+
+    const maxValue = values.length ? Math.max(...values) : 0;
+    const yMax = maxValue > 0 ? Math.ceil(maxValue * 1.2) : 5;
+
+    // Widen the frozen axis strip to fit however many digits the largest tick label needs.
+    const axisWrap = axisEl ? axisEl.closest('.trends-chart-axis-wrap') : null;
+    const digitCount = String(yMax).length;
+    const axisWidth = Math.max(42, 26 + digitCount * 9);
+    if (axisWrap) axisWrap.style.width = `${axisWidth}px`;
+    if (scrollWrap) scrollWrap.style.paddingLeft = `${axisWidth}px`;
+
+    const instances = trendsChartInstances[key];
+    if (instances.main) {
+        instances.main.destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+    instances.main = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: statLabel,
+                data: values,
+                backgroundColor: color.bg,
+                borderColor: color.border,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        size: 14
+                    },
+                    bodyFont: {
+                        size: 13
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 0,
+                    max: yMax,
+                    ticks: {
+                        display: false, // drawn separately in the frozen overlay
+                        precision: 0,
+                        maxTicksLimit: 6
+                    },
+                    grid: {
+                        color: 'rgba(156, 163, 175, 0.1)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: '#9ca3af',
+                        font: {
+                            size: 10
+                        }
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        },
+        plugins: [{
+            id: 'frozenAxisSync',
+            afterUpdate: (chart) => syncFrozenAxisLabels(chart, axisEl)
+        }]
+    });
+
+    if (needsScroll && scrollWrap) {
+        requestAnimationFrame(() => {
+            scrollWrap.scrollLeft = scrollWrap.scrollWidth;
+        });
+    }
+}
+
+/**
+ * Shared behavior behind every trends filter dropdown: mark the clicked
+ * item active (clearing both plain and flyout items in its panel), update
+ * the visible label, close the open panel, and re-render the chart.
+ */
+function applyTrendsFilter({ labelId, panelId, label, el, apply, render }) {
+    apply();
+    document.getElementById(labelId).textContent = label;
+    document.querySelectorAll(`#${panelId} .filter-box-item`).forEach(item => item.classList.remove('active'));
+    document.querySelectorAll(`#${panelId} .filter-box-flyout-item`).forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+    closeAllFilterPanels();
+    render();
+}
+
+/**
+ * Builds a "{oldest season in range} - Now" label for the past-N-seasons
+ * duration options, based on the shared program_trends season list.
+ */
+function formatDurationRangeLabel(n) {
+    const allData = (window.statisticsData && window.statisticsData.program_trends) || [];
+    const slice = allData.slice(-n);
+    if (!slice.length) {
+        return `Past ${n} Seasons`;
+    }
+    return `${slice[0].season_name} - Now`;
+}
+
+/**
+ * Fill in the "past 2"/"past 4" filter option text with real season
+ * ranges once statisticsData is available, and hide either option
+ * entirely if the program doesn't have enough seasons of history yet
+ * to fill it (e.g. hide "Past 4 Seasons" if only 3 seasons exist).
+ */
+function initializeTrendsDurationLabels() {
+    const totalSeasons = ((window.statisticsData && window.statisticsData.program_trends) || []).length;
+    const panelPrefixes = ['overall', 'league', 'communityOverall', 'communityGame'];
+
+    [2, 4, 8].forEach(n => {
+        const label = formatDurationRangeLabel(n);
+        panelPrefixes.forEach(prefix => {
+            const el = document.getElementById(`${prefix}Duration${n}Item`);
+            if (!el) return;
+            el.textContent = label;
+            el.style.display = totalSeasons < n ? 'none' : '';
+        });
+    });
+}
+
+// ============================================
+// COMPETITIVE CHARTS
+// ============================================
+// Initialize bar charts for each league
+function initializeLeagueCharts() {
+    if (!window.statisticsData || !window.statisticsData.league_breakdown) {
+        console.log('No league data available for charts');
+        return;
+    }
+
+    const leagues = window.statisticsData.league_breakdown;
+
+    leagues.forEach((league, index) => {
+        const canvasId = `leagueChart${index + 1}`;
+        const canvas = document.getElementById(canvasId);
+
+        if (!canvas) {
+            console.warn(`Canvas ${canvasId} not found`);
+            return;
+        }
+
+        const ctx = canvas.getContext('2d');
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [
+                    'Unique Players',
+                    'Unique Esports',
+                    'Community Members',
+                    'Fielded Players',
+                    'Unique Teams'
+                ],
+                datasets: [{
+                    label: league.league_name || 'No League',
+                    data: [
+                        league.unique_players,
+                        league.unique_esports,
+                        league.community_members,
+                        league.fielded_players,
+                        league.unique_teams
+                    ],
+                    backgroundColor: [
+                        'rgba(121, 189, 233, 0.7)',
+                        'rgba(76, 175, 80, 0.7)',
+                        'rgba(255, 152, 0, 0.7)',
+                        'rgba(156, 39, 176, 0.7)',
+                        'rgba(244, 67, 54, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgba(121, 189, 233, 1)',
+                        'rgba(76, 175, 80, 1)',
+                        'rgba(255, 152, 0, 1)',
+                        'rgba(156, 39, 176, 1)',
+                        'rgba(244, 67, 54, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: buildBarChartOptions()
+       });
+    });
+}
+
+// --- Overall Trends (All-Time view) ---
+let overallTrendsStat = 'players';
+let overallTrendsDuration = 'all';
+const TRENDS_STAT_LABELS = {
+    players: 'Players',
+    teams: 'Teams',
+    playoffs: 'Playoff Qualifications'
+};
+const TRENDS_STAT_KEYS = {
+    players: 'unique_players',
+    teams: 'unique_teams',
+    playoffs: 'playoff_qualified'
+};
+const TRENDS_STAT_COLORS = {
+    players: { bg: 'rgba(121, 189, 233, 0.7)', border: 'rgba(121, 189, 233, 1)' },
+    teams: { bg: 'rgba(244, 67, 54, 0.7)', border: 'rgba(244, 67, 54, 1)' },
+    playoffs: { bg: 'rgba(79, 172, 254, 0.7)', border: 'rgba(79, 172, 254, 1)' }
+};
+
+// program_trends is ordered oldest -> newest, so "past N seasons" = last N entries
+function getOverallTrendsFilteredData() {
+    const allData = (window.statisticsData && window.statisticsData.program_trends) || [];
+    if (overallTrendsDuration === '2') return allData.slice(-2);
+    if (overallTrendsDuration === '4') return allData.slice(-4);
+    if (overallTrendsDuration === '8') return allData.slice(-8);
+    return allData;
+}
+
+function initializeOverallTrendsChart() {
+    const data = getOverallTrendsFilteredData();
+    renderTrendsChart(
+        'overall',
+        { canvas: 'overallTrendsChart', axisCanvas: 'overallTrendsAxisChart', scrollWrap: 'overallTrendsScroll', innerWrap: 'overallTrendsInner' },
+        data,
+        TRENDS_STAT_KEYS[overallTrendsStat],
+        TRENDS_STAT_LABELS[overallTrendsStat],
+        TRENDS_STAT_COLORS[overallTrendsStat]
+    );
+}
+
+function setOverallTrendsStat(stat, el) {
+    applyTrendsFilter({
+        labelId: 'overallStatFilterLabel', panelId: 'overallStatFilterPanel',
+        label: TRENDS_STAT_LABELS[stat], el,
+        apply: () => { overallTrendsStat = stat; },
+        render: initializeOverallTrendsChart
+    });
+}
+
+function setOverallTrendsDuration(duration, el) {
+    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
+    applyTrendsFilter({
+        labelId: 'overallDurationFilterLabel', panelId: 'overallDurationFilterPanel',
+        label: labelText, el,
+        apply: () => { overallTrendsDuration = duration; },
+        render: initializeOverallTrendsChart
+    });
+}
+
+// --- Trends by League (All-Time view) ---
+let leagueTrendsStat = 'players';
+let leagueTrendsDuration = 'all';
+let leagueTrendsLeagueId = null;
+
+/**
+ * Return the currently-selected league's trend data, trimmed to the
+ * current duration filter. Defaults to the first league on first render.
+ */
+function getLeagueTrendsFilteredData() {
+    const allLeagueTrends = (window.statisticsData && window.statisticsData.league_trends) || [];
+    if (leagueTrendsLeagueId === null && allLeagueTrends.length) {
+        leagueTrendsLeagueId = allLeagueTrends[0].league_id;
+    }
+
+    const leagueEntry = allLeagueTrends.find(l => l.league_id === leagueTrendsLeagueId);
+    const seasonData = leagueEntry ? leagueEntry.trends : [];
+
+    if (leagueTrendsDuration === '2') return seasonData.slice(-2);
+    if (leagueTrendsDuration === '4') return seasonData.slice(-4);
+    if (leagueTrendsDuration === '8') return seasonData.slice(-8);
+    return seasonData;
+}
+
+function initializeLeagueTrendsChart() {
+    const data = getLeagueTrendsFilteredData();
+    renderTrendsChart(
+        'league',
+        { canvas: 'leagueTrendsChart', axisCanvas: 'leagueTrendsAxisChart', scrollWrap: 'leagueTrendsScroll', innerWrap: 'leagueTrendsInner' },
+        data,
+        TRENDS_STAT_KEYS[leagueTrendsStat],
+        TRENDS_STAT_LABELS[leagueTrendsStat],
+        TRENDS_STAT_COLORS[leagueTrendsStat]
+    );
+}
+
+function setLeagueTrendsLeague(leagueId, leagueName, el) {
+    applyTrendsFilter({
+        labelId: 'leagueFilterLabel', panelId: 'leagueFilterPanel',
+        label: leagueName, el,
+        apply: () => { leagueTrendsLeagueId = leagueId; },
+        render: initializeLeagueTrendsChart
+    });
+}
+
+function setLeagueTrendsStat(stat, el) {
+    applyTrendsFilter({
+        labelId: 'leagueStatFilterLabel', panelId: 'leagueStatFilterPanel',
+        label: TRENDS_STAT_LABELS[stat], el,
+        apply: () => { leagueTrendsStat = stat; },
+        render: initializeLeagueTrendsChart
+    });
+}
+
+function setLeagueTrendsDuration(duration, el) {
+    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
+    applyTrendsFilter({
+        labelId: 'leagueDurationFilterLabel', panelId: 'leagueDurationFilterPanel',
+        label: labelText, el,
+        apply: () => { leagueTrendsDuration = duration; },
+        render: initializeLeagueTrendsChart
+    });
+}
+
+// ============================================
+// COMMUNITY CHARTS
+// ============================================
+const DIVISION_CHART_PALETTE = [
+    { bg: 'rgba(121, 189, 233, 0.7)', border: 'rgba(121, 189, 233, 1)' },
+    { bg: 'rgba(167, 139, 250, 0.7)', border: 'rgba(167, 139, 250, 1)' },
+    { bg: 'rgba(134, 239, 172, 0.7)', border: 'rgba(134, 239, 172, 1)' },
+    { bg: 'rgba(250, 204, 21, 0.7)', border: 'rgba(250, 204, 21, 1)' },
+    { bg: 'rgba(252, 165, 165, 0.7)', border: 'rgba(252, 165, 165, 1)' },
+    { bg: 'rgba(147, 197, 253, 0.7)', border: 'rgba(147, 197, 253, 1)' }
+];
+
+/**
+ * One bar chart per division panel on the Community Events Scorecard —
+ * bars are that division's games, values are each game's event count.
+ */
+function initializeDivisionCharts() {
+    if (!window.statisticsData || !window.statisticsData.community_division_breakdown) {
+        console.log('No community division data available for charts');
+        return;
+    }
+
+    const divisions = window.statisticsData.community_division_breakdown;
+
+    divisions.forEach((division, index) => {
+        const canvasId = `divisionChart${index + 1}`;
+        const canvas = document.getElementById(canvasId);
+
+        if (!canvas) {
+            console.warn(`Canvas ${canvasId} not found`);
+            return;
+        }
+
+        const ctx = canvas.getContext('2d');
+        const games = division.games || [];
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: games.map(g => g.game_abbreviation),
+                datasets: [{
+                    label: division.division_name,
+                    data: games.map(g => g.event_count),
+                    backgroundColor: games.map((g, i) => DIVISION_CHART_PALETTE[i % DIVISION_CHART_PALETTE.length].bg),
+                    borderColor: games.map((g, i) => DIVISION_CHART_PALETTE[i % DIVISION_CHART_PALETTE.length].border),
+                    borderWidth: 2
+                }]
+            },
+            options: buildBarChartOptions()
+        });
+    });
+}
+
+// --- Per-Game Events-by-Type Chart (game tab view) ---
+let communityGameChartInstance = null;
+
+const COMMUNITY_GAME_EVENT_TYPE_IDS = {
+    Tournament: 'communityGameCountTournament',
+    Match: 'communityGameCountMatch',
+    Practice: 'communityGameCountPractice',
+    Event: 'communityGameCountEvent',
+    Misc: 'communityGameCountMisc'
+};
+
+/**
+ * Fills the panel-row counts and (re)draws the 5-bar events-by-type chart.
+ * Colors come from COMMUNITY_TREND_COLORS.type so they match the legend.
+ */
+function renderCommunityGameEventTypeChart(eventsByType) {
+    eventsByType = eventsByType || {};
+
+    Object.entries(COMMUNITY_GAME_EVENT_TYPE_IDS).forEach(([type, id]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = eventsByType[type] || 0;
+    });
+
+    const canvas = document.getElementById('communityGameEventTypeChart');
+    if (!canvas) return;
+
+    if (communityGameChartInstance) {
+        communityGameChartInstance.destroy();
+    }
+
+    const labels = Object.keys(COMMUNITY_GAME_EVENT_TYPE_IDS);
+    const colors = labels.map(type => COMMUNITY_TREND_COLORS.type[type]);
+
+    const ctx = canvas.getContext('2d');
+    communityGameChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Events',
+                data: labels.map(t => eventsByType[t] || 0),
+                backgroundColor: colors.map(c => c.bg),
+                borderColor: colors.map(c => c.border),
+                borderWidth: 2
+            }]
+        },
+        options: buildBarChartOptions()
+    });
+}
+
+// --- Overall Event Trends ---
+let communityOverallStat = 'total';
+let communityOverallEventType = null;
+let communityOverallDuration = 'all';
+
+const COMMUNITY_STAT_LABELS = {
+    total: 'Total Events',
+    partnerships: 'Events with Partnerships',
+    scheduled: 'Scheduled Events'
+};
+
+const COMMUNITY_TREND_COLORS = {
+    total: { bg: 'rgba(121, 189, 233, 0.7)', border: 'rgba(121, 189, 233, 1)' },
+    partnerships: { bg: 'rgba(46, 204, 113, 0.7)', border: 'rgba(46, 204, 113, 1)' },
+    scheduled: { bg: 'rgba(255, 152, 0, 0.7)', border: 'rgba(255, 152, 0, 1)' },
+    // Matches the .legend-color swatch colors
+    type: {
+        Tournament: { bg: 'rgba(167, 139, 250, 0.7)', border: 'rgba(167, 139, 250, 1)' },
+        Match: { bg: 'rgba(252, 165, 165, 0.7)', border: 'rgba(252, 165, 165, 1)' },
+        Practice: { bg: 'rgba(134, 239, 172, 0.7)', border: 'rgba(134, 239, 172, 1)' },
+        Event: { bg: 'rgba(147, 197, 253, 0.7)', border: 'rgba(147, 197, 253, 1)' },
+        Misc: { bg: 'rgba(250, 204, 21, 0.7)', border: 'rgba(250, 204, 21, 1)' }
+    }
+};
+
+/* Pulls the right count off a community_trends/community_game_trends season
+ * entry based on the current stat filter (and event type, when stat === 'type')
+ */
+function getCommunityStatValue(entry, stat, eventType) {
+    if (stat === 'type') return (entry.events_by_type && entry.events_by_type[eventType]) || 0;
+    if (stat === 'partnerships') return entry.events_with_partnerships;
+    if (stat === 'scheduled') return entry.scheduled_events;
+    return entry.total_events;
+}
+
+function getCommunityStatColor(stat, eventType) {
+    if (stat === 'type') return COMMUNITY_TREND_COLORS.type[eventType] || COMMUNITY_TREND_COLORS.total;
+    return COMMUNITY_TREND_COLORS[stat] || COMMUNITY_TREND_COLORS.total;
+}
+
+function getCommunityStatLabel(stat, eventType) {
+    return stat === 'type' ? `${eventType} Events` : COMMUNITY_STAT_LABELS[stat];
+}
+
+/**
+ * community_trends trimmed to the duration filter, flattened to
+ * { season_name, value } so renderTrendsChart can consume it like the others.
+ */
+function getCommunityOverallTrendsFilteredData() {
+    const allData = (window.statisticsData && window.statisticsData.community_trends) || [];
+    let trimmed = allData;
+    if (communityOverallDuration === '2') trimmed = allData.slice(-2);
+    else if (communityOverallDuration === '4') trimmed = allData.slice(-4);
+    else if (communityOverallDuration === '8') trimmed = allData.slice(-8);
+
+    return trimmed.map(entry => ({
+        season_name: entry.season_name,
+        value: getCommunityStatValue(entry, communityOverallStat, communityOverallEventType)
+    }));
+}
+
+function initializeCommunityOverallTrendsChart() {
+    const data = getCommunityOverallTrendsFilteredData();
+    renderTrendsChart(
+        'communityOverall',
+        { canvas: 'communityOverallTrendsChart', axisCanvas: 'communityOverallTrendsAxisChart', scrollWrap: 'communityOverallTrendsScroll', innerWrap: 'communityOverallTrendsInner' },
+        data,
+        'value',
+        getCommunityStatLabel(communityOverallStat, communityOverallEventType),
+        getCommunityStatColor(communityOverallStat, communityOverallEventType)
+    );
+}
+
+function setCommunityOverallStat(stat, el) {
+    applyTrendsFilter({
+        labelId: 'communityOverallStatFilterLabel', panelId: 'communityOverallStatFilterPanel',
+        label: COMMUNITY_STAT_LABELS[stat], el,
+        apply: () => { communityOverallStat = stat; communityOverallEventType = null; },
+        render: initializeCommunityOverallTrendsChart
+    });
+}
+
+function setCommunityOverallEventType(type, el) {
+    applyTrendsFilter({
+        labelId: 'communityOverallStatFilterLabel', panelId: 'communityOverallStatFilterPanel',
+        label: `Event Type: ${type}`, el,
+        apply: () => { communityOverallStat = 'type'; communityOverallEventType = type; },
+        render: initializeCommunityOverallTrendsChart
+    });
+}
+
+function setCommunityOverallDuration(duration, el) {
+    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
+    applyTrendsFilter({
+        labelId: 'communityOverallDurationFilterLabel', panelId: 'communityOverallDurationFilterPanel',
+        label: labelText, el,
+        apply: () => { communityOverallDuration = duration; },
+        render: initializeCommunityOverallTrendsChart
+    });
+}
+
+// --- Trends by Game ---
+let communityGameTrendsGameId = null;
+let communityGameTrendsStat = 'total';
+let communityGameTrendsEventType = null;
+let communityGameTrendsDuration = 'all';
+
+/**
+ * Same idea as getCommunityOverallTrendsFilteredData(), scoped to the
+ * selected game. Defaults to the first game on first render.
+ */
+function getCommunityGameTrendsFilteredData() {
+    const allGameTrends = (window.statisticsData && window.statisticsData.community_game_trends) || [];
+    if (communityGameTrendsGameId === null && allGameTrends.length) {
+        communityGameTrendsGameId = allGameTrends[0].game_id;
+    }
+
+    const gameEntry = allGameTrends.find(g => g.game_id === communityGameTrendsGameId);
+    const seasonData = gameEntry ? gameEntry.trends : [];
+
+    let trimmed = seasonData;
+    if (communityGameTrendsDuration === '2') trimmed = seasonData.slice(-2);
+    else if (communityGameTrendsDuration === '4') trimmed = seasonData.slice(-4);
+    else if (communityGameTrendsDuration === '8') trimmed = seasonData.slice(-8);
+
+    return trimmed.map(entry => ({
+        season_name: entry.season_name,
+        value: getCommunityStatValue(entry, communityGameTrendsStat, communityGameTrendsEventType)
+    }));
+}
+
+function initializeCommunityGameTrendsChart() {
+    const data = getCommunityGameTrendsFilteredData();
+    renderTrendsChart(
+        'communityGame',
+        { canvas: 'communityGameTrendsChart', axisCanvas: 'communityGameTrendsAxisChart', scrollWrap: 'communityGameTrendsScroll', innerWrap: 'communityGameTrendsInner' },
+        data,
+        'value',
+        getCommunityStatLabel(communityGameTrendsStat, communityGameTrendsEventType),
+        getCommunityStatColor(communityGameTrendsStat, communityGameTrendsEventType)
+    );
+}
+
+function setCommunityGameTrendsGame(gameId, gameTitle, el) {
+    applyTrendsFilter({
+        labelId: 'communityGameFilterLabel', panelId: 'communityGameFilterPanel',
+        label: gameTitle, el,
+        apply: () => { communityGameTrendsGameId = gameId; },
+        render: initializeCommunityGameTrendsChart
+    });
+}
+
+function setCommunityGameTrendsStat(stat, el) {
+    applyTrendsFilter({
+        labelId: 'communityGameStatFilterLabel', panelId: 'communityGameStatFilterPanel',
+        label: COMMUNITY_STAT_LABELS[stat], el,
+        apply: () => { communityGameTrendsStat = stat; communityGameTrendsEventType = null; },
+        render: initializeCommunityGameTrendsChart
+    });
+}
+
+function setCommunityGameTrendsEventType(type, el) {
+    applyTrendsFilter({
+        labelId: 'communityGameStatFilterLabel', panelId: 'communityGameStatFilterPanel',
+        label: `Event Type: ${type}`, el,
+        apply: () => { communityGameTrendsStat = 'type'; communityGameTrendsEventType = type; },
+        render: initializeCommunityGameTrendsChart
+    });
+}
+
+function setCommunityGameTrendsDuration(duration, el) {
+    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
+    applyTrendsFilter({
+        labelId: 'communityGameDurationFilterLabel', panelId: 'communityGameDurationFilterPanel',
+        label: labelText, el,
+        apply: () => { communityGameTrendsDuration = duration; },
+        render: initializeCommunityGameTrendsChart
+    });
+}
+
+// ============================================
+// DATA TABLES & LISTS
+// ============================================
 /**
  * Renders a list of items into a table (desktop) and card list (mobile),
  * grouped into collapsible season sections. Shared by renderGameStatsTable() and renderCommunityGameEventsList()
@@ -624,562 +1207,7 @@ function renderMatchList(matches, showLabel = true) {
 }
 
 // ============================================
-// OVERALL TRENDS CHART (All-Time view)
-// ============================================
-let overallTrendsStat = 'players';
-let overallTrendsDuration = 'all';
-
-const TRENDS_STAT_LABELS = {
-    players: 'Players',
-    teams: 'Teams',
-    playoffs: 'Playoff Qualifications'
-};
-
-const TRENDS_STAT_KEYS = {
-    players: 'unique_players',
-    teams: 'unique_teams',
-    playoffs: 'playoff_qualified'
-};
-
-const TRENDS_STAT_COLORS = {
-    players: { bg: 'rgba(121, 189, 233, 0.7)', border: 'rgba(121, 189, 233, 1)' },
-    teams: { bg: 'rgba(244, 67, 54, 0.7)', border: 'rgba(244, 67, 54, 1)' },
-    playoffs: { bg: 'rgba(79, 172, 254, 0.7)', border: 'rgba(79, 172, 254, 1)' }
-};
-
-// Chart.js instances for each trends panel, keyed by panel name
-const trendsChartInstances = {
-    overall: { main: null, axis: null },
-    league: { main: null, axis: null },
-    communityOverall: { main: null, axis: null },
-    communityGame: { main: null, axis: null }
-};
-
-/**
- * Builds a "{oldest season in range} - Now" label for the past-N-seasons
- * duration options, based on the shared program_trends season list.
- */
-function formatDurationRangeLabel(n) {
-    const allData = (window.statisticsData && window.statisticsData.program_trends) || [];
-    const slice = allData.slice(-n);
-    if (!slice.length) {
-        return `Past ${n} Seasons`;
-    }
-    return `${slice[0].season_name} - Now`;
-}
-
-/**
- * Fill in the "past 2"/"past 4" filter option text with real season
- * ranges once statisticsData is available, and hide either option
- * entirely if the program doesn't have enough seasons of history yet
- * to fill it (e.g. hide "Past 4 Seasons" if only 3 seasons exist).
- */
-function initializeTrendsDurationLabels() {
-    const totalSeasons = ((window.statisticsData && window.statisticsData.program_trends) || []).length;
-    const panelPrefixes = ['overall', 'league', 'communityOverall', 'communityGame'];
-
-    [2, 4, 8].forEach(n => {
-        const label = formatDurationRangeLabel(n);
-        panelPrefixes.forEach(prefix => {
-            const el = document.getElementById(`${prefix}Duration${n}Item`);
-            if (!el) return;
-            el.textContent = label;
-            el.style.display = totalSeasons < n ? 'none' : '';
-        });
-    });
-}
-
-// program_trends is ordered oldest -> newest, so "past N seasons" = last N entries
-function getOverallTrendsFilteredData() {
-    const allData = (window.statisticsData && window.statisticsData.program_trends) || [];
-    if (overallTrendsDuration === '2') return allData.slice(-2);
-    if (overallTrendsDuration === '4') return allData.slice(-4);
-    if (overallTrendsDuration === '8') return allData.slice(-8);
-    return allData;
-}
-
-/**
- * Draws y-axis labels into the frozen overlay using the chart's own
- * computed tick positions, so they can't drift out of sync with the bars.
- */
-function syncFrozenAxisLabels(chart, axisEl) {
-    if (!axisEl) return;
-    axisEl.innerHTML = '';
-
-    const yScale = chart.scales.y;
-    const LABEL_HALF_HEIGHT = 7; // ~half the label's own line-height at 11px font
-
-    yScale.ticks.forEach(tick => {
-        const pixel = yScale.getPixelForValue(tick.value);
-        // Clamp so a centered label can never render above the visible box,
-        // no matter what the chart's own layout padding works out to.
-        const safeTop = Math.max(pixel, LABEL_HALF_HEIGHT);
-
-        const label = document.createElement('div');
-        label.className = 'trends-chart-axis-label';
-        label.style.top = `${safeTop}px`;
-        label.textContent = tick.label ?? tick.value;
-        axisEl.appendChild(label);
-    });
-}
-
-// Render a trend chart based on provided data and applied filters
-function renderTrendsChart(key, elIds, data, statKey, statLabel, color) {
-    const canvas = document.getElementById(elIds.canvas);
-    const axisEl = document.getElementById(elIds.axisCanvas);
-    const scrollWrap = document.getElementById(elIds.scrollWrap);
-    const innerWrap = document.getElementById(elIds.innerWrap);
-    if (!canvas) return;
-
-    const labels = data.map(d => d.season_name);
-    const values = data.map(d => d[statKey]);
-
-    const MIN_VISIBLE_BARS = 4;
-    const needsScroll = data.length > MIN_VISIBLE_BARS;
-
-    const viewportWidth = scrollWrap ? scrollWrap.clientWidth : 0;
-    const pxPerBar = viewportWidth > 0 ? viewportWidth / MIN_VISIBLE_BARS : 90;
-
-    innerWrap.style.width = needsScroll ? `${data.length * pxPerBar}px` : '100%';
-
-    const maxValue = values.length ? Math.max(...values) : 0;
-    const yMax = maxValue > 0 ? Math.ceil(maxValue * 1.2) : 5;
-
-    // Widen the frozen axis strip to fit however many digits the largest tick label needs.
-    const axisWrap = axisEl ? axisEl.closest('.trends-chart-axis-wrap') : null;
-    const digitCount = String(yMax).length;
-    const axisWidth = Math.max(42, 26 + digitCount * 9);
-    if (axisWrap) axisWrap.style.width = `${axisWidth}px`;
-    if (scrollWrap) scrollWrap.style.paddingLeft = `${axisWidth}px`;
-
-    const instances = trendsChartInstances[key];
-    if (instances.main) {
-        instances.main.destroy();
-    }
-
-    const ctx = canvas.getContext('2d');
-    instances.main = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: statLabel,
-                data: values,
-                backgroundColor: color.bg,
-                borderColor: color.border,
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    padding: 12,
-                    titleFont: {
-                        size: 14
-                    },
-                    bodyFont: {
-                        size: 13
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    min: 0,
-                    max: yMax,
-                    ticks: {
-                        display: false, // drawn separately in the frozen overlay
-                        precision: 0,
-                        maxTicksLimit: 6
-                    },
-                    grid: {
-                        color: 'rgba(156, 163, 175, 0.1)'
-                    }
-                },
-                x: {
-                    ticks: {
-                        color: '#9ca3af',
-                        font: {
-                            size: 10
-                        }
-                    },
-                    grid: {
-                        display: false
-                    }
-                }
-            }
-        },
-        plugins: [{
-            id: 'frozenAxisSync',
-            afterUpdate: (chart) => syncFrozenAxisLabels(chart, axisEl)
-        }]
-    });
-
-    if (needsScroll && scrollWrap) {
-        requestAnimationFrame(() => {
-            scrollWrap.scrollLeft = scrollWrap.scrollWidth;
-        });
-    }
-}
-
-function initializeOverallTrendsChart() {
-    const data = getOverallTrendsFilteredData();
-    renderTrendsChart(
-        'overall',
-        { canvas: 'overallTrendsChart', axisCanvas: 'overallTrendsAxisChart', scrollWrap: 'overallTrendsScroll', innerWrap: 'overallTrendsInner' },
-        data,
-        TRENDS_STAT_KEYS[overallTrendsStat],
-        TRENDS_STAT_LABELS[overallTrendsStat],
-        TRENDS_STAT_COLORS[overallTrendsStat]
-    );
-}
-
-// ============================================
-// TRENDS BY LEAGUE CHART (All-Time view)
-// ============================================
-let leagueTrendsStat = 'players';
-let leagueTrendsDuration = 'all';
-let leagueTrendsLeagueId = null;
-
-/**
- * Return the currently-selected league's trend data, trimmed to the
- * current duration filter. Defaults to the first league on first render.
- */
-function getLeagueTrendsFilteredData() {
-    const allLeagueTrends = (window.statisticsData && window.statisticsData.league_trends) || [];
-    if (leagueTrendsLeagueId === null && allLeagueTrends.length) {
-        leagueTrendsLeagueId = allLeagueTrends[0].league_id;
-    }
-
-    const leagueEntry = allLeagueTrends.find(l => l.league_id === leagueTrendsLeagueId);
-    const seasonData = leagueEntry ? leagueEntry.trends : [];
-
-    if (leagueTrendsDuration === '2') return seasonData.slice(-2);
-    if (leagueTrendsDuration === '4') return seasonData.slice(-4);
-    if (leagueTrendsDuration === '8') return seasonData.slice(-8);
-    return seasonData;
-}
-
-function initializeLeagueTrendsChart() {
-    const data = getLeagueTrendsFilteredData();
-    renderTrendsChart(
-        'league',
-        { canvas: 'leagueTrendsChart', axisCanvas: 'leagueTrendsAxisChart', scrollWrap: 'leagueTrendsScroll', innerWrap: 'leagueTrendsInner' },
-        data,
-        TRENDS_STAT_KEYS[leagueTrendsStat],
-        TRENDS_STAT_LABELS[leagueTrendsStat],
-        TRENDS_STAT_COLORS[leagueTrendsStat]
-    );
-}
-
-/**
- * Shared behavior behind every trends filter dropdown: mark the clicked
- * item active (clearing both plain and flyout items in its panel), update
- * the visible label, close the open panel, and re-render the chart.
- */
-function applyTrendsFilter({ labelId, panelId, label, el, apply, render }) {
-    apply();
-    document.getElementById(labelId).textContent = label;
-    document.querySelectorAll(`#${panelId} .filter-box-item`).forEach(item => item.classList.remove('active'));
-    document.querySelectorAll(`#${panelId} .filter-box-flyout-item`).forEach(item => item.classList.remove('active'));
-    el.classList.add('active');
-    closeAllFilterPanels();
-    render();
-}
-
-function setLeagueTrendsLeague(leagueId, leagueName, el) {
-    applyTrendsFilter({
-        labelId: 'leagueFilterLabel', panelId: 'leagueFilterPanel',
-        label: leagueName, el,
-        apply: () => { leagueTrendsLeagueId = leagueId; },
-        render: initializeLeagueTrendsChart
-    });
-}
-
-function setLeagueTrendsStat(stat, el) {
-    applyTrendsFilter({
-        labelId: 'leagueStatFilterLabel', panelId: 'leagueStatFilterPanel',
-        label: TRENDS_STAT_LABELS[stat], el,
-        apply: () => { leagueTrendsStat = stat; },
-        render: initializeLeagueTrendsChart
-    });
-}
-
-function setLeagueTrendsDuration(duration, el) {
-    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
-    applyTrendsFilter({
-        labelId: 'leagueDurationFilterLabel', panelId: 'leagueDurationFilterPanel',
-        label: labelText, el,
-        apply: () => { leagueTrendsDuration = duration; },
-        render: initializeLeagueTrendsChart
-    });
-}
-
-function setOverallTrendsStat(stat, el) {
-    applyTrendsFilter({
-        labelId: 'overallStatFilterLabel', panelId: 'overallStatFilterPanel',
-        label: TRENDS_STAT_LABELS[stat], el,
-        apply: () => { overallTrendsStat = stat; },
-        render: initializeOverallTrendsChart
-    });
-}
-
-function setOverallTrendsDuration(duration, el) {
-    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
-    applyTrendsFilter({
-        labelId: 'overallDurationFilterLabel', panelId: 'overallDurationFilterPanel',
-        label: labelText, el,
-        apply: () => { overallTrendsDuration = duration; },
-        render: initializeOverallTrendsChart
-    });
-}
-
-// ============================================
-// COMMUNITY: PER-GAME EVENTS-BY-TYPE CHART (game tab view)
-// ============================================
-let communityGameChartInstance = null;
-
-const COMMUNITY_GAME_EVENT_TYPE_IDS = {
-    Tournament: 'communityGameCountTournament',
-    Match: 'communityGameCountMatch',
-    Practice: 'communityGameCountPractice',
-    Event: 'communityGameCountEvent',
-    Misc: 'communityGameCountMisc'
-};
-
-/**
- * Fills the panel-row counts and (re)draws the 5-bar events-by-type chart.
- * Colors come from COMMUNITY_TREND_COLORS.type so they match the legend.
- */
-function renderCommunityGameEventTypeChart(eventsByType) {
-    eventsByType = eventsByType || {};
-
-    Object.entries(COMMUNITY_GAME_EVENT_TYPE_IDS).forEach(([type, id]) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = eventsByType[type] || 0;
-    });
-
-    const canvas = document.getElementById('communityGameEventTypeChart');
-    if (!canvas) return;
-
-    if (communityGameChartInstance) {
-        communityGameChartInstance.destroy();
-    }
-
-    const labels = Object.keys(COMMUNITY_GAME_EVENT_TYPE_IDS);
-    const colors = labels.map(type => COMMUNITY_TREND_COLORS.type[type]);
-
-    const ctx = canvas.getContext('2d');
-    communityGameChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Events',
-                data: labels.map(t => eventsByType[t] || 0),
-                backgroundColor: colors.map(c => c.bg),
-                borderColor: colors.map(c => c.border),
-                borderWidth: 2
-            }]
-        },
-        options: buildBarChartOptions()
-    });
-}
-
-// ============================================
-// COMMUNITY: OVERALL EVENT TRENDS CHART
-// ============================================
-let communityOverallStat = 'total';
-let communityOverallEventType = null;
-let communityOverallDuration = 'all';
-let communityChartsInitialized = false;
-let communityTrendsChartsRendered = false;
-
-const COMMUNITY_STAT_LABELS = {
-    total: 'Total Events',
-    partnerships: 'Events with Partnerships',
-    scheduled: 'Scheduled Events'
-};
-
-const COMMUNITY_TREND_COLORS = {
-    total: { bg: 'rgba(121, 189, 233, 0.7)', border: 'rgba(121, 189, 233, 1)' },
-    partnerships: { bg: 'rgba(46, 204, 113, 0.7)', border: 'rgba(46, 204, 113, 1)' },
-    scheduled: { bg: 'rgba(255, 152, 0, 0.7)', border: 'rgba(255, 152, 0, 1)' },
-    // Matches the .legend-color swatch colors
-    type: {
-        Tournament: { bg: 'rgba(167, 139, 250, 0.7)', border: 'rgba(167, 139, 250, 1)' },
-        Match: { bg: 'rgba(252, 165, 165, 0.7)', border: 'rgba(252, 165, 165, 1)' },
-        Practice: { bg: 'rgba(134, 239, 172, 0.7)', border: 'rgba(134, 239, 172, 1)' },
-        Event: { bg: 'rgba(147, 197, 253, 0.7)', border: 'rgba(147, 197, 253, 1)' },
-        Misc: { bg: 'rgba(250, 204, 21, 0.7)', border: 'rgba(250, 204, 21, 1)' }
-    }
-};
-
-/* Pulls the right count off a community_trends/community_game_trends season
- * entry based on the current stat filter (and event type, when stat === 'type')
- */
-function getCommunityStatValue(entry, stat, eventType) {
-    if (stat === 'type') return (entry.events_by_type && entry.events_by_type[eventType]) || 0;
-    if (stat === 'partnerships') return entry.events_with_partnerships;
-    if (stat === 'scheduled') return entry.scheduled_events;
-    return entry.total_events;
-}
-
-function getCommunityStatColor(stat, eventType) {
-    if (stat === 'type') return COMMUNITY_TREND_COLORS.type[eventType] || COMMUNITY_TREND_COLORS.total;
-    return COMMUNITY_TREND_COLORS[stat] || COMMUNITY_TREND_COLORS.total;
-}
-
-function getCommunityStatLabel(stat, eventType) {
-    return stat === 'type' ? `${eventType} Events` : COMMUNITY_STAT_LABELS[stat];
-}
-
-/**
- * community_trends trimmed to the duration filter, flattened to
- * { season_name, value } so renderTrendsChart can consume it like the others.
- */
-function getCommunityOverallTrendsFilteredData() {
-    const allData = (window.statisticsData && window.statisticsData.community_trends) || [];
-    let trimmed = allData;
-    if (communityOverallDuration === '2') trimmed = allData.slice(-2);
-    else if (communityOverallDuration === '4') trimmed = allData.slice(-4);
-    else if (communityOverallDuration === '8') trimmed = allData.slice(-8);
-
-    return trimmed.map(entry => ({
-        season_name: entry.season_name,
-        value: getCommunityStatValue(entry, communityOverallStat, communityOverallEventType)
-    }));
-}
-
-function initializeCommunityOverallTrendsChart() {
-    const data = getCommunityOverallTrendsFilteredData();
-    renderTrendsChart(
-        'communityOverall',
-        { canvas: 'communityOverallTrendsChart', axisCanvas: 'communityOverallTrendsAxisChart', scrollWrap: 'communityOverallTrendsScroll', innerWrap: 'communityOverallTrendsInner' },
-        data,
-        'value',
-        getCommunityStatLabel(communityOverallStat, communityOverallEventType),
-        getCommunityStatColor(communityOverallStat, communityOverallEventType)
-    );
-}
-
-function setCommunityOverallStat(stat, el) {
-    applyTrendsFilter({
-        labelId: 'communityOverallStatFilterLabel', panelId: 'communityOverallStatFilterPanel',
-        label: COMMUNITY_STAT_LABELS[stat], el,
-        apply: () => { communityOverallStat = stat; communityOverallEventType = null; },
-        render: initializeCommunityOverallTrendsChart
-    });
-}
-
-function setCommunityOverallEventType(type, el) {
-    applyTrendsFilter({
-        labelId: 'communityOverallStatFilterLabel', panelId: 'communityOverallStatFilterPanel',
-        label: `Event Type: ${type}`, el,
-        apply: () => { communityOverallStat = 'type'; communityOverallEventType = type; },
-        render: initializeCommunityOverallTrendsChart
-    });
-}
-
-function setCommunityOverallDuration(duration, el) {
-    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
-    applyTrendsFilter({
-        labelId: 'communityOverallDurationFilterLabel', panelId: 'communityOverallDurationFilterPanel',
-        label: labelText, el,
-        apply: () => { communityOverallDuration = duration; },
-        render: initializeCommunityOverallTrendsChart
-    });
-}
-
-// ============================================
-// COMMUNITY: TRENDS BY GAME CHART
-// ============================================
-let communityGameTrendsGameId = null;
-let communityGameTrendsStat = 'total';
-let communityGameTrendsEventType = null;
-let communityGameTrendsDuration = 'all';
-
-/**
- * Same idea as getCommunityOverallTrendsFilteredData(), scoped to the
- * selected game. Defaults to the first game on first render.
- */
-function getCommunityGameTrendsFilteredData() {
-    const allGameTrends = (window.statisticsData && window.statisticsData.community_game_trends) || [];
-    if (communityGameTrendsGameId === null && allGameTrends.length) {
-        communityGameTrendsGameId = allGameTrends[0].game_id;
-    }
-
-    const gameEntry = allGameTrends.find(g => g.game_id === communityGameTrendsGameId);
-    const seasonData = gameEntry ? gameEntry.trends : [];
-
-    let trimmed = seasonData;
-    if (communityGameTrendsDuration === '2') trimmed = seasonData.slice(-2);
-    else if (communityGameTrendsDuration === '4') trimmed = seasonData.slice(-4);
-    else if (communityGameTrendsDuration === '8') trimmed = seasonData.slice(-8);
-
-    return trimmed.map(entry => ({
-        season_name: entry.season_name,
-        value: getCommunityStatValue(entry, communityGameTrendsStat, communityGameTrendsEventType)
-    }));
-}
-
-function initializeCommunityGameTrendsChart() {
-    const data = getCommunityGameTrendsFilteredData();
-    renderTrendsChart(
-        'communityGame',
-        { canvas: 'communityGameTrendsChart', axisCanvas: 'communityGameTrendsAxisChart', scrollWrap: 'communityGameTrendsScroll', innerWrap: 'communityGameTrendsInner' },
-        data,
-        'value',
-        getCommunityStatLabel(communityGameTrendsStat, communityGameTrendsEventType),
-        getCommunityStatColor(communityGameTrendsStat, communityGameTrendsEventType)
-    );
-}
-
-function setCommunityGameTrendsGame(gameId, gameTitle, el) {
-    applyTrendsFilter({
-        labelId: 'communityGameFilterLabel', panelId: 'communityGameFilterPanel',
-        label: gameTitle, el,
-        apply: () => { communityGameTrendsGameId = gameId; },
-        render: initializeCommunityGameTrendsChart
-    });
-}
-
-function setCommunityGameTrendsStat(stat, el) {
-    applyTrendsFilter({
-        labelId: 'communityGameStatFilterLabel', panelId: 'communityGameStatFilterPanel',
-        label: COMMUNITY_STAT_LABELS[stat], el,
-        apply: () => { communityGameTrendsStat = stat; communityGameTrendsEventType = null; },
-        render: initializeCommunityGameTrendsChart
-    });
-}
-
-function setCommunityGameTrendsEventType(type, el) {
-    applyTrendsFilter({
-        labelId: 'communityGameStatFilterLabel', panelId: 'communityGameStatFilterPanel',
-        label: `Event Type: ${type}`, el,
-        apply: () => { communityGameTrendsStat = 'type'; communityGameTrendsEventType = type; },
-        render: initializeCommunityGameTrendsChart
-    });
-}
-
-function setCommunityGameTrendsDuration(duration, el) {
-    const labelText = duration === 'all' ? 'All-Time' : formatDurationRangeLabel(Number(duration));
-    applyTrendsFilter({
-        labelId: 'communityGameDurationFilterLabel', panelId: 'communityGameDurationFilterPanel',
-        label: labelText, el,
-        apply: () => { communityGameTrendsDuration = duration; },
-        render: initializeCommunityGameTrendsChart
-    });
-}
-
-// ============================================
-// Carousels for Notable Performances/Partnerships
+// CAROUSELS (Notable Performances / Partnerships)
 // ============================================
 function getResponsiveSlotCount() {
     return window.matchMedia('(max-width: 768px)').matches ? 1 : 3;
@@ -1336,10 +1364,10 @@ function exportToExcel() {
         alert('No data available to export');
         return;
     }
-    
+
     // Build CSV content
     let csvContent = "Stockton Esports Program Statistics\n\n";
-    
+
     // Program-wide statistics
     csvContent += "PROGRAM OVERVIEW\n";
     csvContent += "Metric,Value\n";
@@ -1350,7 +1378,7 @@ function exportToExcel() {
     csvContent += `Community Members,${window.statisticsData.program_wide.community_members}\n`;
     csvContent += `Fielded Players,${window.statisticsData.program_wide.fielded_players}\n`;
     csvContent += "\n";
-    
+
     // Player statistics
     csvContent += "PLAYER METRICS\n";
     csvContent += "Metric,Value\n";
@@ -1359,7 +1387,7 @@ function exportToExcel() {
     csvContent += `Did Not Return,${window.statisticsData.player_stats.did_not_return}\n`;
     csvContent += `Multi-Team Players,${window.statisticsData.player_stats.multi_team_players}\n`;
     csvContent += "\n";
-    
+
     // Playoffs placements
     csvContent += "PLAYOFFS PERFORMANCE\n";
     csvContent += "Placement,Count\n";
@@ -1371,12 +1399,12 @@ function exportToExcel() {
     csvContent += `Did Not Qualify,${window.statisticsData.playoffs_placements.regular_season}\n`;
     csvContent += `In Progress,${window.statisticsData.playoffs_placements.in_progress}\n`;
     csvContent += "\n";
-    
+
     // League breakdown
     if (window.statisticsData.league_breakdown && window.statisticsData.league_breakdown.length > 0) {
         csvContent += "LEAGUE BREAKDOWN\n";
         csvContent += "League,Unique Players,Unique Esports,Community Members,Fielded Players,Unique Teams\n";
-        
+
         window.statisticsData.league_breakdown.forEach(league => {
             csvContent += `${league.league_name || 'No League'},`;
             csvContent += `${league.unique_players},`;
@@ -1386,16 +1414,16 @@ function exportToExcel() {
             csvContent += `${league.unique_teams}\n`;
         });
     }
-    
+
     // Create download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    
+
     link.setAttribute('href', url);
     link.setAttribute('download', `stockton_esports_statistics_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
-    
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1417,7 +1445,6 @@ function printStatistics() {
 // ============================================
 // UTILITY FUNCTIONS
 // ============================================
-
 //Format number with commas
 function formatNumber(num) {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -1427,40 +1454,6 @@ function formatNumber(num) {
 function calculatePercentage(part, total) {
     if (total === 0) return 0;
     return ((part / total) * 100).toFixed(1);
-}
-
-// Tracks which top-level tab (Competitive/Community) is active, so the
-// floating game tabs know which per-game view to render.
-let currentStatsView = 'competitive';
-
-// Toggles the Competitive / Community view tabs and swaps the corresponding content containers.
-function switchStatsView(view, btnEl) {
-    document.querySelectorAll('.stats-view-tabs .tab-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    btnEl.classList.add('active');
-    currentStatsView = view;
-
-    if (view === 'community') {
-        if (!communityChartsInitialized) {
-            communityChartsInitialized = true;
-            partnershipsCarousel.init(window.statisticsData && window.statisticsData.community_partnerships);
-            initializeDivisionCharts();
-        }
-    }
-
-    // Re-render whichever floating tab (Overview or a specific game) is
-    // currently selected so it reflects the newly active Competitive/Community view
-    const activeTab = document.querySelector('.stats-floating-tab.active');
-    const gameId = activeTab ? activeTab.dataset.game : 'overview';
-
-    if (gameId === 'overview') {
-        showOverviewView();
-    } else if (view === 'community') {
-        showCommunityGameView(gameId, activeTab.querySelector('.stats-floating-tab-label').textContent, activeTab.dataset.icon);
-    } else {
-        showGameView(gameId, activeTab.querySelector('.stats-floating-tab-label').textContent, activeTab.dataset.icon);
-    }
 }
 
 // ============================================
