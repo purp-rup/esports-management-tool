@@ -553,7 +553,11 @@
     }
 }
 
+#calendarDaySheet { display: none; }
+
 @media (max-width: 768px) {
+    #calendarDaySheet.sheet-open { display: block; }
+
     .calendar-day-name {
         font-size: 0; /* hide "SUN", "MON" etc. */
         padding: 0.5rem 0;
@@ -620,7 +624,7 @@
     .calendar-cell:not(.empty):not(.today):hover .day-number {
         background: var(--hover-bg);
     }
-    
+
     .calendar-cell.today {
         background: transparent;
         border: none;

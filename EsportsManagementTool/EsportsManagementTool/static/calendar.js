@@ -45,6 +45,11 @@ function ensureCalendarPopupBackdrop() {
 // close it rather than leaving it in a mismatched state (sheet vs anchored popover)
 window.addEventListener('resize', () => {
     updateCalendarHeader();
+
+    if (!isCalendarMobileView()) {
+        closeDaySheet();
+    }
+
     const popup = document.getElementById('landingEventPopup');
     if (!popup) return;
     const isSheet = popup.classList.contains('mobile-sheet');
