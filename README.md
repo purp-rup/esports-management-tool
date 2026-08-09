@@ -22,4 +22,4 @@ This application was developed using the Flask framework, making use of HTML, Py
 
 ## Authors
 
-This project was developed by [Hayden Seiberlich](https://github.com/seiberlichiamo), [Andrew Miraglia](https://github.com/purp-rup), [Alexander DeSilvio](https://github.com/Alakazam936), [Jackson Campbell](https://github.com/JCamp74), [Ryan Shaw](https://github.com/ryanshaw31), [Peter Singh](https://github.com/okb-88), [Christian Torazzo](https://github.com/Kunoyl), and [Rachel Hussmann](https://github.com/violetann894)
+This project was developed by [Hayden Seiberlich](https://github.com/seiberlichiamo), [Andrew Miraglia](https://github.com/purp-rup), [Alexander DeSilvio](https://github.com/Alakazam936), [Jackson Campbell](https://github.com/JCamp74), [Ryan Shaw](https://github.com/ryanshaw31), [Peter Singh](https://github.com/okb-88), [Christian Torrazo](https://github.com/Kunoyl), and [Rachel Hussmann](https://github.com/violetann894)

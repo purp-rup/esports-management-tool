@@ -127,30 +127,11 @@
         </div>
 
              <!-- Forum -->
-             <div class="community-forum">
-                 <div class="community-forum-header">{{ game.GameTitle }} Chat</div>
-                    <div class="forum-pinned-banner" id="forumPinnedBanner" style="display:none;"></div>
-                    <div class="community-forum-body" id="forumBody">
-                        <div class="forum-load-older" id="forumLoadOlder" style="display:none;">
-                            <i class="fas fa-spinner fa-spin"></i> Loading older messages...
-                        </div>
-                    <div class="forum-loading" id="forumLoading">
-                        <i class="fas fa-spinner fa-spin"></i> Loading messages...
-                    </div>
-                    <div class="forum-empty" id="forumEmpty" style="display:none;">
-                        <i class="fas fa-comments"></i> No messages yet. Say hello!
-                    </div>
-                    <div class="forum-messages" id="forumMessagesList"></div>
-                </div>
-                <div id="forumTypingIndicator" class="forum-typing-indicator"></div>
-                <div class="community-forum-textbox">
-                    <textarea id="forumMessageInput"
-                                class="forum-message-input"
-                                placeholder="Send a message"
-                                rows="1"></textarea>
-                    <button class="forum-send-btn" id="forumSendBtn" onclick="sendForumMessage()">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
+            <div class="community-forum">
+                <div class="community-forum-header">{{ game.GameTitle }} Chat</div>
+                <div class="community-forum-placeholder">
+                    <i class="fas fa-comments"></i>
+                    <p>Forum coming soon.</p>
                 </div>
             </div>
         </div>
@@ -201,16 +182,6 @@
             <!-- Next scheduled event -->
             <div id="gameNextScheduledEventContainer" class="game-next-event-container"></div>
 
-        </div>
-    </div>
-</div>
-
-<div id="warningPopupModal" class="warning-popup-modal">
-    <div class="warning-popup-content">
-        <h3>Warning</h3>
-        <div id="warningPopupMessage" class="warning-popup-message"></div>
-        <div class="warning-popup-actions">
-            <button class="btn btn-warning-ok" onclick="closeWarningPopup()">Ok</button>
         </div>
     </div>
 </div>
