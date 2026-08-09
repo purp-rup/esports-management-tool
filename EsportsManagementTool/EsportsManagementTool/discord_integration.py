@@ -336,10 +336,15 @@ def sync_discord_avatar():
         # Get old Cloudinary public_id if it exists (for deletion)
         old_public_id = discord_data.get('cloudinary_public_id')
 
-        # Delete old image from Cloudinary if it exists
-        if old_public_id:
-            cloudinary.uploader.destroy(old_public_id)
-
+        # Delete old discord avatar from Cloudinary
+        old_discord_public_id = discord_data.get('cloudinary_public_id')
+        if old_discord_public_id:
+            cloudinary.uploader.destroy(old_discord_public_id)
+        cursor.execute("SELECT cloudinary_public_id FROM users WHERE id = %s", (session['id'],))
+        user_data = cursor.fetchone()
+        old_profile_public_id = user_data.get('cloudinary_public_id') if user_data else None
+        if old_profile_public_id and old_profile_public_id != old_discord_public_id:
+            cloudinary.uploader.destroy(old_profile_public_id)
         # Wrap image bytes in BytesIO to upload to Cloudinary
         image_file = BytesIO(avatar_response.content)
         image_file.name = f"discord_avatar_{session['id']}.png"
