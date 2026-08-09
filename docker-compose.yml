@@ -1,13 +1,44 @@
 services:
   web:
-    # Path to the directory containing the Dockerfile (same directory)
     build: .
-    # Map the container's internal port to the local machine
     ports:
       - "127.0.0.1:5000:5000"
-    # Environment variables
     env_file:
       - EsportsManagementTool/.env
-    # Sync local files to the container for live-reloading
     volumes:
       - .:/EsportsManagementTool
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ExamplePassword
+      MYSQL_DATABASE: ExampleDatabase
+      MYSQL_USER: EXUsername
+      MYSQL_PASSWORD: ExamplePassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pExamplePassword" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  dump-source-db:
+    image: mysql:8.0
+    profiles: [ "tools" ]
+    env_file:
+      - EsportsManagementTool/.env
+    entrypoint: >
+      sh -c "mysqldump -h $$MYSQL_HOST -u $$MYSQL_USER -p
+      --single-transaction --no-tablespaces --set-gtid-purged=OFF --routines --triggers $$MYSQL_DB > /dump/init.sql"
+    volumes:
+      - ./db/init:/dump
+
+volumes:
+  mysql-data:
