@@ -1082,14 +1082,12 @@ async function removeUser(userId, username, fullName) {
             // Close modal
             closeRemoveUserModal();
 
-            // Show success message
-            alert(`✓ ${data.message}`);
-
-            // Reload page to refresh user list and stats
-            window.location.reload();
+            // Show success card, then reload
+            showDeleteSuccessMessage(data.message);
+            setTimeout(() => window.location.reload(), 1200);
         } else {
-            // Show error message
-            alert(`Error: ${data.message}`);
+            // Show error card
+            showDeleteErrorMessage(data.message);
 
             // Re-enable button with original text
             deleteBtn.disabled = false;
@@ -1098,7 +1096,7 @@ async function removeUser(userId, username, fullName) {
     } catch (error) {
         // Handle network or other errors
         console.error('Error removing user:', error);
-        alert('An error occurred while removing the user. Please try again.');
+        showDeleteErrorMessage('An error occurred while removing the user. Please try again.');
 
         // Re-enable button with original text
         deleteBtn.disabled = false;

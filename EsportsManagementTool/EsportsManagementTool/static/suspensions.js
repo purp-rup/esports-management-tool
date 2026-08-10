@@ -138,9 +138,6 @@ function openSuspendModal(userId, username, fullName) {
                         </p>
                     </div>
 
-                    <!-- Status Message -->
-                    <div id="suspendMessage" class="form-message" style="display: none; margin-top: 1rem;"></div>
-
                     <!-- Action Buttons -->
                     <div class="form-actions" style="margin-top: 1.5rem;">
                         <button type="button" class="btn btn-secondary" onclick="closeSuspendModal()">
@@ -258,7 +255,6 @@ async function submitSuspension() {
     const customReason = document.getElementById('customReason');
     const durationDays = document.getElementById('durationDays').value;
     const durationHours = document.getElementById('durationHours').value;
-    const messageDiv = document.getElementById('suspendMessage');
     const submitBtn = document.querySelector('#suspendUserForm button[type="submit"]');
     const btnText = document.getElementById('suspendBtnText');
     const btnSpinner = document.getElementById('suspendBtnSpinner');
@@ -276,7 +272,7 @@ async function submitSuspension() {
     // VALIDATION
     // ========================================
     if (!reason) {
-        showSuspendMessage('Please select a reason for suspension', 'error');
+        showDeleteErrorMessage('Please select a reason for suspension');
         return;
     }
 
@@ -284,7 +280,7 @@ async function submitSuspension() {
     const hours = parseInt(durationHours) || 0;
 
     if (days === 0 && hours === 0) {
-        showSuspendMessage('Suspension duration must be greater than 0', 'error');
+        showDeleteErrorMessage('Suspension duration must be greater than 0');
         return;
     }
 
@@ -294,7 +290,6 @@ async function submitSuspension() {
     submitBtn.disabled = true;
     btnText.style.display = 'none';
     btnSpinner.style.display = 'inline-block';
-    messageDiv.style.display = 'none';
 
     // ========================================
     // SUBMIT TO BACKEND
@@ -316,43 +311,29 @@ async function submitSuspension() {
         const data = await response.json();
 
         if (data.success) {
-            // Show success message
-            showSuspendMessage(data.message, 'success');
+            // Show success card, then close modal and reload
+            showDeleteSuccessMessage(data.message);
 
-            // Close modal and reload after brief delay
             setTimeout(() => {
                 closeSuspendModal();
                 window.location.reload();
-            }, 1500);
+            }, 1200);
         } else {
-            // Show error message and re-enable button
-            showSuspendMessage(data.message || 'Failed to suspend user', 'error');
+            // Show error card and re-enable button
+            showDeleteErrorMessage(data.message || 'Failed to suspend user');
             submitBtn.disabled = false;
             btnText.style.display = 'inline';
             btnSpinner.style.display = 'none';
         }
     } catch (error) {
         console.error('Error suspending user:', error);
-        showSuspendMessage('An error occurred. Please try again.', 'error');
+        showDeleteErrorMessage('An error occurred. Please try again.');
 
         // Re-enable button
         submitBtn.disabled = false;
         btnText.style.display = 'inline';
         btnSpinner.style.display = 'none';
     }
-}
-
-/**
- * Show message in suspension modal
- *
- * @param {string} message - Message text to display
- * @param {string} type - Message type ('success' or 'error')
- */
-function showSuspendMessage(message, type) {
-    const messageDiv = document.getElementById('suspendMessage');
-    messageDiv.textContent = message;
-    messageDiv.className = `form-message ${type}`;
-    messageDiv.style.display = 'block';
 }
 
 // ============================================
@@ -478,35 +459,39 @@ async function updateUserDetailsWithSuspension(userId) {
  * @param {number} userId - ID of user to unsuspend
  * @param {string} username - Username for confirmation display
  */
-async function liftSuspension(userId, username) {
-    // Confirm action with admin
-    if (!confirm(`Are you sure you want to lift the suspension for ${username}?`)) {
-        return;
-    }
+function liftSuspension(userId, username) {
+    openDeleteConfirmModal({
+        title: 'Lift Suspension?',
+        itemName: username,
+        message: `Are you sure you want to lift the suspension for ${username}?`,
+        buttonText: 'Lift Suspension',
+        onConfirm: confirmLiftSuspension,
+        itemId: userId
+    });
+}
 
+async function confirmLiftSuspension(userId) {
     try {
-        // Request suspension lift from backend
         const response = await fetch('/admin/lift-suspension', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: userId })
         });
 
         const data = await response.json();
 
+        closeDeleteConfirmModal();
+
         if (data.success) {
-            // Show success message and reload
-            alert(data.message);
-            window.location.reload();
+            showDeleteSuccessMessage(data.message);
+            setTimeout(() => window.location.reload(), 1200);
         } else {
-            // Show error message
-            alert('Error: ' + data.message);
+            showDeleteErrorMessage(data.message || 'Failed to lift suspension');
         }
     } catch (error) {
         console.error('Error lifting suspension:', error);
-        alert('An error occurred. Please try again.');
+        closeDeleteConfirmModal();
+        showDeleteErrorMessage('An error occurred. Please try again.');
     }
 }
 
@@ -520,4 +505,5 @@ async function liftSuspension(userId, username) {
 window.openSuspendModal = openSuspendModal;
 window.closeSuspendModal = closeSuspendModal;
 window.liftSuspension = liftSuspension;
+window.confirmLiftSuspension = confirmLiftSuspension;
 window.updateUserDetailsWithSuspension = updateUserDetailsWithSuspension;
