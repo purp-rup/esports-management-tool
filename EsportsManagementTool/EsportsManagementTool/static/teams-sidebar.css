@@ -429,6 +429,19 @@
     font-size: 0.9375rem;
 }
 
+.team-tree-content {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-secondary);
+    transition: color 0.12s;
+}
+
+.team-tree-content:hover {
+    color: var(--text-primary);
+}
+
 /* ============================================
    ANIMATIONS
    ============================================ */
