@@ -33,8 +33,8 @@ def send_verify_email(email: str, token: str, user_firstname: str) -> None:
                     <br>
                     <p style="text-align: left; font-weight: bold;">Hello, {user_firstname}!</p>
                     <div style="padding-left: 15px;">
-                        <p style="font-size: 15px;">Welcome to Stockton Esports! We're glad to have you.</p>
-                        <p style="font-size: 15px;">Please click the button below to verify your Stockton Esports Management Tool account:</p>
+                        <p style="font-size: 15px;">Welcome to Osprey Vantage! We're glad to have you.</p>
+                        <p style="font-size: 15px;">Please click the button below to verify your Osprey Vantage account:</p>
                         <a href="{verify_url}" 
                            style="display: inline-block; padding: 12px 24px; background-color: #6a0dad; color: #ffffff; 
                                   text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 15px;">
@@ -44,7 +44,7 @@ def send_verify_email(email: str, token: str, user_firstname: str) -> None:
                         <p style="font-size: 15px;">This link will expire after 24 hours.</p>
                         <p style="font-size: 15px;">If you did not create this account, please ignore this email.</p>
                     </div>
-                    <p style="text-align: left;">- EsMT Team</p>
+                    <p style="text-align: left;">- Osprey Vantage Dev Team</p>
                 </div>
                 {get_email_footer()}
             </div>
@@ -82,7 +82,7 @@ def register_verification_routes(app, mysql):
                     (user['userid'],)
                 )
                 mysql.connection.commit()
-                flash('Email is successfully verified, welcome to Stockton Esports! You can now log in.', 'success')
+                flash('Email is successfully verified, welcome to Osprey Vantage! You can now log in.', 'success')
                 return redirect(url_for('login'))
             else:
                 flash('ERROR: Verification link is invalid/expired.', 'error')
@@ -154,7 +154,7 @@ def send_reminder_email(user_email, user_firstname, season_name, game_title, pen
                                     <strong>Season End:</strong> {days_until_end} day(s) remaining<br>
                                     <strong>Pending Results:</strong> {pending_count} team(s) need playoffs placement recorded.
                                 </p>
-                                <p style="font-size: 15px;">Please log into the Stockton Esports Management Tool and click the <strong>"Record Playoffs Results"</strong> button in your dashboard to get started.</p>
+                                <p style="font-size: 15px;">Please log into Osprey Vantage and click the <strong>"Record Playoffs Results"</strong> button in your dashboard to get started.</p>
                                 <p style="font-size: 15px;"><strong>Playoffs placement options:</strong><br>
                                     Winner (1st place)<br>
                                     Finals (2nd place)<br>
@@ -165,7 +165,7 @@ def send_reminder_email(user_email, user_firstname, season_name, game_title, pen
                                 </p>
                                 <p style="font-size: 15px;">Thank you for your prompt attention to this matter.</p>
                             </div>
-                            <p style="text-align: left;">- EsMT Team</p>
+                            <p style="text-align: left;">- Osprey Vantage Dev Team</p>
                         </div>
                         {get_email_footer()}
                     </div>
@@ -187,7 +187,7 @@ def send_password_reset_email(email: str, token: str, user_firstname: str) -> bo
     """
     try:
         reset_url = url_for('reset_password', token=token, _external=True)
-        msg = Message('Reset Your Stockton Esports Password', recipients=[email])
+        msg = Message('Reset Your Osprey Vantage Password', recipients=[email])
         msg.html = f'''
             <div style="background-color: #f4f4f4; width: 100%; margin: 0; padding: 10px 0; font-family: 'Inter', sans-serif;">
                 <div style="background-color: #ffffff; max-width: 600px; margin: 0 auto;">
@@ -199,7 +199,7 @@ def send_password_reset_email(email: str, token: str, user_firstname: str) -> bo
                         <br>
                         <p style="text-align: left; font-weight: bold;">Hello, {user_firstname}!</p>
                         <div style="padding-left: 15px;">
-                            <p style="font-size: 15px;">We received a request to reset your Stockton Esports Management Tool password.</p>
+                            <p style="font-size: 15px;">We received a request to reset your Osprey Vantage password.</p>
                             <p style="font-size: 15px;">Click the button below to choose a new password:</p>
                             <a href="{reset_url}"
                                style="display: inline-block; padding: 12px 24px; background-color: #6a0dad; color: #ffffff;
@@ -210,7 +210,7 @@ def send_password_reset_email(email: str, token: str, user_firstname: str) -> bo
                             <p style="font-size: 15px;">This link will expire in <strong>1 hour</strong>.</p>
                             <p style="font-size: 15px;">If you did not request a password reset, you can safely ignore this email.</p>
                         </div>
-                        <p style="text-align: left;">- EsMT Team</p>
+                        <p style="text-align: left;">- Osprey Vantage Dev Team</p>
                     </div>
                     {get_email_footer()}
                 </div>
@@ -237,7 +237,7 @@ def get_email_footer() -> str:
             </a>
             <br><br>
             <p style="margin: 0 0 8px 0;">Have a question? Contact <strong>esports@stockton.edu</strong> for assistance!</p>
-            <p style="margin: 0;">©{datetime.now().year} Stockton Esports Management Tool. All rights reserved.</p>
+            <p style="margin: 0;">©{datetime.now().year} Osprey Vantage. All rights reserved.</p>
         </div>
     '''
 

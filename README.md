@@ -1,4 +1,4 @@
-# Esports Management Tool
+# Osprey Vantage
 
 ## Highlights
 - **Centralized Platform**: Combines scheduling, communication, and management features under one tool to reduce disorganization.  
@@ -9,13 +9,13 @@
 - **Free & Tailored**: Unlike existing paid platforms (e.g., RallyCry, LeagueSpot), this tool is designed specifically for Stockton Esports and provided at no cost.  
 
 ## Overview
-The Esports Management Tool is a software application developed for the Stockton University Esports program. The project addresses long-standing organizational and communication challenges caused by reliance on fragmented tools like Discord, Google Drive, and Google Calendar.  
+Osprey Vantage is a software application developed for the Stockton University Esports program. The project addresses long-standing organizational and communication challenges caused by reliance on fragmented tools like Discord, Google Drive, and Google Calendar.  
 
 This solution focuses on both the **competitive** and **community** sides of Stockton Esports:  
 - On the **competitive side**, it streamlines logistical tasks such as scheduling, team management, and match preparation, helping Game Managers and players stay aligned.  
 - On the **community side**, it enhances engagement through better event visibility, customizable notifications, and community engagement.  
 
-By integrating existing workflows into a single, intuitive platform, the tool reduces missed deadlines, improves coordination, and strengthens both team and community operations.  
+By integrating existing workflows into a single, intuitive platform, Vantage reduces missed deadlines, improves coordination, and strengthens both team and community operations.  
 
 ### Design
 This application was developed using the Flask framework, making use of HTML, Python, and MySQL.

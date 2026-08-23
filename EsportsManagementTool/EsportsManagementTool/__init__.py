@@ -345,7 +345,7 @@ def index():
 
 @app.route('/privacy-policy')
 def privacy_policy():
-    """Display the privacy policy for the Stockton Esports Management Tool."""
+    """Display the privacy policy for Osprey Vantage."""
     return render_template('privacy_policy.html')
 
 
