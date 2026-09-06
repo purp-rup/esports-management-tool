@@ -546,7 +546,7 @@ function openCreateScheduleModal() {
     if (leagueGroup) leagueGroup.style.display = 'none';
     if (dayOfWeekGroup) dayOfWeekGroup.style.display = 'block';
     if (specificDateGroup) specificDateGroup.style.display = 'none';
-    if (endDateGroup) endDateGroup.style.display = 'block';
+    if (endDateGroup) endDateGroup.style.display = 'flex';
 
     // Re-enable all visibility options in case a previous session
     // locked them to "Team Only" for a Match event
@@ -625,7 +625,7 @@ function handleFrequencyChange() {
         // Recurring event: show day of week and end date
         dayOfWeekGroup.style.display = 'block';
         specificDateGroup.style.display = 'none';
-        endDateGroup.style.display = 'block';
+        endDateGroup.style.display = 'flex';
 
         // Update required attributes
         dayOfWeekSelect.setAttribute('required', 'required');
