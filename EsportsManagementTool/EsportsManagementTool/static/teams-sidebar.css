@@ -51,21 +51,20 @@
     align-items: center;
     justify-content: center;
     border-radius: 7px;
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
+    background: var(--stockton-blue);
+    border: none;
+    color: #000;
     font-size: 0.9rem;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    transition: background 0.15s, transform 0.15s;
     flex-shrink: 0;
     line-height: 1;
     letter-spacing: 0;
 }
 
 .btn-create-team-sidebar:hover {
-    background: var(--hover-bg);
-    border-color: var(--stockton-blue);
-    color: var(--stockton-blue);
+    background: #5aabdd;
+    transform: translateY(-1px);
 }
 
 .btn-create-team-sidebar i {
