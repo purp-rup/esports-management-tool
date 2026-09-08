@@ -288,6 +288,13 @@ select.fa-icons, option.fa-icons {
     font-weight: 600;
 }
 
+/* Visually disabled state for custom dropdown items (e.g. visibility options locked for Match events) */
+.filter-box-item.disabled-option {
+    opacity: 0.4;
+    pointer-events: none;
+    cursor: default;
+}
+
 /* Universal filter buttons
    Used for communities tab and profile tab */
 .filter-btn {
