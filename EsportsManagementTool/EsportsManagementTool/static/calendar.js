@@ -4,7 +4,8 @@
 
 // Global variables - use unique names to avoid conflicts with dashboard scripts
 let currentDate = new Date();
-let calendarEventsData = {};  
+let calendarEventsData = {};
+let calendarLabReservationsData = {};
 let isUserLoggedIn = false;
 let clickOutsideHandler = null; // Listens for clicks outside popups
 let activeAnchorElement = null;
@@ -127,8 +128,155 @@ document.addEventListener('DOMContentLoaded', function() {
 
     initializeCalendar();
     setupNavigation();
+    setupCalendarViewTabs();
     loadCalendarEvents();
 });
+
+// Events / Lab Reservations view tabs (dashboard calendar only).
+// Tracks which calendar view is currently displayed
+let currentCalendarView = 'events';
+
+function setupCalendarViewTabs() {
+    const eventsViewTab = document.querySelector('.calendar-view-tabs .tab-button[data-view="events"]');
+    if (eventsViewTab) {
+        eventsViewTab.classList.add('active');
+    }
+}
+
+function switchCalendarView(view, btnElement) {
+    if (view === currentCalendarView) {
+        return;
+    }
+
+    document.querySelectorAll('.calendar-view-tabs .tab-button').forEach(function(btn) {
+        btn.classList.remove('active');
+    });
+    btnElement.classList.add('active');
+
+    currentCalendarView = view;
+
+    const eventLegendCard = document.getElementById('eventLegendCard');
+    const labLegendCard = document.getElementById('labLegendCard');
+
+    if (view === 'labs') {
+        setElementDisplay(eventLegendCard, 'none');
+        setElementDisplay(labLegendCard, 'block');
+        loadCalendarLabReservations();
+    } else {
+        setElementDisplay(labLegendCard, 'none');
+        setElementDisplay(eventLegendCard, 'block');
+        loadCalendarEvents();
+    }
+}
+
+// Pulls all lab reservations to display as pills on the reservation calendar
+function loadCalendarLabReservations() {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+
+    console.log(`Loading lab reservations for ${year}-${month}`);
+
+    fetch(`/api/calendar/labs?year=${year}&month=${month}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Lab reservations loaded:', data);
+            calendarLabReservationsData = data;
+            displayLabReservations();
+            revealCalendar();
+        })
+        .catch(error => {
+            console.error('Error loading lab reservations:', error);
+            calendarLabReservationsData = {};
+            displayLabReservations();
+            revealCalendar();
+        });
+}
+
+// Maps a lab_choice display name to the short key used for CSS/data attributes
+function getLabChoiceKey(labChoice) {
+    const map = {
+        'Blue Lab': 'blue',
+        'Gold Lab': 'gold',
+        'Center Office': 'center'
+    };
+    return map[labChoice] || 'center';
+}
+
+function displayLabReservations() {
+    document.querySelectorAll('.events-container').forEach(container => {
+        container.innerHTML = '';
+    });
+
+    let labCount = 0;
+
+    Object.keys(calendarLabReservationsData).forEach(dateKey => {
+        const labs = calendarLabReservationsData[dateKey];
+        const container = document.getElementById(`events-${dateKey}`);
+
+        if (!container || !labs || labs.length === 0) return;
+
+        labCount += labs.length;
+
+        const displayLabs = labs.slice(0, 3);
+        const hasMore = labs.length > 3;
+
+        displayLabs.forEach(lab => {
+            const labEl = createLabReservationElement(lab);
+            container.appendChild(labEl);
+        });
+
+        if (hasMore) {
+            const overflow = document.createElement('div');
+            overflow.className = 'event-overflow';
+            overflow.textContent = `+${labs.length - 3} more`;
+            const hiddenLabs = labs.slice(3);
+            overflow.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleCellOverflow(overflow, hiddenLabs, createLabReservationElement);
+            });
+            container.appendChild(overflow);
+        }
+    });
+
+    Object.keys(calendarLabReservationsData).forEach(dateKey => {
+        renderMobileLabDots(dateKey, calendarLabReservationsData[dateKey] || []);
+    });
+
+    console.log(`Displayed ${labCount} lab reservations`);
+}
+
+// Builds the reservation pill
+function createLabReservationElement(lab) {
+    const labEl = document.createElement('div');
+    labEl.className = 'event lab-reservation';
+    labEl.setAttribute('data-lab-choice', getLabChoiceKey(lab.lab_choice));
+    labEl.setAttribute('data-priority', lab.priority || '');
+
+    const title = document.createElement('div');
+    title.className = 'event-title';
+    title.textContent = lab.game_name ? `${lab.lab_choice} · ${lab.game_name}` : lab.lab_choice;
+    labEl.appendChild(title);
+
+    if (lab.time) {
+        const time = document.createElement('div');
+        time.className = 'event-time';
+        time.textContent = lab.time;
+        labEl.appendChild(time);
+    }
+
+    labEl.addEventListener('click', function(e) {
+        e.stopPropagation();
+        console.log('Lab reservation clicked:', lab);
+        // TODO: open a lab reservation details popup once that exists
+    });
+
+    return labEl;
+}
 
 function initializeCalendar() {
     console.log('Initializing calendar for:', currentDate);
@@ -161,7 +309,11 @@ function updateCalendar() {
     console.log('Updating calendar to:', currentDate);
     updateCalendarHeader();
     renderCalendar();
-    loadCalendarEvents();
+    if (currentCalendarView === 'labs') {
+        loadCalendarLabReservations();
+    } else {
+        loadCalendarEvents();
+    }
 }
 
 function updateCalendarHeader() {
@@ -817,7 +969,7 @@ let _overflowTrigger = null;
  * Toggle the overflow expansion panel for a day cell.
  * Opens if closed, closes if the same cell is clicked again.
  */
-function toggleCellOverflow(overflowEl, hiddenEvents) {
+function toggleCellOverflow(overflowEl, hiddenItems, createElementFn = createEventElement) {
     const cell = overflowEl.closest('.calendar-cell');
 
     if (_overflowCell === cell) {
@@ -840,7 +992,7 @@ function toggleCellOverflow(overflowEl, hiddenEvents) {
 
     const cellMirror = document.createElement('div');
     cellMirror.className = 'calendar-cell calendar-overflow-inner';
-    hiddenEvents.forEach(event => cellMirror.appendChild(createEventElement(event)));
+    hiddenItems.forEach(item => cellMirror.appendChild(createElementFn(item)));
     panel.appendChild(cellMirror);
 
     document.body.appendChild(panel);
@@ -900,6 +1052,24 @@ window.addEventListener('resize', handleOverflowReposition);
 // ============================================
 // MOBILE DAY SHEET
 // ============================================
+
+/** Render one colored dot per unique lab choice for a day (mobile view) */
+function renderMobileLabDots(dateKey, labs) {
+    const container = document.getElementById(`dots-${dateKey}`);
+    if (!container) return;
+    container.innerHTML = '';
+
+    const seen = new Set();
+    labs.forEach(l => { if (l.lab_choice) seen.add(getLabChoiceKey(l.lab_choice)); });
+
+    ['blue', 'gold', 'center'].forEach(key => {
+        if (seen.has(key)) {
+            const dot = document.createElement('div');
+            dot.className = `mobile-event-dot mobile-lab-dot--${key}`;
+            container.appendChild(dot);
+        }
+    });
+}
 
 /** Render one colored dot per unique event type for a day */
 function renderMobileDots(dateKey, events) {

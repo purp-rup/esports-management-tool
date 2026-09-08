@@ -647,6 +647,7 @@ import EsportsManagementTool.UpdateProfile
 import EsportsManagementTool.event_notifications
 import EsportsManagementTool.suspensions
 import EsportsManagementTool.events
+import EsportsManagementTool.lab_reservations
 import EsportsManagementTool.dashboard
 from EsportsManagementTool import communities
 from EsportsManagementTool import teams
@@ -666,6 +667,7 @@ EsportsManagementTool.suspensions.register_suspension_routes(app, mysql, roles_r
 
 # Register event and season routes
 EsportsManagementTool.events.register_event_routes(app, mysql, login_required, roles_required)
+EsportsManagementTool.lab_reservations.register_lab_reservation_routes(app, mysql, login_required, roles_required)
 EsportsManagementTool.seasons.register_seasons_routes(app, mysql, login_required, roles_required)
 seasons.initialize_season_scheduler(app, mysql)
 
@@ -822,6 +824,62 @@ def get_calendar_events() -> tuple[Response, int] | Response:
     except Exception as e:
         print(f"Error fetching calendar events: {str(e)}")
         return jsonify({'error': 'Failed to fetch events'}), 500
+    finally:
+        cursor.close()
+
+
+@app.route('/api/calendar/labs')
+def get_calendar_lab_reservations() -> tuple[Response, int] | Response:
+    """Fetch lab reservations for calendar view via AJAX."""
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+
+    if not year or not month:
+        return jsonify({'error': 'Year and month parameters required'}), 400
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    labs_by_date = {}
+
+    try:
+        cursor.execute("""
+                    SELECT lr.*, g.GameTitle as game_name
+                    FROM lab_reservations lr
+                    LEFT JOIN games g ON lr.game_id = g.gameID
+                    WHERE YEAR(lr.reservation_date) = %s AND MONTH(lr.reservation_date) = %s
+                    ORDER BY lr.reservation_date, lr.start_time
+                """, (year, month))
+
+        reservations = cursor.fetchall()
+
+        for lab in reservations:
+            date_str = lab['reservation_date'].strftime('%Y-%m-%d')
+
+            time_str = None
+            if lab['start_time'] and lab['end_time']:
+                start_str = EsportsManagementTool.universal_helpers.format_time_to_12hr(lab['start_time'])
+                end_str = EsportsManagementTool.universal_helpers.format_time_to_12hr(lab['end_time'])
+                time_str = f"{start_str} - {end_str}"
+
+            lab_obj = {
+                'id': lab['reservation_id'],
+                'lab_choice': lab['lab_choice'],
+                'priority': (lab.get('priority') or '').lower(),
+                'lab_status': lab.get('lab_status', ''),
+                'game_name': lab.get('game_name'),
+                'time': time_str,
+                'date': date_str,
+                'description': lab.get('lab_description') or ''
+            }
+
+            if date_str not in labs_by_date:
+                labs_by_date[date_str] = []
+            labs_by_date[date_str].append(lab_obj)
+
+        return jsonify(labs_by_date)
+
+    except Exception as e:
+        print(f"Error fetching calendar lab reservations: {str(e)}")
+        return jsonify({'error': 'Failed to fetch lab reservations'}), 500
     finally:
         cursor.close()
 

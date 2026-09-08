@@ -27,14 +27,26 @@
 
 /* Calendar header with navigation buttons */
 .calendar-navigation {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
     padding: 1rem 1rem;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     width: 100%;
+}
+
+.calendar-navigation > #prevMonth {
+    justify-self: start;
+}
+
+.calendar-navigation > .calendar-month-year {
+    justify-self: center;
+}
+
+.calendar-navigation > .calendar-nav-right {
+    justify-self: end;
 }
 
 .calendar-month-year {
@@ -82,6 +94,24 @@
 .today-button:hover {
     background: #5aabdd;
     transform: translateY(-1px);
+}
+
+/* Groups the Next button with the view tabs so both sit together */
+.calendar-nav-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Right-aligned, content-width tab variant */
+.calendar-view-tabs {
+    width: auto;
+    margin-bottom: 0;
+}
+
+.calendar-view-tabs .tab-button {
+    flex: 0 0 auto;
+    padding: 0.6rem 1.25rem;
 }
 
 .calendar-header {
@@ -252,7 +282,6 @@
 /* -----------------------------------------------
    CELL OVERFLOW EXPANSION PANEL
    ----------------------------------------------- */
-
 .calendar-cell--expanded {
     background: rgba(121, 189, 233, 0.07) !important;
     align-self: start;
@@ -372,6 +401,46 @@
     border-color: rgba(202, 138, 4, 1);
 }
 
+/* =======================================
+   LAB RESERVATION PILL COLORS
+   Fill comes from lab choice, border comes from priority —
+   the two vary independently, unlike the single-hue event pills above.
+   ======================================= */
+.calendar-cell .event.lab-reservation[data-lab-choice="blue"] {
+    background: rgba(96, 165, 250, 0.8);
+    color: black;
+}
+
+.calendar-cell .event.lab-reservation[data-lab-choice="blue"]:hover {
+    background: rgba(96, 165, 250, 0.95);
+    transform: translateY(-1px);
+}
+
+.calendar-cell .event.lab-reservation[data-lab-choice="gold"] {
+    background: rgba(250, 204, 21, 0.8);
+    color: black;
+}
+
+.calendar-cell .event.lab-reservation[data-lab-choice="gold"]:hover {
+    background: rgba(250, 204, 21, 0.95);
+    transform: translateY(-1px);
+}
+
+.calendar-cell .event.lab-reservation[data-lab-choice="center"] {
+    background: rgba(203, 213, 225, 0.8);
+    color: black;
+}
+
+.calendar-cell .event.lab-reservation[data-lab-choice="center"]:hover {
+    background: rgba(203, 213, 225, 0.95);
+    transform: translateY(-1px);
+}
+
+.calendar-cell .event.lab-reservation[data-priority="casual"]   { border-color: rgba(34, 197, 94, 1); }
+.calendar-cell .event.lab-reservation[data-priority="practice"] { border-color: rgba(59, 130, 246, 1); }
+.calendar-cell .event.lab-reservation[data-priority="scrim"]    { border-color: rgba(234, 179, 8, 1); }
+.calendar-cell .event.lab-reservation[data-priority="match"]    { border-color: rgba(239, 68, 68, 1); }
+
 /* Calendar widgets */
 .widget-sidebar {
     display: grid;
@@ -450,6 +519,63 @@
     background: var(--card-bg);
     border: 2px solid white;
     box-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+/* =======================================
+   LAB RESERVATION LEGEND COLORS
+   ======================================= */
+
+/* Two-column layout for the lab reservation legend (Lab | Priority) */
+.legend-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.legend-column-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+/* Lab choice - main fill color, same pattern as event-type swatches */
+.legend-color.lab-blue {
+    background: rgba(96, 165, 250, 0.7);
+    border-color: rgba(96, 165, 250, 1);
+}
+
+.legend-color.lab-gold {
+    background: rgba(250, 204, 21, 0.7);
+    border-color: rgba(250, 204, 21, 1);
+}
+
+.legend-color.lab-center {
+    background: rgba(203, 213, 225, 0.7);
+    border-color: rgba(203, 213, 225, 1);
+}
+
+/* Priority - border-only ring, same pattern as .scheduled-indicator */
+.legend-color.priority-casual {
+    background: var(--card-bg);
+    border-color: rgba(34, 197, 94, 1);
+}
+
+.legend-color.priority-practice {
+    background: var(--card-bg);
+    border-color: rgba(59, 130, 246, 1);
+}
+
+.legend-color.priority-scrim {
+    background: var(--card-bg);
+    border-color: rgba(234, 179, 8, 1);
+}
+
+.legend-color.priority-match {
+    background: var(--card-bg);
+    border-color: rgba(239, 68, 68, 1);
 }
 
 .legend-label {
@@ -662,6 +788,10 @@
     .mobile-event-dot--practice   { background: #22c55e; }
     .mobile-event-dot--event      { background: #79bde9; }
     .mobile-event-dot--misc       { background: #eab308; }
+
+    .mobile-lab-dot--blue   { background: #60a5fa; }
+    .mobile-lab-dot--gold   { background: #facc15; }
+    .mobile-lab-dot--center { background: #cbd5e1; }
 
     .calendar-day-sheet-title {
         font-size: 1rem;

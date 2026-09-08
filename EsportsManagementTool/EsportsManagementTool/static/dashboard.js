@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     } else {
         // Force a click on the current tab to ensure content is fetched
-        const activeTabElement = document.querySelector('.tab-button.active');
+        const activeTabElement = document.querySelector('#mainTabNavigation .tab-button.active');
         if (activeTabElement) {
             setTimeout(() => {
                 activeTabElement.click();
@@ -123,8 +123,12 @@ function initializeDashboardModules() {
  * Handles URL hash for deep linking to specific tabs
  */
 function initializeTabNavigation() {
-    // Get all tab navigation elements
-    const tabButtons = document.querySelectorAll('.tab-button');
+    /* Get all tab navigation elements
+     * Scoped to the main dashboard nav only — the page also has nested
+     * `.tab-button` groups (e.g. the calendar's Events/Lab Reservations
+     * view tabs) that must stay independent of this logic.
+     */
+    const tabButtons = document.querySelectorAll('#mainTabNavigation .tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
 
     // Check for URL hash to restore previous tab state

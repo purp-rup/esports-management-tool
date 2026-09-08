@@ -41,7 +41,7 @@
     </div>
 
     <!-- Tab Navigation -->
-    <div class="tab-navigation">
+        <div class="tab-navigation" id="mainTabNavigation">
         <button class="tab-button {% if preferred_tab == 'calendar' %}active{% endif %}" data-tab="calendar">
             <i class="fa-regular fa-calendar tab-icon"></i>
             <span>Calendar</span>
@@ -85,10 +85,23 @@
                     <span>Previous</span>
                 </button>
                 <h2 class="calendar-month-year" id="currentMonthYear"></h2>
-                <button class="nav-button" id="nextMonth">
-                    <span>Next</span>
-                    <i class="fas fa-chevron-right"></i>
-                </button>
+                <div class="calendar-nav-right">
+                    <!-- Events / Lab Reservations view tabs (placeholder — not wired up yet) -->
+                    <div class="tab-navigation calendar-view-tabs">
+                        <button class="tab-button active" data-view="events" onclick="switchCalendarView('events', this)">
+                            <i class="fas fa-calendar-day tab-icon"></i>
+                            <span>Events</span>
+                        </button>
+                        <button class="tab-button" data-view="labs" onclick="switchCalendarView('labs', this)">
+                            <i class="fas fa-desktop tab-icon"></i>
+                            <span>Lab Reservations</span>
+                        </button>
+                    </div>
+                    <button class="nav-button" id="nextMonth">
+                        <span>Next</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
             </div>
             <!-- Main Calendar Section -->
             <div class="calendar-main">
@@ -112,7 +125,7 @@
             <!-- Calendar legend widget -->
             <div class="widget-sidebar">
                 <!-- Event Type Legend Card -->
-                <div class="widget-card">
+                <div class="widget-card" id="eventLegendCard">
                     <h3><i class="fas fa-palette"></i> Event Types</h3>
                     <div class="legend-items">
                         <div class="legend-item">
@@ -138,6 +151,50 @@
                         <div class="legend-item">
                             <div class="legend-color scheduled-indicator"></div>
                             <span class="legend-label">Recurring/Scheduled</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Lab Reservation Legend Card (shown only in Lab Reservations view) -->
+                <div class="widget-card" id="labLegendCard" style="display: none;">
+                    <h3><i class="fas fa-desktop"></i> Lab Reservations</h3>
+                    <div class="legend-columns">
+                        <div class="legend-column">
+                            <div class="legend-column-title">Lab</div>
+                            <div class="legend-items">
+                                <div class="legend-item">
+                                    <div class="legend-color lab-blue"></div>
+                                    <span class="legend-label">Blue Lab</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color lab-gold"></div>
+                                    <span class="legend-label">Gold Lab</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color lab-center"></div>
+                                    <span class="legend-label">Center Office</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="legend-column">
+                            <div class="legend-column-title">Priority</div>
+                            <div class="legend-items">
+                                <div class="legend-item">
+                                    <div class="legend-color priority-casual"></div>
+                                    <span class="legend-label">Casual</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color priority-practice"></div>
+                                    <span class="legend-label">Practice</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color priority-scrim"></div>
+                                    <span class="legend-label">Scrim</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color priority-match"></div>
+                                    <span class="legend-label">Match</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -694,10 +751,13 @@
                         </div>
                     </div>
 
-                    <!-- Create Event Button (stays in top right) -->
+                    <!-- Create Event / Create Lab Reservation Buttons (stay in top right) -->
                     {% if user.is_admin or user.is_developer or user.is_gm %}
-                    <button class="btn btn-primary" onclick="openCreateEventModal()">
-                        <i class="fas fa-plus"></i>
+                    <button class="btn btn-primary" onclick="openCreateEventModal()" title="Create an event">
+                        <i class="fas fa-calendar-day"></i>
+                    </button>
+                    <button class="btn btn-primary" onclick="openCreateLabReservationModal()" title="Create a lab reservation">
+                        <i class="fas fa-desktop"></i>
                     </button>
                     {% endif %}
                 </div>
@@ -900,6 +960,132 @@
                             <button type="submit" class="btn btn-primary">
                                 <span id="submitBtnText">Create Event</span>
                                 <i id="submitBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="createLabReservationModal" class="modal">
+            <div class="modal-content modal-content-large">
+                <div class="modal-header">
+                    <h2>Create a New Lab Reservation!</h2>
+                    <button class="modal-close" onclick="closeCreateLabReservationModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+
+                    <form id="createLabReservationForm" class="event-form-modal">
+                        <div class="form-row">
+                            <!-- Lab choice combobox -->
+                            <div class="form-group">
+                                <label for="labChoiceTagBox" class="required-field">Lab Choice</label>
+                                <div class="filter-box tag-select-box" id="labChoiceTagBox">
+                                    <div class="tag-select-trigger" onclick="toggleFilterBox('labChoiceOptionsPanel')">
+                                        <div id="labChoiceSelectDisplay" class="combo-select-display">
+                                            <span class="combo-placeholder">Select lab</span>
+                                        </div>
+                                        <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                    </div>
+                                    <div class="filter-box-panel tag-select-panel" id="labChoiceOptionsPanel">
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labChoice', 'Blue Lab')">Blue Lab</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labChoice', 'Gold Lab')">Gold Lab</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labChoice', 'Center Office')">Center Office</div>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="labChoice" name="labChoice">
+                            </div>
+
+                            <!-- Reserved game combobox (single-select) -->
+                            <div class="form-group" id="reservedGameFieldGroup">
+                                <label for="reservedGameTagBox" class="required-field">Reserved Game</label>
+                                <div class="filter-box tag-select-box" id="reservedGameTagBox">
+                                    <div class="tag-select-trigger" onclick="toggleFilterBox('reservedGameOptionsPanel')">
+                                        <div id="reservedGameSelectDisplay" class="combo-select-display">
+                                            <span class="combo-placeholder">Select game</span>
+                                        </div>
+                                        <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                    </div>
+                                    <div class="filter-box-panel tag-select-panel" id="reservedGameOptionsPanel">
+                                        <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="reservedGame" name="reservedGame" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row time-row">
+                            <div class="form-group" style="margin: 0;">
+                                <label for="labReservationDate" class="required-field">Date</label>
+                                <input type="date" id="labReservationDate" name="labReservationDate" required>
+                            </div>
+
+                            <div class="form-group" style="margin: 0;">
+                                <label for="labStartTime" class="required-field">Start Time</label>
+                                <input type="time" id="labStartTime" name="labStartTime" step="3600" required>
+                            </div>
+
+                            <div class="form-group" style="margin: 0;">
+                                <label for="labEndTime" class="required-field">End Time</label>
+                                <input type="time" id="labEndTime" name="labEndTime" step="3600" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <!-- Priority combobox -->
+                            <div class="form-group">
+                                <label for="labPriorityTagBox" class="required-field">Priority</label>
+                                <div class="filter-box tag-select-box" id="labPriorityTagBox">
+                                    <div class="tag-select-trigger" onclick="toggleFilterBox('labPriorityOptionsPanel')">
+                                        <div id="labPrioritySelectDisplay" class="combo-select-display">
+                                            <span class="combo-placeholder">Select priority</span>
+                                        </div>
+                                        <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                    </div>
+                                    <div class="filter-box-panel tag-select-panel" id="labPriorityOptionsPanel">
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labPriority', 'Match')">Match</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labPriority', 'Scrim')">Scrim</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labPriority', 'Practice')">Practice</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labPriority', 'Casual')">Casual</div>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="labPriority" name="labPriority">
+                            </div>
+
+                            <!-- Lab status combobox -->
+                            <div class="form-group">
+                                <label for="labStatusTagBox" class="required-field">Lab Status</label>
+                                <div class="filter-box tag-select-box" id="labStatusTagBox">
+                                    <div class="tag-select-trigger" onclick="toggleFilterBox('labStatusOptionsPanel')">
+                                        <div id="labStatusSelectDisplay" class="combo-select-display">
+                                            <span class="combo-placeholder">Select lab status</span>
+                                        </div>
+                                        <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                    </div>
+                                    <div class="filter-box-panel tag-select-panel" id="labStatusOptionsPanel">
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labStatus', 'Whole Lab')">Whole Lab</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labStatus', 'Half Lab')">Half Lab</div>
+                                        <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labStatus', '5 Computers or Less')">5 Computers or Less</div>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="labStatus" name="labStatus">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="labDescription">Description</label>
+                            <textarea id="labDescription" name="labDescription" placeholder="Enter additional details (optional)" rows="4"></textarea>
+                        </div>
+
+                        <div id="labReservationFormMessage" class="form-message" style="display: none;"></div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeCreateLabReservationModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">
+                                <span id="labSubmitBtnText">Reserve Lab</span>
+                                <i id="labSubmitBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
                             </button>
                         </div>
                     </form>

@@ -58,6 +58,9 @@ const MODAL_CLOSE_HANDLERS = {
     'dayEventsModal': () => closeDayModal(),
     'createEventModal': () => closeCreateEventModal(),
 
+    // Lab reservation modal
+    'createLabReservationModal': () => closeCreateLabReservationModal(),
+
     // Game/Community-related modals
     'communityModal': () => closeCommunityModal(),
     'assignGMModal': () => closeAssignGMModal(),
