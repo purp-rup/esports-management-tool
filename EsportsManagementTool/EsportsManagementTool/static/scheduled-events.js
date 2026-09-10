@@ -595,7 +595,7 @@ function handleFrequencyChange() {
     if (frequency === 'Once') {
         // One-time event: show specific date only
         dayOfWeekGroup.style.display = 'none';
-        specificDateGroup.style.display = 'block';
+        specificDateGroup.style.display = 'flex';
         endDateGroup.style.display = 'none';
 
         // Update required attributes
@@ -706,6 +706,26 @@ function formatVisibility(visibility) {
     return visibilityMap[visibility] || visibility;
 }
 
+function selectScheduledCustomLocation() {
+    const hiddenInput = document.getElementById('scheduledLocation');
+    const displayArea = document.getElementById('scheduledLocationDisplay');
+    if (!hiddenInput || !displayArea) return;
+
+    hiddenInput.value = '';
+    displayArea.innerHTML = '';
+
+    const input = document.createElement('input');
+    input.type        = 'text';
+    input.className   = 'combo-custom-input';
+    input.placeholder = 'Enter custom location';
+    input.addEventListener('click', (e) => e.stopPropagation());
+    input.addEventListener('input', () => { hiddenInput.value = input.value; });
+
+    displayArea.appendChild(input);
+    closeAllFilterPanels();
+    input.focus();
+}
+
 // Handle create schedule form submission
 async function handleScheduleSubmit(event) {
     event.preventDefault();
@@ -729,11 +749,7 @@ async function handleScheduleSubmit(event) {
 
     // Hidden input always holds the correct value:
     // preset location string, or the typed custom value when 'Other' is selected
-    const customLocationInput = document.getElementById('scheduledCustomLocation');
-    const scheduledLocationInput = document.getElementById('scheduledLocation');
-    const location = scheduledLocationInput.value === 'other'
-        ? customLocationInput.value
-        : scheduledLocationInput.value;
+    const location = document.getElementById('scheduledLocation').value;
 
     // Set loading state
     submitBtn.disabled = true;

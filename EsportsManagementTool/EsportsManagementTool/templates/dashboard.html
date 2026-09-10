@@ -1278,7 +1278,7 @@
                                     <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Esports Lab (Commons Building 80)')">Esports Lab (Commons Building 80)</div>
                                     <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Lakeside Lodge')">Lakeside Lodge</div>
                                     <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Online')">Online</div>
-                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'other')">Other</div>
+                                  <div class="filter-box-item" onclick="event.stopPropagation(); selectScheduledCustomLocation()">Other</div>
                                 </div>
                             </div>
                             <input type="hidden" id="scheduledLocation" name="location">
@@ -1306,46 +1306,30 @@
                         <input type="hidden" id="scheduledLeagueSelect" name="league_id">
                     </div>
 
-                    <div class="form-group" id="scheduledCustomLocationGroup" style="display: none;">
-                        <label class="required-field" for="scheduledCustomLocation">Custom Location</label>
-                        <input type="text"
-                               id="scheduledCustomLocation"
-                               name="custom_location"
-                               placeholder="Enter custom location">
-                    </div>
-
-                    <!-- Day of Week - Hidden when "Once" is selected -->
-                    <div class="form-group" id="scheduledDayOfWeekGroup">
-                        <label class="required-field" for="scheduledDayOfWeekTagBox">Day of Week</label>
-                        <div class="filter-box tag-select-box" id="scheduledDayOfWeekTagBox">
-                            <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledDayOfWeekPanel')">
-                                <div id="scheduledDayOfWeekDisplay" class="combo-select-display">
-                                    <span class="combo-placeholder">Select day</span>
-                                </div>
-                                <i class="fas fa-chevron-down tag-select-arrow"></i>
-                            </div>
-                            <div class="filter-box-panel tag-select-panel" id="scheduledDayOfWeekPanel">
-                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '6', 'Sunday')">Sunday</div>
-                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '0', 'Monday')">Monday</div>
-                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '1', 'Tuesday')">Tuesday</div>
-                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '2', 'Wednesday')">Wednesday</div>
-                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '3', 'Thursday')">Thursday</div>
-                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '4', 'Friday')">Friday</div>
-                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '5', 'Saturday')">Saturday</div>
-                            </div>
-                        </div>
-                        <input type="hidden" id="scheduledDayOfWeek" name="day_of_week">
-                    </div>
-
-                    <!-- Specific Date - Shown only when "Once" is selected -->
-                    <div class="form-group" id="scheduledSpecificDateGroup" style="display: none;">
-                        <label class="required-field" for="scheduledSpecificDate">Event Date</label>
-                        <input type="date"
-                               id="scheduledSpecificDate"
-                               name="specific_date">
-                    </div>
-
                     <div class="form-row time-row">
+                        <!-- Day of Week - Hidden when "Once" is selected -->
+                        <div class="form-group" id="scheduledDayOfWeekGroup">
+                            <label class="required-field" for="scheduledDayOfWeekTagBox">Day of Week</label>
+                            <div class="filter-box tag-select-box" id="scheduledDayOfWeekTagBox">
+                                <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledDayOfWeekPanel')">
+                                    <div id="scheduledDayOfWeekDisplay" class="combo-select-display">
+                                        <span class="combo-placeholder">Select day</span>
+                                    </div>
+                                    <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                </div>
+                                <div class="filter-box-panel tag-select-panel" id="scheduledDayOfWeekPanel">
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '6', 'Sunday')">Sunday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '0', 'Monday')">Monday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '1', 'Tuesday')">Tuesday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '2', 'Wednesday')">Wednesday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '3', 'Thursday')">Thursday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '4', 'Friday')">Friday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '5', 'Saturday')">Saturday</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="scheduledDayOfWeek" name="day_of_week">
+                        </div>
+
                         <div class="form-group">
                             <label class="required-field" for="scheduledStartTime">Start Time</label>
                             <input type="time"
@@ -1394,6 +1378,17 @@
                                    id="scheduledEndDate"
                                    name="end_date"
                                    required>
+                        </div>
+
+                        <!-- Specific Date - Shown only when "Once" is selected -->
+                        <div class="form-group" id="scheduledSpecificDateGroup" style="display: none;">
+                            <label class="required-field" for="scheduledSpecificDate">Event Date</label>
+                            <div class="form-group-text">
+                                Event will only occur on this date
+                            </div>
+                            <input type="date"
+                                   id="scheduledSpecificDate"
+                                   name="specific_date">
                         </div>
                     </div>
 
