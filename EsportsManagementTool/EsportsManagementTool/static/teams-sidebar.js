@@ -905,88 +905,67 @@ function setSelectedDivisionFilter(division) {
 }
 
 // ============================================
-// CREATE TEAM FLOW
+// GAME MANAGER PERMISSIONS HELPER
 // ============================================
 
-async function openCreateTeam() {
+let _managedGamesCache = null;
+
+/**
+ * Determines which games the current user is allowed to create
+ * teams for based on their game manager roles.
+ */
+async function getManagedGames(forceRefresh = false) {
+    if (_managedGamesCache && !forceRefresh) {
+        return _managedGamesCache;
+    }
+
     try {
-        const seasonResponse = await fetch('/api/seasons/current');
-        const seasonData = await seasonResponse.json();
-
-        const gamesResponse = await fetch('/api/teams/managed-games');
-        const gamesData = await gamesResponse.json();
-
-        if (!gamesData.success || !gamesData.games || gamesData.games.length === 0) {
-            alert('You are not assigned as Game Manager for any games.');
-            return;
-        }
-
-        if (gamesData.games.length === 1) {
-            const game = gamesData.games[0];
-            openCreateTeamModal(game.GameID, game.GameTitle, game.TeamSizes);
-        } else {
-            openGamePickerModal(gamesData.games);
-        }
+        const response = await fetch('/api/teams/managed-games');
+        const data = await response.json();
+        _managedGamesCache = (data.success && Array.isArray(data.games)) ? data.games : [];
     } catch (error) {
-        console.error('Error opening create team flow:', error);
-        alert('Failed to load game information. Please try again.');
+        console.error('Error fetching managed games:', error);
+        _managedGamesCache = [];
     }
+
+    return _managedGamesCache;
 }
 
-function openGamePickerModal(games) {
-    const existingModal = document.getElementById('gamePickerModal');
-    if (existingModal) existingModal.remove();
+// ============================================
+// CREATE TEAM DROPDOWN
+// ============================================
 
-    const modal = document.createElement('div');
-    modal.id = 'gamePickerModal';
-    modal.className = 'modal';
-    modal.style.display = 'block';
+async function initializeCreateTeamDropdown() {
+    const wrapper = document.getElementById('createTeamDropdown');
+    if (!wrapper) return;
 
-    const gameListHTML = games.map(game => {
-        const iconHTML = game.image_url
-            ? `<img src="${game.image_url}" alt="${game.GameTitle}"
-                    style="width:36px;height:36px;object-fit:cover;border-radius:8px;"
-                    onerror="this.style.display='none'">`
-            : `<i class="fas fa-gamepad" style="font-size:1.25rem;color:var(--stockton-blue);"></i>`;
+    const games = await getManagedGames();
 
-        return `
-            <button class="game-picker-option"
-                    onclick="closeGamePickerModal(); openCreateTeamModal(${game.GameID}, '${game.GameTitle.replace(/'/g, "\\'")}', '${game.TeamSizes}')">
-                <div class="game-picker-icon">${iconHTML}</div>
-                <div class="game-picker-info">
-                    <div class="game-picker-title">${game.GameTitle}</div>
-                    <div class="game-picker-division" style="font-size:0.8rem;color:var(--text-secondary);">${game.Division || ''}</div>
-                </div>
-                <i class="fas fa-chevron-right" style="color:var(--text-secondary);margin-left:auto;"></i>
-            </button>
-        `;
-    }).join('');
+    if (!games || games.length === 0) {
+        wrapper.classList.add('hidden');
+        return;
+    }
 
-    modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Select a Game</h2>
-                <button class="modal-close" onclick="closeGamePickerModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p class="modal-subtitle">Choose which game to create a team for</p>
-                <div class="game-picker-list">${gameListHTML}</div>
-            </div>
+    renderCreateTeamDropdown(games);
+    wrapper.classList.remove('hidden');
+}
+
+function renderCreateTeamDropdown(games) {
+    const panel = document.getElementById('createTeamFilterPanel');
+    if (!panel) return;
+
+    panel.innerHTML = games.map(game => `
+        <div class="filter-box-item"
+             data-game-id="${game.GameID}"
+             onclick="selectGameForTeamCreation(${game.GameID}, '${game.GameTitle.replace(/'/g, "\\'")}', '${game.TeamSizes}')">
+            ${game.GameTitle}
         </div>
-    `;
-
-    document.body.appendChild(modal);
-    lockBodyScroll('gamePickerModal');
+    `).join('');
 }
 
-function closeGamePickerModal() {
-    const modal = document.getElementById('gamePickerModal');
-    if (modal) {
-        modal.remove();
-        unlockBodyScroll('gamePickerModal');
-    }
+function selectGameForTeamCreation(gameId, gameTitle, teamSizes) {
+    closeAllFilterPanels();
+    openCreateTeamModal(gameId, gameTitle, teamSizes);
 }
 
 // ============================================
@@ -997,6 +976,7 @@ function closeGamePickerModal() {
 document.addEventListener('DOMContentLoaded', () => {
     // Wait one tick to ensure teams.js has already defined selectTeam
     setTimeout(() => {
+    initializeCreateTeamDropdown();
         const _originalSelectTeam = window.selectTeam;
         if (typeof _originalSelectTeam === 'function') {
             window.selectTeam = function (teamId) {
@@ -1019,8 +999,9 @@ window.applyTeamsDivisionFilter         = applyTeamsDivisionFilter;
 window.applyTeamsPastSeasonFilter       = applyTeamsPastSeasonFilter;
 window.invalidateTeamsCache             = invalidateTeamsCache;
 window.isCacheFresh                     = isCacheFresh;
-window.openCreateTeam                   = openCreateTeam;
-window.closeGamePickerModal             = closeGamePickerModal;
+window.getManagedGames                  = getManagedGames;
+window.initializeCreateTeamDropdown     = initializeCreateTeamDropdown;
+window.selectGameForTeamCreation        = selectGameForTeamCreation;
 window.updateDropdownCount              = updateDropdownCount;
 
 // Past Season exports

@@ -11,13 +11,20 @@
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 1.25rem 0;
-    overflow-y: auto;
-    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     width: 280px;
     flex-shrink: 0;
     align-self: stretch;
+}
+
+.teams-sidebar-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
 }
 
 /* Header */
@@ -41,36 +48,9 @@
     letter-spacing: -0.01em;
 }
 
-/* Create button */
-.btn-create-team-sidebar {
-    width: 30px;
-    height: 30px;
-    min-width: 30px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 7px;
-    background: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-    flex-shrink: 0;
-    line-height: 1;
-    letter-spacing: 0;
-}
-
-.btn-create-team-sidebar:hover {
-    background: var(--hover-bg);
-    border-color: var(--stockton-blue);
-    color: var(--stockton-blue);
-}
-
-.btn-create-team-sidebar i {
-    pointer-events: none;
-    display: block;
+/* Create team dropdown */
+.create-team-dropdown.hidden {
+    display: none;
 }
 
 /* Sidebar filter */
@@ -384,49 +364,6 @@
 .team-tree-edit-btn:hover {
     color: var(--stockton-blue);
     background: rgba(121, 189, 233, 0.12);
-}
-
-/* ============================================
-   GAME PICKER MODAL
-   ============================================ */
-.game-picker-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.game-picker-option {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    padding: 0.75rem 1rem;
-    background: var(--background-secondary, #1e2130);
-    border: 1px solid var(--border-color, #2d3148);
-    border-radius: 8px;
-    cursor: pointer;
-    color: var(--text-primary);
-    text-align: left;
-    transition: background 0.15s, border-color 0.15s;
-}
-
-.game-picker-option:hover {
-    background: var(--hover-bg, #252840);
-    border-color: var(--stockton-blue, #79bde9);
-}
-
-.game-picker-icon {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.game-picker-title {
-    font-weight: 600;
-    font-size: 0.9375rem;
 }
 
 .team-tree-content {

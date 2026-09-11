@@ -918,11 +918,12 @@
                     <div class="sidebar-header-top">
                         <h2>Teams</h2>
                         {% if user.is_admin or user.is_developer or user.is_gm %}
-                        <button id="createTeamSidebarBtn"
-                                class="btn btn-primary btn-create-team-sidebar"
-                                onclick="openCreateTeam()">
-                            <i class="fas fa-plus"></i>
-                        </button>
+                        <div class="filter-box create-team-dropdown hidden" id="createTeamDropdown">
+                            <button type="button" class="filter-box-btn kebab-btn" onclick="toggleFilterBox('createTeamFilterPanel')" title="Create Team">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="filter-box-panel" id="createTeamFilterPanel"></div>
+                        </div>
                         {% endif %}
                     </div>
                     <!-- View Switcher Dropdown moves below the header row -->
@@ -933,21 +934,23 @@
                     </div>
                 </div>
 
-                <!-- Loading State -->
-                <div id="teamsSidebarLoading" class="sidebar-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>Loading teams...</p>
-                </div>
+                <div class="teams-sidebar-body">
+                    <!-- Loading State -->
+                    <div id="teamsSidebarLoading" class="sidebar-loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading teams...</p>
+                    </div>
 
-                <!-- Team List -->
-                <div id="teamsSidebarList" class="teams-list" style="display: none;">
-                    <!-- Teams will be populated here by JavaScript -->
-                </div>
+                    <!-- Team List -->
+                    <div id="teamsSidebarList" class="teams-list" style="display: none;">
+                        <!-- Teams will be populated here by JavaScript -->
+                    </div>
 
-                <!-- Empty State -->
-                <div id="teamsSidebarEmpty" class="sidebar-empty" style="display: none;">
-                    <i class="fas fa-shield-alt"></i>
-                    <p>No teams available</p>
+                    <!-- Empty State -->
+                    <div id="teamsSidebarEmpty" class="sidebar-empty" style="display: none;">
+                        <i class="fas fa-shield-alt"></i>
+                        <p>No teams available</p>
+                    </div>
                 </div>
             </aside>
 
@@ -1887,12 +1890,12 @@
                 <input type="hidden" id="gameIDField" name="game_id">
 
                 <div class="form-group">
-                    <label for="teamTitle">Team Title</label>
+                    <label for="teamTitle" class="required-field">Team Title </label>
                     <input type="text" id="teamTitle" name="team_title" placeholder="Enter team title" required>
                 </div>
 
                 <div class="form-group">
-                    <label>Team Size</label>
+                    <label class="required-field">Team Size</label>
                     <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
                         Select the applicable team size.
                     </p>
@@ -1902,7 +1905,7 @@
                 </div>
 
                 <div class="form-group" id="leaguesFieldGroup">
-                    <label for="teamLeaguesDropdown">Leagues (Optional)</label>
+                    <label for="teamLeaguesDropdown">Leagues</label>
                     <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
                         Select leagues this team will compete in - they'll appear as tags below
                     </div>
@@ -2086,7 +2089,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="editTeamLeaguesDropdown">Leagues (Optional)</label>
+                    <label for="editTeamLeaguesDropdown">Leagues</label>
                     <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
                         Select leagues this team will compete in
                     </div>
