@@ -99,6 +99,35 @@
     font-size: 0.8125rem;
 }
 
+#createTeamFilterPanel .filter-box-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+}
+
+#createTeamFilterPanel .game-option-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+#createTeamFilterPanel .game-option-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+@media (max-width: 1024px) {
+    .create-team-dropdown .filter-box-panel {
+        left: auto;
+        right: 0;
+    }
+}
+
 /* Sidebar states */
 .sidebar-loading,
 .sidebar-empty {
