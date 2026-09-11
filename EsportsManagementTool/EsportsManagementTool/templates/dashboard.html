@@ -793,7 +793,7 @@
                             <!-- Game selection combobox -->
                             <div class="form-group" id="gameFieldGroup">
                                 <label for="gameTagBox" class="tag-select-label">Games</label>
-                                <div style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.35rem;">
+                                <div class="form-group-text">
                                     Select games from the dropdown
                                 </div>
 
@@ -816,7 +816,7 @@
                             <!-- Partnership selection combobox -->
                             <div class="form-group" id="partnershipFieldGroup">
                                 <label for="partnershipTagBox" class="tag-select-label">Partnerships</label>
-                                <div style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.35rem;">
+                                <div class="form-group-text">
                                     Select existing partnerships or add a new one
                                 </div>
 
@@ -1215,98 +1215,126 @@
                 <p class="modal-subtitle">Set up a recurring event for this team</p>
 
                 <form id="createScheduledEventForm" class="event-form-modal">
-                    <div class="form-group">
-                        <label for="scheduledEventName">Event Name *</label>
-                        <input type="text"
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="required-field" for="scheduledEventName">Event Name</label>
+                            <input type="text"
                                id="scheduledEventName"
                                name="event_name"
                                placeholder="e.g., Weekly Practice Session"
                                required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="required-field" for="scheduledEventTypeTagBox">Event Type</label>
+                            <div class="filter-box tag-select-box" id="scheduledEventTypeTagBox">
+                                <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledEventTypePanel')">
+                                    <div id="scheduledEventTypeDisplay" class="combo-select-display">
+                                        <span class="combo-placeholder">Select type</span>
+                                    </div>
+                                    <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                </div>
+                                <div class="filter-box-panel tag-select-panel" id="scheduledEventTypePanel">
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledEventType', 'Match')">Match</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledEventType', 'Practice')">Practice</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledEventType', 'Misc')">Misc</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="scheduledEventType" name="event_type">
+                        </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="scheduledEventType">Event Type *</label>
-                            <select id="scheduledEventType" name="event_type" required>
-                                <option value="">Select type</option>
-                                <option value="Match">Match</option>
-                                <option value="Practice">Practice</option>
-                                <option value="Misc">Misc</option>
-                            </select>
+                            <label class="required-field" for="scheduledFrequencyTagBox">Frequency</label>
+                            <div class="filter-box tag-select-box" id="scheduledFrequencyTagBox">
+                                <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledFrequencyPanel')">
+                                    <div id="scheduledFrequencyDisplay" class="combo-select-display">
+                                        <span class="combo-placeholder">Select frequency</span>
+                                    </div>
+                                    <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                </div>
+                                <div class="filter-box-panel tag-select-panel" id="scheduledFrequencyPanel">
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledFrequency', 'Once')">Once</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledFrequency', 'Weekly')">Weekly</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledFrequency', 'Biweekly')">Biweekly</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledFrequency', 'Monthly')">Monthly</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="scheduledFrequency" name="frequency">
                         </div>
 
                         <div class="form-group">
-                            <label for="scheduledFrequency">Frequency *</label>
-                            <select id="scheduledFrequency" name="frequency" required onchange="handleFrequencyChange()">
-                                <option value="">Select frequency</option>
-                                <option value="Once">Once</option>
-                                <option value="Weekly">Weekly</option>
-                                <option value="Biweekly">Biweekly</option>
-                                <option value="Monthly">Monthly</option>
-                            </select>
+                            <label class="required-field" for="scheduledLocationTagBox">Location</label>
+                            <div class="filter-box tag-select-box" id="scheduledLocationTagBox">
+                                <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledLocationPanel')">
+                                    <div id="scheduledLocationDisplay" class="combo-select-display">
+                                        <span class="combo-placeholder">Select location</span>
+                                    </div>
+                                    <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                </div>
+                                <div class="filter-box-panel tag-select-panel" id="scheduledLocationPanel">
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Campus Center')">Campus Center</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Campus Center Coffee House')">Campus Center Coffee House</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Campus Center Event Room')">Campus Center Event Room</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'D-108')">D-108</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Esports Lab (Commons Building 80)')">Esports Lab (Commons Building 80)</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Lakeside Lodge')">Lakeside Lodge</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Online')">Online</div>
+                                  <div class="filter-box-item" onclick="event.stopPropagation(); selectScheduledCustomLocation()">Other</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="scheduledLocation" name="location">
                         </div>
                     </div>
 
                     <div class="form-group" id="scheduledLeagueGroup" style="display: none;">
-                        <label for="scheduledLeagueSelect">League <span style="color: #ff5252;">*</span></label>
-                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                        <label for="scheduledLeagueTagBox">League <span style="color: #ff5252;">*</span></label>
+                        <div class="form-group-text">
                             Select the league this match is part of
-                        </small>
-                        <select id="scheduledLeagueSelect" name="league_id">
-                            <option value="">Select a league</option>
-                            <!-- Options will be populated dynamically -->
-                        </select>
+                        </div>
+                        <div class="filter-box tag-select-box" id="scheduledLeagueTagBox">
+                            <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledLeaguePanel')">
+                                <div id="scheduledLeagueDisplay" class="combo-select-display">
+                                    <span class="combo-placeholder">Select a league</span>
+                                </div>
+                                <i class="fas fa-chevron-down tag-select-arrow"></i>
+                            </div>
+                            <div class="filter-box-panel tag-select-panel" id="scheduledLeaguePanel">
+                                <div class="filter-box-flyout-loading">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading...
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="scheduledLeagueSelect" name="league_id">
                     </div>
 
-                    <div class="form-group">
-                        <label for="scheduledLocation">Location *</label>
-                        <select id="scheduledLocation" name="location" required>
-                            <option value="">Select location</option>
-                            <option value="Campus Center">Campus Center</option>
-                            <option value="Campus Center Coffee House">Campus Center Coffee House</option>
-                            <option value="Campus Center Event Room">Campus Center Event Room</option>
-                            <option value="D-108">D-108</option>
-                            <option value="Esports Lab (Commons Building 80)">Esports Lab (Commons Building 80)</option>
-                            <option value="Lakeside Lodge">Lakeside Lodge</option>
-                            <option value="Online">Online</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
+                    <div class="form-row time-row">
+                        <!-- Day of Week - Hidden when "Once" is selected -->
+                        <div class="form-group" id="scheduledDayOfWeekGroup">
+                            <label class="required-field" for="scheduledDayOfWeekTagBox">Day of Week</label>
+                            <div class="filter-box tag-select-box" id="scheduledDayOfWeekTagBox">
+                                <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledDayOfWeekPanel')">
+                                    <div id="scheduledDayOfWeekDisplay" class="combo-select-display">
+                                        <span class="combo-placeholder">Select day</span>
+                                    </div>
+                                    <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                </div>
+                                <div class="filter-box-panel tag-select-panel" id="scheduledDayOfWeekPanel">
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '6', 'Sunday')">Sunday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '0', 'Monday')">Monday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '1', 'Tuesday')">Tuesday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '2', 'Wednesday')">Wednesday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '3', 'Thursday')">Thursday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '4', 'Friday')">Friday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '5', 'Saturday')">Saturday</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="scheduledDayOfWeek" name="day_of_week">
+                        </div>
 
-                    <div class="form-group" id="scheduledCustomLocationGroup" style="display: none;">
-                        <label for="scheduledCustomLocation">Custom Location</label>
-                        <input type="text"
-                               id="scheduledCustomLocation"
-                               name="custom_location"
-                               placeholder="Enter custom location">
-                    </div>
-
-                    <!-- Day of Week - Hidden when "Once" is selected -->
-                    <div class="form-group" id="scheduledDayOfWeekGroup">
-                        <label for="scheduledDayOfWeek">Day of Week *</label>
-                        <select id="scheduledDayOfWeek" name="day_of_week">
-                            <option value="">Select day</option>
-                            <option value="6">Sunday</option>
-                            <option value="0">Monday</option>
-                            <option value="1">Tuesday</option>
-                            <option value="2">Wednesday</option>
-                            <option value="3">Thursday</option>
-                            <option value="4">Friday</option>
-                            <option value="5">Saturday</option>
-                        </select>
-                    </div>
-
-                    <!-- Specific Date - Shown only when "Once" is selected -->
-                    <div class="form-group" id="scheduledSpecificDateGroup" style="display: none;">
-                        <label for="scheduledSpecificDate">Event Date *</label>
-                        <input type="date"
-                               id="scheduledSpecificDate"
-                               name="specific_date">
-                    </div>
-
-                    <div class="form-row">
                         <div class="form-group">
-                            <label for="scheduledStartTime">Start Time *</label>
+                            <label class="required-field" for="scheduledStartTime">Start Time</label>
                             <input type="time"
                                    id="scheduledStartTime"
                                    name="start_time"
@@ -1314,7 +1342,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="scheduledEndTime">End Time *</label>
+                            <label class="required-field" for="scheduledEndTime">End Time</label>
                             <input type="time"
                                    id="scheduledEndTime"
                                    name="end_time"
@@ -1322,28 +1350,49 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="scheduledVisibility">Visibility *</label>
-                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                            Match types events are only visible to this team.
-                        </small>
-                        <select id="scheduledVisibility" name="visibility" required>
-                            <option value="">Who can see this?</option>
-                            <option value="team" id="visibilityTeamOption">Team Only</option>
-                            <option value="game_players" id="visibilityPlayersOption">Players</option>
-                            <option value="game_community" id="visibilityCommunityOption">Community Members</option>
-                        </select>
-                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="required-field" for="scheduledVisibility">Visibility</label>
+                            <div class="form-group-text">
+                                Match type events are only visible to this team
+                            </div>
+                            <div class="filter-box tag-select-box" id="scheduledVisibilityTagBox">
+                                <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledVisibilityPanel')">
+                                    <div id="scheduledVisibilityDisplay" class="combo-select-display">
+                                        <span class="combo-placeholder">Who can see this?</span>
+                                    </div>
+                                    <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                </div>
+                                <div class="filter-box-panel tag-select-panel" id="scheduledVisibilityPanel">
+                                    <div class="filter-box-item" id="visibilityTeamOption" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'team', this.textContent)">Team Only</div>
+                                    <div class="filter-box-item" id="visibilityPlayersOption" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'game_players', this.textContent)">Players</div>
+                                    <div class="filter-box-item" id="visibilityCommunityOption" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'game_community', this.textContent)">Community Members</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="scheduledVisibility" name="visibility">
+                        </div>
 
-                    <div class="form-group">
-                        <label for="scheduledEndDate">Schedule End Date *</label>
-                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                            Events will stop being generated after this date
-                        </small>
-                        <input type="date"
-                               id="scheduledEndDate"
-                               name="end_date"
-                               required>
+                        <div class="form-group">
+                            <label class="required-field" for="scheduledEndDate">Schedule End Date</label>
+                            <div class="form-group-text">
+                                Events will stop being generated after this date
+                            </div>
+                            <input type="date"
+                                   id="scheduledEndDate"
+                                   name="end_date"
+                                   required>
+                        </div>
+
+                        <!-- Specific Date - Shown only when "Once" is selected -->
+                        <div class="form-group" id="scheduledSpecificDateGroup" style="display: none;">
+                            <label class="required-field" for="scheduledSpecificDate">Event Date</label>
+                            <div class="form-group-text">
+                                Event will only occur on this date
+                            </div>
+                            <input type="date"
+                                   id="scheduledSpecificDate"
+                                   name="specific_date">
+                        </div>
                     </div>
 
                     <div class="form-group">

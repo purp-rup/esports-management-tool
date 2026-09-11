@@ -64,24 +64,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (createForm) {
         createForm.addEventListener('submit', handleScheduleSubmit);
     }
-
-    // Location dropdown for create form
-    const locationSelect = document.getElementById('scheduledLocation');
-    const customLocationGroup = document.getElementById('scheduledCustomLocationGroup');
-    const customLocationInput = document.getElementById('scheduledCustomLocation');
-
-    if (locationSelect) {
-        locationSelect.addEventListener('change', function() {
-            if (this.value === 'other') {
-                customLocationGroup.style.display = 'block';
-                customLocationInput.required = true;
-            } else {
-                customLocationGroup.style.display = 'none';
-                customLocationInput.required = false;
-                customLocationInput.value = '';
-            }
-        });
-    }
 });
 
 /**
@@ -546,7 +528,7 @@ function openCreateScheduleModal() {
     if (leagueGroup) leagueGroup.style.display = 'none';
     if (dayOfWeekGroup) dayOfWeekGroup.style.display = 'block';
     if (specificDateGroup) specificDateGroup.style.display = 'none';
-    if (endDateGroup) endDateGroup.style.display = 'block';
+    if (endDateGroup) endDateGroup.style.display = 'flex';
 
     // Re-enable all visibility options in case a previous session
     // locked them to "Team Only" for a Match event
@@ -575,16 +557,15 @@ function openCreateScheduleModal() {
     const gameId = ScheduleState.currentGameId || currentScheduleGameId;
     updateVisibilityLabels(teamId, gameId);
 
-    // Attach event type change listener for league dropdown
-    const eventTypeSelect = document.getElementById('scheduledEventType');
-    if (eventTypeSelect) {
-        eventTypeSelect.removeEventListener('change', handleEventTypeChangeForLeague);
-        eventTypeSelect.addEventListener('change', handleEventTypeChangeForLeague);
-
-        // Attach event type change listener for visibility restriction
-        eventTypeSelect.removeEventListener('change', handleEventTypeChangeForVisibility);
-        eventTypeSelect.addEventListener('change', handleEventTypeChangeForVisibility);
-    }
+    // Reset all custom combo dropdowns back to their placeholders
+    ['scheduledEventType', 'scheduledFrequency', 'scheduledLocation',
+     'scheduledDayOfWeek', 'scheduledVisibility', 'scheduledLeagueSelect'].forEach(key => {
+        if (typeof resetComboSelector === 'function') resetComboSelector(key);
+    });
+    // Clear loaded flag so leagues reload fresh for each modal open
+    const leaguePanel = document.getElementById('scheduledLeaguePanel');
+    if (leaguePanel) leaguePanel.dataset.loaded = '';
+    // Note: change handlers are now triggered via onSelect in SingleSelectConfig
 
     // Character Counter
     attachCharacterCounter('scheduledDescription', 250);
@@ -614,7 +595,7 @@ function handleFrequencyChange() {
     if (frequency === 'Once') {
         // One-time event: show specific date only
         dayOfWeekGroup.style.display = 'none';
-        specificDateGroup.style.display = 'block';
+        specificDateGroup.style.display = 'flex';
         endDateGroup.style.display = 'none';
 
         // Update required attributes
@@ -625,7 +606,7 @@ function handleFrequencyChange() {
         // Recurring event: show day of week and end date
         dayOfWeekGroup.style.display = 'block';
         specificDateGroup.style.display = 'none';
-        endDateGroup.style.display = 'block';
+        endDateGroup.style.display = 'flex';
 
         // Update required attributes
         dayOfWeekSelect.setAttribute('required', 'required');
@@ -725,6 +706,26 @@ function formatVisibility(visibility) {
     return visibilityMap[visibility] || visibility;
 }
 
+function selectScheduledCustomLocation() {
+    const hiddenInput = document.getElementById('scheduledLocation');
+    const displayArea = document.getElementById('scheduledLocationDisplay');
+    if (!hiddenInput || !displayArea) return;
+
+    hiddenInput.value = '';
+    displayArea.innerHTML = '';
+
+    const input = document.createElement('input');
+    input.type        = 'text';
+    input.className   = 'combo-custom-input';
+    input.placeholder = 'Enter custom location';
+    input.addEventListener('click', (e) => e.stopPropagation());
+    input.addEventListener('input', () => { hiddenInput.value = input.value; });
+
+    displayArea.appendChild(input);
+    closeAllFilterPanels();
+    input.focus();
+}
+
 // Handle create schedule form submission
 async function handleScheduleSubmit(event) {
     event.preventDefault();
@@ -746,12 +747,9 @@ async function handleScheduleSubmit(event) {
         return;
     }
 
-    // Handle location (custom or preset)
-    const locationSelect = document.getElementById('scheduledLocation');
-    const customLocationInput = document.getElementById('scheduledCustomLocation');
-    const location = locationSelect.value === 'other'
-        ? customLocationInput.value
-        : locationSelect.value;
+    // Hidden input always holds the correct value:
+    // preset location string, or the typed custom value when 'Other' is selected
+    const location = document.getElementById('scheduledLocation').value;
 
     // Set loading state
     submitBtn.disabled = true;
@@ -1331,7 +1329,8 @@ function handleEventTypeChangeForLeague() {
         }
         
         // Load leagues for current team if not already loaded
-        if (ScheduleState.currentTeamId && leagueSelect.options.length <= 1) {
+        const leaguePanel = document.getElementById('scheduledLeaguePanel');
+        if (ScheduleState.currentTeamId && leaguePanel?.dataset.loaded !== 'true') {
             loadTeamLeaguesForSchedule(ScheduleState.currentTeamId);
         }
     } else {
@@ -1340,7 +1339,7 @@ function handleEventTypeChangeForLeague() {
         
         // Remove required attribute
         leagueSelect.removeAttribute('required');
-        leagueSelect.value = ''; // Clear selection
+        if (typeof resetComboSelector === 'function') resetComboSelector('scheduledLeagueSelect');
         
         // Reset label
         const leagueLabel = leagueGroup.querySelector('label');
@@ -1356,66 +1355,62 @@ function handleEventTypeChangeForLeague() {
 
 // Match events can only be visible to the team for match result purposes
 function handleEventTypeChangeForVisibility() {
-    const eventType = document.getElementById('scheduledEventType').value;
-    const visibilitySelect = document.getElementById('scheduledVisibility');
-    const playersOption = document.getElementById('visibilityPlayersOption');
+    const eventType       = document.getElementById('scheduledEventType').value;
+    const playersOption   = document.getElementById('visibilityPlayersOption');
     const communityOption = document.getElementById('visibilityCommunityOption');
 
-    if (!visibilitySelect) {
-        console.warn('Visibility select not found');
-        return;
-    }
-
     if (eventType === 'Match') {
-        visibilitySelect.value = 'team';
-        if (playersOption) playersOption.disabled = true;
-        if (communityOption) communityOption.disabled = true;
+        // Force visibility to Team Only and lock other options
+            if (typeof selectComboValue === 'function') {
+            const label = document.getElementById('visibilityTeamOption')?.textContent?.trim() || 'Team Only';
+            selectComboValue('scheduledVisibility', 'team', label);
+        }
+        playersOption?.classList.add('disabled-option');
+        communityOption?.classList.add('disabled-option');
     } else {
-        if (playersOption) playersOption.disabled = false;
-        if (communityOption) communityOption.disabled = false;
+        playersOption?.classList.remove('disabled-option');
+        communityOption?.classList.remove('disabled-option');
     }
 }
 
 // Load team leagues into the schedule modal dropdown
 async function loadTeamLeaguesForSchedule(teamId) {
-    const leagueSelect = document.getElementById('scheduledLeagueSelect');
-    
-    if (!leagueSelect) {
-        console.warn('League select not found');
-        return;
-    }
-    
-    // Show loading
-    leagueSelect.innerHTML = '<option value="">Loading leagues...</option>';
-    leagueSelect.disabled = true;
-    
+    const panel   = document.getElementById('scheduledLeaguePanel');
+    const trigger = document.querySelector('#scheduledLeagueTagBox .tag-select-trigger');
+    if (!panel) return;
+
+    // Show loading and block the trigger while fetching
+    panel.innerHTML = '<div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    panel.dataset.loaded = '';
+    if (trigger) trigger.style.pointerEvents = 'none';
+
     try {
         const response = await fetch(`/api/teams/${teamId}/leagues`);
         const data = await response.json();
-        
-        if (data.success && data.leagues) {
-            // Rebuild dropdown
-            leagueSelect.innerHTML = ''; // Clear everything first
-            leagueSelect.innerHTML = '<option value="">Select a league</option>';
-            
-            if (data.leagues.length === 0) {
-                leagueSelect.innerHTML += '<option value="" disabled>No leagues assigned to team</option>';
-            } else {
-                data.leagues.forEach(league => {
-                    const option = document.createElement('option');
-                    option.value = league.id;
-                    option.textContent = league.name;
-                    leagueSelect.appendChild(option);
+
+        panel.innerHTML = '';
+
+        if (data.success && data.leagues?.length) {
+            data.leagues.forEach(league => {
+                const item = document.createElement('div');
+                item.className = 'filter-box-item';
+                item.textContent = league.name;
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectComboValue('scheduledLeagueSelect', String(league.id), league.name);
                 });
-            }
+                panel.appendChild(item);
+            });
         } else {
-            leagueSelect.innerHTML = '<option value="">Error loading leagues</option>';
+            panel.innerHTML = '<div class="filter-box-flyout-loading">No leagues assigned to this team</div>';
         }
-    } catch (error) {
-        console.error('Error loading team leagues:', error);
-        leagueSelect.innerHTML = '<option value="">Error loading leagues</option>';
+
+        panel.dataset.loaded = 'true';
+    } catch (err) {
+        console.error('Error loading leagues for schedule:', err);
+        panel.innerHTML = '<div class="filter-box-flyout-loading">Failed to load leagues</div>';
     } finally {
-        leagueSelect.disabled = false;
+        if (trigger) trigger.style.pointerEvents = '';
     }
 }
 
