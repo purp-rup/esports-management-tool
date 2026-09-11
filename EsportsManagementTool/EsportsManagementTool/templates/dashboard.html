@@ -918,11 +918,12 @@
                     <div class="sidebar-header-top">
                         <h2>Teams</h2>
                         {% if user.is_admin or user.is_developer or user.is_gm %}
-                        <button id="createTeamSidebarBtn"
-                                class="btn btn-primary btn-create-team-sidebar"
-                                onclick="openCreateTeam()">
-                            <i class="fas fa-plus"></i>
-                        </button>
+                        <div class="filter-box create-team-dropdown hidden" id="createTeamDropdown">
+                            <button type="button" class="filter-box-btn kebab-btn" onclick="toggleFilterBox('createTeamFilterPanel')" title="Create Team">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="filter-box-panel" id="createTeamFilterPanel"></div>
+                        </div>
                         {% endif %}
                     </div>
                     <!-- View Switcher Dropdown moves below the header row -->
@@ -933,21 +934,23 @@
                     </div>
                 </div>
 
-                <!-- Loading State -->
-                <div id="teamsSidebarLoading" class="sidebar-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>Loading teams...</p>
-                </div>
+                <div class="teams-sidebar-body">
+                    <!-- Loading State -->
+                    <div id="teamsSidebarLoading" class="sidebar-loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading teams...</p>
+                    </div>
 
-                <!-- Team List -->
-                <div id="teamsSidebarList" class="teams-list" style="display: none;">
-                    <!-- Teams will be populated here by JavaScript -->
-                </div>
+                    <!-- Team List -->
+                    <div id="teamsSidebarList" class="teams-list" style="display: none;">
+                        <!-- Teams will be populated here by JavaScript -->
+                    </div>
 
-                <!-- Empty State -->
-                <div id="teamsSidebarEmpty" class="sidebar-empty" style="display: none;">
-                    <i class="fas fa-shield-alt"></i>
-                    <p>No teams available</p>
+                    <!-- Empty State -->
+                    <div id="teamsSidebarEmpty" class="sidebar-empty" style="display: none;">
+                        <i class="fas fa-shield-alt"></i>
+                        <p>No teams available</p>
+                    </div>
                 </div>
             </aside>
 
