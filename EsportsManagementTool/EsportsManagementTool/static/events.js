@@ -500,6 +500,8 @@ function openCreateLabReservationModal() {
     resetComboSelector('labStatus');
     resetReservedGameSelector();
     setElementDisplay(formMessage, 'none');
+    resetLabCapacityIndicator();
+    initializeLabCapacityChecks();
 
     // Character Counter
     attachCharacterCounter('labDescription', 250);
@@ -1761,19 +1763,22 @@ const SingleSelectConfig = {
         hiddenInput: 'labChoice',
         display: 'labChoiceSelectDisplay',
         placeholder: 'Select lab',
-        allowCustom: false
+        allowCustom: false,
+        onSelect: () => scheduleLabAvailabilityCheck()
     },
     labPriority: {
         hiddenInput: 'labPriority',
         display: 'labPrioritySelectDisplay',
         placeholder: 'Select priority',
-        allowCustom: false
+        allowCustom: false,
+        onSelect: () => scheduleLabAvailabilityCheck()
     },
     labStatus: {
         hiddenInput: 'labStatus',
         display: 'labStatusSelectDisplay',
         placeholder: 'Select lab status',
-        allowCustom: false
+        allowCustom: false,
+        onSelect: () => scheduleLabAvailabilityCheck()
     }
 };
 

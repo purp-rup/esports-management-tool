@@ -666,6 +666,40 @@
     color: rgba(250, 204, 21, 1);
 }
 
+/* Today's Reservations priority badges (mirrors event type badges above) */
+.today-event-type.priority-casual {
+    background: rgba(34, 197, 94, 0.2);
+    color: rgba(34, 197, 94, 1);
+}
+
+.today-event-type.priority-practice {
+    background: rgba(59, 130, 246, 0.2);
+    color: rgba(59, 130, 246, 1);
+}
+
+.today-event-type.priority-scrim {
+    background: rgba(234, 179, 8, 0.2);
+    color: rgba(234, 179, 8, 1);
+}
+
+.today-event-type.priority-match {
+    background: rgba(239, 68, 68, 0.2);
+    color: rgba(239, 68, 68, 1);
+}
+
+.today-reservation-status {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.4rem;
+}
+
+.today-reservation-status i {
+    font-size: 0.7rem;
+}
+
 /* ====================================
    Mobile Friendliness
    ==================================== */

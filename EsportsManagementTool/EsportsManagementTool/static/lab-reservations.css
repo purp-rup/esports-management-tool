@@ -1,0 +1,83 @@
+/**
+ * lab_reservations.css
+ * ============================================================================
+ * Styles specific to lab reservations: the capacity bar + status message
+ * shown in the create reservation modal.
+ * ============================================================================
+ */
+
+.lab-capacity-section {
+    margin-bottom: 1.25rem;
+}
+
+.lab-capacity-bar-track {
+    width: 100%;
+    height: 10px;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.lab-capacity-bar-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    transition: width 0.25s ease;
+    background: var(--stockton-blue);
+}
+
+.lab-capacity-bar-fill--green  { background: rgba(134, 239, 172, 1); }
+.lab-capacity-bar-fill--yellow { background: rgba(253, 224, 71, 1); }
+.lab-capacity-bar-fill--red    { background: rgba(252, 165, 165, 1); }
+
+.lab-capacity-message {
+    margin-top: 0.6rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+}
+
+.lab-capacity-message--info {
+    background: var(--dark-bg);
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+.lab-capacity-message--open {
+    background: rgba(34, 197, 94, 0.1);
+    color: rgba(34, 197, 94, 1);
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+.lab-capacity-message--partial {
+    background: rgba(253, 224, 71, 0.15);
+    color: rgba(253, 224, 71, 1);
+    border-color: rgba(253, 224, 71, 0.35);
+}
+
+.lab-capacity-message--blocked {
+    background: rgba(239, 68, 68, 0.1);
+    color: rgba(239, 68, 68, 1);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.lab-capacity-conflict-line {
+    margin-top: 0.3rem;
+    padding-left: 0.5rem;
+    font-weight: 400;
+}
+
+.lab-capacity-availability-line {
+    margin-top: 0.5rem;
+    font-weight: 600;
+}
+
+/* Scaffolded for the future priority-override state - not yet triggered */
+.lab-capacity-message--override {
+    background: rgba(250, 204, 21, 0.1);
+    color: rgba(250, 204, 21, 1);
+    border-color: rgba(250, 204, 21, 0.3);
+}

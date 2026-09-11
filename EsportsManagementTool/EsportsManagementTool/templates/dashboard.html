@@ -27,6 +27,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='manage-communities.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='playoffs.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='stream-schedule.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='lab-reservations.css') }}">
 
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
@@ -199,10 +200,17 @@
                     </div>
                 </div>
                 <!-- Today's Events Card -->
-                <div class="widget-card">
+                <div class="widget-card" id="todayEventsCard">
                     <h3><i class="fas fa-calendar-day"></i> Today's Events</h3>
                     <div class="today-events-list" id="todayEventsList">
-                        <p style="color: var(--text-secondary); font-size: 0.875rem;">No events today</p>   
+                        <p style="color: var(--text-secondary); font-size: 0.875rem;">No events today</p>
+                    </div>
+                </div>
+                <!-- Today's Reservations Card (shown only in Lab Reservations view) -->
+                <div class="widget-card" id="todayReservationsCard" style="display: none;">
+                    <h3><i class="fas fa-calendar-day"></i> Today's Reservations</h3>
+                    <div class="today-events-list" id="todayReservationsList">
+                        <p style="color: var(--text-secondary); font-size: 0.875rem;">No reservations today</p>
                     </div>
                 </div>
             </div>
@@ -978,6 +986,13 @@
                 <div class="modal-body">
 
                     <form id="createLabReservationForm" class="event-form-modal">
+                        <div class="lab-capacity-section" id="labCapacitySection">
+                            <div class="lab-capacity-bar-track">
+                                <div class="lab-capacity-bar-fill" id="labCapacityBarFill"></div>
+                            </div>
+                            <div class="lab-capacity-message" id="labCapacityMessage"></div>
+                        </div>
+
                         <div class="form-row">
                             <!-- Lab choice combobox -->
                             <div class="form-group">
@@ -2527,6 +2542,7 @@
 <script src="{{ url_for('static', filename='manage-communities.js') }}"></script>
 <script src="{{ url_for('static', filename='playoffs-results.js') }}"></script>
 <script src="{{ url_for('static', filename='stream-schedule.js') }}"></script>
+<script src="{{ url_for('static', filename='lab-reservations.js') }}"></script>
 <!-- Must load second-to-last -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <script src="{{ url_for('static', filename='calendar.js') }}"></script>

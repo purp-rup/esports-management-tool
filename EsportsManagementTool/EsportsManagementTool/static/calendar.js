@@ -157,14 +157,20 @@ function switchCalendarView(view, btnElement) {
 
     const eventLegendCard = document.getElementById('eventLegendCard');
     const labLegendCard = document.getElementById('labLegendCard');
+    const todayEventsCard = document.getElementById('todayEventsCard');
+    const todayReservationsCard = document.getElementById('todayReservationsCard');
 
     if (view === 'labs') {
         setElementDisplay(eventLegendCard, 'none');
         setElementDisplay(labLegendCard, 'block');
+        setElementDisplay(todayEventsCard, 'none');
+        setElementDisplay(todayReservationsCard, 'block');
         loadCalendarLabReservations();
     } else {
         setElementDisplay(labLegendCard, 'none');
         setElementDisplay(eventLegendCard, 'block');
+        setElementDisplay(todayReservationsCard, 'none');
+        setElementDisplay(todayEventsCard, 'block');
         loadCalendarEvents();
     }
 }
@@ -187,12 +193,14 @@ function loadCalendarLabReservations() {
             console.log('Lab reservations loaded:', data);
             calendarLabReservationsData = data;
             displayLabReservations();
+            updateTodayLabReservations();
             revealCalendar();
         })
         .catch(error => {
             console.error('Error loading lab reservations:', error);
             calendarLabReservationsData = {};
             displayLabReservations();
+            updateTodayLabReservations();
             revealCalendar();
         });
 }
@@ -271,8 +279,7 @@ function createLabReservationElement(lab) {
 
     labEl.addEventListener('click', function(e) {
         e.stopPropagation();
-        console.log('Lab reservation clicked:', lab);
-        // TODO: open a lab reservation details popup once that exists
+        openLabReservationPopup(lab, this);
     });
 
     return labEl;
@@ -554,6 +561,60 @@ function updateTodayEvents() {
     });
 }
 
+// Updates lab reservations to display the current day's reservations
+function updateTodayLabReservations() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const dateKey = `${year}-${month}-${day}`;
+
+    const todayLabs = calendarLabReservationsData[dateKey] || [];
+    const container = document.getElementById('todayReservationsList');
+
+    if (!container) {
+        console.error('Today reservations list container not found');
+        return;
+    }
+
+    if (todayLabs.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.875rem;">No reservations today</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    todayLabs.forEach(lab => {
+        const item = document.createElement('div');
+        item.className = 'today-event-item';
+
+        const title = document.createElement('div');
+        title.className = 'today-event-title';
+        title.textContent = lab.lab_choice;
+        item.appendChild(title);
+
+        if (lab.time) {
+            const time = document.createElement('div');
+            time.className = 'today-event-time';
+            time.innerHTML = `<i class="fas fa-clock"></i> ${lab.time}`;
+            item.appendChild(time);
+        }
+
+        if (lab.lab_status) {
+            const status = document.createElement('div');
+            status.className = 'today-reservation-status';
+            status.innerHTML = `<i class="fas fa-desktop"></i> ${lab.lab_status}`;
+            item.appendChild(status);
+        }
+
+        const priority = document.createElement('div');
+        priority.className = `today-event-type priority-${lab.priority}`;
+        priority.textContent = lab.priority;
+        item.appendChild(priority);
+
+        container.appendChild(item);
+    });
+}
+
 function displayEventDetails(event) {
     const modalBody = document.getElementById('eventModalBody');
     const modalTitle = document.getElementById('eventModalTitle');
@@ -671,6 +732,108 @@ function displayEventDetails(event) {
 function formatCalendarGameName(gameName, teamName, isScheduled) {
     if (isScheduled && teamName) return teamName;
     return gameName || null;
+}
+
+function openLabReservationPopup(lab, clickedElement) {
+    window.closeEventPopup();
+    const labPopupId = `lab-${lab.id}`;
+    window.currentEventId = labPopupId;
+    activeAnchorElement = clickedElement;
+
+    const mobileView = isCalendarMobileView();
+
+    const popup = document.createElement('div');
+    popup.id = 'landingEventPopup';
+    popup.className = mobileView ? 'popup-event-item mobile-sheet' : 'popup-event-item';
+    popup.style.visibility = mobileView ? 'visible' : 'hidden';
+    popup.innerHTML = `<div class="popup-arrow"></div>`;
+
+    if (mobileView) {
+        document.body.appendChild(popup);
+        const backdrop = ensureCalendarPopupBackdrop();
+        requestAnimationFrame(() => {
+            popup.classList.add('sheet-open');
+            backdrop.classList.add('open');
+        });
+        lockBodyScroll('calendarEventPopup');
+    } else {
+        const container = document.querySelector('.calendar-container') || document.body;
+        container.appendChild(popup);
+
+        if (clickedElement) {
+            positionPopup(popup, clickedElement, false);
+        }
+
+        clickOutsideHandler = function(e) {
+            if (!popup.contains(e.target) && (!clickedElement || !clickedElement.contains(e.target))) {
+                window.closeEventPopup();
+            }
+        };
+
+        setTimeout(() => {
+            if (window.currentEventId === labPopupId) {
+                document.addEventListener('click', clickOutsideHandler);
+                window.addEventListener('resize', handleDynamicReposition);
+                window.addEventListener('scroll', handleDynamicReposition, true);
+            }
+        }, 50);
+    }
+
+    // No fetch needed - the month's cached lab data already has every field we show
+    displayLabReservationPopupDetails(lab, popup, mobileView ? null : clickedElement);
+}
+
+function displayLabReservationPopupDetails(lab, popup, clickedElement) {
+    if (!popup) return;
+
+    const labChoiceKey = getLabChoiceKey(lab.lab_choice);
+    popup.setAttribute('data-lab-choice', labChoiceKey);
+
+    popup.innerHTML = `
+        <div class="popup-arrow"></div>
+        <div class="lab-popup-details popup-inner-wrapper" data-lab-choice="${labChoiceKey}">
+
+            <h3 class="popup-title">${lab.lab_choice}${lab.game_name ? ` · ${lab.game_name}` : ''}</h3>
+
+            <div class="popup-grid-content">
+                <div class="popup-row">
+                    <span class="popup-icon"><i class="fas fa-desktop"></i></span>
+                    <span class="popup-text">${lab.lab_choice}</span>
+                </div>
+
+                <div class="popup-row">
+                    <span class="popup-icon"><i class="fas fa-clock"></i></span>
+                    <span class="popup-text">${lab.time || 'No time specified'}</span>
+                </div>
+
+                <div class="popup-row">
+                    <span class="popup-icon"><i class="fas fa-flag"></i></span>
+                    <span class="popup-text" style="text-transform: capitalize;">${lab.priority || 'N/A'}</span>
+                </div>
+
+                <div class="popup-games-box">
+                    <span class="popup-icon"><i class="fas fa-gamepad"></i></span>
+                    <span class="popup-text">${lab.game_name || 'N/A'}</span>
+                </div>
+
+                <div class="popup-row full-width">
+                    <span class="popup-icon"><i class="fas fa-th-large"></i></span>
+                    <span class="popup-text">${lab.lab_status || 'N/A'}</span>
+                </div>
+            </div>
+
+            ${lab.description ? `
+                <div class="popup-description-box">
+                    <span class="popup-icon"><i class="fas fa-align-left"></i></span>
+                    <span class="popup-text">${lab.description}</span>
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    if (clickedElement) {
+        positionPopup(popup, clickedElement, true);
+    }
 }
 
 function openEventPopup(event_id, clickedElement) {

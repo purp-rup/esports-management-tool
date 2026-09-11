@@ -665,6 +665,24 @@
     color: var(--event-misc);
 }
 
+/* ===========================
+   Lab reservation popup
+   =========================== */
+.lab-popup-details[data-lab-choice="blue"] .popup-icon {
+    background: var(--lab-blue-light);
+    color: var(--lab-blue);
+}
+
+.lab-popup-details[data-lab-choice="gold"] .popup-icon {
+    background: var(--lab-gold-light);
+    color: var(--lab-gold);
+}
+
+.lab-popup-details[data-lab-choice="center"] .popup-icon {
+    background: var(--lab-center-light);
+    color: var(--lab-center);
+}
+
 /* ========================================
    Generic modal tab switcher
    ======================================== */
