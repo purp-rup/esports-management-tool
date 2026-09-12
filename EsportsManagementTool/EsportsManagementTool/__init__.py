@@ -865,7 +865,7 @@ def get_calendar_lab_reservations() -> tuple[Response, int] | Response:
                 'lab_choice': lab['lab_choice'],
                 'priority': (lab.get('priority') or '').lower(),
                 'lab_status': lab.get('lab_status', ''),
-                'game_name': lab.get('game_name'),
+                'game_name': lab.get('game_name') or 'N/A',
                 'time': time_str,
                 'date': date_str,
                 'description': lab.get('lab_description') or ''

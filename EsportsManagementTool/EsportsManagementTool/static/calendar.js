@@ -166,6 +166,7 @@ function switchCalendarView(view, btnElement) {
         setElementDisplay(todayEventsCard, 'none');
         setElementDisplay(todayReservationsCard, 'block');
         loadCalendarLabReservations();
+        loadMyLabReservations();
     } else {
         setElementDisplay(labLegendCard, 'none');
         setElementDisplay(eventLegendCard, 'block');

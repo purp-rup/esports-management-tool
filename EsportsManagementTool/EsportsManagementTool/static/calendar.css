@@ -441,6 +441,36 @@
 .calendar-cell .event.lab-reservation[data-priority="scrim"]    { border-color: rgba(234, 179, 8, 1); }
 .calendar-cell .event.lab-reservation[data-priority="match"]    { border-color: rgba(239, 68, 68, 1); }
 
+.lab-legend-layout {
+    display: flex;
+    align-items: stretch;
+    gap: 0.75rem;
+}
+
+.lab-legend-types {
+    flex-shrink: 0;
+}
+
+/* Tighter gap than the default .legend-columns, per note 1 - frees up room for My Reservations */
+.lab-legend-types .legend-columns {
+    gap: 0.6rem;
+}
+
+.lab-legend-divider {
+    width: 1px;
+    background: var(--border-color);
+    align-self: stretch;
+}
+
+.lab-legend-mine {
+    flex: 1;
+    min-width: 0;
+}
+
+.lab-legend-mine h3 {
+    margin-bottom: 0.5rem;
+}
+
 /* Calendar widgets */
 .widget-sidebar {
     display: grid;

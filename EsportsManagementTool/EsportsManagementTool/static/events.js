@@ -484,10 +484,17 @@ function closeCreateEventModal() {
 /* =================================
    Create Lab Reservation
    ================================= */
-function openCreateLabReservationModal() {
+// Tracks which reservation is being edited, if any (null = creating a new one)
+let editingLabReservationId = null;
+
+function openCreateLabReservationModal(existingReservation = null) {
     const modal = document.getElementById('createLabReservationModal');
     const form = document.getElementById('createLabReservationForm');
     const formMessage = document.getElementById('labReservationFormMessage');
+    const titleEl = document.getElementById('labReservationModalTitle');
+    const submitBtnText = document.getElementById('labSubmitBtnText');
+
+    editingLabReservationId = existingReservation ? existingReservation.id : null;
 
     // Show modal
     setElementDisplay(modal, 'block');
@@ -503,20 +510,42 @@ function openCreateLabReservationModal() {
     resetLabCapacityIndicator();
     initializeLabCapacityChecks();
 
+    if (titleEl) titleEl.textContent = existingReservation ? 'Edit Reservation' : 'Reserve the Lab!';
+    if (submitBtnText) submitBtnText.textContent = existingReservation ? 'Save Changes' : 'Reserve Lab';
+
     // Character Counter
     attachCharacterCounter('labDescription', 250);
 
-    // Load games after modal is rendered
-    setTimeout(() => {
-        initializeReservedGameSelector();
+    // Load games, then pre-fill once the game list (and thus its icons) is ready
+    setTimeout(async () => {
+        await initializeReservedGameSelector();
+
+        if (existingReservation) {
+            document.getElementById('labReservationDate').value = existingReservation.date;
+            document.getElementById('labStartTime').value = existingReservation.start_time_raw;
+            document.getElementById('labEndTime').value = existingReservation.end_time_raw;
+            selectComboValue('labChoice', existingReservation.lab_choice);
+            selectComboValue('labPriority', existingReservation.priority);
+            selectComboValue('labStatus', existingReservation.lab_status);
+            selectReservedGame(existingReservation.game_name);
+
+            const descriptionEl = document.getElementById('labDescription');
+            if (descriptionEl) {
+                descriptionEl.value = existingReservation.description || '';
+                descriptionEl.dispatchEvent(new Event('input'));
+            }
+
+            checkLabAvailability();
+        }
     }, 50);
 }
 
-// Close create lab reservation modal
+// Close create/edit lab reservation modal
 function closeCreateLabReservationModal() {
     const modal = document.getElementById('createLabReservationModal');
     setElementDisplay(modal, 'none');
     unlockBodyScroll('createLabReservationModal');
+    editingLabReservationId = null;
 }
 
 // Handle create lab reservation form submission
@@ -566,10 +595,13 @@ async function handleCreateLabReservationSubmit(e) {
     setElementDisplay(submitBtnSpinner, 'inline-block');
 
     const formData = new FormData(e.target);
+    const isEditing = !!editingLabReservationId;
+    const url = isEditing ? `/api/lab-reservations/${editingLabReservationId}` : '/api/lab-reservations';
+    const method = isEditing ? 'PUT' : 'POST';
 
     try {
-        const response = await fetch('/api/lab-reservations', {
-            method: 'POST',
+        const response = await fetch(url, {
+            method,
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: formData
         });
@@ -577,7 +609,7 @@ async function handleCreateLabReservationSubmit(e) {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            showDeleteSuccessMessage(data.message || 'Lab reservation created successfully!');
+            showDeleteSuccessMessage(data.message || (isEditing ? 'Lab reservation updated!' : 'Lab reservation created successfully!'));
 
             if (data.impacted_names && data.impacted_names.length > 0) {
                 setTimeout(() => showInfoMessage(buildLabImpactMessage(data.impacted_names)), 500);
@@ -586,7 +618,7 @@ async function handleCreateLabReservationSubmit(e) {
                 setTimeout(() => window.location.reload(), 900);
             }
         } else {
-            throw new Error(data.message || 'Failed to create lab reservation');
+            throw new Error(data.message || 'Failed to save lab reservation');
         }
     } catch (error) {
         formMessage.textContent = error.message || 'Failed to create lab reservation. Please try again.';
@@ -1765,26 +1797,26 @@ const SingleSelectConfig = {
         allowCustom: true,
         customPlaceholder: 'Enter custom location'
     },
-    labChoice: {
+        labChoice: {
         hiddenInput: 'labChoice',
         display: 'labChoiceSelectDisplay',
         placeholder: 'Select lab',
         allowCustom: false,
-        onSelect: () => scheduleLabAvailabilityCheck()
+        onSelect: () => onLabReservationFieldChanged()
     },
     labPriority: {
         hiddenInput: 'labPriority',
         display: 'labPrioritySelectDisplay',
         placeholder: 'Select priority',
         allowCustom: false,
-        onSelect: () => scheduleLabAvailabilityCheck()
+        onSelect: () => onLabReservationFieldChanged()
     },
     labStatus: {
         hiddenInput: 'labStatus',
         display: 'labStatusSelectDisplay',
         placeholder: 'Select lab status',
         allowCustom: false,
-        onSelect: () => scheduleLabAvailabilityCheck()
+        onSelect: () => onLabReservationFieldChanged()
     }
 };
 
@@ -2103,21 +2135,29 @@ async function initializeReservedGameSelector() {
     }
 }
 
-// Render the option list inside the reserved-game panel
+// Render the option list inside the reserved-game panel.
+// N/A always appears last, for reservations with no specific game or one not in the list.
 function renderReservedGamePanel(games) {
     const panel = document.getElementById('reservedGameOptionsPanel');
     if (!panel) return;
 
-    panel.innerHTML = games.length
-        ? games.map(game => `
-            <div class="filter-box-item" onclick="event.stopPropagation(); selectReservedGame('${escapeQuotes(game.GameTitle)}')">
-                ${game.image_url
-                    ? `<img src="${game.image_url}" class="game-option-icon" alt="" onerror="handleGameIconError(this, 'game-option-icon-fallback')">`
-                    : `<i class="fas fa-gamepad game-option-icon-fallback"></i>`}
-                ${game.GameTitle}
-            </div>
-        `).join('')
-        : '<div class="filter-box-flyout-loading">No games available</div>';
+    const gameItems = games.map(game => `
+        <div class="filter-box-item" onclick="event.stopPropagation(); selectReservedGame('${escapeQuotes(game.GameTitle)}')">
+            ${game.image_url
+                ? `<img src="${game.image_url}" class="game-option-icon" alt="" onerror="handleGameIconError(this, 'game-option-icon-fallback')">`
+                : `<i class="fas fa-gamepad game-option-icon-fallback"></i>`}
+            ${game.GameTitle}
+        </div>
+    `).join('');
+
+    const naItem = `
+        <div class="filter-box-item" onclick="event.stopPropagation(); selectReservedGame('N/A')">
+            <i class="fas fa-ban game-option-icon-fallback"></i>
+            N/A
+        </div>
+    `;
+
+    panel.innerHTML = gameItems + naItem;
 }
 
 // Select a single game for the reserved-game field
@@ -2126,15 +2166,21 @@ function selectReservedGame(value) {
     const displayArea = document.getElementById('reservedGameSelectDisplay');
     if (!hiddenInput || !displayArea) return;
 
-    const cachedList = EventState.gamesListCache;
-    const item = cachedList?.find(g => g.GameTitle === value);
-    const iconHtml = item?.image_url
-        ? `<img src="${item.image_url}" class="game-tag-icon-img" alt="" onerror="handleGameIconError(this, 'game-tag-icon')">`
-        : `<i class="fas fa-gamepad game-tag-icon"></i>`;
+    let iconHtml;
+    if (value === 'N/A') {
+        iconHtml = `<i class="fas fa-ban game-tag-icon"></i>`;
+    } else {
+        const cachedList = EventState.gamesListCache;
+        const item = cachedList?.find(g => g.GameTitle === value);
+        iconHtml = item?.image_url
+            ? `<img src="${item.image_url}" class="game-tag-icon-img" alt="" onerror="handleGameIconError(this, 'game-tag-icon')">`
+            : `<i class="fas fa-gamepad game-tag-icon"></i>`;
+    }
 
     hiddenInput.value = value;
     displayArea.innerHTML = `${iconHtml}<span class="combo-selected-text">${value}</span>`;
 
+    clearLabReservationBlockMessage();
     closeAllFilterPanels();
 }
 

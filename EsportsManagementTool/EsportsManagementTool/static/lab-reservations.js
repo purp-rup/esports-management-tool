@@ -26,7 +26,7 @@ let labAvailabilityDebounceTimer = null;
 function initializeLabCapacityChecks() {
     ['labReservationDate', 'labStartTime', 'labEndTime'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.addEventListener('change', scheduleLabAvailabilityCheck);
+        if (el) el.addEventListener('change', onLabReservationFieldChanged);
     });
 }
 
@@ -34,6 +34,22 @@ function initializeLabCapacityChecks() {
 function scheduleLabAvailabilityCheck() {
     clearTimeout(labAvailabilityDebounceTimer);
     labAvailabilityDebounceTimer = setTimeout(checkLabAvailability, 200);
+}
+
+/** Clears a lingering blocked/error message in the form once the user starts changing fields again */
+function clearLabReservationBlockMessage() {
+    const formMessage = document.getElementById('labReservationFormMessage');
+    if (formMessage && formMessage.classList.contains('error')) {
+        formMessage.textContent = '';
+        formMessage.style.display = 'none';
+        formMessage.className = 'form-message';
+    }
+}
+
+/** Called on any field change: clears a stale block message immediately, then re-runs the capacity check */
+function onLabReservationFieldChanged() {
+    clearLabReservationBlockMessage();
+    scheduleLabAvailabilityCheck();
 }
 
 /** Reset the capacity indicator to its default instructional state (bar empty, info message) */
@@ -78,6 +94,10 @@ async function checkLabAvailability() {
             start_time: startTime,
             end_time: endTime
         });
+
+        if (typeof editingLabReservationId !== 'undefined' && editingLabReservationId) {
+            params.set('exclude_id', editingLabReservationId);
+        }
 
         const response = await fetch(`/api/lab-reservations/availability?${params.toString()}`);
         const data = await response.json();
@@ -277,6 +297,129 @@ async function loadLabReservationNotices() {
 }
 
 document.addEventListener('DOMContentLoaded', loadLabReservationNotices);
+
+// Cache of the current user's own reservations, keyed by id, so edit/delete
+// don't need a network round-trip just to know what they're acting on
+let myLabReservationsCache = {};
+
+/** Fetch and render the current user's upcoming reservations */
+async function loadMyLabReservations() {
+    try {
+        const response = await fetch('/api/lab-reservations/mine');
+        const data = await response.json();
+        const reservations = data.reservations || [];
+
+        myLabReservationsCache = {};
+        reservations.forEach(res => { myLabReservationsCache[res.id] = res; });
+
+        renderMyReservationsList(reservations);
+    } catch (error) {
+        console.error('Error loading my lab reservations:', error);
+        renderMyReservationsList([]);
+    }
+}
+
+// Limits the amount of visible reservations in the My Reservations section before a scrollbar appears
+const MY_RESERVATIONS_VISIBLE_COUNT = 3;
+
+function renderMyReservationsList(reservations) {
+    const container = document.getElementById('myReservationsList');
+    if (!container) return;
+
+    container.style.maxHeight = '';
+
+    if (reservations.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.875rem;">No upcoming reservations</p>';
+        return;
+    }
+
+    container.innerHTML = reservations.map(res => {
+        const labKey = getLabChoiceKey(res.lab_choice);
+        const priorityKey = (res.priority || '').toLowerCase();
+        const title = res.game_name ? `${res.lab_choice} · ${res.game_name}` : res.lab_choice;
+
+        return `
+            <div class="my-reservation-pill" data-lab-choice="${labKey}" data-priority="${priorityKey}">
+                <div class="my-reservation-pill-info">
+                    <div class="my-reservation-pill-title">${escapeHtml(title)}</div>
+                    <div class="my-reservation-pill-meta">${escapeHtml(res.date_display)} · ${escapeHtml(res.time_display)}</div>
+                </div>
+                <div class="my-reservation-pill-actions">
+                    <button type="button" class="events-detail-banner-btn" title="Edit" onclick="editMyLabReservation(${res.id})">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button type="button" class="events-detail-banner-btn delete" title="Delete" onclick="confirmDeleteMyLabReservation(${res.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    capMyReservationsListHeight(container, reservations.length);
+}
+
+/**
+ * Caps the list's height to exactly fit MY_RESERVATIONS_VISIBLE_COUNT pills
+ * (measured from the actual rendered elements, not a guessed pixel value),
+ * so a 4th+ entry scrolls instead of partially showing or leaving a gap.
+ */
+function capMyReservationsListHeight(container, itemCount) {
+    if (itemCount <= MY_RESERVATIONS_VISIBLE_COUNT) return;
+
+    const pills = container.querySelectorAll('.my-reservation-pill');
+    const gap = parseFloat(getComputedStyle(container).rowGap) || 0;
+
+    let totalHeight = 0;
+    for (let i = 0; i < MY_RESERVATIONS_VISIBLE_COUNT && i < pills.length; i++) {
+        totalHeight += pills[i].offsetHeight;
+        if (i > 0) totalHeight += gap;
+    }
+
+    container.style.maxHeight = `${totalHeight}px`;
+}
+
+/** Open the create/edit modal pre-filled with an existing reservation's data */
+function editMyLabReservation(reservationId) {
+    const reservation = myLabReservationsCache[reservationId];
+    if (!reservation) return;
+    openCreateLabReservationModal(reservation);
+}
+
+/** Confirm + delete, reusing the universal delete-confirm modal from modals.js */
+function confirmDeleteMyLabReservation(reservationId) {
+    const reservation = myLabReservationsCache[reservationId];
+    if (!reservation) return;
+
+    openDeleteConfirmModal({
+        title: 'Delete Reservation?',
+        itemName: reservation.lab_choice,
+        message: `Are you sure you want to delete this ${reservation.lab_choice} reservation?`,
+        buttonText: 'Delete Reservation',
+        itemId: reservationId,
+        onConfirm: async (id) => {
+            try {
+                const response = await fetch(`/api/lab-reservations/${id}`, { method: 'DELETE' });
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    closeDeleteConfirmModal();
+                    showDeleteSuccessMessage(data.message || 'Lab reservation deleted.');
+                    loadMyLabReservations();
+                    if (typeof currentCalendarView !== 'undefined' && currentCalendarView === 'labs') {
+                        loadCalendarLabReservations();
+                    }
+                } else {
+                    throw new Error(data.message || 'Failed to delete reservation');
+                }
+            } catch (error) {
+                console.error('Error deleting lab reservation:', error);
+                showDeleteErrorMessage(error.message || 'Failed to delete reservation.');
+                closeDeleteConfirmModal();
+            }
+        }
+    });
+}
 
 /**
  * Builds the "Let X know..." message text for the impact notification.
