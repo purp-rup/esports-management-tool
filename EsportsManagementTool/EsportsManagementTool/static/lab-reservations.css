@@ -11,6 +11,7 @@
 }
 
 .lab-capacity-bar-track {
+    display: flex;
     width: 100%;
     height: 10px;
     background: var(--dark-bg);
@@ -22,7 +23,7 @@
 .lab-capacity-bar-fill {
     height: 100%;
     width: 0%;
-    border-radius: 999px;
+    flex-shrink: 0;
     transition: width 0.25s ease;
     background: var(--stockton-blue);
 }
@@ -30,6 +31,12 @@
 .lab-capacity-bar-fill--green  { background: rgba(134, 239, 172, 1); }
 .lab-capacity-bar-fill--yellow { background: rgba(253, 224, 71, 1); }
 .lab-capacity-bar-fill--red    { background: rgba(252, 165, 165, 1); }
+
+/* The portion the current reservation-in-progress would occupy,
+   shown immediately after the existing-reservations fill */
+.lab-capacity-bar-fill--selected {
+    background: rgba(59, 130, 246, 1);
+}
 
 .lab-capacity-message {
     margin-top: 0.6rem;
@@ -73,6 +80,23 @@
 .lab-capacity-availability-line {
     margin-top: 0.5rem;
     font-weight: 600;
+}
+
+.lab-notice-dismiss {
+    background: none;
+    border: none;
+    color: white;
+    opacity: 0.8;
+    cursor: pointer;
+    padding: 0.2rem;
+    font-size: 0.85rem;
+    line-height: 1;
+    flex-shrink: 0;
+    align-self: flex-start;
+}
+
+.lab-notice-dismiss:hover {
+    opacity: 1;
 }
 
 /* Scaffolded for the future priority-override state - not yet triggered */

@@ -39,11 +39,15 @@ function scheduleLabAvailabilityCheck() {
 /** Reset the capacity indicator to its default instructional state (bar empty, info message) */
 function resetLabCapacityIndicator() {
     const fill = document.getElementById('labCapacityBarFill');
+    const selectedFill = document.getElementById('labCapacitySelectedFill');
     const message = document.getElementById('labCapacityMessage');
 
     if (fill) {
         fill.style.width = '0%';
         fill.className = 'lab-capacity-bar-fill';
+    }
+    if (selectedFill) {
+        selectedFill.style.width = '0%';
     }
     if (message) {
         message.textContent = 'Please fill out a reservation form to see if the lab is reserved for your time. The bar above will help indicate whether the lab is in use or not.';
@@ -101,8 +105,14 @@ async function checkLabAvailability() {
  */
 function renderLabCapacityIndicator(overlaps) {
     const fill = document.getElementById('labCapacityBarFill');
+    const selectedFill = document.getElementById('labCapacitySelectedFill');
     const message = document.getElementById('labCapacityMessage');
-    if (!fill || !message) return;
+    if (!fill || !selectedFill || !message) return;
+
+    // How much of the bar the reservation currently being filled out would occupy
+    const selectedStatus = document.getElementById('labStatus')?.value;
+    const selectedFraction = LAB_CAPACITY_FRACTIONS[selectedStatus] || 0;
+    selectedFill.style.width = `${selectedFraction * 100}%`;
 
     if (overlaps.length === 0) {
         fill.style.width = '0%';
@@ -126,14 +136,14 @@ function renderLabCapacityIndicator(overlaps) {
     const maxAvailableStatus = getMaxAvailableLabStatus(remainingFraction);
 
     // Compare against whatever lab status the user currently has selected (if any yet)
-    const selectedStatus = document.getElementById('labStatus')?.value;
-    const selectedFraction = LAB_CAPACITY_FRACTIONS[selectedStatus] || 0;
     const exceedsCapacity = selectedStatus && selectedFraction > remainingFraction;
 
     // One line per conflicting reservation: time range, who booked it, and its lab status
     const conflictLines = overlaps.map(res => {
         const timeRange = `${res.start_time} - ${res.end_time}`;
-        const bookedBy = res.first_name ? escapeHtml(res.first_name) : 'someone';
+        const bookedBy = res.first_name
+            ? `${escapeHtml(res.first_name)}${res.username ? ` (${escapeHtml(res.username)})` : ''}`
+            : 'someone';
         return `<div class="lab-capacity-conflict-line">${timeRange} (${escapeHtml(res.lab_status)}) — booked by ${bookedBy}</div>`;
     }).join('');
 
@@ -181,4 +191,102 @@ function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+/**
+ * Renders a persistent lab reservation impact notice. Visually matches the
+ * blue info toast from notifications.js and stacks through the same
+ * NotificationQueue, but does not auto-dismiss - it stays until the user
+ * clicks the X, which deletes it server-side so it never reappears.
+ */
+function renderLabReservationNotice(notice) {
+    const card = document.createElement('div');
+    card.dataset.noticeId = notice.notice_id;
+
+    card.innerHTML = `
+        <i class="fas fa-info-circle"></i>
+        <p style="margin: 0; flex: 1; line-height: 1.4;">${escapeHtml(notice.message)}</p>
+        <button type="button" class="lab-notice-dismiss" aria-label="Dismiss">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+
+    card.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        font-size: 0.9375rem;
+        font-weight: 500;
+        max-width: 400px;
+        background: #3b82f6;
+        border: 1px solid #2563eb;
+        color: white;
+        transform: translateX(400px);
+        opacity: 0;
+        transition: all 0.3s ease-out;
+    `;
+
+    document.body.appendChild(card);
+    window.NotificationQueue.add(card);
+
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            card.style.transform = 'translateX(0)';
+            card.style.opacity = '1';
+        }, 50);
+    });
+
+    card.querySelector('.lab-notice-dismiss').addEventListener('click', () => {
+        dismissLabReservationNotice(notice.notice_id, card);
+    });
+}
+
+/** Permanently dismiss a notice: tell the server, then remove it from view */
+async function dismissLabReservationNotice(noticeId, cardEl) {
+    cardEl.style.opacity = '0';
+    cardEl.style.transform = 'translateX(400px)';
+
+    try {
+        await fetch(`/api/lab-reservations/notices/${noticeId}`, { method: 'DELETE' });
+    } catch (error) {
+        console.error('Failed to dismiss lab reservation notice:', error);
+    }
+
+    setTimeout(() => {
+        window.NotificationQueue.remove(cardEl);
+        cardEl.remove();
+    }, 300);
+}
+
+/** On page load, fetch and display any pending lab reservation impact notices */
+async function loadLabReservationNotices() {
+    try {
+        const response = await fetch('/api/lab-reservations/notices');
+        const data = await response.json();
+        (data.notices || []).forEach(notice => renderLabReservationNotice(notice));
+    } catch (error) {
+        console.error('Failed to load lab reservation notices:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadLabReservationNotices);
+
+/**
+ * Builds the "Let X know..." message text for the impact notification.
+ * Actually displaying it reuses showInfoMessage() from notifications.js,
+ * which already gives the right blue card + queue stacking.
+ */
+function buildLabImpactMessage(names) {
+    const namesText = names.length > 1
+        ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+        : names[0];
+
+    return `Let ${namesText} know their reservation${names.length > 1 ? 's were' : ' was'} impacted.`;
 }

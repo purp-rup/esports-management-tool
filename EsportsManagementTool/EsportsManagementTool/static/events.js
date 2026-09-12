@@ -578,7 +578,13 @@ async function handleCreateLabReservationSubmit(e) {
 
         if (response.ok && data.success) {
             showDeleteSuccessMessage(data.message || 'Lab reservation created successfully!');
-            setTimeout(() => window.location.reload(), 900);
+
+            if (data.impacted_names && data.impacted_names.length > 0) {
+                setTimeout(() => showInfoMessage(buildLabImpactMessage(data.impacted_names)), 500);
+                setTimeout(() => window.location.reload(), 3200);
+            } else {
+                setTimeout(() => window.location.reload(), 900);
+            }
         } else {
             throw new Error(data.message || 'Failed to create lab reservation');
         }
