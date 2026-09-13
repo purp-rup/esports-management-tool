@@ -37,8 +37,11 @@
     width: 100%;
 }
 
-.calendar-navigation > #prevMonth {
+.calendar-navigation > .calendar-nav-left {
     justify-self: start;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .calendar-navigation > .calendar-month-year {
@@ -107,6 +110,7 @@
 .calendar-view-tabs {
     width: auto;
     margin-bottom: 0;
+    margin-top: 0;
 }
 
 .calendar-view-tabs .tab-button {
@@ -469,6 +473,15 @@
 
 .lab-legend-mine h3 {
     margin-bottom: 0.5rem;
+}
+
+/* Info button that reveals the legend as a popover - mobile only */
+.calendar-info-btn {
+    display: none;
+}
+
+.legend-popover-backdrop {
+    display: none;
 }
 
 /* Calendar widgets */
@@ -856,6 +869,60 @@
     .mobile-lab-dot--blue   { background: #60a5fa; }
     .mobile-lab-dot--gold   { background: #facc15; }
     .mobile-lab-dot--center { background: #cbd5e1; }
+
+    /* Today's Events/Reservations widget is desktop-only */
+    #todayEventsCard,
+    #todayReservationsCard {
+        display: none !important;
+    }
+
+    /* Outline-only legend indicators (recurring events, priority borders)
+       have no equivalent in the mobile dot system, so hide them there */
+    .legend-item--mobile-hide,
+    .legend-column--mobile-hide {
+        display: none !important;
+    }
+
+        /* Everything stays on one row - just compact it to fit */
+    .calendar-navigation {
+        padding: 0.75rem 0.5rem;
+        column-gap: 0.4rem;
+    }
+
+    /* View tabs collapse to icon-only circular buttons */
+    .calendar-view-tabs .tab-button span {
+        display: none;
+    }
+
+    .calendar-view-tabs .tab-button {
+        padding: 0.5rem;
+        border-radius: 50%;
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .calendar-view-tabs .tab-icon {
+        margin: 0;
+    }
+
+    /* Event Types legend and the Lab legend's swatch portion never show
+       inline on mobile - the universal info icon opens a copy of their
+       content in the shared #infoSheet instead. !important overrides
+       the inline display style switchCalendarView() sets to pick the
+       right view's card. */
+    #eventLegendCard,
+    .lab-legend-types {
+        display: none !important;
+    }
+
+    /* With .lab-legend-types hidden, My Reservations (the only
+       remaining visible child) naturally spans full width */
+    .lab-legend-divider {
+        display: none;
+    }
 
     .calendar-day-sheet-title {
         font-size: 1rem;

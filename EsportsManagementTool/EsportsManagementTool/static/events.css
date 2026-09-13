@@ -1025,31 +1025,50 @@ select[multiple]:focus {
 
 @media (max-width: 768px) {
     /* --- Header --- */
+    /* Title top-left, create buttons top-right (same row), filters full-width below */
     #events .card-header {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
+        grid-template-columns: 1fr auto auto;
+        align-items: start;
+        gap: 0.5rem 0.5rem;
+    }
+
+    #events .card-header > div:first-child {
+        grid-column: 1;
+        grid-row: 1;
+        min-width: 0;
     }
 
     #events .card-header > div:first-child p {
         display: none;
     }
 
+    /* Removes this wrapper from the box model so its children (filters +
+       both buttons) become independently placeable grid items of card-header,
+       instead of being stuck together as one row */
     .event-header-controls {
-        width: 100%;
-        flex-wrap: nowrap;
-        justify-content: space-between;
-        gap: 0.5rem;
+        display: contents;
     }
 
-    .event-filters-container {
-        flex: 0 0 auto;
+    .event-header-controls > .btn-primary:nth-of-type(1) {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .event-header-controls > .btn-primary:nth-of-type(2) {
+        grid-column: 3;
+        grid-row: 1;
     }
 
     .event-header-controls > .btn-primary {
         white-space: nowrap;
-        flex: 0 0 auto;
         width: auto;
         padding: 0.45rem 0.75rem;
+    }
+
+    .event-filters-container {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        justify-content: flex-start;
     }
 
     /* --- Cards --- */

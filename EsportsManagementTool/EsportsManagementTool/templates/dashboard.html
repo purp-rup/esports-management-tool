@@ -81,10 +81,16 @@
         <div class="calendar-container" style="visibility: hidden;">
             <!-- Calendar Navigation -->
             <div class="calendar-navigation">
-                <button class="nav-button" id="prevMonth">
-                    <i class="fas fa-chevron-left"></i>
-                    <span>Previous</span>
-                </button>
+                <div class="calendar-nav-left">
+                    <button class="nav-button" id="prevMonth">
+                        <i class="fas fa-chevron-left"></i>
+                        <span>Previous</span>
+                    </button>
+                    <div class="info-icon-wrapper" id="calendarLegendInfoWrapper">
+                        <i class="fas fa-info-circle info-icon" id="calendarLegendInfoIcon"></i>
+                        <div class="info-tooltip" id="calendarLegendInfoTooltip"></div>
+                    </div>
+                </div>
                 <h2 class="calendar-month-year" id="currentMonthYear"></h2>
                 <div class="calendar-nav-right">
                     <!-- Events / Lab Reservations view tabs (placeholder — not wired up yet) -->
@@ -149,7 +155,7 @@
                             <div class="legend-color misc"></div>
                             <span class="legend-label">Misc</span>
                         </div>
-                        <div class="legend-item">
+                        <div class="legend-item legend-item--mobile-hide">
                             <div class="legend-color scheduled-indicator"></div>
                             <span class="legend-label">Recurring/Scheduled</span>
                         </div>
@@ -178,7 +184,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="legend-column">
+                                <div class="legend-column legend-column--mobile-hide">
                                     <div class="legend-column-title">Priority</div>
                                     <div class="legend-items">
                                         <div class="legend-item">
