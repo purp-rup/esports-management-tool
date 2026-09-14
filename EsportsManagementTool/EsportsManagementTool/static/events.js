@@ -96,6 +96,12 @@ function attachEventListeners() {
         createEventForm.addEventListener('submit', handleCreateEventSubmit);
     }
 
+    // Create lab reservation form submission
+    const createLabReservationForm = document.getElementById('createLabReservationForm');
+    if (createLabReservationForm) {
+        createLabReservationForm.addEventListener('submit', handleCreateLabReservationSubmit);
+    }
+
     // Filter box flyouts
     initPastSeasonsFlyout();
     initGameFlyouts();
@@ -473,6 +479,157 @@ function closeCreateEventModal() {
     const modal = document.getElementById('createEventModal');
     setElementDisplay(modal, 'none');
     unlockBodyScroll('createEventModal');
+}
+
+/* =================================
+   Create Lab Reservation
+   ================================= */
+// Tracks which reservation is being edited, if any (null = creating a new one)
+let editingLabReservationId = null;
+
+function openCreateLabReservationModal(existingReservation = null) {
+    const modal = document.getElementById('createLabReservationModal');
+    const form = document.getElementById('createLabReservationForm');
+    const formMessage = document.getElementById('labReservationFormMessage');
+    const titleEl = document.getElementById('labReservationModalTitle');
+    const submitBtnText = document.getElementById('labSubmitBtnText');
+
+    editingLabReservationId = existingReservation ? existingReservation.id : null;
+
+    // Show modal
+    setElementDisplay(modal, 'block');
+    lockBodyScroll('createLabReservationModal');
+
+    // Reset form and state
+    form.reset();
+    resetComboSelector('labChoice');
+    resetComboSelector('labPriority');
+    resetComboSelector('labStatus');
+    resetReservedGameSelector();
+    setElementDisplay(formMessage, 'none');
+    resetLabCapacityIndicator();
+    initializeLabCapacityChecks();
+
+    if (titleEl) titleEl.textContent = existingReservation ? 'Edit Reservation' : 'Reserve the Lab!';
+    if (submitBtnText) submitBtnText.textContent = existingReservation ? 'Save Changes' : 'Reserve Lab';
+
+    // Character Counter
+    attachCharacterCounter('labDescription', 250);
+
+    // Load games, then pre-fill once the game list (and thus its icons) is ready
+    setTimeout(async () => {
+        await initializeReservedGameSelector();
+
+        if (existingReservation) {
+            document.getElementById('labReservationDate').value = existingReservation.date;
+            document.getElementById('labStartTime').value = existingReservation.start_time_raw;
+            document.getElementById('labEndTime').value = existingReservation.end_time_raw;
+            selectComboValue('labChoice', existingReservation.lab_choice);
+            selectComboValue('labPriority', existingReservation.priority);
+            selectComboValue('labStatus', existingReservation.lab_status);
+            selectReservedGame(existingReservation.game_name);
+
+            const descriptionEl = document.getElementById('labDescription');
+            if (descriptionEl) {
+                descriptionEl.value = existingReservation.description || '';
+                descriptionEl.dispatchEvent(new Event('input'));
+            }
+
+            checkLabAvailability();
+        }
+    }, 50);
+}
+
+// Close create/edit lab reservation modal
+function closeCreateLabReservationModal() {
+    const modal = document.getElementById('createLabReservationModal');
+    setElementDisplay(modal, 'none');
+    unlockBodyScroll('createLabReservationModal');
+    editingLabReservationId = null;
+}
+
+// Handle create lab reservation form submission
+async function handleCreateLabReservationSubmit(e) {
+    e.preventDefault();
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const submitBtnText = document.getElementById('labSubmitBtnText');
+    const submitBtnSpinner = document.getElementById('labSubmitBtnSpinner');
+    const formMessage = document.getElementById('labReservationFormMessage');
+
+    // Validate lab choice has been selected
+    if (!document.getElementById('labChoice')?.value) {
+        formMessage.textContent = 'Please select a lab.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+        return;
+    }
+
+    // Validate a game has been selected
+    if (!document.getElementById('reservedGame')?.value) {
+        formMessage.textContent = 'Please select a game.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+        return;
+    }
+
+    // Validate priority has been selected
+    if (!document.getElementById('labPriority')?.value) {
+        formMessage.textContent = 'Please select a priority.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+        return;
+    }
+
+    // Validate lab status has been selected
+    if (!document.getElementById('labStatus')?.value) {
+        formMessage.textContent = 'Please select a lab status.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+        return;
+    }
+
+    // Set loading state
+    submitBtn.disabled = true;
+    setElementDisplay(submitBtnText, 'none');
+    setElementDisplay(submitBtnSpinner, 'inline-block');
+
+    const formData = new FormData(e.target);
+    const isEditing = !!editingLabReservationId;
+    const url = isEditing ? `/api/lab-reservations/${editingLabReservationId}` : '/api/lab-reservations';
+    const method = isEditing ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showDeleteSuccessMessage(data.message || (isEditing ? 'Lab reservation updated!' : 'Lab reservation created successfully!'));
+
+            if (data.impacted_names && data.impacted_names.length > 0) {
+                setTimeout(() => showInfoMessage(buildLabImpactMessage(data.impacted_names)), 500);
+                setTimeout(() => window.location.reload(), 3200);
+            } else {
+                setTimeout(() => window.location.reload(), 900);
+            }
+        } else {
+            throw new Error(data.message || 'Failed to save lab reservation');
+        }
+    } catch (error) {
+        formMessage.textContent = error.message || 'Failed to create lab reservation. Please try again.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+
+        // Reset button state
+        submitBtn.disabled = false;
+        setElementDisplay(submitBtnText, 'inline');
+        setElementDisplay(submitBtnSpinner, 'none');
+    }
 }
 
 // Handle event type change - hide game field for Misc events
@@ -1640,6 +1797,27 @@ const SingleSelectConfig = {
         allowCustom: true,
         customPlaceholder: 'Enter custom location'
     },
+    labChoice: {
+        hiddenInput: 'labChoice',
+        display: 'labChoiceSelectDisplay',
+        placeholder: 'Select lab',
+        allowCustom: false,
+        onSelect: () => onLabReservationFieldChanged()
+    },
+    labPriority: {
+        hiddenInput: 'labPriority',
+        display: 'labPrioritySelectDisplay',
+        placeholder: 'Select priority',
+        allowCustom: false,
+        onSelect: () => onLabReservationFieldChanged()
+    },
+    labStatus: {
+        hiddenInput: 'labStatus',
+        display: 'labStatusSelectDisplay',
+        placeholder: 'Select lab status',
+        allowCustom: false,
+        onSelect: () => onLabReservationFieldChanged()
+    },
     // Scheduled event modal dropdowns
     scheduledEventType: {
         hiddenInput: 'scheduledEventType',
@@ -1988,6 +2166,84 @@ function clearSelectedTags(field, context = 'create') {
     updateTagsDisplay(field, context);
     updateHiddenTagInput(field, context);
     refreshTagPanelOptions(field, context);
+}
+
+/* ===============================
+   Single-select game system (Reserved Game)
+   =============================== */
+
+// Initialize the reserved-game single-select combobox
+async function initializeReservedGameSelector() {
+    const panel = document.getElementById('reservedGameOptionsPanel');
+    if (!panel) return;
+
+    panel.innerHTML = '<div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+
+    try {
+        const games = await loadGamesList();
+        renderReservedGamePanel(games);
+    } catch (error) {
+        console.error('Error initializing reserved game selector:', error);
+        panel.innerHTML = '<div class="filter-box-flyout-loading">Failed to load games</div>';
+    }
+}
+
+// Render the option list inside the reserved-game panel.
+// N/A always appears last, for reservations with no specific game or one not in the list.
+function renderReservedGamePanel(games) {
+    const panel = document.getElementById('reservedGameOptionsPanel');
+    if (!panel) return;
+
+    const gameItems = games.map(game => `
+        <div class="filter-box-item" onclick="event.stopPropagation(); selectReservedGame('${escapeQuotes(game.GameTitle)}')">
+            ${game.image_url
+                ? `<img src="${game.image_url}" class="game-option-icon" alt="" onerror="handleGameIconError(this, 'game-option-icon-fallback')">`
+                : `<i class="fas fa-gamepad game-option-icon-fallback"></i>`}
+            ${game.GameTitle}
+        </div>
+    `).join('');
+
+    const naItem = `
+        <div class="filter-box-item" onclick="event.stopPropagation(); selectReservedGame('N/A')">
+            <i class="fas fa-ban game-option-icon-fallback"></i>
+            N/A
+        </div>
+    `;
+
+    panel.innerHTML = gameItems + naItem;
+}
+
+// Select a single game for the reserved-game field
+function selectReservedGame(value) {
+    const hiddenInput = document.getElementById('reservedGame');
+    const displayArea = document.getElementById('reservedGameSelectDisplay');
+    if (!hiddenInput || !displayArea) return;
+
+    let iconHtml;
+    if (value === 'N/A') {
+        iconHtml = `<i class="fas fa-ban game-tag-icon"></i>`;
+    } else {
+        const cachedList = EventState.gamesListCache;
+        const item = cachedList?.find(g => g.GameTitle === value);
+        iconHtml = item?.image_url
+            ? `<img src="${item.image_url}" class="game-tag-icon-img" alt="" onerror="handleGameIconError(this, 'game-tag-icon')">`
+            : `<i class="fas fa-gamepad game-tag-icon"></i>`;
+    }
+
+    hiddenInput.value = value;
+    displayArea.innerHTML = `${iconHtml}<span class="combo-selected-text">${value}</span>`;
+
+    clearLabReservationBlockMessage();
+    closeAllFilterPanels();
+}
+
+// Reset the reserved-game selector back to its placeholder
+function resetReservedGameSelector() {
+    const hiddenInput = document.getElementById('reservedGame');
+    const displayArea = document.getElementById('reservedGameSelectDisplay');
+
+    if (hiddenInput) hiddenInput.value = '';
+    if (displayArea) displayArea.innerHTML = '<span class="combo-placeholder">Select game</span>';
 }
 
 /* ==============================
