@@ -784,6 +784,10 @@ select[multiple]:focus {
     width: auto;
 }
 
+#scheduledDayOfWeekGroup {
+    flex: 0.5;
+}
+
 .all-day-field {
     display: flex;
     align-items: center;

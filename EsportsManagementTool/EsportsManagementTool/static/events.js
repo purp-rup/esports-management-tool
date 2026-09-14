@@ -1797,7 +1797,7 @@ const SingleSelectConfig = {
         allowCustom: true,
         customPlaceholder: 'Enter custom location'
     },
-        labChoice: {
+    labChoice: {
         hiddenInput: 'labChoice',
         display: 'labChoiceSelectDisplay',
         placeholder: 'Select lab',
@@ -1817,11 +1817,64 @@ const SingleSelectConfig = {
         placeholder: 'Select lab status',
         allowCustom: false,
         onSelect: () => onLabReservationFieldChanged()
+    },
+    // Scheduled event modal dropdowns
+    scheduledEventType: {
+        hiddenInput: 'scheduledEventType',
+        display:     'scheduledEventTypeDisplay',
+        placeholder: 'Select type',
+        allowCustom: false,
+        onSelect: () => {
+            if (typeof handleEventTypeChangeForLeague    === 'function') handleEventTypeChangeForLeague();
+            if (typeof handleEventTypeChangeForVisibility === 'function') handleEventTypeChangeForVisibility();
+        }
+    },
+    scheduledFrequency: {
+        hiddenInput: 'scheduledFrequency',
+        display:     'scheduledFrequencyDisplay',
+        placeholder: 'Select frequency',
+        allowCustom: false,
+        onSelect: () => { if (typeof handleFrequencyChange === 'function') handleFrequencyChange(); }
+    },
+    scheduledLocation: {
+        hiddenInput: 'scheduledLocation',
+        display:     'scheduledLocationDisplay',
+        placeholder: 'Select location',
+        allowCustom: false,
+        onSelect: (value) => {
+            const customGroup = document.getElementById('scheduledCustomLocationGroup');
+            const customInput = document.getElementById('scheduledCustomLocation');
+            if (value === 'other') {
+                if (customGroup) customGroup.style.display = 'block';
+                if (customInput) customInput.required = true;
+            } else {
+                if (customGroup) customGroup.style.display = 'none';
+                if (customInput) { customInput.required = false; customInput.value = ''; }
+            }
+        }
+    },
+    scheduledDayOfWeek: {
+        hiddenInput: 'scheduledDayOfWeek',
+        display:     'scheduledDayOfWeekDisplay',
+        placeholder: 'Select day',
+        allowCustom: false
+    },
+        scheduledVisibility: {
+        hiddenInput: 'scheduledVisibility',
+        display:     'scheduledVisibilityDisplay',
+        placeholder: 'Who can see this?',
+        allowCustom: false
+    },
+    scheduledLeagueSelect: {
+        hiddenInput: 'scheduledLeagueSelect',
+        display:     'scheduledLeagueDisplay',
+        placeholder: 'Select a league',
+        allowCustom: false
     }
 };
 
 // Select a value in any single-select combobox registered in SingleSelectConfig
-function selectComboValue(key, value) {
+function selectComboValue(key, value, displayLabel) {
     const config = SingleSelectConfig[key];
     if (!config) {
         console.error(`Invalid combo key: ${key}`);
@@ -1853,7 +1906,7 @@ function selectComboValue(key, value) {
 
         const span = document.createElement('span');
         span.className = 'combo-selected-text';
-        span.textContent = value;
+        span.textContent = displayLabel || value;
         displayArea.appendChild(span);
     }
 

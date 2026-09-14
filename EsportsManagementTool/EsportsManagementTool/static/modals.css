@@ -128,6 +128,12 @@
     color: #888888;
 }
 
+.form-group-text {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    margin-bottom: 0.35rem;
+}
+
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
