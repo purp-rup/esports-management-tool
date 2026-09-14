@@ -475,12 +475,8 @@
     margin-bottom: 0.5rem;
 }
 
-/* Info button that reveals the legend as a popover - mobile only */
-.calendar-info-btn {
-    display: none;
-}
-
-.legend-popover-backdrop {
+/* Legend info icon is mobile-only - desktop already shows the full legend inline in the sidebar */
+#calendarLegendInfoWrapper {
     display: none;
 }
 
@@ -870,8 +866,7 @@
     .mobile-lab-dot--gold   { background: #facc15; }
     .mobile-lab-dot--center { background: #cbd5e1; }
 
-    /* Today's Events/Reservations widget is desktop-only */
-    #todayEventsCard,
+    /* Today's Reservations widget is desktop-only */
     #todayReservationsCard {
         display: none !important;
     }
@@ -887,6 +882,10 @@
     .calendar-navigation {
         padding: 0.75rem 0.5rem;
         column-gap: 0.4rem;
+    }
+
+    #calendarLegendInfoWrapper {
+        display: inline-block;
     }
 
     /* View tabs collapse to icon-only circular buttons */

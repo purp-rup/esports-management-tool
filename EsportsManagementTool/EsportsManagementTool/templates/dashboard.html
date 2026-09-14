@@ -838,7 +838,7 @@
                 <div class="modal-body">
 
                     <form id="createEventForm" class="event-form-modal">
-                        <div class="form-row">
+                        <div class="form-row form-row--paired">
                             <div class="form-group">
                                 <label for="eventName" class="required-field">Event Name</label>
                                 <input type="text" id="eventName" name="eventName" placeholder="Enter event name" required>
@@ -874,17 +874,17 @@
                             </small>
                         </div>
 
-                        <div class="form-row">
+                        <div class="form-row form-row--paired">
                             <!-- Game selection combobox -->
                             <div class="form-group" id="gameFieldGroup">
                                 <label for="gameTagBox" class="tag-select-label">Games</label>
-                                <div style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.35rem;">
+                                <div class="tag-select-subtext" style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.35rem;">
                                     Select games from the dropdown
                                 </div>
 
                                 <div class="filter-box tag-select-box" id="gameTagBox">
                                     <div class="tag-select-trigger" onclick="toggleFilterBox('gameOptionsPanel')">
-                                        <div id="selectedGamesContainer" class="selected-games-container tag-select-tags" data-empty-text="No games selected">
+                                        <div id="selectedGamesContainer" class="selected-games-container tag-select-tags" data-empty-text="No games selected" data-empty-text-mobile="No games">
                                             <!-- Selected game tags will appear here -->
                                         </div>
                                         <i class="fas fa-chevron-down tag-select-arrow"></i>
@@ -901,13 +901,13 @@
                             <!-- Partnership selection combobox -->
                             <div class="form-group" id="partnershipFieldGroup">
                                 <label for="partnershipTagBox" class="tag-select-label">Partnerships</label>
-                                <div style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.35rem;">
+                                <div class="tag-select-subtext" style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.35rem;">
                                     Select existing partnerships or add a new one
                                 </div>
 
                                 <div class="filter-box tag-select-box" id="partnershipTagBox">
                                     <div class="tag-select-trigger" onclick="toggleFilterBox('partnershipOptionsPanel')">
-                                        <div id="selectedPartnershipsContainer" class="selected-games-container tag-select-tags" data-empty-text="No partnerships selected">
+                                        <div id="selectedPartnershipsContainer" class="selected-games-container tag-select-tags" data-empty-text="No partnerships selected" data-empty-text-mobile="No partnerships">
                                             <!-- Selected partnership tags will appear here -->
                                         </div>
                                         <i class="fas fa-chevron-down tag-select-arrow"></i>
@@ -922,7 +922,7 @@
                             </div>
                         </div>
 
-                        <div class="form-row">
+                        <div class="form-row form-row--paired">
                             <div class="form-group">
                                 <label for="eventDate" class="required-field">Date</label>
                                 <input type="date" id="eventDate" name="eventDate" required>
@@ -1647,7 +1647,7 @@
                     <div class="lab-capacity-message" id="labCapacityMessage"></div>
                 </div>
 
-                <div class="form-row">
+                <div class="form-row form-row--paired">
                     <!-- Lab choice combobox -->
                     <div class="form-group">
                         <label for="labChoiceTagBox" class="required-field">Lab Choice</label>
@@ -1685,12 +1685,14 @@
                     </div>
                 </div>
 
-                <div class="form-row time-row">
-                    <div class="form-group" style="margin: 0;">
+                <div class="form-row lab-date-row">
+                    <div class="form-group lab-date-group" style="margin: 0;">
                         <label for="labReservationDate" class="required-field">Date</label>
                         <input type="date" id="labReservationDate" name="labReservationDate" required>
                     </div>
+                </div>
 
+                <div class="form-row lab-time-row">
                     <div class="form-group" style="margin: 0;">
                         <label for="labStartTime" class="required-field">Start Time</label>
                         <input type="time" id="labStartTime" name="labStartTime" step="900" required>
@@ -1702,7 +1704,7 @@
                     </div>
                 </div>
 
-                <div class="form-row">
+                <div class="form-row form-row--paired">
                     <!-- Priority combobox -->
                     <div class="form-group">
                         <label for="labPriorityTagBox" class="required-field">Priority</label>
