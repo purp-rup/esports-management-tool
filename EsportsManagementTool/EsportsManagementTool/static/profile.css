@@ -280,7 +280,7 @@
     color: white;
 }
 
-#myCommunitiesGrid .community-card:hover .community-card-icon img {
+#myCommunitiesGrid .community-card:hover .community-card-icon {
     transform: scale(1.1);
 }
 
