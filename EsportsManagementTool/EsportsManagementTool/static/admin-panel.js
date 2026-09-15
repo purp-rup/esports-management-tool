@@ -294,7 +294,7 @@ function renderUserItems(users) {
         const badgesHTML = buildBadgesFromUserItem(li);
 
         // Build user item HTML
-        const initials = `${user.firstname[0]|upper}${user.lastname[0]|upper}`;
+        const initials = `${(user.firstname?.[0] ?? '').toUpperCase()}${(user.lastname?.[0] ?? '').toUpperCase()}`;
         const avatarHTML = user.profile_picture
             ? `<img src="${user.profile_picture}" alt="${initials}">`
             : initials;
