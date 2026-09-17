@@ -343,22 +343,36 @@ function showCommunityForm(community = null) {
                 </div>
             </div>
 
-            <div class="form-group">
-                <label>Game Icon/Image</label>
-                <div class="community-image-upload">
-                    <div class="community-image-preview" id="communityImagePreview" onclick="document.getElementById('communityImage').click()">
-                        ${imagePreviewHtml}
-                        <div class="avatar-edit-overlay">
-                            <i class="fas fa-camera"></i>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Game Icon/Image</label>
+                    <div class="community-image-upload">
+                        <div class="community-image-preview" id="communityImagePreview" onclick="document.getElementById('communityImage').click()">
+                            ${imagePreviewHtml}
+                            <div class="avatar-edit-overlay">
+                                <i class="fas fa-camera"></i>
+                            </div>
                         </div>
+                        <input type="file"
+                               id="communityImage"
+                               name="image"
+                               accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                               onchange="previewCommunityImage(event)"
+                               style="display: none;">
+                        <small>Recommended: Square image, at least 200x200px (PNG, JPG, GIF, WEBP)</small>
                     </div>
-                    <input type="file"
-                           id="communityImage"
-                           name="image"
-                           accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
-                           onchange="previewCommunityImage(event)"
-                           style="display: none;">
-                    <small>Recommended: Square image, at least 200x200px (PNG, JPG, GIF, WEBP)</small>
+                </div>
+
+                <div class="form-group community-battle-royale-group">
+                    <label for="communityIsBR">Battle Royale</label>
+                    <label class="toggle-switch-wrapper">
+                        <input type="checkbox"
+                               class="toggle-switch-checkbox"
+                               id="communityIsBR"
+                               name="isBR"
+                               ${community && community.isBR ? 'checked' : ''}>
+                        <span class="toggle-switch-slider"></span>
+                    </label>
                 </div>
             </div>
 
@@ -427,6 +441,7 @@ async function submitCommunityForm(event) {
     const division = form.querySelector('#communityDivision').value;
     const description = form.querySelector('#communityDescription').value;
     const discordLink = form.querySelector('#communityDiscordLink').value.trim();
+    const isBR = form.querySelector('#communityIsBR')?.checked || false;
 
     // Get selected team sizes
     const teamSizeCheckboxes = form.querySelectorAll('input[name="teamSize"]:checked');
@@ -447,6 +462,7 @@ async function submitCommunityForm(event) {
         formData.append('division', division);
         formData.append('team_sizes', JSON.stringify(teamSizes));
         formData.append('discord_link', discordLink);
+        formData.append('isBR', isBR ? 'true' : 'false');
     } else {
         formData.append('gameTitle', title);
         formData.append('abbreviation', abbreviation);
@@ -454,6 +470,7 @@ async function submitCommunityForm(event) {
         formData.append('division', division);
         formData.append('team_sizes', JSON.stringify(teamSizes));
         formData.append('discord_link', discordLink);
+        formData.append('isBR', isBR ? 'true' : 'false');
     }
 
     // Handle image with correct key based on operation

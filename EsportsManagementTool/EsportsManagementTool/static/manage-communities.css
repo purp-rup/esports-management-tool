@@ -461,6 +461,21 @@
     text-align: center;
 }
 
+/* Battle Royale toggle (right column, paired with the game icon upload) —
+   uses the universal .toggle-switch-wrapper component from dashboard-base.css;
+   only the switch itself is centered, the label/description above stay
+   left-aligned to match every other field in this form */
+.community-battle-royale-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.community-battle-royale-group .toggle-switch-wrapper {
+    align-self: center;
+    margin-top: 0.5rem;
+}
+
 /* ========================================
     Create community modal checkbox system
    ======================================== */
