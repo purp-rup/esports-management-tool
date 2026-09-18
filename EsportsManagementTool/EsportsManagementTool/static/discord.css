@@ -216,33 +216,50 @@
    ============================== */
 @media (max-width: 768px) {
     .discord-profile-header {
-        flex-direction: column;
-        text-align: center;
-        padding: 1.25rem;
+        flex-direction: row;
+        align-items: center;
+        text-align: left;
+        padding: 1rem;
+        gap: 0.6rem;
+    }
+
+    .discord-profile-info {
+        flex: 1;
     }
 
     .discord-profile-info h3 {
-        justify-content: center;
-        font-size: 1.25rem;
+        justify-content: flex-start;
+        font-size: 0.9rem;
+    }
+
+    .discord-profile-info p {
+        font-size: 0.7rem;
     }
 
     .discord-avatar-large {
-        width: 80px;
-        height: 80px;
-        font-size: 2rem;
+        width: 60px;
+        height: 60px;
+        font-size: 1rem;
     }
 
     .discord-avatar-large i {
-        font-size: 2.5rem;
+        font-size: 1.1rem;
     }
 
     .discord-actions {
+        flex-shrink: 0;
         justify-content: center;
+        gap: 0.35rem;
         margin-left: 0;
     }
 
+    .discord-actions .btn {
+        font-size: 0.7rem;
+        padding: 0.35rem 0.5rem;
+    }
+
     .discord-actions button {
-        width: 100%;
+        width: auto;
     }
 
     #discordNotConnected .fab.fa-discord {

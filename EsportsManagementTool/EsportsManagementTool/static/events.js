@@ -1832,7 +1832,7 @@ const SingleSelectConfig = {
     scheduledFrequency: {
         hiddenInput: 'scheduledFrequency',
         display:     'scheduledFrequencyDisplay',
-        placeholder: 'Select frequency',
+        placeholder: 'Select timing',
         allowCustom: false,
         onSelect: () => { if (typeof handleFrequencyChange === 'function') handleFrequencyChange(); }
     },

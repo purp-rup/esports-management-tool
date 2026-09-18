@@ -946,7 +946,7 @@ function openEditScheduleMode(scheduleId) {
             <input type="hidden" id="editScheduleId" value="${scheduleId}">
             <input type="hidden" id="editScheduleTeamId" value="${teamId}">
 
-            <div class="form-row">
+            <div class="form-row form-row--paired">
                 <div class="form-group">
                     <label class="required-field" for="editScheduleName">Event Name</label>
                     <input type="text"
@@ -992,11 +992,10 @@ function openEditScheduleMode(scheduleId) {
                 </div>
             </div>
 
-            <div class="form-row">
+            <div class="form-row form-row--paired">
                 <div class="form-group">
                     <label class="required-field" for="editScheduleVisibilityTagBox">Visibility</label>
-                    ${isMatch ? '<small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">Match events are visible to the team only.</small>' : ''}
-                    <div class="filter-box tag-select-box" id="editScheduleVisibilityTagBox">
+                    <div class="filter-box tag-select-box" id="editScheduleVisibilityTagBox" ${isMatch ? 'title="Match events can only be visible to the team."' : ''}>
                         <div ${visibilityTriggerAttrs}>
                             <div id="editScheduleVisibilityDisplay" class="combo-select-display">
                                 <span class="combo-selected-text">${visibilityDisplayText}</span>

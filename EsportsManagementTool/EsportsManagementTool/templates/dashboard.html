@@ -1300,7 +1300,7 @@
                 <p class="modal-subtitle">Set up a recurring event for this team</p>
 
                 <form id="createScheduledEventForm" class="event-form-modal">
-                    <div class="form-row">
+                    <div class="form-row form-row--paired">
                         <div class="form-group">
                             <label class="required-field" for="scheduledEventName">Event Name</label>
                             <input type="text"
@@ -1329,13 +1329,13 @@
                         </div>
                     </div>
 
-                    <div class="form-row">
+                    <div class="form-row form-row--paired">
                         <div class="form-group">
                             <label class="required-field" for="scheduledFrequencyTagBox">Frequency</label>
                             <div class="filter-box tag-select-box" id="scheduledFrequencyTagBox">
                                 <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledFrequencyPanel')">
                                     <div id="scheduledFrequencyDisplay" class="combo-select-display">
-                                        <span class="combo-placeholder">Select frequency</span>
+                                        <span class="combo-placeholder">Select timing</span>
                                     </div>
                                     <i class="fas fa-chevron-down tag-select-arrow"></i>
                                 </div>
@@ -1394,7 +1394,7 @@
                         <input type="hidden" id="scheduledLeagueSelect" name="league_id">
                     </div>
 
-                    <div class="form-row time-row">
+                    <div class="form-row" id="scheduledDayOfWeekRow">
                         <!-- Day of Week - Hidden when "Once" is selected -->
                         <div class="form-group" id="scheduledDayOfWeekGroup">
                             <label class="required-field" for="scheduledDayOfWeekTagBox">Day of Week</label>
@@ -1417,7 +1417,9 @@
                             </div>
                             <input type="hidden" id="scheduledDayOfWeek" name="day_of_week">
                         </div>
+                    </div>
 
+                    <div class="form-row time-row">
                         <div class="form-group">
                             <label class="required-field" for="scheduledStartTime">Start Time</label>
                             <input type="time"
@@ -1438,7 +1440,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="required-field" for="scheduledVisibility">Visibility</label>
-                            <div class="form-group-text">
+                            <div class="form-group-text schedule-row-hint">
                                 Match type events are only visible to this team
                             </div>
                             <div class="filter-box tag-select-box" id="scheduledVisibilityTagBox">
@@ -1459,7 +1461,7 @@
 
                         <div class="form-group">
                             <label class="required-field" for="scheduledEndDate">Schedule End Date</label>
-                            <div class="form-group-text">
+                            <div class="form-group-text schedule-row-hint">
                                 Events will stop being generated after this date
                             </div>
                             <input type="date"

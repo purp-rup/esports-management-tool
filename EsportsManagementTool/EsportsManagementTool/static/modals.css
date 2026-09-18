@@ -217,13 +217,14 @@
 .event-form-modal {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.7rem;
 }
 
 .event-form-modal .form-group {
     display: flex;
     flex-direction: column;
     margin-bottom: 0;
+    min-width: 0;
 }
 
 .event-form-modal .form-row {
@@ -866,6 +867,11 @@
         grid-template-columns: 1fr 1fr;
     }
 
+    /* Create Schedule modal: Start/End Time centered on mobile */
+    #createScheduledEventForm .time-row {
+        justify-content: center;
+    }
+
     /* Lab reservation modal: Date sits alone, centered, not stretched full-width */
     .event-form-modal .lab-date-row {
         display: flex;
@@ -886,6 +892,11 @@
 
     /* Games/Partnerships subtext and "selected" wording - mobile only */
     .event-form-modal .tag-select-subtext {
+        display: none;
+    }
+
+    /* Visibility / Schedule End Date hint text - mobile only */
+    .event-form-modal .schedule-row-hint {
         display: none;
     }
 
