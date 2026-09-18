@@ -784,6 +784,11 @@ select[multiple]:focus {
     width: auto;
 }
 
+.event-form-modal input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 #scheduledDayOfWeekGroup {
     flex: 0.5;
 }
@@ -836,6 +841,22 @@ select[multiple]:focus {
 
 .tag-select-trigger.active .tag-select-arrow {
     transform: rotate(180deg);
+}
+
+.tag-select-trigger.locked-select {
+    pointer-events: none;
+    cursor: not-allowed;
+    opacity: 0.75;
+}
+
+.tag-select-trigger.locked-select .tag-select-arrow {
+    display: none;
+}
+
+.field-lock-icon {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    margin-left: auto;
 }
 
 .tag-select-panel {

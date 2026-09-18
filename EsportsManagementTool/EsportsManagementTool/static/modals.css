@@ -322,6 +322,37 @@
     box-shadow: 0 0 0 3px rgba(121, 189, 233, 0.1);
 }
 
+.event-form-modal input[readonly] {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+}
+
+.event-form-modal input[readonly]:focus {
+    outline: none;
+    box-shadow: none;
+    border-color: var(--border-color);
+}
+
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon input {
+    padding-right: 2.5rem;
+}
+
+.input-lock-icon {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    pointer-events: none;
+}
+
 #imagePreview {
     padding: 0.5rem;
     background: var(--dark-bg);

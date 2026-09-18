@@ -1870,6 +1870,19 @@ const SingleSelectConfig = {
         display:     'scheduledLeagueDisplay',
         placeholder: 'Select a league',
         allowCustom: false
+    },
+        editScheduleVisibility: {
+        hiddenInput: 'editScheduleVisibility',
+        display:     'editScheduleVisibilityDisplay',
+        placeholder: 'Who can see this?',
+        allowCustom: false
+    },
+    editScheduleLocation: {
+        hiddenInput: 'editScheduleLocation',
+        display:     'editScheduleLocationDisplay',
+        placeholder: 'Select location',
+        allowCustom: true,
+        customPlaceholder: 'Enter custom location'
     }
 };
 
