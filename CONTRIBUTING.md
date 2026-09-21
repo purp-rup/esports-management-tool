@@ -1,4 +1,4 @@
-# Contributing to Osprey Vantage
+# Contributing to Esports Vantage
 
 ## Setup
 After cloning, you will need to create a virtual environment within the project to run the application. The following instructions are for **Windows** machines&mdash;**MacOS/Linux** instructions can be found [here](https://flask.palletsprojects.com/en/stable/installation/#create-an-environment).

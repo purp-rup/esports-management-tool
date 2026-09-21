@@ -345,7 +345,7 @@ def index():
 
 @app.route('/privacy-policy')
 def privacy_policy():
-    """Display the privacy policy for Osprey Vantage."""
+    """Display the privacy policy for Esports Vantage."""
     return render_template('privacy_policy.html')
 
 
