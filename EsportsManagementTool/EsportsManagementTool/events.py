@@ -213,6 +213,10 @@ def register_event_routes(app, mysql, login_required, roles_required):
                         SELECT 1 FROM in_communities ic
                         WHERE ic.game_id = se.game_id AND ic.user_id = %s
                     ))
+                    OR EXISTS (
+                        SELECT 1 FROM games g
+                        WHERE g.GameID = se.game_id AND g.gm_id = %s
+                    )
                 )
             """
 
@@ -242,7 +246,8 @@ def register_event_routes(app, mysql, login_required, roles_required):
                 AND {visibility_clause}
                 ORDER BY ge.Date {sort}, ge.StartTime {sort}
             """
-            params.extend([user_id, user_id, user_id, user_id])  # For visibility clause
+
+            params.extend([user_id, user_id, user_id, user_id, user_id])  # For visibility clause
             cursor.execute(query, tuple(params))
             events = cursor.fetchall()
 

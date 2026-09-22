@@ -17,7 +17,7 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
 
     @app.route('/api/schedule/create', methods=['POST'])
     @login_required
-    @roles_required('gm')
+    @roles_required('admin', 'gm', 'player', 'developer')
     def create_schedule():
         """
         Create a new schedule that generates recurring events
@@ -45,10 +45,10 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                         'message': 'League selection is required for Match events'
                     }), 400
 
-                if data['visibility'] != 'team':
+                if data['visibility'] not in ('team', 'all_teams'):
                     return jsonify({
                         'success': False,
-                        'message': 'Match events can only be visible to the team'
+                        'message': 'Match events can only be visible to the team or all teams for the game'
                     }), 400
 
             # Additional validation based on frequency
@@ -65,9 +65,10 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                         'message': 'Day of week is required for recurring events'
                     }), 400
 
-            # Validate league_id if provided for Match events
+            # Validate league_id if provided for Match events (single-team creation only;
+            # "all teams" bulk creation validates every team's league assignment further down)
             league_id = data.get('league_id')
-            if data['event_type'] == 'Match' and league_id:
+            if data['event_type'] == 'Match' and league_id and data['visibility'] != 'all_teams':
                 cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
                 try:
                     # Verify the team is associated with this league
@@ -75,7 +76,7 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                         SELECT 1 FROM team_leagues 
                         WHERE team_id = %s AND league_id = %s
                     """, (data['team_id'], league_id))
-                    
+
                     if not cursor.fetchone():
                         return jsonify({
                             'success': False,
@@ -91,17 +92,38 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                 if game_id is None:
                     return jsonify({'success': False, 'message': 'Team not found'}), 404
 
-                # Verify GM manages this game
-                cursor.execute("""
-                    SELECT gm_id FROM games WHERE GameID = %s
-                """, (game_id,))
-                game = cursor.fetchone()
+                is_bulk = data['visibility'] == 'all_teams'
 
-                if not game or game['gm_id'] != user_id:
-                    return jsonify({
-                        'success': False,
-                        'message': 'You do not have permission to create schedules for this team'
-                    }), 403
+                # Permission check: Admins and Developers may schedule for any
+                # team. GMs may schedule for any team in the game they manage.
+                # Team captains may schedule only for their own team, and cannot
+                # use the "all teams" bulk option (GM/admin/developer only).
+                permissions = get_user_permissions(user_id)
+                has_permission = bool(permissions['is_admin'] or permissions['is_developer'])
+
+                if not has_permission:
+                    cursor.execute("""
+                        SELECT gm_id FROM games WHERE GameID = %s
+                    """, (game_id,))
+                    game = cursor.fetchone()
+                    has_permission = bool(game and game['gm_id'] == user_id)
+
+                if not has_permission and not is_bulk:
+                    cursor.execute("""
+                        SELECT is_captain FROM team_members
+                        WHERE team_id = %s AND user_id = %s
+                    """, (data['team_id'], user_id))
+                    membership = cursor.fetchone()
+                    has_permission = bool(membership and membership['is_captain'])
+
+                if not has_permission:
+                    message = ('You do not have permission to create schedules for all teams'
+                               if is_bulk else
+                               'You do not have permission to create schedules for this team')
+                    return jsonify({'success': False, 'message': message}), 403
+
+                if is_bulk:
+                    return create_bulk_team_schedules(cursor, mysql.connection, data, game_id, user_id)
 
                 # Always store the originating team_id, regardless of visibility. (Otherwise an error gets thrown)
                 schedule_team_id = data['team_id']
@@ -598,6 +620,104 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
 # ============================================
 # HELPER FUNCTIONS
 # ============================================
+def create_bulk_team_schedules(cursor, connection, data, game_id, user_id):
+    """
+    Create an independent Match schedule for every team in the current
+    season for this game (the "All Teams for [game]" visibility option).
+    Each resulting schedule is stored exactly like a normal team-visible
+    schedule (visibility='team') so existing schedule/event/calendar code
+    doesn't need to know about the bulk option at all.
+
+    All-or-nothing: if any team lacks the selected league, or any insert
+    fails, nothing is created and the whole request fails.
+    """
+    league_id = data.get('league_id')
+
+    cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+    active_season = cursor.fetchone()
+    if not active_season:
+        return jsonify({'success': False, 'message': 'No active season found'}), 400
+    season_id = active_season['season_id']
+
+    cursor.execute("""
+        SELECT TeamID, teamName FROM teams
+        WHERE gameID = %s AND season_id = %s
+    """, (game_id, season_id))
+    teams = cursor.fetchall()
+
+    if not teams:
+        return jsonify({
+            'success': False,
+            'message': 'No teams found for this game in the current season'
+        }), 400
+
+    # Verify every team is assigned to the selected league before creating anything
+    team_ids = [t['TeamID'] for t in teams]
+    placeholders = ','.join(['%s'] * len(team_ids))
+    cursor.execute(f"""
+        SELECT team_id FROM team_leagues
+        WHERE league_id = %s AND team_id IN ({placeholders})
+    """, tuple([league_id] + team_ids))
+    leagued_team_ids = {row['team_id'] for row in cursor.fetchall()}
+
+    missing = [t['teamName'] for t in teams if t['TeamID'] not in leagued_team_ids]
+    if missing:
+        return jsonify({
+            'success': False,
+            'message': f"League selection is not valid for: {', '.join(missing)}. "
+                        f"No schedules were created."
+        }), 400
+
+    created_at = datetime.now(EST)
+    schedule_ids = []
+
+    try:
+        for team in teams:
+            cursor.execute("""
+                INSERT INTO scheduled_events 
+                (team_id, game_id, event_name, event_type, day_of_week, specific_date,
+                start_time, end_time, frequency, visibility, description, 
+                location, schedule_end_date, created_by, league_id, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                team['TeamID'],
+                game_id,
+                data['event_name'],
+                data['event_type'],
+                data.get('day_of_week'),
+                data.get('specific_date'),
+                data['start_time'],
+                data['end_time'],
+                data['frequency'],
+                'team',  # each generated schedule is a normal team-visible schedule
+                data.get('description', ''),
+                data.get('location', 'TBD'),
+                data['end_date'],
+                user_id,
+                league_id,
+                created_at
+            ))
+            schedule_ids.append(cursor.lastrowid)
+
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+
+    # Generate the actual event instances for each new schedule. This reuses
+    # generate_events_for_schedule as-is, which already tolerates a per-schedule
+    # generation hiccup the same way any single schedule does today (the
+    # check-and-cleanup endpoint removes a schedule that ends up with 0 events).
+    total_events = 0
+    for schedule_id in schedule_ids:
+        total_events += generate_events_for_schedule(cursor, schedule_id, connection)
+
+    return jsonify({
+        'success': True,
+        'message': f'Created {len(schedule_ids)} team schedules ({total_events} events generated)',
+        'schedule_ids': schedule_ids
+    }), 201
+
 def generate_events_for_schedule(cursor, schedule_id, connection):
     """
     Generate events for a schedule up to 2 months in advance

@@ -131,7 +131,7 @@ async function loadSeasonGMGameMappings(seasonId) {
  */
 function buildUniversalRoleBadges(options) {
     // Destructure options with defaults
-    const { userId, roles = [], contextGameId = null, excludeRoles = [], seasonId = null } = options;
+    const { userId, roles = [], contextGameId = null, excludeRoles = [], seasonId = null, customRoles = [] } = options;
     let badgesHTML = '';
 
     try {

@@ -175,6 +175,7 @@ async function updateVisibilityLabels(teamId, ids = {}) {
         teamOptionId      = 'visibilityTeamOption',
         playersOptionId   = 'visibilityPlayersOption',
         communityOptionId = 'visibilityCommunityOption',
+        allTeamsOptionId  = 'visibilityAllTeamsOption',
         displaySelector   = null   // only needed when a value is already shown, e.g. Edit mode
     } = ids;
 
@@ -189,15 +190,17 @@ async function updateVisibilityLabels(teamId, ids = {}) {
             const teamOption      = document.getElementById(teamOptionId);
             const playersOption   = document.getElementById(playersOptionId);
             const communityOption = document.getElementById(communityOptionId);
+            const allTeamsOption  = document.getElementById(allTeamsOptionId);
 
             if (teamOption)      teamOption.textContent = `${teamName} only`;
             if (playersOption)   playersOption.textContent = `Players for ${gameName}`;
             if (communityOption) communityOption.textContent = `Community Members for ${gameName}`;
+            if (allTeamsOption)  allTeamsOption.textContent = `All Teams for ${gameName}`;
 
             // If a value is already on display (edit mode), refresh it too,
             // in case it was painted from a placeholder name before this resolved
             if (displaySelector) {
-                const activeOption = [teamOption, playersOption, communityOption]
+                const activeOption = [teamOption, playersOption, communityOption, allTeamsOption]
                     .find(opt => opt?.classList.contains('active'));
                 const textSpan = document.querySelector(displaySelector);
                 if (activeOption && textSpan) textSpan.textContent = activeOption.textContent;
@@ -539,12 +542,14 @@ function openCreateScheduleModal() {
     if (specificDateGroup) specificDateGroup.style.display = 'none';
     if (endDateGroup) endDateGroup.style.display = 'flex';
 
-    // Re-enable all visibility options in case a previous session
-    // locked them to "Team Only" for a Match event
+    // Re-show all visibility options in case a previous session
+    // hid them for a Match event
     const playersOption = document.getElementById('visibilityPlayersOption');
     const communityOption = document.getElementById('visibilityCommunityOption');
-    playersOption?.classList.remove('disabled-option');
-    communityOption?.classList.remove('disabled-option');
+    const allTeamsOption = document.getElementById('visibilityAllTeamsOption');
+    if (playersOption)   playersOption.style.display = '';
+    if (communityOption) communityOption.style.display = '';
+    if (allTeamsOption)  allTeamsOption.style.display = 'none'; // only shown once Match is selected
 
     const visibilityTrigger = document.querySelector('#scheduledVisibilityTagBox .tag-select-trigger');
     visibilityTrigger?.classList.remove('locked-select');
@@ -556,13 +561,6 @@ function openCreateScheduleModal() {
     if (dayOfWeekSelect) dayOfWeekSelect.setAttribute('required', 'required');
     if (specificDateInput) specificDateInput.removeAttribute('required');
     if (endDateInput) endDateInput.setAttribute('required', 'required');
-
-
-    // Clear any previous messages
-    const messageDiv = document.getElementById('scheduledEventMessage');
-    if (messageDiv) {
-        messageDiv.style.display = 'none';
-    }
 
     // Update visibility labels before showing modal
     const teamId = ScheduleState.currentTeamId || currentScheduleTeamId;
@@ -745,16 +743,13 @@ async function handleScheduleSubmit(event) {
     const submitBtn = event.target.querySelector('button[type="submit"]');
     const btnText = submitBtn.querySelector('.btn-text');
     const btnSpinner = submitBtn.querySelector('.btn-spinner');
-    const messageDiv = document.getElementById('scheduledEventMessage');
 
     //Handle match league case
     const eventType = document.getElementById('scheduledEventType').value;
     const leagueSelect = document.getElementById('scheduledLeagueSelect');
-    
+
     if (eventType === 'Match' && !leagueSelect?.value) {
-        messageDiv.textContent = 'Please select a league for Match events.';
-        messageDiv.className = 'form-message error';
-        messageDiv.style.display = 'block';
+        showDeleteErrorMessage('Please select a league for Match events.');
         leagueSelect?.focus();
         return;
     }
@@ -767,7 +762,6 @@ async function handleScheduleSubmit(event) {
     submitBtn.disabled = true;
     btnText.style.display = 'none';
     btnSpinner.style.display = 'inline-block';
-    messageDiv.style.display = 'none';
 
     // Build form data object
     const teamId = ScheduleState.currentTeamId || currentScheduleTeamId;
@@ -811,32 +805,23 @@ async function handleScheduleSubmit(event) {
         const data = await response.json();
 
         if (data.success) {
-            // Show success message
-            messageDiv.textContent = data.message;
-            messageDiv.className = 'form-message success';
-            messageDiv.style.display = 'block';
-
-            // Reset button state BEFORE closing modal
+            // Reset button state
             submitBtn.disabled = false;
             btnText.style.display = 'inline';
             btnSpinner.style.display = 'none';
 
-            setTimeout(() => {
-                closeCreateScheduleModal();
+            closeCreateScheduleModal();
+            showDeleteSuccessMessage(data.message);
 
-                // Reload team details if function exists
-                if (typeof selectTeam === 'function') {
-                    selectTeam(teamId);
-                }
-            }, 1500);
+            // Reload team details if function exists
+            if (typeof selectTeam === 'function') {
+                selectTeam(teamId);
+            }
         } else {
             throw new Error(data.message);
         }
     } catch (error) {
-        // Show error message
-        messageDiv.textContent = error.message || 'Failed to create scheduled event';
-        messageDiv.className = 'form-message error';
-        messageDiv.style.display = 'block';
+        showDeleteErrorMessage(error.message || 'Failed to create scheduled event');
 
         // Reset button state
         submitBtn.disabled = false;
@@ -1032,8 +1017,6 @@ function openEditScheduleMode(scheduleId) {
                           rows="3">${schedule.description || ''}</textarea>
             </div>
 
-            <div id="editScheduleMessage" class="form-message" style="display: none;"></div>
-
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeScheduleModal()">
                     Cancel
@@ -1143,14 +1126,10 @@ async function handleEditScheduleSubmit(event) {
 
     const eventType = document.getElementById('editScheduleType').value;
     const leagueSelect = document.getElementById('editScheduleLeagueSelect');
-    const messageDiv = document.getElementById('editScheduleMessage');
 
     // Validate league selection for Match events
     if (eventType === 'Match' && !leagueSelect.value) {
-        messageDiv.textContent = 'Please select a league for this match event.';
-        messageDiv.className = 'form-message error';
-        messageDiv.style.display = 'block';
-        
+        showDeleteErrorMessage('Please select a league for this match event.');
         leagueSelect.focus();
         return;
     }
@@ -1162,7 +1141,6 @@ async function handleEditScheduleSubmit(event) {
     submitBtn.disabled = true;
     btnText.style.display = 'none';
     btnSpinner.style.display = 'inline-block';
-    messageDiv.style.display = 'none';
 
     const scheduleId = document.getElementById('editScheduleId').value;
     const teamId = document.getElementById('editScheduleTeamId').value;
@@ -1195,24 +1173,21 @@ async function handleEditScheduleSubmit(event) {
         const data = await response.json();
 
         if (data.success) {
-            messageDiv.textContent = data.message;
-            messageDiv.className = 'form-message success';
-            messageDiv.style.display = 'block';
+            submitBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnSpinner.style.display = 'none';
 
-            setTimeout(() => {
-                closeScheduleModal();
+            closeScheduleModal();
+            showDeleteSuccessMessage(data.message);
 
-                if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
-                    loadScheduleTab(currentSelectedTeamId);
-                }
-            }, 1500);
+            if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
+                loadScheduleTab(currentSelectedTeamId);
+            }
         } else {
             throw new Error(data.message);
         }
     } catch (error) {
-        messageDiv.textContent = error.message || 'Failed to update schedule';
-        messageDiv.className = 'form-message error';
-        messageDiv.style.display = 'block';
+        showDeleteErrorMessage(error.message || 'Failed to update schedule');
 
         submitBtn.disabled = false;
         btnText.style.display = 'inline';
@@ -1391,38 +1366,38 @@ function handleEventTypeChangeForLeague() {
 // VISIBILITY RESTRICTION FOR MATCHES
 // ============================================
 
-// Match events can only be visible to the team for match result purposes
+// Match events can only be visible to a team, or to all teams for the game
 function handleEventTypeChangeForVisibility() {
     const eventType         = document.getElementById('scheduledEventType').value;
     const playersOption     = document.getElementById('visibilityPlayersOption');
     const communityOption   = document.getElementById('visibilityCommunityOption');
+    const allTeamsOption    = document.getElementById('visibilityAllTeamsOption');
     const visibilityTrigger = document.querySelector('#scheduledVisibilityTagBox .tag-select-trigger');
     const visibilityDisplay = document.getElementById('scheduledVisibilityDisplay');
 
     if (eventType === 'Match') {
-        // Force visibility to Team Only
+        // Default to Team Only; the creator can still switch to
+        // "All Teams for [game]" since that option is shown below
         if (typeof selectComboValue === 'function') {
             const label = document.getElementById('visibilityTeamOption')?.textContent?.trim() || 'Team Only';
             selectComboValue('scheduledVisibility', 'team', label);
         }
-        playersOption?.classList.add('disabled-option');
-        communityOption?.classList.add('disabled-option');
 
-        // Lock the entire dropdown so it can't be opened at all, and close it if it was open
-        visibilityTrigger?.classList.add('locked-select');
-        if (typeof closeAllFilterPanels === 'function') closeAllFilterPanels();
+        // Hide the options that don't apply to matches entirely, rather
+        // than just graying them out, and reveal "All Teams"
+        if (playersOption)   playersOption.style.display = 'none';
+        if (communityOption) communityOption.style.display = 'none';
+        if (allTeamsOption)  allTeamsOption.style.display = '';
 
-        // Show a lock icon next to "Team Only" so the restriction is obvious at a glance
-        if (visibilityDisplay && !visibilityDisplay.querySelector('.field-lock-icon')) {
-            const lockIcon = document.createElement('i');
-            lockIcon.className = 'fas fa-lock field-lock-icon';
-            visibilityDisplay.appendChild(lockIcon);
-        }
+        // Dropdown stays open-able now so Team vs All Teams can be chosen;
+        // just clear any stale lock icon from a previous session
+        visibilityTrigger?.classList.remove('locked-select');
+        visibilityDisplay?.querySelector('.field-lock-icon')?.remove();
     } else {
-        playersOption?.classList.remove('disabled-option');
-        communityOption?.classList.remove('disabled-option');
+        if (playersOption)   playersOption.style.display = '';
+        if (communityOption) communityOption.style.display = '';
+        if (allTeamsOption)  allTeamsOption.style.display = 'none';
 
-        // Unlock the dropdown and drop the lock icon
         visibilityTrigger?.classList.remove('locked-select');
         visibilityDisplay?.querySelector('.field-lock-icon')?.remove();
     }
@@ -1483,28 +1458,17 @@ async function confirmDeleteScheduleAction(scheduleId) {
             window.closeDeleteConfirmModal();
             closeScheduleModal();
 
-            // Show success message
-            const successDiv = document.createElement('div');
-            successDiv.className = 'events-info-message';
-            successDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000; background: #10b981; border-color: #10b981; color: white;';
-            successDiv.innerHTML = `
-                <i class="fas fa-check-circle"></i>
-                <p>${data.message}</p>
-            `;
-            document.body.appendChild(successDiv);
+            showDeleteSuccessMessage(data.message);
 
-            setTimeout(() => {
-                successDiv.remove();
-                if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
-                    loadScheduleTab(currentSelectedTeamId);
-                }
-            }, 2000);
+            if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
+                loadScheduleTab(currentSelectedTeamId);
+            }
         } else {
             handleScheduleDeleteError(data.message);
         }
     } catch (error) {
         console.error('Error deleting schedule:', error);
-        alert('Failed to delete schedule. Please try again.');
+        showDeleteErrorMessage('Failed to delete schedule. Please try again.');
         window.closeDeleteConfirmModal();
     }
 }
@@ -1512,11 +1476,11 @@ async function confirmDeleteScheduleAction(scheduleId) {
 // Handle schedule delete errors
 function handleScheduleDeleteError(message) {
     if (message.includes('expired') || message.includes('24')) {
-        alert(`${message}\n\nOnly developers can delete schedules after 24 hours.`);
+        showDeleteErrorMessage(`${message} Only developers can delete schedules after 24 hours.`, 5000);
     } else if (message.includes('creator') || message.includes('Manager')) {
-        alert(`${message}`);
+        showDeleteErrorMessage(message);
     } else {
-        alert('Error: ' + message);
+        showDeleteErrorMessage('Error: ' + message);
     }
     window.closeDeleteConfirmModal();
 }

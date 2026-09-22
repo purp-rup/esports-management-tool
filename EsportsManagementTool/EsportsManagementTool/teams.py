@@ -49,12 +49,20 @@ def create_team(game_id):
         season_name = active_season['season_name']
 
         # STEP 2: Validate game exists and user has permission
-        cursor.execute('SELECT GameTitle, Abbreviation FROM games WHERE GameID = %s AND gm_id = %s',
-                       (game_id, session['id']))
+        cursor.execute('SELECT GameTitle, Abbreviation FROM games WHERE GameID = %s', (game_id,))
         games = cursor.fetchone()
 
         if not games:
-            return jsonify({'success': False, 'message': 'Game does not exist or you do not have permission.'}), 400
+            return jsonify({'success': False, 'message': 'Game does not exist.'}), 400
+
+        permissions = get_user_permissions(session['id'])
+        if not (permissions['is_admin'] or permissions['is_developer']):
+            cursor.execute('SELECT 1 FROM games WHERE GameID = %s AND gm_id = %s', (game_id, session['id']))
+            if not cursor.fetchone():
+                return jsonify({
+                    'success': False,
+                    'message': 'You do not have permission to create a team for this game.'
+                }), 403
 
         game_abbreviation = games['Abbreviation']
         team_title = request.form.get('team_title', '').strip()
