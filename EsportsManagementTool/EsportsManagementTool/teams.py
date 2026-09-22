@@ -935,6 +935,7 @@ def team_details(team_id):
 
             perm_check = cursor.fetchone()
             can_manage = False
+            is_game_gm = False
             if perm_check:
                 is_admin = perm_check['is_admin']
                 is_developer = perm_check['is_developer']
@@ -956,6 +957,7 @@ def team_details(team_id):
             except:
                 member_count = 0
 
+            formatted_members = []
             try:
                 # Determine if season_roles (past) or permissions (current) should be used
                 use_season_roles = (season_id is not None and season_is_active == 0)
@@ -984,12 +986,12 @@ def team_details(team_id):
                     # Current season or no season - use live permissions data
                     cursor.execute("""
                         SELECT u.id, u.firstname, u.lastname, u.username,
-                               u.profile_picture, tm.joined_at, tm.is_captain,
-                               COALESCE(p.is_admin, 0) as is_admin,
-                               COALESCE(p.is_developer, 0) as is_developer,
-                               COALESCE(p.is_gm, 0) as is_gm,
-                               COALESCE(p.is_player, 0) as is_player,
-                               d.discord_username, d.discord_discriminator,
+                               u.profile_picture, ANY_VALUE(tm.joined_at) as joined_at, ANY_VALUE(tm.is_captain) as is_captain,
+                               COALESCE(ANY_VALUE(p.is_admin), 0) as is_admin,
+                               COALESCE(ANY_VALUE(p.is_developer), 0) as is_developer,
+                               COALESCE(ANY_VALUE(p.is_gm), 0) as is_gm,
+                               COALESCE(ANY_VALUE(p.is_player), 0) as is_player,
+                               ANY_VALUE(d.discord_username) as discord_username, ANY_VALUE(d.discord_discriminator) as discord_discriminator,
                                GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
                         FROM team_members tm
                         JOIN users u ON tm.user_id = u.id
@@ -1012,6 +1014,7 @@ def team_details(team_id):
 
             except Exception as e:
                 print(f"Error fetching members: {e}")
+                formatted_members = []
 
             # Get game info
             cursor.execute('SELECT GameTitle, GameImage, Division FROM games WHERE GameID = %s', (game_id,))
