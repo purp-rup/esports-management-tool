@@ -332,19 +332,6 @@ async function syncDiscordAvatar() {
 // ============================================
 
 /**
- * Escape HTML to prevent XSS attacks
- * Essential for safely displaying user-provided data (usernames, etc.)
- *
- * @param {string} text - Text to escape
- * @returns {string} HTML-safe escaped text
- */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-/**
  * Show a temporary message to the user
  * Utility function for displaying feedback messages
  *
@@ -382,7 +369,6 @@ if (typeof module !== 'undefined' && module.exports) {
         connectDiscord,
         disconnectDiscord,
         syncDiscordAvatar,
-        escapeHtml,
         showDiscordMessage
     };
 }

@@ -393,6 +393,26 @@ document.addEventListener('DOMContentLoaded', () => {
 // =======================================
 
 /**
+ * Escape HTML special characters to prevent XSS when interpolating
+ * user-provided text into innerHTML/HTML attribute strings.
+ *
+ * Not safe for embedding a value inside an inline onclick="..." JS string
+ * literal - use a real addEventListener with the raw value instead for that
+ * case (HTML-entity escaping doesn't survive being re-parsed as JS).
+ *
+ * Used by admin-panel.js, game.js, teams.js, & user-profiles.js
+ */
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/**
  * Debounce function to limit how often a function is called
  * Used by teams.js and universal-helpers.js
  */
@@ -448,6 +468,7 @@ window.attachCharacterCounter = attachCharacterCounter;
 window.navigateToEvent = navigateToEvent;
 window.createMemberPill = createMemberPill;
 window.debounce = debounce;
+window.escapeHtml = escapeHtml;
 window.lockBodyScroll = lockBodyScroll;
 window.unlockBodyScroll = unlockBodyScroll;
 window.positionInfoTooltip = positionInfoTooltip;

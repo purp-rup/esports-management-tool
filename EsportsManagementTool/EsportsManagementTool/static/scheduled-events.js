@@ -24,6 +24,7 @@ const ScheduleState = {
     currentGameId: null,
     currentSchedules: [],
     pendingDeleteScheduleId: null,
+    isCaptainOnly: false,
 
     // Reset state to defaults
     reset() {
@@ -31,6 +32,7 @@ const ScheduleState = {
         this.currentGameId = null;
         this.currentSchedules = [];
         this.pendingDeleteScheduleId = null;
+        this.isCaptainOnly = false;
     },
 
     // Set current context
@@ -89,23 +91,22 @@ async function initScheduleButton(teamId, gameId) {
         return;
     }
 
-    // Check user permissions
-    const isGM = window.userPermissions?.is_gm || false;
-
-    if (!isGM || !gameId) {
+    if (!teamId || !gameId) {
         createScheduleBtn.style.display = 'none';
         return;
     }
 
-    // Check if GM manages THIS specific game
+    // Check if this user is allowed to schedule for THIS specific team
+    // (admin, developer, GM of this game, or captain of this team)
     try {
         const userId = window.currentUserId;
 
-        const response = await fetch(`/api/user/${userId}/manages-game/${gameId}`);
+        const response = await fetch(`/api/user/${userId}/can-schedule/${teamId}`);
         const data = await response.json();
 
-        if (data.success && data.manages_game) {
+        if (data.success && data.can_schedule) {
             createScheduleBtn.style.display = 'flex';
+            ScheduleState.isCaptainOnly = !!data.is_captain_only;
 
             // Update visibility dropdown labels with team/game names
             await updateVisibilityLabels(teamId, gameId);
@@ -113,7 +114,7 @@ async function initScheduleButton(teamId, gameId) {
             createScheduleBtn.style.display = 'none';
         }
     } catch (error) {
-        console.error('Error checking GM status:', error);
+        console.error('Error checking schedule permission:', error);
         createScheduleBtn.style.display = 'none';
     }
 }
@@ -481,11 +482,17 @@ async function configureScheduleCardButtons(schedule) {
 
     const isActiveSeason = window.currentTeamSeasonIsActive === 1;
     const isDeveloper = window.userPermissions?.is_developer || false;
-    const isAdmin = window.userPermissions?.is_admin || false;
-    const isGM = window.userPermissions?.is_gm || false;
+    const teamId = schedule.team_id || ScheduleState.currentTeamId || currentScheduleTeamId;
 
-    // Edit button - only for active seasons
-    const canEdit = (isAdmin || isGM) && isActiveSeason;
+    // Edit button - only for active seasons, and only for users allowed to
+    // schedule for this specific team (admin, developer, GM of this game,
+    // or captain of this team). Captains may only edit schedules they
+    // created themselves, matching the backend rule in /api/schedule/update.
+    const editPermission = await canUserScheduleForTeam(teamId);
+    const isOwnSchedule = Number(schedule.created_by) === Number(window.currentUserId);
+    const canEdit = editPermission.can_schedule
+        && (!editPermission.is_captain_only || isOwnSchedule)
+        && isActiveSeason;
     if (editBtn) {
         editBtn.style.display = canEdit ? 'flex' : 'none';
     }
@@ -572,10 +579,15 @@ function openCreateScheduleModal() {
      'scheduledDayOfWeek', 'scheduledVisibility', 'scheduledLeagueSelect'].forEach(key => {
         if (typeof resetComboSelector === 'function') resetComboSelector(key);
     });
+
     // Clear loaded flag so leagues reload fresh for each modal open
     const leaguePanel = document.getElementById('scheduledLeaguePanel');
     if (leaguePanel) leaguePanel.dataset.loaded = '';
     // Note: change handlers are now triggered via onSelect in SingleSelectConfig
+
+    // Apply visibility lock immediately if this user is a team captain,
+    // rather than waiting for an event type to be selected
+    handleEventTypeChangeForVisibility();
 
     // Character Counter
     attachCharacterCounter('scheduledDescription', 250);
@@ -896,6 +908,10 @@ function openEditScheduleMode(scheduleId) {
     const isCustomLocation = !presetLocations.includes(schedule.location);
     const isMatch = schedule.event_type === 'Match';
 
+    // Visibility is locked for Match events, and always locked for team
+    // captains — captains can only ever manage their own team's visibility
+    const isVisibilityLocked = isMatch || ScheduleState.isCaptainOnly;
+
     // Visibility copy mirrors the Create Schedule modal — real team/game
     // names instead of generic labels
     const teamName = schedule.team_name || 'This team';
@@ -911,7 +927,7 @@ function openEditScheduleMode(scheduleId) {
         <div class="filter-box-item ${schedule.visibility === 'game_community' ? 'active' : ''}" id="editVisibilityCommunityOption" onclick="event.stopPropagation(); selectComboValue('editScheduleVisibility', 'game_community', this.textContent)">Community Members for ${gameName}</div>
     `;
 
-    const visibilityTriggerAttrs = isMatch
+    const visibilityTriggerAttrs = isVisibilityLocked
         ? 'class="tag-select-trigger locked-select"'
         : `class="tag-select-trigger" onclick="toggleFilterBox('editScheduleVisibilityPanel')"`;
 
@@ -977,18 +993,16 @@ function openEditScheduleMode(scheduleId) {
                 </div>
             </div>
 
-            <div class="form-row form-row--paired">
-                <div class="form-group">
                     <label class="required-field" for="editScheduleVisibilityTagBox">Visibility</label>
-                    <div class="filter-box tag-select-box" id="editScheduleVisibilityTagBox" ${isMatch ? 'title="Match events can only be visible to the team."' : ''}>
+                    <div class="filter-box tag-select-box" id="editScheduleVisibilityTagBox" ${isVisibilityLocked ? 'title="Visibility cannot be changed."' : ''}>
                         <div ${visibilityTriggerAttrs}>
                             <div id="editScheduleVisibilityDisplay" class="combo-select-display">
                                 <span class="combo-selected-text">${visibilityDisplayText}</span>
-                                ${isMatch ? '<i class="fas fa-lock field-lock-icon"></i>' : ''}
+                                ${isVisibilityLocked ? '<i class="fas fa-lock field-lock-icon"></i>' : ''}
                             </div>
                             <i class="fas fa-chevron-down tag-select-arrow"></i>
                         </div>
-                        ${isMatch ? '' : `<div class="filter-box-panel tag-select-panel" id="editScheduleVisibilityPanel">${visibilityOptionsHtml}</div>`}
+                        ${isVisibilityLocked ? '' : `<div class="filter-box-panel tag-select-panel" id="editScheduleVisibilityPanel">${visibilityOptionsHtml}</div>`}
                     </div>
                     <input type="hidden" id="editScheduleVisibility" name="visibility" value="${isMatch ? 'team' : schedule.visibility}">
                 </div>
@@ -1036,7 +1050,7 @@ function openEditScheduleMode(scheduleId) {
     }
 
     // Load real team/game names for the visibility dropdown
-    if (!isMatch && teamId) {
+    if (!isVisibilityLocked && teamId) {
         updateVisibilityLabels(teamId, {
             teamOptionId:      'editVisibilityTeamOption',
             playersOptionId:   'editVisibilityPlayersOption',
@@ -1151,7 +1165,7 @@ async function handleEditScheduleSubmit(event) {
         team_id: teamId,
         event_name: document.getElementById('editScheduleName').value,
         event_type: eventType,
-        visibility: eventType === 'Match' ? 'team' : document.getElementById('editScheduleVisibility').value,
+        visibility: (eventType === 'Match' || ScheduleState.isCaptainOnly) ? 'team' : document.getElementById('editScheduleVisibility').value,
         location: location,
         description: document.getElementById('editScheduleDescription').value
     };
@@ -1199,10 +1213,30 @@ async function handleEditScheduleSubmit(event) {
 // DELETE SCHEDULE
 // ============================================
 
+// Check if the current user is allowed to schedule for a given team
+// (admin, developer, GM of that game, or captain of that team)
+async function canUserScheduleForTeam(teamId) {
+    if (!teamId) {
+        return { can_schedule: false, is_captain_only: false };
+    }
+
+    try {
+        const userId = window.currentUserId;
+        const response = await fetch(`/api/user/${userId}/can-schedule/${teamId}`);
+        const data = await response.json();
+        return {
+            can_schedule: !!(data.success && data.can_schedule),
+            is_captain_only: !!(data.success && data.is_captain_only)
+        };
+    } catch (error) {
+        console.error('Error checking schedule permission:', error);
+        return { can_schedule: false, is_captain_only: false };
+    }
+}
+
 // Check if current user can delete a schedule
 async function canUserDeleteSchedule(schedule) {
     const is_developer = window.userPermissions?.is_developer || false;
-    const sessionUserId = window.currentUserId || 0;
 
     // Developers can always delete
     if (is_developer) {
@@ -1223,20 +1257,21 @@ async function canUserDeleteSchedule(schedule) {
         return false;
     }
 
-    // Check if user is the GM for this game
-    try {
-        const response = await fetch(`/api/user/${sessionUserId}/manages-game/${schedule.game_id}`);
-        const data = await response.json();
+    // Check if user is allowed to schedule for this specific team
+    // (admin, GM of this game, or captain of this team)
+    const teamId = schedule.team_id || ScheduleState.currentTeamId || currentScheduleTeamId;
+    const permission = await canUserScheduleForTeam(teamId);
 
-        if (data.success && data.manages_game) {
-            return true;
-        }
-    } catch (error) {
-        console.error('Error checking GM status:', error);
+    if (!permission.can_schedule) {
         return false;
     }
 
-    return false;
+    // Captains may only delete schedules they created themselves
+    if (permission.is_captain_only) {
+        return Number(schedule.created_by) === Number(window.currentUserId);
+    }
+
+    return true;
 }
 
 // Get time remaining for deletion window
@@ -1374,6 +1409,25 @@ function handleEventTypeChangeForVisibility() {
     const allTeamsOption    = document.getElementById('visibilityAllTeamsOption');
     const visibilityTrigger = document.querySelector('#scheduledVisibilityTagBox .tag-select-trigger');
     const visibilityDisplay = document.getElementById('scheduledVisibilityDisplay');
+
+    // Captains can only ever schedule for their own team, so visibility
+    // stays locked to "Team Only" no matter what event type is picked
+    if (ScheduleState.isCaptainOnly) {
+        if (typeof selectComboValue === 'function') {
+            const label = document.getElementById('visibilityTeamOption')?.textContent?.trim() || 'Team Only';
+            selectComboValue('scheduledVisibility', 'team', label);
+        }
+
+        if (playersOption)   playersOption.style.display = 'none';
+        if (communityOption) communityOption.style.display = 'none';
+        if (allTeamsOption)  allTeamsOption.style.display = 'none';
+
+        visibilityTrigger?.classList.add('locked-select');
+        if (visibilityDisplay && !visibilityDisplay.querySelector('.field-lock-icon')) {
+            visibilityDisplay.insertAdjacentHTML('beforeend', '<i class="fas fa-lock field-lock-icon"></i>');
+        }
+        return;
+    }
 
     if (eventType === 'Match') {
         // Default to Team Only; the creator can still switch to

@@ -100,6 +100,7 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                 # use the "all teams" bulk option (GM/admin/developer only).
                 permissions = get_user_permissions(user_id)
                 has_permission = bool(permissions['is_admin'] or permissions['is_developer'])
+                is_captain_only = False
 
                 if not has_permission:
                     cursor.execute("""
@@ -108,19 +109,27 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                     game = cursor.fetchone()
                     has_permission = bool(game and game['gm_id'] == user_id)
 
-                if not has_permission and not is_bulk:
+                if not has_permission:
                     cursor.execute("""
                         SELECT is_captain FROM team_members
                         WHERE team_id = %s AND user_id = %s
                     """, (data['team_id'], user_id))
                     membership = cursor.fetchone()
                     has_permission = bool(membership and membership['is_captain'])
+                    is_captain_only = has_permission
 
                 if not has_permission:
-                    message = ('You do not have permission to create schedules for all teams'
-                               if is_bulk else
-                               'You do not have permission to create schedules for this team')
-                    return jsonify({'success': False, 'message': message}), 403
+                    return jsonify({
+                        'success': False,
+                        'message': 'You do not have permission to create schedules for this team'
+                    }), 403
+
+                # Captains can only ever create team-visible schedules
+                if is_captain_only and data['visibility'] != 'team':
+                    return jsonify({
+                        'success': False,
+                        'message': 'Team captains can only create schedules visible to their team'
+                    }), 403
 
                 if is_bulk:
                     return create_bulk_team_schedules(cursor, mysql.connection, data, game_id, user_id)
@@ -178,6 +187,50 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                 'success': False,
                 'message': f'Failed to create scheduled event: {str(e)}'
             }), 500
+
+
+    @app.route('/api/user/<int:user_id>/can-schedule/<team_id>', methods=['GET'])
+    @login_required
+    def can_schedule_for_team(user_id, team_id):
+        """
+        Report whether user_id can create schedules for team_id, using the
+        same rule as /api/schedule/create: Admins and Developers may schedule
+        for any team, GMs for any team in the game they manage, and team
+        captains for their own team only. Used to decide whether to show the
+        "Create Schedule" button on the team page.
+        """
+        if user_id != session.get('id'):
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            game_id = get_team_game_id(cursor, team_id)
+            if game_id is None:
+                return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+            permissions = get_user_permissions(user_id)
+            can_schedule = bool(permissions['is_admin'] or permissions['is_developer'])
+            is_captain_only = False
+
+            if not can_schedule:
+                cursor.execute("""
+                    SELECT gm_id FROM games WHERE GameID = %s
+                """, (game_id,))
+                game = cursor.fetchone()
+                can_schedule = bool(game and game['gm_id'] == user_id)
+
+            if not can_schedule:
+                cursor.execute("""
+                    SELECT is_captain FROM team_members
+                    WHERE team_id = %s AND user_id = %s
+                """, (team_id, user_id))
+                membership = cursor.fetchone()
+                can_schedule = bool(membership and membership['is_captain'])
+                is_captain_only = can_schedule
+
+            return jsonify({'success': True, 'can_schedule': can_schedule, 'is_captain_only': is_captain_only})
+        finally:
+            cursor.close()
 
 
     @app.route('/api/schedules/team/<team_id>', methods=['GET'])
@@ -283,7 +336,7 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
 
     @app.route('/api/schedule/<int:schedule_id>', methods=['DELETE'])
     @login_required
-    @roles_required('gm')
+    @roles_required('admin', 'gm', 'player', 'developer')
     def delete_schedule(schedule_id):
         """Delete a schedule and all associated events."""
         try:
@@ -293,10 +346,11 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
             try:
                 # Get user permissions
                 permissions = get_user_permissions(user_id)
+                is_admin = permissions['is_admin']
                 is_developer = permissions['is_developer']
 
                 # Check deletion permissions using helper function
-                can_delete, reason = can_delete_schedule(cursor, schedule_id, user_id, is_developer)
+                can_delete, reason = can_delete_schedule(cursor, schedule_id, user_id, is_admin, is_developer)
 
                 if not can_delete:
                     cursor.close()
@@ -356,7 +410,7 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
 
     @app.route('/api/schedule/update', methods=['POST'])
     @login_required
-    @roles_required('gm')
+    @roles_required('admin', 'gm', 'player', 'developer')
     def update_schedule():
         """
         Update a schedule and all its associated events
@@ -386,13 +440,40 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                         'message': 'Scheduled event not found'
                     }), 404
 
-                if schedule['gm_id'] != user_id:
+                resolved_team_id = schedule['team_id'] or data.get('team_id')
+
+                # Same permission tiers as schedule creation: admins/developers
+                # may edit any schedule, GMs may edit schedules in their game,
+                # captains may edit only their own team's schedule.
+                permissions = get_user_permissions(user_id)
+                has_permission = bool(permissions['is_admin'] or permissions['is_developer'])
+                is_captain_only = False
+
+                if not has_permission:
+                    has_permission = bool(schedule['gm_id'] == user_id)
+
+                if not has_permission and resolved_team_id:
+                    cursor.execute("""
+                        SELECT is_captain FROM team_members
+                        WHERE team_id = %s AND user_id = %s
+                    """, (resolved_team_id, user_id))
+                    membership = cursor.fetchone()
+                    is_captain = bool(membership and membership['is_captain'])
+                    has_permission = is_captain and schedule['created_by'] == user_id
+                    is_captain_only = has_permission
+
+                if not has_permission:
                     return jsonify({
                         'success': False,
                         'message': 'You do not have permission to edit this schedule'
                     }), 403
 
-                resolved_team_id = schedule['team_id'] or data.get('team_id')
+                # Captains can only ever keep their schedules team-visible
+                if is_captain_only and data.get('visibility') != 'team':
+                    return jsonify({
+                        'success': False,
+                        'message': 'Team captains can only set schedules visible to their team'
+                    }), 403
 
                 league_id = data.get('league_id')
                 if data.get('event_type') == 'Match':
@@ -969,23 +1050,26 @@ def deactivate_expired_schedules(connection):
         cursor.close()
 
 
-def can_delete_schedule(cursor, schedule_id, user_id, is_developer):
+def can_delete_schedule(cursor, schedule_id, user_id, is_admin, is_developer):
     """
     Determine if a user can delete a scheduled event based on time-based rules.
 
     Rules:
-    1. Developers can ALWAYS delete any schedule
-    2. Game Managers for the schedule's game can delete within 24 hours of creation
-    3. After 24 hours, only developers can delete
+    1. Developers can ALWAYS delete any schedule, bypassing the 24-hour window
+    2. Admins can delete any schedule, but only within 24 hours of creation
+    3. Game Managers for the schedule's game can delete within 24 hours of creation
+    4. Team captains can delete only schedules they created themselves,
+       within 24 hours of creation
+    5. After 24 hours, only developers can delete
     """
 
-    # Developers can always delete
+    # Only developers bypass the window entirely
     if is_developer:
         return (True, "Developer privileges")
 
     # Fetch schedule creation info AND the game's GM
     cursor.execute("""
-        SELECT se.created_at, g.gm_id, g.GameTitle
+        SELECT se.created_at, se.created_by, se.team_id, g.gm_id, g.GameTitle
         FROM scheduled_events se
         JOIN games g ON se.game_id = g.gameID
         WHERE se.schedule_id = %s
@@ -996,9 +1080,23 @@ def can_delete_schedule(cursor, schedule_id, user_id, is_developer):
     if not schedule:
         return (False, "Schedule not found")
 
-    # Check if user is the GM for this game
-    if schedule['gm_id'] != user_id:
-        return (False, f"Only the Game Manager for {schedule['GameTitle']} or a developer can delete this schedule")
+    is_gm = schedule['gm_id'] == user_id
+
+    # A captain may delete only a schedule they personally created
+    is_captain_creator = False
+    if not is_admin and not is_gm and schedule['team_id']:
+        cursor.execute("""
+            SELECT is_captain FROM team_members
+            WHERE team_id = %s AND user_id = %s
+        """, (schedule['team_id'], user_id))
+        membership = cursor.fetchone()
+        is_captain_creator = bool(
+            membership and membership['is_captain']
+            and schedule['created_by'] == user_id
+        )
+
+    if not (is_admin or is_gm or is_captain_creator):
+        return (False, f"Only the Game Manager for {schedule['GameTitle']}, the captain who created it, or an admin/developer can delete this schedule")
 
     # Check if within 24-hour window
     if not schedule['created_at']:
@@ -1011,7 +1109,6 @@ def can_delete_schedule(cursor, schedule_id, user_id, is_developer):
     time_since_creation = current_time - created_at
     within_24_hours = time_since_creation <= timedelta(hours=24)
 
-    # GM can delete within 24 hours
     if within_24_hours:
         return (True, "Within 24-hour deletion window")
     else:

@@ -125,16 +125,6 @@ async function updateGameMembership(gameId, action) {
     }
 }
 
-function escapeHtml(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
 // Fetch photos for this community and boot the carousel
 async function initCarousel() {
     const track = document.getElementById('carouselTrack');

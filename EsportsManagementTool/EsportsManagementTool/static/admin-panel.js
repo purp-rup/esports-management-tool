@@ -356,11 +356,11 @@ function buildBadgesFromUserItem(item) {
         .filter(Boolean);
 
     // Build roles array based on data attributes.
-    // A GM with one or more custom role labels shows those instead of the generic
-    // "Game Manager" badge (the underlying permission is still GM either way).
+    // A GM with one or more custom role labels shows both - the custom label
+    // and the generic "Game Manager" badge - since they can hold each independently.
     const roles = [];
     if (isAdmin) roles.push('Admin');
-    if (isGm && customRoleNames.length === 0) roles.push('Game Manager');
+    if (isGm) roles.push('Game Manager');
     if (isPlayer) roles.push('Player');
     if (isDeveloper) roles.push('Developer');
 
