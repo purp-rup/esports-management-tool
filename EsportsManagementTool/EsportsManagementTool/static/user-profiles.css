@@ -92,8 +92,24 @@
     border-color: var(--stockton-yellow);
 }
 
+@property --captain-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+}
+
 .member-pill--captain {
-    border-color: #f97316;
+    border: 1px solid transparent;
+    background:
+        linear-gradient(#00080F, #00080F) padding-box,
+        conic-gradient(from var(--captain-angle), #f97316, #ffffff, #f97316) border-box;
+    animation: captain-border-spin 4s linear infinite;
+}
+
+@keyframes captain-border-spin {
+    to {
+        --captain-angle: 360deg;
+    }
 }
 
 /* ================================

@@ -206,13 +206,6 @@ function getCapacityColorKey(totalFraction) {
     return 'red';
 }
 
-/** Minimal HTML escaping for text interpolated into innerHTML (first names, lab status) */
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
 /**
  * Renders a persistent lab reservation impact notice. Visually matches the
  * blue info toast from notifications.js and stacks through the same

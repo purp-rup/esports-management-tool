@@ -1439,9 +1439,9 @@
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="required-field" for="scheduledVisibility">Visibility</label>
+                             <label class="required-field" for="scheduledVisibility">Visibility</label>
                             <div class="form-group-text schedule-row-hint">
-                                Match type events are only visible to this team
+                                Matches are visible to selected team(s)
                             </div>
                             <div class="filter-box tag-select-box" id="scheduledVisibilityTagBox">
                                 <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledVisibilityPanel')">
@@ -1454,6 +1454,7 @@
                                     <div class="filter-box-item" id="visibilityTeamOption" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'team', this.textContent)">Team Only</div>
                                     <div class="filter-box-item" id="visibilityPlayersOption" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'game_players', this.textContent)">Players</div>
                                     <div class="filter-box-item" id="visibilityCommunityOption" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'game_community', this.textContent)">Community Members</div>
+                                    <div class="filter-box-item" id="visibilityAllTeamsOption" style="display: none;" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'all_teams', this.textContent)">All Teams</div>
                                 </div>
                             </div>
                             <input type="hidden" id="scheduledVisibility" name="visibility">
@@ -1489,8 +1490,6 @@
                                   placeholder="Event description (optional)"
                                   rows="3"></textarea>
                     </div>
-
-                    <div id="scheduledEventMessage" class="form-message" style="display: none;"></div>
 
                     <div class="form-actions">
                         <button type="button" class="btn btn-secondary" onclick="closeCreateScheduleModal()">
@@ -2603,7 +2602,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <!-- Delete Modal js (must be called first) -->
 <script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
-<script src="{{ url_for('static', filename='notifications.js') }}"></script>
 <script src="{{ url_for('static', filename='photo-upload.js') }}"></script>
 <!-- Rest of js imports -->
 <script src="{{ url_for('static', filename='badges.js') }}"></script>

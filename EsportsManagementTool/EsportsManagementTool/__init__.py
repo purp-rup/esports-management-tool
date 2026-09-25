@@ -764,9 +764,13 @@ def get_calendar_events() -> tuple[Response, int] | Response:
                         WHERE ic.game_id = se.game_id
                         AND ic.user_id = %s
                     ))
+                    OR EXISTS (
+                        SELECT 1 FROM games g
+                        WHERE g.GameID = se.game_id AND g.gm_id = %s
+                    )
                 )
                 ORDER BY ge.Date, ge.StartTime
-            """, (year, month, user_id, user_id, user_id, user_id))
+            """, (year, month, user_id, user_id, user_id, user_id, user_id))
 
         events = cursor.fetchall()
 
