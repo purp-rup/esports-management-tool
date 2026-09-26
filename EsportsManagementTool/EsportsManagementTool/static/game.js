@@ -184,16 +184,14 @@ function createGameCard(game, isAdmin) {
            </span>`
         : '';
 
-    // Join/leave button
+    // Join/leave button - handler attached below via addEventListener, so
+    // game.GameID/GameTitle never need to be embedded in an inline onclick
+    // string (no JS-string-literal escaping required)
     const actionBtnHTML = isMember
-        ? `<button class="community-list-btn leave-btn"
-                   title="Leave ${escapeHtml(game.GameTitle)}"
-                   onclick="event.stopPropagation(); confirmLeaveGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')">
+        ? `<button class="community-list-btn leave-btn" title="Leave ${escapeHtml(game.GameTitle)}">
                <i class="fas fa-sign-out-alt"></i>
            </button>`
-        : `<button class="community-list-btn join-btn"
-                   title="Join ${escapeHtml(game.GameTitle)}"
-                   onclick="event.stopPropagation(); confirmJoinGame(${game.GameID}, '${escapeHtml(game.GameTitle)}')">
+        : `<button class="community-list-btn join-btn" title="Join ${escapeHtml(game.GameTitle)}">
                <i class="fas fa-user-plus"></i>
            </button>`;
 
@@ -220,6 +218,21 @@ function createGameCard(game, isAdmin) {
             ${actionBtnHTML}
         </div>
     `;
+
+    // Wire up the join/leave button with a real event listener - GameID and
+    // GameTitle are passed as actual JS values here, not interpolated into
+    // a string, so there's nothing to escape at all
+    const actionBtn = row.querySelector('.leave-btn, .join-btn');
+    if (actionBtn) {
+        actionBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isMember) {
+                confirmLeaveGame(game.GameID, game.GameTitle);
+            } else {
+                confirmJoinGame(game.GameID, game.GameTitle);
+            }
+        });
+    }
 
     // Clicking anywhere on the row navigates to the community page
     row.addEventListener('click', () => {
@@ -296,22 +309,6 @@ function resetCommunityFilters() {
 
     const allBtn = document.querySelector('.communities-filter-container .filter-btn[data-division="all"]');
     if (allBtn) allBtn.classList.add('active');
-}
-
-/**
- * Escape HTML special characters to prevent XSS
- * @param {string} text - Text to escape
- * @returns {string} Escaped text
- */
-function escapeHtml(text) {
-    const map = {
-        "'": "\\'",
-        '"': '&quot;',
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;'
-    };
-    return text.replace(/['&<>"]/g, m => map[m]);
 }
 
 // =============================

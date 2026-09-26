@@ -454,8 +454,6 @@ function invalidateTeamsCache() {
     console.log('Teams cache invalidated');
 }
 
-
-
 function getEmptyMessageForView(view) {
     const messages = {
         all: 'No teams have been created yet.',
@@ -955,10 +953,11 @@ function renderCreateTeamDropdown(games) {
     if (!panel) return;
 
     panel.innerHTML = games.map(game => `
-        <div class="filter-box-item"
+        <div class="filter-box-flyout-item"
              data-game-id="${game.GameID}"
              onclick="selectGameForTeamCreation(${game.GameID}, '${game.GameTitle.replace(/'/g, "\\'")}', '${game.TeamSizes}')">
-            ${game.GameTitle}
+             <img class="game-option-icon" src="/game-image/${game.GameID}">
+             <span class="game-option-name">${game.GameTitle}</span>
         </div>
     `).join('');
 }

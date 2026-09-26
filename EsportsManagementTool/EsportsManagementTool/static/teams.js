@@ -554,7 +554,7 @@ function displayAvailableMembersNew(members) {
             profilePicHTML = `<div class="member-avatar-initials">${initials}</div>`;
         }
 
-        // Always use current/live badges for add member modal (no season context needed)
+         // Always use current/live badges for add member modal (no season context needed)
         let badgesHTML = '';
         if (typeof buildUniversalRoleBadges === 'function') {
             badgesHTML = buildUniversalRoleBadges({
@@ -564,6 +564,15 @@ function displayAvailableMembersNew(members) {
                 excludeRoles: ['Player'],
                 seasonId: null  // Always null - adding members only happens in active season
             });
+
+            // Custom roles aren't known to buildUniversalRoleBadges, so append their
+            // badges directly - same treatment as the roster popup and admin panel
+            const customRoles = member.custom_roles || [];
+            if (customRoles.length > 0) {
+                badgesHTML += customRoles
+                    .map(name => `<span class="role-badge custom-purple" title="Game Manager permissions">${escapeHtml(name)}</span>`)
+                    .join('');
+            }
         } else if (typeof buildRoleBadges === 'function') {
             badgesHTML = buildRoleBadges({
                 roles: member.roles || [],
