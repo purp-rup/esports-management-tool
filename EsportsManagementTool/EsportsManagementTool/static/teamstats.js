@@ -389,6 +389,104 @@ function toggleMatchCardExpand(rowIndex) {
 // ============================================
 
 /**
+ * Whether the current team's game is a battle royale — mirrors how
+ * window.currentTeamSeasonIsActive is already used elsewhere in this file.
+ * NOTE: window.currentTeamIsBR isn't being set anywhere yet (backend/template
+ * work still pending), so this currently always resolves to false — that's
+ * the safe default until that's wired up.
+ */
+function isCurrentTeamBR() {
+    return window.currentTeamIsBR === 1;
+}
+
+/**
+ * Shows/hides and (un)requires the right set of fields in the record-result
+ * modal based on whether the current team's game is a battle royale:
+ * - Standard: Opponent's School + Win/Loss + team/opponent score
+ * - Battle royale: Placement + Points
+ * Playoffs toggle is unaffected — shown either way.
+ */
+function applyMatchResultModalMode() {
+    const isBR = isCurrentTeamBR();
+
+    const opponentSchoolGroup = document.getElementById('matchOpponentSchoolGroup');
+    const gamesPlayedGroup = document.getElementById('matchGamesPlayedGroup');
+    const standardResultsGroup = document.getElementById('matchStandardResultsGroup');
+    const placementsGroup = document.getElementById('matchPlacementsGroup');
+    const pointsGroup = document.getElementById('matchPointsGroup');
+
+    if (opponentSchoolGroup) opponentSchoolGroup.style.display = isBR ? 'none' : '';
+    if (gamesPlayedGroup) gamesPlayedGroup.style.display = isBR ? '' : 'none';
+    if (standardResultsGroup) standardResultsGroup.style.display = isBR ? 'none' : '';
+    if (placementsGroup) placementsGroup.style.display = isBR ? '' : 'none';
+    if (pointsGroup) pointsGroup.style.display = isBR ? '' : 'none';
+
+    // A hidden field with `required` still blocks native form submission,
+    // so required-ness has to follow visibility
+    const opponentSchoolInput = document.getElementById('matchOpponentSchool');
+    const gamesPlayedInput = document.getElementById('matchGamesPlayed');
+    const resultRadios = document.querySelectorAll('input[name="matchResult"]');
+
+    if (opponentSchoolInput) opponentSchoolInput.required = !isBR;
+    if (gamesPlayedInput) gamesPlayedInput.required = isBR;
+    resultRadios.forEach(radio => { radio.required = !isBR; });
+
+    if (isBR) {
+        renderBRPlacementInputs();
+    }
+}
+
+// Maximum number of placement boxes (mirrors the max="7" on # of Games)
+const MAX_BR_GAMES = 7;
+
+/**
+ * Rebuilds the Placements box row to match the number entered in # of Games
+ * (clamped 1-7). Preserves already-entered values by position when the
+ * count changes, so adjusting # of Games doesn't wipe out existing entries.
+ */
+function renderBRPlacementInputs() {
+    const container = document.getElementById('matchPlacementsContainer');
+    const gamesInput = document.getElementById('matchGamesPlayed');
+    if (!container || !gamesInput) return;
+
+    const existingValues = Array.from(
+        container.querySelectorAll('input[data-placement-index]')
+    ).map(input => input.value);
+
+    const raw = gamesInput.value;
+    let count = parseInt(raw, 10);
+
+    if (raw !== '' && (isNaN(count) || count < 1)) {
+        // An explicit 0 or negative value isn't allowed — snap up to the minimum
+        count = 1;
+        gamesInput.value = 1;
+    } else if (isNaN(count)) {
+        // Field is empty mid-edit (e.g. clearing it to type a new number) —
+        // don't force a value yet, just render no boxes until they finish typing
+        count = 0;
+    }
+
+    if (count > MAX_BR_GAMES) {
+        count = MAX_BR_GAMES;
+        gamesInput.value = MAX_BR_GAMES;
+    }
+
+    container.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'score-input-group';
+        wrapper.innerHTML = `
+            <input type="number"
+                   data-placement-index="${i}"
+                   min="1"
+                   step="1"
+                   value="${existingValues[i] || ''}">
+        `;
+        container.appendChild(wrapper);
+    }
+}
+
+/**
  * Open modal to record a match result
  * Resets form and populates match events dropdown
  */
@@ -439,6 +537,9 @@ function openRecordResultModal() {
     // ========================================
     // Populate events dropdown with available matches
     populateMatchEventsDropdown();
+
+    // Show the right fields for this team's game type (standard vs battle royale)
+    applyMatchResultModalMode();
 
     // ========================================
     // SHOW MODAL
@@ -599,18 +700,37 @@ async function submitMatchResult(event) {
     // ========================================
     // COLLECT FORM DATA
     // ========================================
-    const teamScoreRaw = document.getElementById('matchTeamScore').value.trim();
-    const opponentScoreRaw = document.getElementById('matchOpponentScore').value.trim();
+    const isBR = isCurrentTeamBR();
 
     const formData = {
         team_id: currentStatsTeamId,
-        event_id: document.getElementById('matchEventSelect').value,
-        result: document.querySelector('input[name="matchResult"]:checked')?.value,
-        is_playoffs: document.getElementById('matchPlayoffs').checked,
-        opponent_school: document.getElementById('matchOpponentSchool').value.trim(),
-        team_score: teamScoreRaw === '' ? null : teamScoreRaw,
-        opponent_score: opponentScoreRaw === '' ? null : opponentScoreRaw
+        event_id: document.getElementById('matchEventSelect').value
     };
+
+    if (isBR) {
+        const gamesRaw = document.getElementById('matchGamesPlayed').value.trim();
+        const pointsRaw = document.getElementById('matchPoints').value.trim();
+        const killsRaw = document.getElementById('matchKills').value.trim();
+        const placementInputs = Array.from(
+            document.querySelectorAll('#matchPlacementsContainer input[data-placement-index]')
+        );
+        const placements = placementInputs.map(input => input.value.trim());
+
+        formData.games = gamesRaw === '' ? null : gamesRaw;
+        formData.points = pointsRaw === '' ? null : pointsRaw;
+        formData.kills = killsRaw === '' ? null : killsRaw;
+        formData.placements = placements; // one entry per game, in order
+        formData.is_playoffs = document.getElementById('matchPlayoffsBR').checked;
+    } else {
+        const teamScoreRaw = document.getElementById('matchTeamScore').value.trim();
+        const opponentScoreRaw = document.getElementById('matchOpponentScore').value.trim();
+
+        formData.result = document.querySelector('input[name="matchResult"]:checked')?.value;
+        formData.opponent_school = document.getElementById('matchOpponentSchool').value.trim();
+        formData.team_score = teamScoreRaw === '' ? null : teamScoreRaw;
+        formData.opponent_score = opponentScoreRaw === '' ? null : opponentScoreRaw;
+        formData.is_playoffs = document.getElementById('matchPlayoffs').checked;
+    }
 
     // ========================================
     // VALIDATION
@@ -621,22 +741,30 @@ async function submitMatchResult(event) {
         return;
     }
 
-    if (!formData.result) {
-        showMessage(messageDiv, 'Please select a result (Win or Loss)', 'error');
-        resetSubmitButton(submitBtn, btnText, btnSpinner);
-        return;
-    }
+    if (isBR) {
+        if (!formData.games || formData.games < 1) {
+            showMessage(messageDiv, 'Please enter the number of games played', 'error');
+            resetSubmitButton(submitBtn, btnText, btnSpinner);
+            return;
+        }
+    } else {
+        if (!formData.result) {
+            showMessage(messageDiv, 'Please select a result (Win or Loss)', 'error');
+            resetSubmitButton(submitBtn, btnText, btnSpinner);
+            return;
+        }
 
-     if (!formData.opponent_school) {
-        showMessage(messageDiv, 'Please enter the opposing school or team', 'error');
-        resetSubmitButton(submitBtn, btnText, btnSpinner);
-        return;
-    }
+        if (!formData.opponent_school) {
+            showMessage(messageDiv, 'Please enter the opposing school or team', 'error');
+            resetSubmitButton(submitBtn, btnText, btnSpinner);
+            return;
+        }
 
-    if ((formData.team_score === null) !== (formData.opponent_score === null)) {
-        showMessage(messageDiv, 'Please enter both scores, or leave both blank', 'error');
-        resetSubmitButton(submitBtn, btnText, btnSpinner);
-        return;
+        if ((formData.team_score === null) !== (formData.opponent_score === null)) {
+            showMessage(messageDiv, 'Please enter both scores, or leave both blank', 'error');
+            resetSubmitButton(submitBtn, btnText, btnSpinner);
+            return;
+        }
     }
 
     // ========================================
@@ -732,6 +860,9 @@ async function editMatchResult(eventId) {
     modal.style.display = 'block';
     lockBodyScroll('recordMatchResultModal');
 
+    // Show the right fields for this team's game type (standard vs battle royale)
+    applyMatchResultModalMode();
+
     // Populate dropdown with the event pre-selected, then set other fields
     await populateMatchEventsDropdown(eventId);
 
@@ -756,10 +887,33 @@ async function editMatchResult(eventId) {
     if (teamScoreField) teamScoreField.value = match.team_score ?? '';
     if (opponentScoreField) opponentScoreField.value = match.opponent_score ?? '';
 
-    // Set playoffs checkbox if applicable
+    // Set games-played/points/kills fields if they exist (battle royale games —
+    // not fully populated by the backend yet, so parts of this are a no-op
+    // until that's wired up)
+    const gamesPlayedField = document.getElementById('matchGamesPlayed');
+    const pointsField = document.getElementById('matchPoints');
+    const killsField = document.getElementById('matchKills');
+    if (gamesPlayedField) {
+        gamesPlayedField.value = match.games ?? '1';
+        renderBRPlacementInputs(); // regenerate boxes for the correct count
+    }
+    if (Array.isArray(match.placements)) {
+        const placementInputs = document.querySelectorAll('#matchPlacementsContainer input[data-placement-index]');
+        placementInputs.forEach((input, i) => {
+            input.value = match.placements[i] ?? '';
+        });
+    }
+    if (pointsField) pointsField.value = match.points ?? '';
+    if (killsField) killsField.value = match.kills ?? '';
+
+    // Set playoffs checkbox if applicable (whichever one applies to this game type)
     const playoffsCheckbox = document.getElementById('matchPlayoffs');
+    const playoffsCheckboxBR = document.getElementById('matchPlayoffsBR');
     if (playoffsCheckbox) {
         playoffsCheckbox.checked = match.is_playoffs || false;
+    }
+    if (playoffsCheckboxBR) {
+        playoffsCheckboxBR.checked = match.is_playoffs || false;
     }
 }
 

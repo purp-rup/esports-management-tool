@@ -21,6 +21,14 @@ select.fa-icons, option.fa-icons {
     font-weight: 500;
 }
 
+/* ====================================
+   MAIN LAYOUT
+   Dashboard viewport and spacing
+   ==================================== */
+main {
+    min-height: calc(100vh - 73px) !important;
+}
+
 /* =====================================
    DASHBOARD HEADER
    Page title and description area
@@ -195,10 +203,24 @@ select.fa-icons, option.fa-icons {
 }
 
 /* Disable scroll bar for mobile devices */
+/* Mobile devices already overlay their own scrollbar, so the permanent thin one
+   here is redundant screen-space on small viewports */
 @media (max-width: 768px) {
     * {
         scrollbar-width: none;
     }
+}
+
+/* Remove native number input spinner arrows everywhere on the site
+   (Chrome/Safari/Edge via the pseudo-elements, Firefox via appearance) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
 }
 
 /* ====================================
@@ -286,13 +308,6 @@ select.fa-icons, option.fa-icons {
     background: var(--hover-bg);
     color: var(--stockton-blue);
     font-weight: 600;
-}
-
-/* Visually disabled state for custom dropdown items (e.g. visibility options locked for Match events) */
-.filter-box-item.disabled-option {
-    opacity: 0.4;
-    pointer-events: none;
-    cursor: default;
 }
 
 /* Universal filter buttons

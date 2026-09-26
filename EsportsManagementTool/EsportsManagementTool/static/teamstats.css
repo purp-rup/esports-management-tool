@@ -344,6 +344,35 @@
     max-width: 600px;
 }
 
+/* Battle royale Points/Kills — sit tight next to each other, unlike the wide
+   auto-fit .form-row grid used elsewhere in this modal */
+.br-stats-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.br-stats-row .form-group {
+    margin-bottom: 0;
+}
+
+.matchresult-placements-centered {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.matchresult-placements-centered > label {
+    align-self: flex-start;
+}
+
+.br-placements-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+}
+
 .match-result-row {
     display: flex;
     align-items: flex-end;
