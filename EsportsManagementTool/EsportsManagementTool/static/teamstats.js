@@ -113,6 +113,10 @@ async function loadStatsTab(teamId, gameId, leagueId = null) {
             matchEvents = data.match_events || [];
             availableLeagues = data.team_leagues || [];
 
+            // Get game type from the backend/database
+            // 1 = Battle Royale, 0 = standard game
+            window.currentTeamIsBR = Number(data.is_br) === 1 ? 1 : 0;
+
             // Render the complete stats UI
             renderStatsContent();
         } else {
@@ -389,22 +393,14 @@ function toggleMatchCardExpand(rowIndex) {
 // ============================================
 
 /**
- * Whether the current team's game is a battle royale — mirrors how
- * window.currentTeamSeasonIsActive is already used elsewhere in this file.
- * NOTE: window.currentTeamIsBR isn't being set anywhere yet (backend/template
- * work still pending), so this currently always resolves to false — that's
- * the safe default until that's wired up.
+ * Check whether game is a BR
  */
 function isCurrentTeamBR() {
-    return window.currentTeamIsBR === 1;
+    return Number(window.currentTeamIsBR) === 1;
 }
 
 /**
- * Shows/hides and (un)requires the right set of fields in the record-result
- * modal based on whether the current team's game is a battle royale:
- * - Standard: Opponent's School + Win/Loss + team/opponent score
- * - Battle royale: Placement + Points
- * Playoffs toggle is unaffected — shown either way.
+ * Adjusts the display to show BR scoring
  */
 function applyMatchResultModalMode() {
     const isBR = isCurrentTeamBR();
