@@ -32,6 +32,8 @@ async function selectTeam(teamId) {
     });
     document.querySelector(`[data-team-id="${teamId}"]`)?.classList.add('active');
 
+    closeRosterDetailPanel();
+
     document.getElementById('teamsWelcomeState').style.display = 'none';
     document.getElementById('teamsDetailContent').style.display = 'none';
     document.getElementById('teamDetailsLoadingSpinner').style.display = 'block';
@@ -452,11 +454,35 @@ function openRosterDetailPanel(member) {
             })}
         </div>
     `;
+    pane.dataset.state = 'open';
 
     if (window.innerWidth <= 768) {
         pane.classList.add('sheet-open');
         document.getElementById('rosterSheetBackdrop')?.classList.add('open');
         lockBodyScroll('rosterSheet');
+    }
+}
+
+// Closes the roster detail panel
+// Triggers on every tab reload
+function closeRosterDetailPanel() {
+    const pane = document.getElementById('rosterDetailPane');
+    if (!pane) return;
+
+    // Skips HTML change if already showing default
+    if (pane.dataset.state === 'default') return;
+
+    pane.innerHTML = `
+        <div class="roster-detail-placeholder">
+            <i class="fas fa-user"></i>
+            <p>Select a member to view their profile</p>
+        </div>
+    `;
+    pane.dataset.state = "default";
+
+    // Resets mobile sheet if open
+    if (pane.classList.contains('sheet-open')) {
+        closeRosterDetailSheet();
     }
 }
 
@@ -1143,6 +1169,8 @@ async function executeTeamDeletion(teamId) {
             invalidateTeamsCache();
             window.currentSelectedTeamId = null;
 
+            closeRosterDetailPanel();
+
             document.getElementById('teamsWelcomeState').style.display = 'flex';
             document.getElementById('teamsDetailContent').style.display = 'none';
 
@@ -1171,6 +1199,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.team-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             const targetTab = this.getAttribute('data-team-tab');
+
+            closeRosterDetailPanel();
 
             document.querySelectorAll('.team-tab').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
