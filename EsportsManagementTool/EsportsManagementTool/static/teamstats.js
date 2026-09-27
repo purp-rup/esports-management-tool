@@ -707,16 +707,22 @@ async function submitMatchResult(event) {
         const gamesRaw = document.getElementById('matchGamesPlayed').value.trim();
         const pointsRaw = document.getElementById('matchPoints').value.trim();
         const killsRaw = document.getElementById('matchKills').value.trim();
+
         const placementInputs = Array.from(
             document.querySelectorAll('#matchPlacementsContainer input[data-placement-index]')
         );
+
         const placements = placementInputs.map(input => input.value.trim());
 
         formData.games = gamesRaw === '' ? null : gamesRaw;
         formData.points = pointsRaw === '' ? null : pointsRaw;
         formData.kills = killsRaw === '' ? null : killsRaw;
-        formData.placements = placements; // one entry per game, in order
-        formData.is_playoffs = document.getElementById('matchPlayoffsBR').checked;
+
+        // Placement is being handled separately for now
+        formData.placements = placements;
+
+        formData.is_playoffs =
+            document.getElementById('matchPlayoffsBR').checked;
     } else {
         const teamScoreRaw = document.getElementById('matchTeamScore').value.trim();
         const opponentScoreRaw = document.getElementById('matchOpponentScore').value.trim();
