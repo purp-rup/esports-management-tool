@@ -1322,7 +1322,7 @@ function closeEventDetailPanel() {
     const pane = document.getElementById('eventsDetailPane');
     if (!pane) return;
 
-    // Stops slideshows on closed teams
+    // Closes banners/flairs on closed teams
     const bannerEl = document.getElementById('eventDetailBanner');
     if (bannerEl) clearInterval(bannerEl._slideInterval);
     const flairStage = document.getElementById('partnershipFlairStage');
