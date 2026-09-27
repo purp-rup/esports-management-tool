@@ -396,7 +396,7 @@ function openRecordResultModal() {
     // Check if season is active
     const isActiveSeason = window.currentTeamSeasonIsActive === 1;
     if (!isActiveSeason) {
-        showDeleteErrorMessage('Cannot record match results for teams from past seasons.');
+        showErrorToast('Cannot record match results for teams from past seasons.');
         return;
     }
 
@@ -412,12 +412,6 @@ function openRecordResultModal() {
     const form = document.getElementById('recordMatchResultForm');
     if (form) {
         form.reset();
-    }
-
-    // Clear any previous messages
-    const messageDiv = document.getElementById('recordResultMessage');
-    if (messageDiv) {
-        messageDiv.style.display = 'none';
     }
 
     // Reset submit button state BEFORE populating dropdown
@@ -586,7 +580,6 @@ async function submitMatchResult(event) {
     const submitBtn = form.querySelector('button[type="submit"]');
     const btnText = submitBtn.querySelector('.btn-text');
     const btnSpinner = submitBtn.querySelector('.btn-spinner');
-    const messageDiv = document.getElementById('recordResultMessage');
 
     // ========================================
     // SHOW LOADING STATE
@@ -594,7 +587,6 @@ async function submitMatchResult(event) {
     submitBtn.disabled = true;
     if (btnText) btnText.style.display = 'none';
     if (btnSpinner) btnSpinner.style.display = 'inline-block';
-    if (messageDiv) messageDiv.style.display = 'none';
 
     // ========================================
     // COLLECT FORM DATA
@@ -616,25 +608,25 @@ async function submitMatchResult(event) {
     // VALIDATION
     // ========================================
     if (!formData.event_id) {
-        showMessage(messageDiv, 'Please select a match', 'error');
+        showErrorToast('Please select a match');
         resetSubmitButton(submitBtn, btnText, btnSpinner);
         return;
     }
 
     if (!formData.result) {
-        showMessage(messageDiv, 'Please select a result (Win or Loss)', 'error');
+        showErrorToast('Please select a result (Win or Loss)');
         resetSubmitButton(submitBtn, btnText, btnSpinner);
         return;
     }
 
      if (!formData.opponent_school) {
-        showMessage(messageDiv, 'Please enter the opposing school or team', 'error');
+        showErrorToast('Please enter the opposing school or team');
         resetSubmitButton(submitBtn, btnText, btnSpinner);
         return;
     }
 
     if ((formData.team_score === null) !== (formData.opponent_score === null)) {
-        showMessage(messageDiv, 'Please enter both scores, or leave both blank', 'error');
+        showErrorToast('Please enter both scores, or leave both blank');
         resetSubmitButton(submitBtn, btnText, btnSpinner);
         return;
     }
@@ -656,9 +648,9 @@ async function submitMatchResult(event) {
         if (data.success) {
             // Show notification card colored by match result (win = green, loss = red)
             if (formData.result === 'win') {
-                showDeleteSuccessMessage(data.message);
+                showSuccessToast(data.message);
             } else {
-                showDeleteErrorMessage(data.message);
+                showErrorToast(data.message);
             }
 
             // Close modal and reload stats after brief delay
@@ -672,7 +664,7 @@ async function submitMatchResult(event) {
         }
     } catch (error) {
         // Show error message
-        showMessage(messageDiv, error.message || 'Failed to record result', 'error');
+        showErrorToast(error.message || 'Failed to record result');
         resetSubmitButton(submitBtn, btnText, btnSpinner);
     }
 }
@@ -691,7 +683,7 @@ async function editMatchResult(eventId) {
     // Find the match in cached data
     const match = matchEvents.find(m => m.event_id === eventId);
     if (!match) {
-        showDeleteErrorMessage('Match not found');
+        showErrorToast('Match not found');
         return;
     }
 
@@ -706,12 +698,6 @@ async function editMatchResult(eventId) {
     const form = document.getElementById('recordMatchResultForm');
     if (form) {
         form.reset();
-    }
-
-    // Clear any previous messages
-    const messageDiv = document.getElementById('recordResultMessage');
-    if (messageDiv) {
-        messageDiv.style.display = 'none';
     }
 
     // Reset submit button state
@@ -766,20 +752,6 @@ async function editMatchResult(eventId) {
 // ============================================
 // UTILITY FUNCTIONS
 // ============================================
-
-/**
- * Show a message to the user
- *
- * @param {HTMLElement} element - Message container element
- * @param {string} message - Message text to display
- * @param {string} type - Message type ('success' or 'error')
- */
-function showMessage(element, message, type) {
-    if (!element) return;
-    element.textContent = message;
-    element.className = `form-message ${type}`;
-    element.style.display = 'block';
-}
 
 /**
  * Reset submit button to default state

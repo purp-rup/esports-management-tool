@@ -115,8 +115,8 @@
     // Show logout notification from URL param then clean up the URL
     const params  = new URLSearchParams(window.location.search);
     const message = params.get('message');
-    if (message && typeof showInfoMessage === 'function') {
-        showDeleteSuccessMessage(message, 4000);
+    if (message && typeof showInfoToast === 'function') {
+        showSuccessToast(message, 4000);
         window.history.replaceState({}, '', window.location.pathname);
     }
 </script>

@@ -787,19 +787,19 @@ async function confirmDeleteCustomRole(roleId) {
         closeDeleteConfirmModal();
 
         if (data.success) {
-            showDeleteSuccessMessage(data.message || 'Custom role deleted successfully');
+            showSuccessToast(data.message || 'Custom role deleted successfully');
 
             // Deleting a role can change GM status/badges for every user who held it,
             // so a full reload keeps the whole admin panel in sync rather than
             // patching each affected user's row individually
             setTimeout(() => window.location.reload(), 1200);
         } else {
-            showDeleteErrorMessage(data.message || 'Failed to delete custom role');
+            showErrorToast(data.message || 'Failed to delete custom role');
         }
     } catch (e) {
         console.error('Error deleting custom role:', e);
         closeDeleteConfirmModal();
-        showDeleteErrorMessage('Failed to delete custom role');
+        showErrorToast('Failed to delete custom role');
     }
 }
 
@@ -1083,11 +1083,11 @@ async function removeUser(userId, username, fullName) {
             closeRemoveUserModal();
 
             // Show success card, then reload
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
             setTimeout(() => window.location.reload(), 1200);
         } else {
             // Show error card
-            showDeleteErrorMessage(data.message);
+            showErrorToast(data.message);
 
             // Re-enable button with original text
             deleteBtn.disabled = false;
@@ -1096,7 +1096,7 @@ async function removeUser(userId, username, fullName) {
     } catch (error) {
         // Handle network or other errors
         console.error('Error removing user:', error);
-        showDeleteErrorMessage('An error occurred while removing the user. Please try again.');
+        showErrorToast('An error occurred while removing the user. Please try again.');
 
         // Re-enable button with original text
         deleteBtn.disabled = false;

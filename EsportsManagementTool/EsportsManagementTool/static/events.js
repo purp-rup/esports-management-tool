@@ -609,10 +609,10 @@ async function handleCreateLabReservationSubmit(e) {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            showDeleteSuccessMessage(data.message || (isEditing ? 'Lab reservation updated!' : 'Lab reservation created successfully!'));
+            showSuccessToast(data.message || (isEditing ? 'Lab reservation updated!' : 'Lab reservation created successfully!'));
 
             if (data.impacted_names && data.impacted_names.length > 0) {
-                setTimeout(() => showInfoMessage(buildLabImpactMessage(data.impacted_names)), 500);
+                setTimeout(() => showInfoToast(buildLabImpactMessage(data.impacted_names)), 500);
                 setTimeout(() => window.location.reload(), 3200);
             } else {
                 setTimeout(() => window.location.reload(), 900);
@@ -741,14 +741,14 @@ async function handleCreateEventSubmit(e) {
         if (response.ok && data.success) {
             const [successMsg, deletionMsg] = (data.message || 'Event created successfully!').split('\n');
 
-            showDeleteSuccessMessage(successMsg || 'Event created successfully!');
+            showSuccessToast(successMsg || 'Event created successfully!');
 
             // Developers have no deletion time limit, so they never get this reminder.
             const showDeletionReminder = deletionMsg && !window.userPermissions?.is_developer;
             let reloadDelay = 900;
 
             if (showDeletionReminder) {
-                setTimeout(() => showInfoMessage(deletionMsg), 700);
+                setTimeout(() => showInfoToast(deletionMsg), 700);
                 reloadDelay = 1800;
             }
 
@@ -1056,14 +1056,14 @@ async function confirmDeleteEvent(eventId) {
             }
 
             // Show success notification FIRST
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
 
             // If schedule was auto-deleted, show additional notification with proper delay
             if (data.schedule_deleted && data.schedule_name) {
                 // Wait for first notification to appear and settle
                 setTimeout(() => {
-                    if (typeof window.showInfoMessage === 'function') {
-                        window.showInfoMessage(
+                    if (typeof window.showInfoToast === 'function') {
+                        window.showInfoToast(
                             `Schedule "${data.schedule_name}" was automatically removed (no events remaining)`,
                             4000
                         );
@@ -1088,7 +1088,7 @@ async function confirmDeleteEvent(eventId) {
         }
     } catch (error) {
         console.error('Error deleting event:', error);
-        showDeleteErrorMessage('An error occurred while deleting the event');
+        showErrorToast('An error occurred while deleting the event');
         window.closeDeleteConfirmModal();
     }
 }
@@ -1098,11 +1098,11 @@ function handleDeleteError(message) {
     window.closeDeleteConfirmModal();
 
     if (message.includes('expired') || message.includes('24')) {
-        showDeleteErrorMessage(`⏰ ${message}\n\nOnly developers can delete events after 24 hours.`);
+        showErrorToast(`⏰ ${message}\n\nOnly developers can delete events after 24 hours.`);
     } else if (message.includes('creator')) {
-        showDeleteErrorMessage(`🚫 ${message}`);
+        showErrorToast(`🚫 ${message}`);
     } else {
-        showDeleteErrorMessage('Error: ' + message);
+        showErrorToast('Error: ' + message);
     }
 }
 

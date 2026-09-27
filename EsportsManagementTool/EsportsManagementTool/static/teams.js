@@ -604,7 +604,7 @@ async function addSelectedMembersToTeam() {
     const memberIds = Array.from(checkboxes).map(cb => cb.value);
 
     if (memberIds.length === 0) {
-        showDeleteErrorMessage('Please select at least one member');
+        showErrorToast('Please select at least one member');
         return;
     }
 
@@ -622,7 +622,7 @@ async function addSelectedMembersToTeam() {
             closeAddTeamMembersModal();
 
             // Show success notification
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
 
             // Refresh teams and reload current team
             window.invalidateTeamsCache();
@@ -632,11 +632,11 @@ async function addSelectedMembersToTeam() {
                 selectTeam(window.currentSelectedTeamId);
             }, 350);
         } else {
-            showDeleteErrorMessage(data.message);
+            showErrorToast(data.message);
         }
     } catch (error) {
         console.error('Error:', error);
-        showDeleteErrorMessage('Failed to add members');
+        showErrorToast('Failed to add members');
     }
 }
 
@@ -693,7 +693,7 @@ async function removeMember(memberId, memberName) {
             closeDeleteConfirmModal();
 
             // Show success notification
-            showDeleteSuccessMessage(`"${memberName}" removed successfully`);
+            showSuccessToast(`"${memberName}" removed successfully`);
 
             // Refresh teams and reload current team
             window.invalidateTeamsCache();
@@ -705,12 +705,12 @@ async function removeMember(memberId, memberName) {
         } else {
             // Close modal and show error
             closeDeleteConfirmModal();
-            showDeleteErrorMessage(data.message);
+            showErrorToast(data.message);
         }
     } catch (error) {
         console.error('Error removing member:', error);
         closeDeleteConfirmModal();
-        showDeleteErrorMessage('Failed to remove member');
+        showErrorToast('Failed to remove member');
     }
 }
 
@@ -771,14 +771,14 @@ async function assignTeamCaptain(teamId, userId) {
         const data = await response.json();
 
         if (data.success) {
-            showDeleteSuccessMessage('Captain assigned successfully!');
+            showSuccessToast('Captain assigned successfully!');
             await reopenProfileAfterCaptainChange(teamId, userId);
         } else {
-            showDeleteErrorMessage(data.message || 'Failed to assign captain');
+            showErrorToast(data.message || 'Failed to assign captain');
         }
     } catch (err) {
         console.error('Error assigning captain:', err);
-        showDeleteErrorMessage('Failed to assign captain');
+        showErrorToast('Failed to assign captain');
     }
 }
 
@@ -789,14 +789,14 @@ async function removeTeamCaptain(teamId, userId) {
         const data = await response.json();
 
         if (data.success) {
-            showDeleteSuccessMessage('Captain removed successfully!');
+            showSuccessToast('Captain removed successfully!');
             await reopenProfileAfterCaptainChange(teamId, userId);
         } else {
-            showDeleteErrorMessage(data.message || 'Failed to remove captain');
+            showErrorToast(data.message || 'Failed to remove captain');
         }
     } catch (err) {
         console.error('Error removing captain:', err);
-        showDeleteErrorMessage('Failed to remove captain');
+        showErrorToast('Failed to remove captain');
     }
 }
 
@@ -1137,7 +1137,7 @@ async function executeTeamDeletion(teamId) {
             closeDeleteConfirmModal();
 
             // Show success notification using universal system
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
 
             // Invalidate cache and refresh
             invalidateTeamsCache();
@@ -1153,12 +1153,12 @@ async function executeTeamDeletion(teamId) {
         } else {
             // Close modal and show error
             closeDeleteConfirmModal();
-            showDeleteErrorMessage(data.message || 'Failed to delete team');
+            showErrorToast(data.message || 'Failed to delete team');
         }
     } catch (error) {
         console.error('Error deleting team:', error);
         closeDeleteConfirmModal();
-        showDeleteErrorMessage('An error occurred while deleting the team');
+        showErrorToast('An error occurred while deleting the team');
     }
 }
 
