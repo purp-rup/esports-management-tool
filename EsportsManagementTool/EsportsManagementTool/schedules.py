@@ -88,6 +88,23 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             try:
+                cursor.execute("SELECT end_date FROM seasons WHERE is_active = 1 LIMIT 1")
+                active_season = cursor.fetchone()
+                if not active_season:
+                    return jsonify({'success': False, 'message': 'No active season found'}), 400
+
+                try:
+                    requested_end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+                except ValueError:
+                    return jsonify({'success': False, 'message': 'Invalid end date format'}), 400
+
+                if requested_end_date > active_season['end_date']:
+                    return jsonify({
+                        'success': False,
+                        'message': f"Schedule end date cannot extend beyond the current season "
+                                   f"(ends {active_season['end_date'].strftime('%Y-%m-%d')})"
+                    }), 400
+
                 game_id = get_team_game_id(cursor, data['team_id'])
                 if game_id is None:
                     return jsonify({'success': False, 'message': 'Team not found'}), 404
@@ -714,11 +731,23 @@ def create_bulk_team_schedules(cursor, connection, data, game_id, user_id):
     """
     league_id = data.get('league_id')
 
-    cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+    cursor.execute("SELECT season_id, end_date FROM seasons WHERE is_active = 1 LIMIT 1")
     active_season = cursor.fetchone()
     if not active_season:
         return jsonify({'success': False, 'message': 'No active season found'}), 400
     season_id = active_season['season_id']
+
+    try:
+        requested_end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'success': False, 'message': 'Invalid end date format'}), 400
+
+    if requested_end_date > active_season['end_date']:
+        return jsonify({
+            'success': False,
+            'message': f"Schedule end date cannot extend beyond the current season "
+                        f"(ends {active_season['end_date'].strftime('%Y-%m-%d')})"
+        }), 400
 
     cursor.execute("""
         SELECT TeamID, teamName FROM teams
@@ -801,7 +830,8 @@ def create_bulk_team_schedules(cursor, connection, data, game_id, user_id):
 
 def generate_events_for_schedule(cursor, schedule_id, connection):
     """
-    Generate events for a schedule up to 2 months in advance
+    Generate events for a schedule out to the end of the current season
+    (or the schedule's own end date, whichever comes first)
     Returns number of events created
     """
     try:
@@ -847,9 +877,15 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
         last_generated = schedule['last_generated'] or today
         start_date = max(today, last_generated)
 
-        # Generate up to 2 months ahead
+        # Generate events out to the end of the current season, capped by
+        # the schedule's own end date if that comes sooner. Falls back to
+        # the old 60-day window if there's no active season on record.
+        cursor.execute("SELECT end_date FROM seasons WHERE is_active = 1 LIMIT 1")
+        active_season = cursor.fetchone()
+        season_end_date = active_season['end_date'] if active_season else today + timedelta(days=60)
+
         end_generation_date = min(
-            today + timedelta(days=60),
+            season_end_date,
             schedule['schedule_end_date']
         )
 

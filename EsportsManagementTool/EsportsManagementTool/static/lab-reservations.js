@@ -397,7 +397,7 @@ function confirmDeleteMyLabReservation(reservationId) {
 
                 if (response.ok && data.success) {
                     closeDeleteConfirmModal();
-                    showDeleteSuccessMessage(data.message || 'Lab reservation deleted.');
+                    showSuccessToast(data.message || 'Lab reservation deleted.');
                     loadMyLabReservations();
                     if (typeof currentCalendarView !== 'undefined' && currentCalendarView === 'labs') {
                         loadCalendarLabReservations();
@@ -407,7 +407,7 @@ function confirmDeleteMyLabReservation(reservationId) {
                 }
             } catch (error) {
                 console.error('Error deleting lab reservation:', error);
-                showDeleteErrorMessage(error.message || 'Failed to delete reservation.');
+                showErrorToast(error.message || 'Failed to delete reservation.');
                 closeDeleteConfirmModal();
             }
         }
@@ -416,7 +416,7 @@ function confirmDeleteMyLabReservation(reservationId) {
 
 /**
  * Builds the "Let X know..." message text for the impact notification.
- * Actually displaying it reuses showInfoMessage() from notifications.js,
+ * Actually displaying it reuses showInfoToast() from notifications.js,
  * which already gives the right blue card + queue stacking.
  */
 function buildLabImpactMessage(names) {

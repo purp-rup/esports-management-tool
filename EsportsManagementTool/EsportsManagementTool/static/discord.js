@@ -242,7 +242,7 @@ async function disconnectDiscord() {
                 closeDeleteConfirmModal();
 
                 if (data.success) {
-                    showDeleteSuccessMessage('Discord account disconnected successfully!');
+                    showSuccessToast('Discord account disconnected successfully!');
 
                     setTimeout(() => {
                         window.location.reload();
@@ -253,7 +253,7 @@ async function disconnectDiscord() {
             } catch (error) {
                 console.error('Error disconnecting Discord:', error);
                 closeDeleteConfirmModal();
-                showDeleteErrorMessage(error.message || 'Failed to disconnect Discord account. Please try again.');
+                showErrorToast(error.message || 'Failed to disconnect Discord account. Please try again.');
             }
         }
     });
