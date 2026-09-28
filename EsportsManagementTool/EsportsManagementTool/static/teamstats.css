@@ -355,6 +355,14 @@
     margin-bottom: 0;
 }
 
+#matchGamesPlayedGroup {
+    text-align: center;
+}
+
+#matchGamesPlayedGroup .score-input-group {
+    align-items: center;
+}
+
 .matchresult-placements-centered {
     display: flex;
     flex-direction: column;

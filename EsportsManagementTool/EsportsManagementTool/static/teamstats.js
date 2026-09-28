@@ -737,18 +737,27 @@ async function submitMatchResult(event) {
     // ========================================
     // VALIDATION
     // ========================================
-    if (!formData.event_id) {
-        showMessage(messageDiv, 'Please select a match', 'error');
+    if (isBR) {
+    if (!formData.games || formData.games < 1) {
+        showMessage(messageDiv, 'Please enter the number of games played', 'error');
         resetSubmitButton(submitBtn, btnText, btnSpinner);
         return;
     }
 
-    if (isBR) {
-        if (!formData.games || formData.games < 1) {
-            showMessage(messageDiv, 'Please enter the number of games played', 'error');
-            resetSubmitButton(submitBtn, btnText, btnSpinner);
-            return;
-        }
+    const expectedPlacementCount = parseInt(formData.games, 10);
+
+    if (
+        formData.placements.length !== expectedPlacementCount ||
+        formData.placements.some(placement => placement === '')
+    ) {
+        showMessage(
+            messageDiv,
+            'Please enter a placement for every game',
+            'error'
+        );
+        resetSubmitButton(submitBtn, btnText, btnSpinner);
+        return;
+    }
     } else {
         if (!formData.result) {
             showMessage(messageDiv, 'Please select a result (Win or Loss)', 'error');
@@ -773,6 +782,7 @@ async function submitMatchResult(event) {
     // SUBMIT TO BACKEND
     // ========================================
     try {
+        console.log('Submitting match result:', formData);
         const response = await fetch('/api/teams/record-match-result', {
             method: 'POST',
             headers: {
@@ -785,7 +795,7 @@ async function submitMatchResult(event) {
 
         if (data.success) {
             // Show notification card colored by match result (win = green, loss = red)
-            if (formData.result === 'win') {
+            if (isBR || formData.result === 'win') {
                 showDeleteSuccessMessage(data.message);
             } else {
                 showDeleteErrorMessage(data.message);
@@ -889,20 +899,28 @@ async function editMatchResult(eventId) {
     if (teamScoreField) teamScoreField.value = match.team_score ?? '';
     if (opponentScoreField) opponentScoreField.value = match.opponent_score ?? '';
 
-    // Set games-played/points/kills fields if they exist (battle royale games —
-    // not fully populated by the backend yet, so parts of this are a no-op
-    // until that's wired up)
+        // Set games-played/points/kills fields if they exist (battle royale games)
     const gamesPlayedField = document.getElementById('matchGamesPlayed');
     const pointsField = document.getElementById('matchPoints');
     const killsField = document.getElementById('matchKills');
-    if (gamesPlayedField) {
+        if (isCurrentTeamBR() && gamesPlayedField) {
         gamesPlayedField.value = match.games ?? '1';
+
+        // Clear old boxes first so values from a previously opened match
+        // can't carry over into this one
+        const placementsContainer = document.getElementById('matchPlacementsContainer');
+        if (placementsContainer) placementsContainer.innerHTML = '';
+
         renderBRPlacementInputs(); // regenerate boxes for the correct count
     }
-    if (Array.isArray(match.placements)) {
-        const placementInputs = document.querySelectorAll('#matchPlacementsContainer input[data-placement-index]');
+    if (isCurrentTeamBR() && Array.isArray(match.placements)) {
+        const placementInputs = document.querySelectorAll(
+            '#matchPlacementsContainer input[data-placement-index]'
+        );
+
         placementInputs.forEach((input, i) => {
             input.value = match.placements[i] ?? '';
+            input.required = true;
         });
     }
     if (pointsField) pointsField.value = match.points ?? '';
