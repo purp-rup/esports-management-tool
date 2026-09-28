@@ -79,8 +79,11 @@ function attachEventListeners() {
     // Events tab click
     const eventsTab = document.querySelector('[data-tab="events"]');
     if (eventsTab) {
-        eventsTab.addEventListener('click', () => setTimeout(loadEvents, 100));
-    }
+        eventsTab.addEventListener('click', () => {
+            closeEventDetailPanel();
+            setTimeout(loadEvents, 100);
+        });
+}
 
     // Delete modal background click (close on backdrop)
     const deleteModal = document.getElementById('deleteEventConfirmModal');
@@ -1314,6 +1317,33 @@ function partnershipRow(partnerships) {
     `;
 }
 
+// Closes the event detail panel
+function closeEventDetailPanel() {
+    const pane = document.getElementById('eventsDetailPane');
+    if (!pane) return;
+
+    // Closes banners/flairs on closed teams
+    const bannerEl = document.getElementById('eventDetailBanner');
+    if (bannerEl) clearInterval(bannerEl._slideInterval);
+    const flairStage = document.getElementById('partnershipFlairStage');
+    if (flairStage) clearInterval(flairStage,_flairInterval)
+
+    EventState.currentEventId = null;
+    EventState.currentEventData = null;
+
+    // Restore HTML
+    pane.innerHTML = `
+        <div class="events-detail-placeholder">
+            <i class="fas fa-calendar-alt"></i>
+            <p>Select an event to view details</p>
+        </div>
+    `;
+
+    // Mobile
+    if (window.innerWidth <= 768) {}
+        closeEventDetailSheet();
+}
+
 // Closes the event detail pane in MOBILE VIEW
 function closeEventDetailSheet() {
     const pane = document.getElementById('eventsDetailPane');
@@ -1455,6 +1485,7 @@ async function loadGamesForFilter() {
 
 // Sets active filter using only a primary option from the first box
 function applyPrimaryFilter(value, label) {
+    closeEventDetailPanel();
     document.getElementById('filterBox1Label').textContent = label;
     document.getElementById('eventFilter').value = value;
     EventState.selectedGame = null;
@@ -1471,6 +1502,7 @@ function applyPrimaryFilter(value, label) {
 
 // Sets active filter using submenu flyout in first box
 function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, subLabel) {
+    closeEventDetailPanel();
     document.getElementById('filterBox1Label').textContent = `${filterLabel}: ${subLabel}`;
     document.getElementById('eventFilter').value = filterVal;
     document.getElementById(subSelectId).value = subVal;
@@ -1493,6 +1525,7 @@ function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, 
 
 // Sets active filter using the selected past season
 function applyPastSeasonFilter(seasonId, seasonName) {
+    closeEventDetailPanel();
     document.getElementById('filterBox1Label').textContent = seasonName;
     document.getElementById('eventFilter').value = 'past_season';
     document.getElementById('pastSeasonSelect').value = seasonId;
@@ -1512,6 +1545,7 @@ function applyPastSeasonFilter(seasonId, seasonName) {
 
 // Sets active filter using past season and the primary selection from second filter box
 function applySecondaryFilter(value, label) {
+    closeEventDetailPanel();
     document.getElementById('filterBox2Label').textContent = label;
     document.getElementById('pastSeasonSecondaryFilter').value = value;
     closeAllFilterPanels();
@@ -1523,6 +1557,7 @@ function applySecondaryFilter(value, label) {
 
 // Sets active filter using past season and the submenu flyout option selected in the second box
 function applySecondaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, subLabel) {
+    closeEventDetailPanel();
     document.getElementById('filterBox2Label').textContent = `${filterLabel}: ${subLabel}`;
     document.getElementById('pastSeasonSecondaryFilter').value = filterVal;
     document.getElementById(subSelectId).value = subVal;
@@ -1640,6 +1675,7 @@ function initPartnershipFilterFlyout() {
    Event Filtering
    =============================== */
 function filterEvents() {
+    closeEventDetailPanel();
     const filterSelect = document.getElementById('eventFilter');
     const filterValue = filterSelect?.value || 'all';
 
@@ -2514,4 +2550,5 @@ window.filterEventsByPastSeason = filterEventsByPastSeason;
 
 // Event Detail Panel
 window.openEventDetailPanel = openEventDetailPanel;
+window.closeEventDetailPanel = closeEventDetailPanel;
 window.closeEventDetailSheet = closeEventDetailSheet;
