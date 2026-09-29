@@ -505,7 +505,7 @@ async function submitCommunityForm(event) {
 
         if (response.ok && data.success) {
             // Show success notification
-            showDeleteSuccessMessage(
+            showSuccessToast(
                 data.message || (isEditing ? 'Community updated successfully' : 'Community created successfully')
             );
 
@@ -618,19 +618,19 @@ async function executeCommunityDeletion(communityId) {
 
         if (response.ok && data.success) {
             closeDeleteConfirmModal();
-            showDeleteSuccessMessage(data.message || 'Community deleted successfully');
+            showSuccessToast(data.message || 'Community deleted successfully');
 
             setTimeout(() => {
                 loadCommunitiesForManagement();
             }, 1500);
         } else {
             closeDeleteConfirmModal();
-            showDeleteErrorMessage(data.message || 'Failed to delete community');
+            showErrorToast(data.message || 'Failed to delete community');
         }
     } catch (error) {
         console.error('Error deleting community:', error);
         closeDeleteConfirmModal();
-        showDeleteErrorMessage('Failed to delete community');
+        showErrorToast('Failed to delete community');
     }
 }
 
@@ -696,16 +696,16 @@ async function toggleCommunityHidden(communityId) {
             community.hidden = data.hidden;
 
             // Show success message
-            showDeleteSuccessMessage(data.message || `Community ${action}d successfully`);
+            showSuccessToast(data.message || `Community ${action}d successfully`);
 
             // Re-render grid to show visual changes
             renderCommunitiesGrid();
         } else {
-            showDeleteErrorMessage(data.message || `Failed to ${action} community`);
+            showErrorToast(data.message || `Failed to ${action} community`);
         }
     } catch (error) {
         console.error(`Error toggling hidden status:`, error);
-        showDeleteErrorMessage(`Failed to ${action} community`);
+        showErrorToast(`Failed to ${action} community`);
     }
 }
 
@@ -819,7 +819,7 @@ async function confirmAssignGM(gameId, gmUserId, gmName) {
                 closeDeleteConfirmModal();
 
                 if (data.success) {
-                    showDeleteSuccessMessage(data.message || 'Game Manager assigned successfully');
+                    showSuccessToast(data.message || 'Game Manager assigned successfully');
                     closeAssignGMModal();
 
                     setTimeout(async () => {
@@ -827,12 +827,12 @@ async function confirmAssignGM(gameId, gmUserId, gmName) {
                         await loadCommunitiesForManagement();
                     }, 1500);
                 } else {
-                    showDeleteErrorMessage(data.message || 'Failed to assign Game Manager');
+                    showErrorToast(data.message || 'Failed to assign Game Manager');
                 }
             } catch (error) {
                 console.error('Error assigning GM:', error);
                 closeDeleteConfirmModal();
-                showDeleteErrorMessage('Failed to assign Game Manager');
+                showErrorToast('Failed to assign Game Manager');
             }
         },
         itemId: gameId
@@ -867,19 +867,19 @@ async function removeGameManager(gameId) {
                 closeDeleteConfirmModal();
 
                 if (data.success) {
-                    showDeleteSuccessMessage(data.message || 'Game Manager removed successfully');
+                    showSuccessToast(data.message || 'Game Manager removed successfully');
 
                     setTimeout(async () => {
                         if (typeof refreshGMGameMappings === 'function') await refreshGMGameMappings();
                         await loadCommunitiesForManagement();
                     }, 1500);
                 } else {
-                    showDeleteErrorMessage(data.message || 'Failed to remove Game Manager');
+                    showErrorToast(data.message || 'Failed to remove Game Manager');
                 }
             } catch (error) {
                 console.error('Error removing GM:', error);
                 closeDeleteConfirmModal();
-                showDeleteErrorMessage('Failed to remove Game Manager');
+                showErrorToast('Failed to remove Game Manager');
             }
         },
         itemId: gameId

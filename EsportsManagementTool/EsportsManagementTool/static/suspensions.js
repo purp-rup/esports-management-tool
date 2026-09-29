@@ -272,7 +272,7 @@ async function submitSuspension() {
     // VALIDATION
     // ========================================
     if (!reason) {
-        showDeleteErrorMessage('Please select a reason for suspension');
+        showErrorToast('Please select a reason for suspension');
         return;
     }
 
@@ -280,7 +280,7 @@ async function submitSuspension() {
     const hours = parseInt(durationHours) || 0;
 
     if (days === 0 && hours === 0) {
-        showDeleteErrorMessage('Suspension duration must be greater than 0');
+        showErrorToast('Suspension duration must be greater than 0');
         return;
     }
 
@@ -312,7 +312,7 @@ async function submitSuspension() {
 
         if (data.success) {
             // Show success card, then close modal and reload
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
 
             setTimeout(() => {
                 closeSuspendModal();
@@ -320,14 +320,14 @@ async function submitSuspension() {
             }, 1200);
         } else {
             // Show error card and re-enable button
-            showDeleteErrorMessage(data.message || 'Failed to suspend user');
+            showErrorToast(data.message || 'Failed to suspend user');
             submitBtn.disabled = false;
             btnText.style.display = 'inline';
             btnSpinner.style.display = 'none';
         }
     } catch (error) {
         console.error('Error suspending user:', error);
-        showDeleteErrorMessage('An error occurred. Please try again.');
+        showErrorToast('An error occurred. Please try again.');
 
         // Re-enable button
         submitBtn.disabled = false;
@@ -483,15 +483,15 @@ async function confirmLiftSuspension(userId) {
         closeDeleteConfirmModal();
 
         if (data.success) {
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
             setTimeout(() => window.location.reload(), 1200);
         } else {
-            showDeleteErrorMessage(data.message || 'Failed to lift suspension');
+            showErrorToast(data.message || 'Failed to lift suspension');
         }
     } catch (error) {
         console.error('Error lifting suspension:', error);
         closeDeleteConfirmModal();
-        showDeleteErrorMessage('An error occurred. Please try again.');
+        showErrorToast('An error occurred. Please try again.');
     }
 }
 

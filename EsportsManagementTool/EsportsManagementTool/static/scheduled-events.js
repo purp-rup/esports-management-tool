@@ -761,7 +761,7 @@ async function handleScheduleSubmit(event) {
     const leagueSelect = document.getElementById('scheduledLeagueSelect');
 
     if (eventType === 'Match' && !leagueSelect?.value) {
-        showDeleteErrorMessage('Please select a league for Match events.');
+        showErrorToast('Please select a league for Match events.');
         leagueSelect?.focus();
         return;
     }
@@ -823,7 +823,7 @@ async function handleScheduleSubmit(event) {
             btnSpinner.style.display = 'none';
 
             closeCreateScheduleModal();
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
 
             // Reload team details if function exists
             if (typeof selectTeam === 'function') {
@@ -833,7 +833,7 @@ async function handleScheduleSubmit(event) {
             throw new Error(data.message);
         }
     } catch (error) {
-        showDeleteErrorMessage(error.message || 'Failed to create scheduled event');
+        showErrorToast(error.message || 'Failed to create scheduled event');
 
         // Reset button state
         submitBtn.disabled = false;
@@ -1143,7 +1143,7 @@ async function handleEditScheduleSubmit(event) {
 
     // Validate league selection for Match events
     if (eventType === 'Match' && !leagueSelect.value) {
-        showDeleteErrorMessage('Please select a league for this match event.');
+        showErrorToast('Please select a league for this match event.');
         leagueSelect.focus();
         return;
     }
@@ -1192,7 +1192,7 @@ async function handleEditScheduleSubmit(event) {
             btnSpinner.style.display = 'none';
 
             closeScheduleModal();
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
 
             if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
                 loadScheduleTab(currentSelectedTeamId);
@@ -1201,7 +1201,7 @@ async function handleEditScheduleSubmit(event) {
             throw new Error(data.message);
         }
     } catch (error) {
-        showDeleteErrorMessage(error.message || 'Failed to update schedule');
+        showErrorToast(error.message || 'Failed to update schedule');
 
         submitBtn.disabled = false;
         btnText.style.display = 'inline';
@@ -1340,8 +1340,8 @@ function confirmDeleteSchedule(scheduleId) {
 
 // Show notification when a schedule is auto-deleted
 function showScheduleCleanupNotification(scheduleName) {
-    if (typeof window.showInfoMessage === 'function') {
-        window.showInfoMessage(
+    if (typeof window.showInfoToast === 'function') {
+        window.showInfoToast(
             `Schedule "${scheduleName}" was automatically removed (no events remaining)`,
             4000
         );
@@ -1512,7 +1512,7 @@ async function confirmDeleteScheduleAction(scheduleId) {
             window.closeDeleteConfirmModal();
             closeScheduleModal();
 
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
 
             if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
                 loadScheduleTab(currentSelectedTeamId);
@@ -1522,7 +1522,7 @@ async function confirmDeleteScheduleAction(scheduleId) {
         }
     } catch (error) {
         console.error('Error deleting schedule:', error);
-        showDeleteErrorMessage('Failed to delete schedule. Please try again.');
+        showErrorToast('Failed to delete schedule. Please try again.');
         window.closeDeleteConfirmModal();
     }
 }
@@ -1530,11 +1530,11 @@ async function confirmDeleteScheduleAction(scheduleId) {
 // Handle schedule delete errors
 function handleScheduleDeleteError(message) {
     if (message.includes('expired') || message.includes('24')) {
-        showDeleteErrorMessage(`${message} Only developers can delete schedules after 24 hours.`, 5000);
+        showErrorToast(`${message} Only developers can delete schedules after 24 hours.`, 5000);
     } else if (message.includes('creator') || message.includes('Manager')) {
-        showDeleteErrorMessage(message);
+        showErrorToast(message);
     } else {
-        showDeleteErrorMessage('Error: ' + message);
+        showErrorToast('Error: ' + message);
     }
     window.closeDeleteConfirmModal();
 }

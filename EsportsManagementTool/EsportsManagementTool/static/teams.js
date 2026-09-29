@@ -32,6 +32,8 @@ async function selectTeam(teamId) {
     });
     document.querySelector(`[data-team-id="${teamId}"]`)?.classList.add('active');
 
+    closeRosterDetailPanel();
+
     document.getElementById('teamsWelcomeState').style.display = 'none';
     document.getElementById('teamsDetailContent').style.display = 'none';
     document.getElementById('teamDetailsLoadingSpinner').style.display = 'block';
@@ -452,11 +454,35 @@ function openRosterDetailPanel(member) {
             })}
         </div>
     `;
+    pane.dataset.state = 'open';
 
     if (window.innerWidth <= 768) {
         pane.classList.add('sheet-open');
         document.getElementById('rosterSheetBackdrop')?.classList.add('open');
         lockBodyScroll('rosterSheet');
+    }
+}
+
+// Closes the roster detail panel
+// Triggers on every tab reload
+function closeRosterDetailPanel() {
+    const pane = document.getElementById('rosterDetailPane');
+    if (!pane) return;
+
+    // Skips HTML change if already showing default
+    if (pane.dataset.state === 'default') return;
+
+    pane.innerHTML = `
+        <div class="roster-detail-placeholder">
+            <i class="fas fa-user"></i>
+            <p>Select a member to view their profile</p>
+        </div>
+    `;
+    pane.dataset.state = "default";
+
+    // Resets mobile sheet if open
+    if (pane.classList.contains('sheet-open')) {
+        closeRosterDetailSheet();
     }
 }
 
@@ -604,7 +630,7 @@ async function addSelectedMembersToTeam() {
     const memberIds = Array.from(checkboxes).map(cb => cb.value);
 
     if (memberIds.length === 0) {
-        showDeleteErrorMessage('Please select at least one member');
+        showErrorToast('Please select at least one member');
         return;
     }
 
@@ -622,7 +648,7 @@ async function addSelectedMembersToTeam() {
             closeAddTeamMembersModal();
 
             // Show success notification
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
 
             // Refresh teams and reload current team
             window.invalidateTeamsCache();
@@ -632,11 +658,11 @@ async function addSelectedMembersToTeam() {
                 selectTeam(window.currentSelectedTeamId);
             }, 350);
         } else {
-            showDeleteErrorMessage(data.message);
+            showErrorToast(data.message);
         }
     } catch (error) {
         console.error('Error:', error);
-        showDeleteErrorMessage('Failed to add members');
+        showErrorToast('Failed to add members');
     }
 }
 
@@ -693,7 +719,7 @@ async function removeMember(memberId, memberName) {
             closeDeleteConfirmModal();
 
             // Show success notification
-            showDeleteSuccessMessage(`"${memberName}" removed successfully`);
+            showSuccessToast(`"${memberName}" removed successfully`);
 
             // Refresh teams and reload current team
             window.invalidateTeamsCache();
@@ -705,12 +731,12 @@ async function removeMember(memberId, memberName) {
         } else {
             // Close modal and show error
             closeDeleteConfirmModal();
-            showDeleteErrorMessage(data.message);
+            showErrorToast(data.message);
         }
     } catch (error) {
         console.error('Error removing member:', error);
         closeDeleteConfirmModal();
-        showDeleteErrorMessage('Failed to remove member');
+        showErrorToast('Failed to remove member');
     }
 }
 
@@ -771,14 +797,14 @@ async function assignTeamCaptain(teamId, userId) {
         const data = await response.json();
 
         if (data.success) {
-            showDeleteSuccessMessage('Captain assigned successfully!');
+            showSuccessToast('Captain assigned successfully!');
             await reopenProfileAfterCaptainChange(teamId, userId);
         } else {
-            showDeleteErrorMessage(data.message || 'Failed to assign captain');
+            showErrorToast(data.message || 'Failed to assign captain');
         }
     } catch (err) {
         console.error('Error assigning captain:', err);
-        showDeleteErrorMessage('Failed to assign captain');
+        showErrorToast('Failed to assign captain');
     }
 }
 
@@ -789,14 +815,14 @@ async function removeTeamCaptain(teamId, userId) {
         const data = await response.json();
 
         if (data.success) {
-            showDeleteSuccessMessage('Captain removed successfully!');
+            showSuccessToast('Captain removed successfully!');
             await reopenProfileAfterCaptainChange(teamId, userId);
         } else {
-            showDeleteErrorMessage(data.message || 'Failed to remove captain');
+            showErrorToast(data.message || 'Failed to remove captain');
         }
     } catch (err) {
         console.error('Error removing captain:', err);
-        showDeleteErrorMessage('Failed to remove captain');
+        showErrorToast('Failed to remove captain');
     }
 }
 
@@ -1137,11 +1163,13 @@ async function executeTeamDeletion(teamId) {
             closeDeleteConfirmModal();
 
             // Show success notification using universal system
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
 
             // Invalidate cache and refresh
             invalidateTeamsCache();
             window.currentSelectedTeamId = null;
+
+            closeRosterDetailPanel();
 
             document.getElementById('teamsWelcomeState').style.display = 'flex';
             document.getElementById('teamsDetailContent').style.display = 'none';
@@ -1153,12 +1181,12 @@ async function executeTeamDeletion(teamId) {
         } else {
             // Close modal and show error
             closeDeleteConfirmModal();
-            showDeleteErrorMessage(data.message || 'Failed to delete team');
+            showErrorToast(data.message || 'Failed to delete team');
         }
     } catch (error) {
         console.error('Error deleting team:', error);
         closeDeleteConfirmModal();
-        showDeleteErrorMessage('An error occurred while deleting the team');
+        showErrorToast('An error occurred while deleting the team');
     }
 }
 
@@ -1171,6 +1199,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.team-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             const targetTab = this.getAttribute('data-team-tab');
+
+            closeRosterDetailPanel();
 
             document.querySelectorAll('.team-tab').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
