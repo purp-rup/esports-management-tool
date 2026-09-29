@@ -286,12 +286,16 @@ function renderMatchHistory() {
     matchEvents.forEach((match, index) => {
         const rowIndex = Math.floor(index / 2);
 
-        const resultClass = match.result ? match.result.toLowerCase() : 'pending';
-        const resultIcon = match.result === 'win' ? 'fa-trophy' :
-                          match.result === 'loss' ? 'fa-times-circle' :
-                          'fa-clock';
-        const resultText = match.result
-            ? `${match.result.toUpperCase()}${match.score_display ? ` ${match.score_display}` : ''}`
+        const isBRTeam = isCurrentTeamBR();
+        const isBRRecorded = isBRTeam && match.games !== null && match.games !== undefined;
+        const isRecorded = isBRTeam ? isBRRecorded : !!match.result;
+
+        const resultClass = isRecorded ? (isBRTeam ? 'win' : match.result.toLowerCase()) : 'pending';
+        const resultIcon = isRecorded
+            ? (isBRTeam ? 'fa-trophy' : (match.result === 'win' ? 'fa-trophy' : 'fa-times-circle'))
+            : 'fa-clock';
+        const resultText = isRecorded
+            ? (isBRTeam ? 'RECORDED' : `${match.result.toUpperCase()}${match.score_display ? ` ${match.score_display}` : ''}`)
             : 'PENDING';
         const playoffsBadge = match.is_playoffs ? `
             <span class="match-playoffs-badge" title="Playoffs match">
@@ -429,6 +433,9 @@ function applyMatchResultModalMode() {
 
     if (isBR) {
         renderBRPlacementInputs();
+    } else {
+        const placementsContainer = document.getElementById('matchPlacementsContainer');
+        if (placementsContainer) placementsContainer.innerHTML = '';
     }
 }
 
