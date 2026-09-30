@@ -357,7 +357,7 @@ def twitch_status():
                 'embed_id':   _TWITCH_CHANNEL,
             }
         else:
-            # Try most recent highlight
+            # Try most recent broadcast
             user_id = _get_twitch_user_id(headers)
             past_broadcasts = http_req.get(
                 'https://api.twitch.tv/helix/videos',
