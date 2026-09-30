@@ -359,17 +359,17 @@ def twitch_status():
         else:
             # Try most recent highlight
             user_id = _get_twitch_user_id(headers)
-            highlights = http_req.get(
+            past_broadcasts = http_req.get(
                 'https://api.twitch.tv/helix/videos',
-                params={'user_id': user_id, 'type': 'highlight', 'first': 1},
+                params={'user_id': user_id, 'type': 'archive', 'first': 1},
                 headers=headers
             ).json() if user_id else {'data': []}
 
-            if highlights.get('data'):
+            if past_broadcasts.get('data'):
                 result = {
                     'is_live':    False,
                     'embed_type': 'video',
-                    'embed_id':   highlights['data'][0]['id'],
+                    'embed_id':   past_broadcasts['data'][0]['id'],
                 }
             else:
                 # Fall back to channel offline page
