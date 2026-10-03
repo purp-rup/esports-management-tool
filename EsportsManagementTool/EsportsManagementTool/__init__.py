@@ -345,7 +345,7 @@ def index():
 
 @app.route('/privacy-policy')
 def privacy_policy():
-    """Display the privacy policy for Osprey Vantage."""
+    """Display the privacy policy for Esports Vantage."""
     return render_template('privacy_policy.html')
 
 
@@ -419,8 +419,8 @@ def login():
                                 time_remaining = f"{suspension_info['remaining_hours']} hour(s)"
 
                             msg = (
-                                f"Your account has been suspended until {suspension_info['suspended_until']}. "
-                                f"Reason: {suspension_info['reason']}. "
+                                f"Your account has been Locked out until {suspension_info['suspended_until']}. "
+                                f"Contact an admin for more details. "
                                 f"Time remaining: {time_remaining}."
                             )
                         else:
