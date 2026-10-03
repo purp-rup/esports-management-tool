@@ -7,7 +7,6 @@
  * Handles all user suspension functionality:
  * - Suspension modal creation and management
  * - Suspension duration configuration (days and hours)
- * - Predefined and custom suspension reasons
  * - Suspension status display and updates
  * - Suspension lifting (early termination)
  * - Real-time duration preview
@@ -17,25 +16,6 @@
  * restrict user access for policy violations or other reasons.
  * ============================================================================
  */
-
-// ============================================
-// CONSTANTS
-// ============================================
-
-/**
- * Predefined suspension reasons
- * Provides consistent categorization of suspension causes
- * @type {Array<string>}
- */
-const SUSPENSION_REASONS = [
-    'Violation of Terms of Service',
-    'Inappropriate Behavior',
-    'Harassment or Bullying',
-    'Spam or Abuse',
-    'Cheating or Exploiting',
-    'Multiple Policy Violations',
-    'Other'
-];
 
 // ============================================
 // SUSPENSION MODAL
@@ -56,16 +36,11 @@ function openSuspendModal(userId, username, fullName) {
     modal.id = 'suspendUserModal';
     modal.style.display = 'block';
 
-    // Build reason dropdown options
-    const reasonOptions = SUSPENSION_REASONS.map(reason =>
-        `<option value="${reason}">${reason}</option>`
-    ).join('');
-
     // Build modal HTML
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header" style="background-color: #ff9800; color: white;">
-                <h2><i class="fas fa-user-clock"></i> Suspend User</h2>
+                <h2><i class="fas fa-user-clock"></i> Lock out User</h2>
                 <button class="modal-close" onclick="closeSuspendModal()">
                     <i class="fas fa-times"></i>
                 </button>
@@ -89,27 +64,11 @@ function openSuspendModal(userId, username, fullName) {
                 <form id="suspendUserForm">
                     <input type="hidden" id="suspendUserId" value="${userId}">
 
-                    <!-- Reason Selection -->
-                    <div class="form-group">
-                        <label for="suspensionReason">Reason for Suspension *</label>
-                        <select id="suspensionReason" name="reason" required style="width: 100%; padding: 0.75rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem;">
-                            <option value="">Select a reason</option>
-                            ${reasonOptions}
-                        </select>
-                    </div>
 
-                    <!-- Custom Reason Input (shown when "Other" is selected) -->
-                    <div class="form-group" id="customReasonGroup" style="display: none; margin-top: 0.5rem;">
-                        <label for="customReason">Custom Reason *</label>
-                        <input type="text"
-                               id="customReason"
-                               placeholder="Enter custom reason"
-                               style="width: 100%; padding: 0.75rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary);">
-                    </div>
 
                     <!-- Duration Selection -->
                     <div class="form-group" style="margin-top: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Suspension Duration *</label>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Lock out Duration *</label>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                             <div>
                                 <label for="durationDays" style="font-size: 0.875rem; color: var(--text-secondary);">Days</label>
@@ -144,7 +103,7 @@ function openSuspendModal(userId, username, fullName) {
                             Cancel
                         </button>
                         <button type="submit" class="btn" style="background-color: #ff9800; color: white;">
-                            <i class="fas fa-user-clock"></i> <span id="suspendBtnText">Suspend User</span>
+                            <i class="fas fa-user-clock"></i> <span id="suspendBtnText">Lock out User</span>
                             <i id="suspendBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
                         </button>
                     </div>
@@ -163,30 +122,14 @@ function openSuspendModal(userId, username, fullName) {
 
 /**
  * Setup event listeners for suspension modal
- * Handles reason selection, duration updates, and form submission
+ * Handles duration updates, and form submission
  */
 function setupSuspendModalListeners() {
     const modal = document.getElementById('suspendUserModal');
     const form = document.getElementById('suspendUserForm');
-    const reasonSelect = document.getElementById('suspensionReason');
-    const customReasonGroup = document.getElementById('customReasonGroup');
     const daysInput = document.getElementById('durationDays');
     const hoursInput = document.getElementById('durationHours');
     const totalDuration = document.getElementById('totalDuration');
-
-    // ========================================
-    // CUSTOM REASON VISIBILITY
-    // ========================================
-    // Show custom reason input when "Other" is selected
-    reasonSelect.addEventListener('change', function() {
-        if (this.value === 'Other') {
-            customReasonGroup.style.display = 'block';
-            document.getElementById('customReason').required = true;
-        } else {
-            customReasonGroup.style.display = 'none';
-            document.getElementById('customReason').required = false;
-        }
-    });
 
     // ========================================
     // DURATION PREVIEW UPDATE
@@ -251,36 +194,17 @@ function closeSuspendModal() {
 async function submitSuspension() {
     // Get form elements
     const userId = document.getElementById('suspendUserId').value;
-    const reasonSelect = document.getElementById('suspensionReason');
-    const customReason = document.getElementById('customReason');
     const durationDays = document.getElementById('durationDays').value;
     const durationHours = document.getElementById('durationHours').value;
     const submitBtn = document.querySelector('#suspendUserForm button[type="submit"]');
     const btnText = document.getElementById('suspendBtnText');
     const btnSpinner = document.getElementById('suspendBtnSpinner');
 
-    // ========================================
-    // DETERMINE SUSPENSION REASON
-    // ========================================
-    // Use custom reason if "Other" is selected
-    let reason = reasonSelect.value;
-    if (reason === 'Other' && customReason.value.trim()) {
-        reason = customReason.value.trim();
-    }
-
-    // ========================================
-    // VALIDATION
-    // ========================================
-    if (!reason) {
-        showErrorToast('Please select a reason for suspension');
-        return;
-    }
-
     const days = parseInt(durationDays) || 0;
     const hours = parseInt(durationHours) || 0;
 
     if (days === 0 && hours === 0) {
-        showErrorToast('Suspension duration must be greater than 0');
+        showErrorToast('Lock out duration must be greater than 0');
         return;
     }
 
@@ -303,8 +227,7 @@ async function submitSuspension() {
             body: JSON.stringify({
                 user_id: userId,
                 duration_days: days,
-                duration_hours: hours,
-                reason: reason
+                duration_hours: hours
             })
         });
 
@@ -320,7 +243,7 @@ async function submitSuspension() {
             }, 1200);
         } else {
             // Show error card and re-enable button
-            showErrorToast(data.message || 'Failed to suspend user');
+            showErrorToast(data.message || 'Failed to Lock out user');
             submitBtn.disabled = false;
             btnText.style.display = 'inline';
             btnSpinner.style.display = 'none';
@@ -384,7 +307,7 @@ function getUserDetailValue(labelText) {
 
 /**
  * Update user details panel to show suspension status
- * Displays suspension banner and changes suspend button to lift suspension
+ * Displays suspension banner and changes suspend button to lift lock out
  *
  * @param {number} userId - ID of user to check and update
  */
@@ -399,9 +322,9 @@ async function updateUserDetailsWithSuspension(userId) {
         // USER IS SUSPENDED
         // ========================================
 
-        // Change button to "Lift Suspension"
+        // Change button to "Lift Lock out"
         if (suspendBtn) {
-            suspendBtn.innerHTML = '<i class="fas fa-user-check"></i> Lift Suspension';
+            suspendBtn.innerHTML = '<i class="fas fa-user-check"></i> Lift Lock out';
             suspendBtn.onclick = function() {
                 const username = getUserDetailValue('Username');
                 liftSuspension(userId, username);
@@ -422,16 +345,13 @@ async function updateUserDetailsWithSuspension(userId) {
                     <i class="fas fa-user-clock" style="color: #ff9800; font-size: 1.5rem; margin-top: 0.25rem;"></i>
                     <div style="flex: 1;">
                         <strong style="color: #ff9800; display: block; margin-bottom: 0.5rem;">
-                            <i class="fas fa-exclamation-triangle"></i> User is Currently Suspended
+                            <i class="fas fa-exclamation-triangle"></i> User is Currently Locked out
                         </strong>
                         <p style="margin: 0.25rem 0; font-size: 0.875rem;">
                             <strong>Until:</strong> ${suspension.suspended_until}
                         </p>
                         <p style="margin: 0.25rem 0; font-size: 0.875rem;">
-                            <strong>Reason:</strong> ${suspension.reason}
-                        </p>
-                        <p style="margin: 0.25rem 0; font-size: 0.875rem;">
-                            <strong>Suspended by:</strong> ${suspension.suspended_by}
+                            <strong>Locked out by:</strong> ${suspension.suspended_by}
                         </p>
                         <p style="margin: 0.25rem 0; font-size: 0.875rem; color: var(--text-secondary);">
                             <i class="fas fa-clock"></i> Time remaining: ${suspension.remaining_days} day(s) and ${suspension.remaining_hours} hour(s)
@@ -445,7 +365,7 @@ async function updateUserDetailsWithSuspension(userId) {
             userDetailInfo.insertAdjacentElement('afterend', banner);
         }
     }
-    // If user is not suspended, button remains as "Suspend User" (no changes needed)
+    // If user is not suspended, button remains as "Lock out User" (no changes needed)
 }
 
 // ============================================
@@ -461,10 +381,10 @@ async function updateUserDetailsWithSuspension(userId) {
  */
 function liftSuspension(userId, username) {
     openDeleteConfirmModal({
-        title: 'Lift Suspension?',
+        title: 'Lift Lock out?',
         itemName: username,
-        message: `Are you sure you want to lift the suspension for ${username}?`,
-        buttonText: 'Lift Suspension',
+        message: `Are you sure you want to lift the lock out for ${username}?`,
+        buttonText: 'Lift Lock out',
         onConfirm: confirmLiftSuspension,
         itemId: userId
     });
@@ -486,10 +406,10 @@ async function confirmLiftSuspension(userId) {
             showSuccessToast(data.message);
             setTimeout(() => window.location.reload(), 1200);
         } else {
-            showErrorToast(data.message || 'Failed to lift suspension');
+            showErrorToast(data.message || 'Failed to lift Lock out');
         }
     } catch (error) {
-        console.error('Error lifting suspension:', error);
+        console.error('Error lifting Lock out:', error);
         closeDeleteConfirmModal();
         showErrorToast('An error occurred. Please try again.');
     }

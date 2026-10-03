@@ -510,7 +510,7 @@ async function handleUserItemClick(item) {
 
             <div class="action-buttons">
                 <button class="btn btn-secondary" onclick="openSuspendModal(${userid}, '${username}', '${firstname} ${lastname}')">
-                    <i class="fas fa-user-clock"></i> Suspend User
+                    <i class="fas fa-user-clock"></i> Lock out User
                 </button>
                 <button class="btn btn-danger" onclick="confirmRemoveUser(${userid}, '${username}', '${firstname} ${lastname}')">
                     <i class="fas fa-user-times"></i> Remove User
