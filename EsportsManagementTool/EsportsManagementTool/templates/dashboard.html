@@ -421,7 +421,6 @@
                         </div>
                         </div>
 
-                        <div id="discordActionMessage" class="form-message" style="display: none;"></div>
                     </div>
                 </div>
             </div>
@@ -522,7 +521,6 @@
                         </div>
                     </div>
 
-                    <div id="notificationMessage" class="form-message" style="display: none;"></div>
                 </div>
             </div>
         </div>
@@ -625,7 +623,6 @@
                     <p>No Game Managers available</p>
                 </div>
 
-                <div id="assignGMMessage" class="form-message" style="display: none; margin-top: 1rem;"></div>
             </div>
         </div>
     </div>
@@ -978,8 +975,6 @@
                             <textarea id="eventDescription" name="eventDescription" placeholder="Enter event description" rows="4" required></textarea>
                         </div>
 
-                        <div id="formMessage" class="form-message" style="display: none;"></div>
-
                         <div class="form-actions">
                             <button type="button" class="btn btn-secondary" onclick="closeCreateEventModal()">Cancel</button>
                             <button type="submit" class="btn btn-primary">
@@ -1300,7 +1295,7 @@
                 <p class="modal-subtitle">Set up a recurring event for this team</p>
 
                 <form id="createScheduledEventForm" class="event-form-modal">
-                    <div class="form-row">
+                    <div class="form-row form-row--paired">
                         <div class="form-group">
                             <label class="required-field" for="scheduledEventName">Event Name</label>
                             <input type="text"
@@ -1329,13 +1324,13 @@
                         </div>
                     </div>
 
-                    <div class="form-row">
+                    <div class="form-row form-row--paired">
                         <div class="form-group">
                             <label class="required-field" for="scheduledFrequencyTagBox">Frequency</label>
                             <div class="filter-box tag-select-box" id="scheduledFrequencyTagBox">
                                 <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledFrequencyPanel')">
                                     <div id="scheduledFrequencyDisplay" class="combo-select-display">
-                                        <span class="combo-placeholder">Select frequency</span>
+                                        <span class="combo-placeholder">Select timing</span>
                                     </div>
                                     <i class="fas fa-chevron-down tag-select-arrow"></i>
                                 </div>
@@ -1394,7 +1389,7 @@
                         <input type="hidden" id="scheduledLeagueSelect" name="league_id">
                     </div>
 
-                    <div class="form-row time-row">
+                    <div class="form-row" id="scheduledDayOfWeekRow">
                         <!-- Day of Week - Hidden when "Once" is selected -->
                         <div class="form-group" id="scheduledDayOfWeekGroup">
                             <label class="required-field" for="scheduledDayOfWeekTagBox">Day of Week</label>
@@ -1417,7 +1412,9 @@
                             </div>
                             <input type="hidden" id="scheduledDayOfWeek" name="day_of_week">
                         </div>
+                    </div>
 
+                    <div class="form-row time-row">
                         <div class="form-group">
                             <label class="required-field" for="scheduledStartTime">Start Time</label>
                             <input type="time"
@@ -1437,9 +1434,9 @@
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="required-field" for="scheduledVisibility">Visibility</label>
-                            <div class="form-group-text">
-                                Match type events are only visible to this team
+                             <label class="required-field" for="scheduledVisibility">Visibility</label>
+                            <div class="form-group-text schedule-row-hint">
+                                Matches are visible to selected team(s)
                             </div>
                             <div class="filter-box tag-select-box" id="scheduledVisibilityTagBox">
                                 <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledVisibilityPanel')">
@@ -1452,6 +1449,7 @@
                                     <div class="filter-box-item" id="visibilityTeamOption" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'team', this.textContent)">Team Only</div>
                                     <div class="filter-box-item" id="visibilityPlayersOption" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'game_players', this.textContent)">Players</div>
                                     <div class="filter-box-item" id="visibilityCommunityOption" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'game_community', this.textContent)">Community Members</div>
+                                    <div class="filter-box-item" id="visibilityAllTeamsOption" style="display: none;" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'all_teams', this.textContent)">All Teams</div>
                                 </div>
                             </div>
                             <input type="hidden" id="scheduledVisibility" name="visibility">
@@ -1459,7 +1457,7 @@
 
                         <div class="form-group">
                             <label class="required-field" for="scheduledEndDate">Schedule End Date</label>
-                            <div class="form-group-text">
+                            <div class="form-group-text schedule-row-hint">
                                 Events will stop being generated after this date
                             </div>
                             <input type="date"
@@ -1487,8 +1485,6 @@
                                   placeholder="Event description (optional)"
                                   rows="3"></textarea>
                     </div>
-
-                    <div id="scheduledEventMessage" class="form-message" style="display: none;"></div>
 
                     <div class="form-actions">
                         <button type="button" class="btn btn-secondary" onclick="closeCreateScheduleModal()">
@@ -1825,32 +1821,34 @@
             <span class="close" onclick="closeEditProfileModal()">&times;</span>
         </div>
 
-        <form id="editProfileForm" class="modal-form">
+        <div class="modal-body">
+        <form id="editProfileForm" class="event-form-modal">
             <div class="form-row">
                 <div class="form-group">
-                    <label for="editFirstName">First Name *</label>
+                    <label for="editFirstName" class="required-field">First Name</label>
                     <input type="text" id="editFirstName" name="firstname" required value="{{ user.firstname }}">
                 </div>
 
                 <div class="form-group">
-                    <label for="editLastName">Last Name *</label>
+                    <label for="editLastName" class="required-field">Last Name</label>
                     <input type="text" id="editLastName" name="lastname" required value="{{ user.lastname }}">
                 </div>
             </div>
 
             <div class="form-group">
-                <label for="editUsername">Username *</label>
+                <label for="editUsername" class="required-field">Username</label>
                 <input type="text" id="editUsername" name="username" required value="{{ user.username }}">
                 <small>This will be your unique identifier</small>
             </div>
 
             <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="editEmail" name="email" value="{{ user.email }}" readonly>
+                <label for="editEmail">Email</label>
+                <div class="input-with-icon">
+                    <input type="email" id="editEmail" name="email" value="{{ user.email }}" readonly>
+                    <i class="fas fa-lock input-lock-icon"></i>
+                </div>
                 <small>You cannot change your email address</small>
             </div>
-
-            <div id="editProfileMessage" class="form-message" style="display: none;"></div>
 
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
@@ -1860,6 +1858,7 @@
                 </button>
             </div>
         </form>
+        </div>
     </div>
 </div>
 
@@ -1891,24 +1890,23 @@
             <span class="close" onclick="closeChangePasswordModal()">&times;</span>
         </div>
 
-        <form id="changePasswordForm" class="modal-form">
+        <div class="modal-body">
+        <form id="changePasswordForm" class="event-form-modal">
             <div class="form-group">
-                <label for="currentPassword">Current Password *</label>
+                <label for="currentPassword" class="required-field">Current Password</label>
                 <input type="password" id="currentPassword" name="current_password" required>
             </div>
 
             <div class="form-group">
-                <label for="newPassword">New Password *</label>
+                <label for="newPassword" class="required-field">New Password</label>
                 <input type="password" id="newPassword" name="new_password" required minlength="8">
                 <small>Must be at least 8 characters</small>
             </div>
 
             <div class="form-group">
-                <label for="confirmPassword">Confirm New Password *</label>
+                <label for="confirmPassword" class="required-field">Confirm New Password</label>
                 <input type="password" id="confirmPassword" name="confirm_password" required>
             </div>
-
-            <div id="changePasswordMessage" class="form-message" style="display: none;"></div>
 
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
@@ -1918,12 +1916,13 @@
                 </button>
             </div>
         </form>
+        </div>
     </div>
 </div>
 
 <!-- Change Avatar Modal -->
 <div id="changeAvatarModal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal">
         <div class="modal-header">
             <h2>Change Profile Picture</h2>
             <button class="modal-close" onclick="closeAvatarModal()">
@@ -2594,7 +2593,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <!-- Delete Modal js (must be called first) -->
 <script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
-<script src="{{ url_for('static', filename='notifications.js') }}"></script>
 <script src="{{ url_for('static', filename='photo-upload.js') }}"></script>
 <!-- Rest of js imports -->
 <script src="{{ url_for('static', filename='badges.js') }}"></script>

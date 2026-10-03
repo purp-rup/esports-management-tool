@@ -326,16 +326,16 @@ async function handleCreateSeason(event) {
         const data = await response.json();
 
         if (data.success) {
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
             // Reload the seasons data
             await loadSeasonsData();
         } else {
-            showDeleteErrorMessage(data.message);
+            showErrorToast(data.message);
         }
 
     } catch (error) {
         console.error('Error creating season:', error);
-        showDeleteErrorMessage('Failed to create season');
+        showErrorToast('Failed to create season');
     } finally {
         btn.disabled = false;
         btnText.style.display = 'inline';
@@ -378,16 +378,16 @@ async function handleUpdateSeason(event) {
         const data = await response.json();
 
         if (data.success) {
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
             // Reload the seasons data
             await loadSeasonsData();
         } else {
-            showDeleteErrorMessage(data.message);
+            showErrorToast(data.message);
         }
 
     } catch (error) {
         console.error('Error updating season:', error);
-        showDeleteErrorMessage('Failed to update season');
+        showErrorToast('Failed to update season');
     } finally {
         btn.disabled = false;
         btnText.style.display = 'inline';
@@ -422,7 +422,7 @@ function confirmEndSeason() {
                 closeDeleteConfirmModal();
 
                 if (data.success) {
-                    showDeleteSuccessMessage(data.message);
+                    showSuccessToast(data.message);
 
                     // Store the current tab before reload
                     sessionStorage.setItem('activeTab', 'admin');
@@ -432,12 +432,12 @@ function confirmEndSeason() {
                         window.location.reload();
                     }, 1000);
                 } else {
-                    showDeleteErrorMessage(data.message);
+                    showErrorToast(data.message);
                 }
             } catch (error) {
                 console.error('Error ending season:', error);
                 closeDeleteConfirmModal();
-                showDeleteErrorMessage('Failed to end season');
+                showErrorToast('Failed to end season');
             }
         },
         itemId: currentSeason.season_id
@@ -478,13 +478,4 @@ function calculateDuration(startStr, endStr) {
         return months > 0 ? `${years} year${years > 1 ? 's' : ''}, ${months} month${months > 1 ? 's' : ''}`
                           : `${years} year${years > 1 ? 's' : ''}`;
     }
-}
-
-/**
- * Helper function to escape HTML
- */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }

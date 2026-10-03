@@ -24,6 +24,7 @@ const ScheduleState = {
     currentGameId: null,
     currentSchedules: [],
     pendingDeleteScheduleId: null,
+    isCaptainOnly: false,
 
     // Reset state to defaults
     reset() {
@@ -31,6 +32,7 @@ const ScheduleState = {
         this.currentGameId = null;
         this.currentSchedules = [];
         this.pendingDeleteScheduleId = null;
+        this.isCaptainOnly = false;
     },
 
     // Set current context
@@ -89,23 +91,22 @@ async function initScheduleButton(teamId, gameId) {
         return;
     }
 
-    // Check user permissions
-    const isGM = window.userPermissions?.is_gm || false;
-
-    if (!isGM || !gameId) {
+    if (!teamId || !gameId) {
         createScheduleBtn.style.display = 'none';
         return;
     }
 
-    // Check if GM manages THIS specific game
+    // Check if this user is allowed to schedule for THIS specific team
+    // (admin, developer, GM of this game, or captain of this team)
     try {
         const userId = window.currentUserId;
 
-        const response = await fetch(`/api/user/${userId}/manages-game/${gameId}`);
+        const response = await fetch(`/api/user/${userId}/can-schedule/${teamId}`);
         const data = await response.json();
 
-        if (data.success && data.manages_game) {
+        if (data.success && data.can_schedule) {
             createScheduleBtn.style.display = 'flex';
+            ScheduleState.isCaptainOnly = !!data.is_captain_only;
 
             // Update visibility dropdown labels with team/game names
             await updateVisibilityLabels(teamId, gameId);
@@ -113,7 +114,7 @@ async function initScheduleButton(teamId, gameId) {
             createScheduleBtn.style.display = 'none';
         }
     } catch (error) {
-        console.error('Error checking GM status:', error);
+        console.error('Error checking schedule permission:', error);
         createScheduleBtn.style.display = 'none';
     }
 }
@@ -170,7 +171,15 @@ async function loadScheduleTab(teamId) {
 }
 
 // Update visibility dropdown labels with team and game names
-async function updateVisibilityLabels(teamId, gameId) {
+async function updateVisibilityLabels(teamId, ids = {}) {
+    const {
+        teamOptionId      = 'visibilityTeamOption',
+        playersOptionId   = 'visibilityPlayersOption',
+        communityOptionId = 'visibilityCommunityOption',
+        allTeamsOptionId  = 'visibilityAllTeamsOption',
+        displaySelector   = null   // only needed when a value is already shown, e.g. Edit mode
+    } = ids;
+
     try {
         const response = await fetch(`/api/teams/${teamId}/details`);
         const data = await response.json();
@@ -179,19 +188,23 @@ async function updateVisibilityLabels(teamId, gameId) {
             const teamName = data.team.title;
             const gameName = data.team.game_title;
 
-            // Update the dropdown options with dynamic names
-            const teamOption = document.getElementById('visibilityTeamOption');
-            const playersOption = document.getElementById('visibilityPlayersOption');
-            const communityOption = document.getElementById('visibilityCommunityOption');
+            const teamOption      = document.getElementById(teamOptionId);
+            const playersOption   = document.getElementById(playersOptionId);
+            const communityOption = document.getElementById(communityOptionId);
+            const allTeamsOption  = document.getElementById(allTeamsOptionId);
 
-            if (teamOption) {
-                teamOption.textContent = `${teamName} only`;
-            }
-            if (playersOption) {
-                playersOption.textContent = `Players for ${gameName}`;
-            }
-            if (communityOption) {
-                communityOption.textContent = `Community Members for ${gameName}`;
+            if (teamOption)      teamOption.textContent = `${teamName} only`;
+            if (playersOption)   playersOption.textContent = `Players for ${gameName}`;
+            if (communityOption) communityOption.textContent = `Community Members for ${gameName}`;
+            if (allTeamsOption)  allTeamsOption.textContent = `All Teams for ${gameName}`;
+
+            // If a value is already on display (edit mode), refresh it too,
+            // in case it was painted from a placeholder name before this resolved
+            if (displaySelector) {
+                const activeOption = [teamOption, playersOption, communityOption, allTeamsOption]
+                    .find(opt => opt?.classList.contains('active'));
+                const textSpan = document.querySelector(displaySelector);
+                if (activeOption && textSpan) textSpan.textContent = activeOption.textContent;
             }
         }
     } catch (error) {
@@ -469,11 +482,17 @@ async function configureScheduleCardButtons(schedule) {
 
     const isActiveSeason = window.currentTeamSeasonIsActive === 1;
     const isDeveloper = window.userPermissions?.is_developer || false;
-    const isAdmin = window.userPermissions?.is_admin || false;
-    const isGM = window.userPermissions?.is_gm || false;
+    const teamId = schedule.team_id || ScheduleState.currentTeamId || currentScheduleTeamId;
 
-    // Edit button - only for active seasons
-    const canEdit = (isAdmin || isGM) && isActiveSeason;
+    // Edit button - only for active seasons, and only for users allowed to
+    // schedule for this specific team (admin, developer, GM of this game,
+    // or captain of this team). Captains may only edit schedules they
+    // created themselves, matching the backend rule in /api/schedule/update.
+    const editPermission = await canUserScheduleForTeam(teamId);
+    const isOwnSchedule = Number(schedule.created_by) === Number(window.currentUserId);
+    const canEdit = editPermission.can_schedule
+        && (!editPermission.is_captain_only || isOwnSchedule)
+        && isActiveSeason;
     if (editBtn) {
         editBtn.style.display = canEdit ? 'flex' : 'none';
     }
@@ -530,12 +549,17 @@ function openCreateScheduleModal() {
     if (specificDateGroup) specificDateGroup.style.display = 'none';
     if (endDateGroup) endDateGroup.style.display = 'flex';
 
-    // Re-enable all visibility options in case a previous session
-    // locked them to "Team Only" for a Match event
+    // Re-show all visibility options in case a previous session
+    // hid them for a Match event
     const playersOption = document.getElementById('visibilityPlayersOption');
     const communityOption = document.getElementById('visibilityCommunityOption');
-    if (playersOption) playersOption.disabled = false;
-    if (communityOption) communityOption.disabled = false;
+    const allTeamsOption = document.getElementById('visibilityAllTeamsOption');
+    if (playersOption)   playersOption.style.display = '';
+    if (communityOption) communityOption.style.display = '';
+    if (allTeamsOption)  allTeamsOption.style.display = 'none'; // only shown once Match is selected
+
+    const visibilityTrigger = document.querySelector('#scheduledVisibilityTagBox .tag-select-trigger');
+    visibilityTrigger?.classList.remove('locked-select');
 
     const dayOfWeekSelect = document.getElementById('scheduledDayOfWeek');
     const specificDateInput = document.getElementById('scheduledSpecificDate');
@@ -545,27 +569,25 @@ function openCreateScheduleModal() {
     if (specificDateInput) specificDateInput.removeAttribute('required');
     if (endDateInput) endDateInput.setAttribute('required', 'required');
 
-
-    // Clear any previous messages
-    const messageDiv = document.getElementById('scheduledEventMessage');
-    if (messageDiv) {
-        messageDiv.style.display = 'none';
-    }
-
     // Update visibility labels before showing modal
     const teamId = ScheduleState.currentTeamId || currentScheduleTeamId;
     const gameId = ScheduleState.currentGameId || currentScheduleGameId;
-    updateVisibilityLabels(teamId, gameId);
+    updateVisibilityLabels(teamId);
 
     // Reset all custom combo dropdowns back to their placeholders
     ['scheduledEventType', 'scheduledFrequency', 'scheduledLocation',
      'scheduledDayOfWeek', 'scheduledVisibility', 'scheduledLeagueSelect'].forEach(key => {
         if (typeof resetComboSelector === 'function') resetComboSelector(key);
     });
+
     // Clear loaded flag so leagues reload fresh for each modal open
     const leaguePanel = document.getElementById('scheduledLeaguePanel');
     if (leaguePanel) leaguePanel.dataset.loaded = '';
     // Note: change handlers are now triggered via onSelect in SingleSelectConfig
+
+    // Apply visibility lock immediately if this user is a team captain,
+    // rather than waiting for an event type to be selected
+    handleEventTypeChangeForVisibility();
 
     // Character Counter
     attachCharacterCounter('scheduledDescription', 250);
@@ -733,16 +755,13 @@ async function handleScheduleSubmit(event) {
     const submitBtn = event.target.querySelector('button[type="submit"]');
     const btnText = submitBtn.querySelector('.btn-text');
     const btnSpinner = submitBtn.querySelector('.btn-spinner');
-    const messageDiv = document.getElementById('scheduledEventMessage');
 
     //Handle match league case
     const eventType = document.getElementById('scheduledEventType').value;
     const leagueSelect = document.getElementById('scheduledLeagueSelect');
-    
+
     if (eventType === 'Match' && !leagueSelect?.value) {
-        messageDiv.textContent = 'Please select a league for Match events.';
-        messageDiv.className = 'form-message error';
-        messageDiv.style.display = 'block';
+        showErrorToast('Please select a league for Match events.');
         leagueSelect?.focus();
         return;
     }
@@ -755,7 +774,6 @@ async function handleScheduleSubmit(event) {
     submitBtn.disabled = true;
     btnText.style.display = 'none';
     btnSpinner.style.display = 'inline-block';
-    messageDiv.style.display = 'none';
 
     // Build form data object
     const teamId = ScheduleState.currentTeamId || currentScheduleTeamId;
@@ -799,32 +817,23 @@ async function handleScheduleSubmit(event) {
         const data = await response.json();
 
         if (data.success) {
-            // Show success message
-            messageDiv.textContent = data.message;
-            messageDiv.className = 'form-message success';
-            messageDiv.style.display = 'block';
-
-            // Reset button state BEFORE closing modal
+            // Reset button state
             submitBtn.disabled = false;
             btnText.style.display = 'inline';
             btnSpinner.style.display = 'none';
 
-            setTimeout(() => {
-                closeCreateScheduleModal();
+            closeCreateScheduleModal();
+            showSuccessToast(data.message);
 
-                // Reload team details if function exists
-                if (typeof selectTeam === 'function') {
-                    selectTeam(teamId);
-                }
-            }, 1500);
+            // Reload team details if function exists
+            if (typeof selectTeam === 'function') {
+                selectTeam(teamId);
+            }
         } else {
             throw new Error(data.message);
         }
     } catch (error) {
-        // Show error message
-        messageDiv.textContent = error.message || 'Failed to create scheduled event';
-        messageDiv.className = 'form-message error';
-        messageDiv.style.display = 'block';
+        showErrorToast(error.message || 'Failed to create scheduled event');
 
         // Reset button state
         submitBtn.disabled = false;
@@ -897,29 +906,70 @@ function openEditScheduleMode(scheduleId) {
         'Online'
     ];
     const isCustomLocation = !presetLocations.includes(schedule.location);
+    const isMatch = schedule.event_type === 'Match';
+
+    // Visibility is locked for Match events, and always locked for team
+    // captains — captains can only ever manage their own team's visibility
+    const isVisibilityLocked = isMatch || ScheduleState.isCaptainOnly;
+
+    // Visibility copy mirrors the Create Schedule modal — real team/game
+    // names instead of generic labels
+    const teamName = schedule.team_name || 'This team';
+    const gameName = schedule.game_title || 'the game';
+
+    const visibilityDisplayText = schedule.visibility === 'game_players' ? `Players for ${gameName}`
+        : schedule.visibility === 'game_community' ? `Community Members for ${gameName}`
+        : `${teamName} only`;
+
+    const visibilityOptionsHtml = `
+        <div class="filter-box-item ${schedule.visibility === 'team' ? 'active' : ''}" id="editVisibilityTeamOption" onclick="event.stopPropagation(); selectComboValue('editScheduleVisibility', 'team', this.textContent)">${teamName} only</div>
+        <div class="filter-box-item ${schedule.visibility === 'game_players' ? 'active' : ''}" id="editVisibilityPlayersOption" onclick="event.stopPropagation(); selectComboValue('editScheduleVisibility', 'game_players', this.textContent)">Players for ${gameName}</div>
+        <div class="filter-box-item ${schedule.visibility === 'game_community' ? 'active' : ''}" id="editVisibilityCommunityOption" onclick="event.stopPropagation(); selectComboValue('editScheduleVisibility', 'game_community', this.textContent)">Community Members for ${gameName}</div>
+    `;
+
+    const visibilityTriggerAttrs = isVisibilityLocked
+        ? 'class="tag-select-trigger locked-select"'
+        : `class="tag-select-trigger" onclick="toggleFilterBox('editScheduleVisibilityPanel')"`;
+
+    const locationOptionsHtml = presetLocations.map(loc => `
+        <div class="filter-box-item ${schedule.location === loc ? 'active' : ''}" onclick="event.stopPropagation(); selectComboValue('editScheduleLocation', '${loc}', '${loc}')">${loc}</div>
+    `).join('') + `
+        <div class="filter-box-item ${isCustomLocation ? 'active' : ''}" onclick="event.stopPropagation(); selectComboValue('editScheduleLocation', 'other', 'Other')">Other</div>
+    `;
+
+    const locationDisplayHtml = isCustomLocation
+        ? `<input type="text" class="combo-custom-input" value="${schedule.location}" placeholder="Enter custom location" onclick="event.stopPropagation();" oninput="document.getElementById('editScheduleLocation').value = this.value;">`
+        : `<span class="combo-selected-text">${schedule.location || 'Select location'}</span>`;
 
     // Build edit form WITH league field support
     modalBody.innerHTML = `
-        <form id="editScheduleForm" class="schedule-edit-form">
+        <form id="editScheduleForm" class="event-form-modal">
             <input type="hidden" id="editScheduleId" value="${scheduleId}">
             <input type="hidden" id="editScheduleTeamId" value="${teamId}">
 
-            <div class="form-group">
-                <label for="editScheduleName">Event Name *</label>
-                <input type="text"
-                       id="editScheduleName"
-                       name="event_name"
-                       value="${schedule.event_name}"
-                       required>
-            </div>
+            <div class="form-row form-row--paired">
+                <div class="form-group">
+                    <label class="required-field" for="editScheduleName">Event Name</label>
+                    <input type="text"
+                           id="editScheduleName"
+                           name="event_name"
+                           value="${schedule.event_name}"
+                           required>
+                </div>
 
-            <div class="form-group">
-                <label for="editScheduleType">Event Type (Cannot be changed)</label>
-                <select id="editScheduleType" name="event_type" required disabled>
-                    <option value="Match" ${schedule.event_type === 'Match' ? 'selected' : ''}>Match</option>
-                    <option value="Practice" ${schedule.event_type === 'Practice' ? 'selected' : ''}>Practice</option>
-                    <option value="Misc" ${schedule.event_type === 'Misc' ? 'selected' : ''}>Misc</option>
-                </select>
+                <div class="form-group">
+                    <label class="required-field" for="editScheduleTypeTagBox">Event Type</label>
+                    <div class="filter-box tag-select-box" id="editScheduleTypeTagBox">
+                        <div class="tag-select-trigger locked-select">
+                            <div id="editScheduleTypeDisplay" class="combo-select-display">
+                                <span class="combo-selected-text">${schedule.event_type}</span>
+                                <i class="fas fa-lock field-lock-icon"></i>
+                            </div>
+                            <i class="fas fa-chevron-down tag-select-arrow"></i>
+                        </div>
+                    </div>
+                    <input type="hidden" id="editScheduleType" name="event_type" value="${schedule.event_type}">
+                </div>
             </div>
 
             <!-- League field for Match events -->
@@ -927,50 +977,51 @@ function openEditScheduleMode(scheduleId) {
                 <label for="editScheduleLeagueSelect" id="editScheduleLeagueLabel">
                     League ${schedule.event_type === 'Match' ? '<span style="color: #ff5252;">*</span>' : '(Optional)'}
                 </label>
-                <select id="editScheduleLeagueSelect" name="league_id" ${schedule.event_type === 'Match' ? 'required' : ''}>
-                    <option value="">Select a league</option>
-                </select>
                 <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
                     Select the league this match is part of
                 </small>
-            </div>
-
-            <div class="form-group">
-                <label>Frequency (Cannot be changed)</label>
-                <input type="text" value="${buildFrequencyText(schedule)}" disabled>
-            </div>
-
-            <div class="form-group">
-                <label for="editScheduleVisibility">Visibility *</label>
-                <select id="editScheduleVisibility" name="visibility" required>
-                    <option value="team" ${schedule.visibility === 'team' || schedule.event_type === 'Match' ? 'selected' : ''}>Team Only</option>
-                    <option value="game_players" ${schedule.visibility === 'game_players' ? 'selected' : ''} ${schedule.event_type === 'Match' ? 'disabled' : ''}>Game Players</option>
-                    <option value="game_community" ${schedule.visibility === 'game_community' ? 'selected' : ''} ${schedule.event_type === 'Match' ? 'disabled' : ''}>Game Community</option>
-                </select>
-                ${schedule.event_type === 'Match' ? '<small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">Match events are always visible to the team only.</small>' : ''}
-            </div>
-
-            <div class="form-group">
-                <label for="editScheduleLocation">Location *</label>
-                <select id="editScheduleLocation" name="location" required>
-                    <option value="">Select location</option>
-                    <option value="Campus Center" ${schedule.location === 'Campus Center' ? 'selected' : ''}>Campus Center</option>
-                    <option value="Campus Center Coffee House" ${schedule.location === 'Campus Center Coffee House' ? 'selected' : ''}>Campus Center Coffee House</option>
-                    <option value="Campus Center Event Room" ${schedule.location === 'Campus Center Event Room' ? 'selected' : ''}>Campus Center Event Room</option>
-                    <option value="D-108" ${schedule.location === 'D-108' ? 'selected' : ''}>D-108</option>
-                    <option value="Esports Lab (Commons Building 80)" ${schedule.location === 'Esports Lab (Commons Building 80)' ? 'selected' : ''}>Esports Lab (Commons Building 80)</option>
-                    <option value="Lakeside Lodge" ${schedule.location === 'Lakeside Lodge' ? 'selected' : ''}>Lakeside Lodge</option>
-                    <option value="Online" ${schedule.location === 'Online' ? 'selected' : ''}>Online</option>
-                    <option value="other" ${isCustomLocation ? 'selected' : ''}>Other</option>
+                <select id="editScheduleLeagueSelect" name="league_id" ${schedule.event_type === 'Match' ? 'required' : ''}>
+                    <option value="">Select a league</option>
                 </select>
             </div>
 
-            <div class="form-group" id="editCustomLocationGroup" style="display: ${isCustomLocation ? 'block' : 'none'};">
-                <label for="editCustomLocation">Custom Location</label>
-                <input type="text"
-                       id="editCustomLocation"
-                       name="custom_location"
-                       value="${isCustomLocation ? schedule.location : ''}">
+            <div class="form-group">
+                <label>Frequency</label>
+                <div class="input-with-icon">
+                    <input type="text" value="${buildFrequencyText(schedule)}" disabled>
+                    <i class="fas fa-lock input-lock-icon"></i>
+                </div>
+            </div>
+
+                    <label class="required-field" for="editScheduleVisibilityTagBox">Visibility</label>
+                    <div class="filter-box tag-select-box" id="editScheduleVisibilityTagBox" ${isVisibilityLocked ? 'title="Visibility cannot be changed."' : ''}>
+                        <div ${visibilityTriggerAttrs}>
+                            <div id="editScheduleVisibilityDisplay" class="combo-select-display">
+                                <span class="combo-selected-text">${visibilityDisplayText}</span>
+                                ${isVisibilityLocked ? '<i class="fas fa-lock field-lock-icon"></i>' : ''}
+                            </div>
+                            <i class="fas fa-chevron-down tag-select-arrow"></i>
+                        </div>
+                        ${isVisibilityLocked ? '' : `<div class="filter-box-panel tag-select-panel" id="editScheduleVisibilityPanel">${visibilityOptionsHtml}</div>`}
+                    </div>
+                    <input type="hidden" id="editScheduleVisibility" name="visibility" value="${isMatch ? 'team' : schedule.visibility}">
+                </div>
+
+                <div class="form-group">
+                    <label class="required-field" for="editScheduleLocationTagBox">Location</label>
+                    <div class="filter-box tag-select-box" id="editScheduleLocationTagBox">
+                        <div class="tag-select-trigger" onclick="toggleFilterBox('editScheduleLocationPanel')">
+                            <div id="editScheduleLocationDisplay" class="combo-select-display">
+                                ${locationDisplayHtml}
+                            </div>
+                            <i class="fas fa-chevron-down tag-select-arrow"></i>
+                        </div>
+                        <div class="filter-box-panel tag-select-panel" id="editScheduleLocationPanel">
+                            ${locationOptionsHtml}
+                        </div>
+                    </div>
+                    <input type="hidden" id="editScheduleLocation" name="location" value="${schedule.location}">
+                </div>
             </div>
 
             <div class="form-group">
@@ -979,8 +1030,6 @@ function openEditScheduleMode(scheduleId) {
                           name="description"
                           rows="3">${schedule.description || ''}</textarea>
             </div>
-
-            <div id="editScheduleMessage" class="form-message" style="display: none;"></div>
 
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeScheduleModal()">
@@ -994,13 +1043,20 @@ function openEditScheduleMode(scheduleId) {
         </form>
     `;
 
-    // Attach location dropdown handler
-    setupEditLocationHandler();
-
     // Load leagues using team_id from schedule or context
     if (schedule.event_type === 'Match' && teamId) {
         console.log('Loading leagues for team_id:', teamId, 'current league:', schedule.league_id);
         loadEditScheduleLeagues(teamId, schedule.league_id);
+    }
+
+    // Load real team/game names for the visibility dropdown
+    if (!isVisibilityLocked && teamId) {
+        updateVisibilityLabels(teamId, {
+            teamOptionId:      'editVisibilityTeamOption',
+            playersOptionId:   'editVisibilityPlayersOption',
+            communityOptionId: 'editVisibilityCommunityOption',
+            displaySelector:   '#editScheduleVisibilityDisplay .combo-selected-text'
+        });
     }
 
     // Attach form submit handler
@@ -1072,23 +1128,6 @@ async function loadEditScheduleLeagues(teamId, currentLeagueId) {
         leagueSelect.disabled = false;
     }
 }
-// Setup location dropdown handler for edit form
-function setupEditLocationHandler() {
-    const locationSelect = document.getElementById('editScheduleLocation');
-    const customLocationGroup = document.getElementById('editCustomLocationGroup');
-    const customLocationInput = document.getElementById('editCustomLocation');
-
-    locationSelect.addEventListener('change', function() {
-        if (this.value === 'other') {
-            customLocationGroup.style.display = 'block';
-            customLocationInput.required = true;
-        } else {
-            customLocationGroup.style.display = 'none';
-            customLocationInput.required = false;
-            customLocationInput.value = '';
-        }
-    });
-}
 
 // Cancel edit mode and return to view mode
 function cancelEditSchedule(scheduleId) {
@@ -1101,14 +1140,10 @@ async function handleEditScheduleSubmit(event) {
 
     const eventType = document.getElementById('editScheduleType').value;
     const leagueSelect = document.getElementById('editScheduleLeagueSelect');
-    const messageDiv = document.getElementById('editScheduleMessage');
 
     // Validate league selection for Match events
     if (eventType === 'Match' && !leagueSelect.value) {
-        messageDiv.textContent = 'Please select a league for this match event.';
-        messageDiv.className = 'form-message error';
-        messageDiv.style.display = 'block';
-        
+        showErrorToast('Please select a league for this match event.');
         leagueSelect.focus();
         return;
     }
@@ -1120,22 +1155,17 @@ async function handleEditScheduleSubmit(event) {
     submitBtn.disabled = true;
     btnText.style.display = 'none';
     btnSpinner.style.display = 'inline-block';
-    messageDiv.style.display = 'none';
 
     const scheduleId = document.getElementById('editScheduleId').value;
     const teamId = document.getElementById('editScheduleTeamId').value;
-    const locationSelect = document.getElementById('editScheduleLocation');
-    const customLocationInput = document.getElementById('editCustomLocation');
-    const location = locationSelect.value === 'other'
-        ? customLocationInput.value
-        : locationSelect.value;
+    const location = document.getElementById('editScheduleLocation').value;
 
     const formData = {
         schedule_id: scheduleId,
         team_id: teamId,
         event_name: document.getElementById('editScheduleName').value,
         event_type: eventType,
-        visibility: eventType === 'Match' ? 'team' : document.getElementById('scheduledVisibility').value,
+        visibility: (eventType === 'Match' || ScheduleState.isCaptainOnly) ? 'team' : document.getElementById('editScheduleVisibility').value,
         location: location,
         description: document.getElementById('editScheduleDescription').value
     };
@@ -1157,24 +1187,21 @@ async function handleEditScheduleSubmit(event) {
         const data = await response.json();
 
         if (data.success) {
-            messageDiv.textContent = data.message;
-            messageDiv.className = 'form-message success';
-            messageDiv.style.display = 'block';
+            submitBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnSpinner.style.display = 'none';
 
-            setTimeout(() => {
-                closeScheduleModal();
+            closeScheduleModal();
+            showSuccessToast(data.message);
 
-                if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
-                    loadScheduleTab(currentSelectedTeamId);
-                }
-            }, 1500);
+            if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
+                loadScheduleTab(currentSelectedTeamId);
+            }
         } else {
             throw new Error(data.message);
         }
     } catch (error) {
-        messageDiv.textContent = error.message || 'Failed to update schedule';
-        messageDiv.className = 'form-message error';
-        messageDiv.style.display = 'block';
+        showErrorToast(error.message || 'Failed to update schedule');
 
         submitBtn.disabled = false;
         btnText.style.display = 'inline';
@@ -1186,10 +1213,30 @@ async function handleEditScheduleSubmit(event) {
 // DELETE SCHEDULE
 // ============================================
 
+// Check if the current user is allowed to schedule for a given team
+// (admin, developer, GM of that game, or captain of that team)
+async function canUserScheduleForTeam(teamId) {
+    if (!teamId) {
+        return { can_schedule: false, is_captain_only: false };
+    }
+
+    try {
+        const userId = window.currentUserId;
+        const response = await fetch(`/api/user/${userId}/can-schedule/${teamId}`);
+        const data = await response.json();
+        return {
+            can_schedule: !!(data.success && data.can_schedule),
+            is_captain_only: !!(data.success && data.is_captain_only)
+        };
+    } catch (error) {
+        console.error('Error checking schedule permission:', error);
+        return { can_schedule: false, is_captain_only: false };
+    }
+}
+
 // Check if current user can delete a schedule
 async function canUserDeleteSchedule(schedule) {
     const is_developer = window.userPermissions?.is_developer || false;
-    const sessionUserId = window.currentUserId || 0;
 
     // Developers can always delete
     if (is_developer) {
@@ -1210,20 +1257,21 @@ async function canUserDeleteSchedule(schedule) {
         return false;
     }
 
-    // Check if user is the GM for this game
-    try {
-        const response = await fetch(`/api/user/${sessionUserId}/manages-game/${schedule.game_id}`);
-        const data = await response.json();
+    // Check if user is allowed to schedule for this specific team
+    // (admin, GM of this game, or captain of this team)
+    const teamId = schedule.team_id || ScheduleState.currentTeamId || currentScheduleTeamId;
+    const permission = await canUserScheduleForTeam(teamId);
 
-        if (data.success && data.manages_game) {
-            return true;
-        }
-    } catch (error) {
-        console.error('Error checking GM status:', error);
+    if (!permission.can_schedule) {
         return false;
     }
 
-    return false;
+    // Captains may only delete schedules they created themselves
+    if (permission.is_captain_only) {
+        return Number(schedule.created_by) === Number(window.currentUserId);
+    }
+
+    return true;
 }
 
 // Get time remaining for deletion window
@@ -1292,8 +1340,8 @@ function confirmDeleteSchedule(scheduleId) {
 
 // Show notification when a schedule is auto-deleted
 function showScheduleCleanupNotification(scheduleName) {
-    if (typeof window.showInfoMessage === 'function') {
-        window.showInfoMessage(
+    if (typeof window.showInfoToast === 'function') {
+        window.showInfoToast(
             `Schedule "${scheduleName}" was automatically removed (no events remaining)`,
             4000
         );
@@ -1353,23 +1401,59 @@ function handleEventTypeChangeForLeague() {
 // VISIBILITY RESTRICTION FOR MATCHES
 // ============================================
 
-// Match events can only be visible to the team for match result purposes
+// Match events can only be visible to a team, or to all teams for the game
 function handleEventTypeChangeForVisibility() {
-    const eventType       = document.getElementById('scheduledEventType').value;
-    const playersOption   = document.getElementById('visibilityPlayersOption');
-    const communityOption = document.getElementById('visibilityCommunityOption');
+    const eventType         = document.getElementById('scheduledEventType').value;
+    const playersOption     = document.getElementById('visibilityPlayersOption');
+    const communityOption   = document.getElementById('visibilityCommunityOption');
+    const allTeamsOption    = document.getElementById('visibilityAllTeamsOption');
+    const visibilityTrigger = document.querySelector('#scheduledVisibilityTagBox .tag-select-trigger');
+    const visibilityDisplay = document.getElementById('scheduledVisibilityDisplay');
 
-    if (eventType === 'Match') {
-        // Force visibility to Team Only and lock other options
-            if (typeof selectComboValue === 'function') {
+    // Captains can only ever schedule for their own team, so visibility
+    // stays locked to "Team Only" no matter what event type is picked
+    if (ScheduleState.isCaptainOnly) {
+        if (typeof selectComboValue === 'function') {
             const label = document.getElementById('visibilityTeamOption')?.textContent?.trim() || 'Team Only';
             selectComboValue('scheduledVisibility', 'team', label);
         }
-        playersOption?.classList.add('disabled-option');
-        communityOption?.classList.add('disabled-option');
+
+        if (playersOption)   playersOption.style.display = 'none';
+        if (communityOption) communityOption.style.display = 'none';
+        if (allTeamsOption)  allTeamsOption.style.display = 'none';
+
+        visibilityTrigger?.classList.add('locked-select');
+        if (visibilityDisplay && !visibilityDisplay.querySelector('.field-lock-icon')) {
+            visibilityDisplay.insertAdjacentHTML('beforeend', '<i class="fas fa-lock field-lock-icon"></i>');
+        }
+        return;
+    }
+
+    if (eventType === 'Match') {
+        // Default to Team Only; the creator can still switch to
+        // "All Teams for [game]" since that option is shown below
+        if (typeof selectComboValue === 'function') {
+            const label = document.getElementById('visibilityTeamOption')?.textContent?.trim() || 'Team Only';
+            selectComboValue('scheduledVisibility', 'team', label);
+        }
+
+        // Hide the options that don't apply to matches entirely, rather
+        // than just graying them out, and reveal "All Teams"
+        if (playersOption)   playersOption.style.display = 'none';
+        if (communityOption) communityOption.style.display = 'none';
+        if (allTeamsOption)  allTeamsOption.style.display = '';
+
+        // Dropdown stays open-able now so Team vs All Teams can be chosen;
+        // just clear any stale lock icon from a previous session
+        visibilityTrigger?.classList.remove('locked-select');
+        visibilityDisplay?.querySelector('.field-lock-icon')?.remove();
     } else {
-        playersOption?.classList.remove('disabled-option');
-        communityOption?.classList.remove('disabled-option');
+        if (playersOption)   playersOption.style.display = '';
+        if (communityOption) communityOption.style.display = '';
+        if (allTeamsOption)  allTeamsOption.style.display = 'none';
+
+        visibilityTrigger?.classList.remove('locked-select');
+        visibilityDisplay?.querySelector('.field-lock-icon')?.remove();
     }
 }
 
@@ -1428,28 +1512,17 @@ async function confirmDeleteScheduleAction(scheduleId) {
             window.closeDeleteConfirmModal();
             closeScheduleModal();
 
-            // Show success message
-            const successDiv = document.createElement('div');
-            successDiv.className = 'events-info-message';
-            successDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000; background: #10b981; border-color: #10b981; color: white;';
-            successDiv.innerHTML = `
-                <i class="fas fa-check-circle"></i>
-                <p>${data.message}</p>
-            `;
-            document.body.appendChild(successDiv);
+            showSuccessToast(data.message);
 
-            setTimeout(() => {
-                successDiv.remove();
-                if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
-                    loadScheduleTab(currentSelectedTeamId);
-                }
-            }, 2000);
+            if (typeof loadScheduleTab === 'function' && currentSelectedTeamId) {
+                loadScheduleTab(currentSelectedTeamId);
+            }
         } else {
             handleScheduleDeleteError(data.message);
         }
     } catch (error) {
         console.error('Error deleting schedule:', error);
-        alert('Failed to delete schedule. Please try again.');
+        showErrorToast('Failed to delete schedule. Please try again.');
         window.closeDeleteConfirmModal();
     }
 }
@@ -1457,11 +1530,11 @@ async function confirmDeleteScheduleAction(scheduleId) {
 // Handle schedule delete errors
 function handleScheduleDeleteError(message) {
     if (message.includes('expired') || message.includes('24')) {
-        alert(`${message}\n\nOnly developers can delete schedules after 24 hours.`);
+        showErrorToast(`${message} Only developers can delete schedules after 24 hours.`, 5000);
     } else if (message.includes('creator') || message.includes('Manager')) {
-        alert(`${message}`);
+        showErrorToast(message);
     } else {
-        alert('Error: ' + message);
+        showErrorToast('Error: ' + message);
     }
     window.closeDeleteConfirmModal();
 }

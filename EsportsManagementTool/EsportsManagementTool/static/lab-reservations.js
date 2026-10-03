@@ -206,13 +206,6 @@ function getCapacityColorKey(totalFraction) {
     return 'red';
 }
 
-/** Minimal HTML escaping for text interpolated into innerHTML (first names, lab status) */
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
 /**
  * Renders a persistent lab reservation impact notice. Visually matches the
  * blue info toast from notifications.js and stacks through the same
@@ -404,7 +397,7 @@ function confirmDeleteMyLabReservation(reservationId) {
 
                 if (response.ok && data.success) {
                     closeDeleteConfirmModal();
-                    showDeleteSuccessMessage(data.message || 'Lab reservation deleted.');
+                    showSuccessToast(data.message || 'Lab reservation deleted.');
                     loadMyLabReservations();
                     if (typeof currentCalendarView !== 'undefined' && currentCalendarView === 'labs') {
                         loadCalendarLabReservations();
@@ -414,7 +407,7 @@ function confirmDeleteMyLabReservation(reservationId) {
                 }
             } catch (error) {
                 console.error('Error deleting lab reservation:', error);
-                showDeleteErrorMessage(error.message || 'Failed to delete reservation.');
+                showErrorToast(error.message || 'Failed to delete reservation.');
                 closeDeleteConfirmModal();
             }
         }
@@ -423,7 +416,7 @@ function confirmDeleteMyLabReservation(reservationId) {
 
 /**
  * Builds the "Let X know..." message text for the impact notification.
- * Actually displaying it reuses showInfoMessage() from notifications.js,
+ * Actually displaying it reuses showInfoToast() from notifications.js,
  * which already gives the right blue card + queue stacking.
  */
 function buildLabImpactMessage(names) {

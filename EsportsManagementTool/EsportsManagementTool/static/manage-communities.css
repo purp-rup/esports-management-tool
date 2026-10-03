@@ -230,9 +230,9 @@
 
 /* Unified action button styling */
 .community-action-btn {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
     border: 2px solid var(--border-color);
     background: transparent;
     color: var(--text-secondary);
@@ -251,12 +251,7 @@
 
 /* Discord indicator on manage community cards */
 .community-action-btn.discord-indicator {
-    cursor: default;
-}
-
-.community-action-btn.discord-indicator:hover {
-    background: transparent;
-    transform: none;
+    cursor: pointer;
 }
 
 .community-action-btn.discord-indicator.has-discord {
@@ -634,6 +629,50 @@
 
     .team-size-checkbox .checkbox-icon {
         font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .community-manage-card {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .community-manage-header {
+        order: 1;
+    }
+
+    .community-manage-info {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: left;
+        gap: 0.5rem;
+    }
+
+    .community-manage-title {
+        width: 100%;
+    }
+
+    .community-header-right {
+        order: 2;
+        position: static;
+        width: 100%;
+        align-items: flex-start;
+    }
+
+    .community-header-actions {
+        justify-content: flex-start;
+    }
+
+    .community-gm-compact {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .community-action-buttons {
+        order: 3;
+        margin-top: 0.5rem
     }
 }
 

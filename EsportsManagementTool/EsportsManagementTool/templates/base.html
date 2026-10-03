@@ -444,9 +444,9 @@
             msgs.forEach(function (pair) {
                 const category = pair[0];
                 const message  = pair[1];
-                if (category === 'error')        showDeleteErrorMessage(message);
-                else if (category === 'success') showDeleteSuccessMessage(message);
-                else                             showInfoMessage(message);
+                if (category === 'error')        showErrorToast(message);
+                else if (category === 'success') showSuccessToast(message);
+                else                             showInfoToast(message);
             });
         })();
     </script>

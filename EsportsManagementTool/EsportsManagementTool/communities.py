@@ -744,24 +744,27 @@ def get_community_details(game_id):
             member_count = member_counts.get(game_id, 0)
             team_count = team_counts.get(game_id, 0)
 
+            formatted_members = []
+            assigned_gm_id = None
             try:
                 cursor.execute("""
-                               SELECT u.id, u.firstname, u.lastname, u.username,
-                                      u.profile_picture, p.is_admin, p.is_developer, p.is_gm,
-                                      p.is_player, c.joined_at, (u.id = gm.gm_id) as is_game_manager,
-                                      d.discord_username, d.discord_discriminator,
-                                      GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
-                               FROM in_communities c
-                               JOIN games gm ON c.game_id = gm.GameID
-                               JOIN users u ON c.user_id = u.id
-                               LEFT JOIN permissions p ON u.id = p.userid
-                               LEFT JOIN discord d ON d.userid = u.id
-                               LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
-                               LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
-                               WHERE c.game_id = %s
-                               GROUP BY u.id
-                               ORDER BY (u.id = gm.gm_id) DESC, p.is_developer DESC, p.is_admin DESC, p.is_gm DESC, c.joined_at ASC
-                               """, (game_id,))
+                    SELECT u.id, u.firstname, u.lastname, u.username,
+                           u.profile_picture, ANY_VALUE(p.is_admin) as is_admin, ANY_VALUE(p.is_developer) as is_developer,
+                           ANY_VALUE(p.is_gm) as is_gm, ANY_VALUE(p.is_player) as is_player,
+                           ANY_VALUE(c.joined_at) as joined_at, ANY_VALUE(u.id = gm.gm_id) as is_game_manager,
+                           ANY_VALUE(d.discord_username) as discord_username, ANY_VALUE(d.discord_discriminator) as discord_discriminator,
+                           GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
+                   FROM in_communities c
+                   JOIN games gm ON c.game_id = gm.GameID
+                   JOIN users u ON c.user_id = u.id
+                   LEFT JOIN permissions p ON u.id = p.userid
+                   LEFT JOIN discord d ON d.userid = u.id
+                   LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
+                   LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
+                   WHERE c.game_id = %s
+                   GROUP BY u.id
+                   ORDER BY (u.id = gm.gm_id) DESC, p.is_developer DESC, p.is_admin DESC, p.is_gm DESC, c.joined_at ASC
+                   """, (game_id,))
                 members = cursor.fetchall()
 
                 # Finish building user profiles using universal_helper function

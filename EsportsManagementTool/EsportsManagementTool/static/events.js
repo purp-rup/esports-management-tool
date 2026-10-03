@@ -79,8 +79,11 @@ function attachEventListeners() {
     // Events tab click
     const eventsTab = document.querySelector('[data-tab="events"]');
     if (eventsTab) {
-        eventsTab.addEventListener('click', () => setTimeout(loadEvents, 100));
-    }
+        eventsTab.addEventListener('click', () => {
+            closeEventDetailPanel();
+            setTimeout(loadEvents, 100);
+        });
+}
 
     // Delete modal background click (close on backdrop)
     const deleteModal = document.getElementById('deleteEventConfirmModal');
@@ -609,10 +612,10 @@ async function handleCreateLabReservationSubmit(e) {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            showDeleteSuccessMessage(data.message || (isEditing ? 'Lab reservation updated!' : 'Lab reservation created successfully!'));
+            showSuccessToast(data.message || (isEditing ? 'Lab reservation updated!' : 'Lab reservation created successfully!'));
 
             if (data.impacted_names && data.impacted_names.length > 0) {
-                setTimeout(() => showInfoMessage(buildLabImpactMessage(data.impacted_names)), 500);
+                setTimeout(() => showInfoToast(buildLabImpactMessage(data.impacted_names)), 500);
                 setTimeout(() => window.location.reload(), 3200);
             } else {
                 setTimeout(() => window.location.reload(), 900);
@@ -741,14 +744,14 @@ async function handleCreateEventSubmit(e) {
         if (response.ok && data.success) {
             const [successMsg, deletionMsg] = (data.message || 'Event created successfully!').split('\n');
 
-            showDeleteSuccessMessage(successMsg || 'Event created successfully!');
+            showSuccessToast(successMsg || 'Event created successfully!');
 
             // Developers have no deletion time limit, so they never get this reminder.
             const showDeletionReminder = deletionMsg && !window.userPermissions?.is_developer;
             let reloadDelay = 900;
 
             if (showDeletionReminder) {
-                setTimeout(() => showInfoMessage(deletionMsg), 700);
+                setTimeout(() => showInfoToast(deletionMsg), 700);
                 reloadDelay = 1800;
             }
 
@@ -1056,14 +1059,14 @@ async function confirmDeleteEvent(eventId) {
             }
 
             // Show success notification FIRST
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
 
             // If schedule was auto-deleted, show additional notification with proper delay
             if (data.schedule_deleted && data.schedule_name) {
                 // Wait for first notification to appear and settle
                 setTimeout(() => {
-                    if (typeof window.showInfoMessage === 'function') {
-                        window.showInfoMessage(
+                    if (typeof window.showInfoToast === 'function') {
+                        window.showInfoToast(
                             `Schedule "${data.schedule_name}" was automatically removed (no events remaining)`,
                             4000
                         );
@@ -1088,7 +1091,7 @@ async function confirmDeleteEvent(eventId) {
         }
     } catch (error) {
         console.error('Error deleting event:', error);
-        showDeleteErrorMessage('An error occurred while deleting the event');
+        showErrorToast('An error occurred while deleting the event');
         window.closeDeleteConfirmModal();
     }
 }
@@ -1098,11 +1101,11 @@ function handleDeleteError(message) {
     window.closeDeleteConfirmModal();
 
     if (message.includes('expired') || message.includes('24')) {
-        showDeleteErrorMessage(`⏰ ${message}\n\nOnly developers can delete events after 24 hours.`);
+        showErrorToast(`⏰ ${message}\n\nOnly developers can delete events after 24 hours.`);
     } else if (message.includes('creator')) {
-        showDeleteErrorMessage(`🚫 ${message}`);
+        showErrorToast(`🚫 ${message}`);
     } else {
-        showDeleteErrorMessage('Error: ' + message);
+        showErrorToast('Error: ' + message);
     }
 }
 
@@ -1314,6 +1317,33 @@ function partnershipRow(partnerships) {
     `;
 }
 
+// Closes the event detail panel
+function closeEventDetailPanel() {
+    const pane = document.getElementById('eventsDetailPane');
+    if (!pane) return;
+
+    // Closes banners/flairs on closed teams
+    const bannerEl = document.getElementById('eventDetailBanner');
+    if (bannerEl) clearInterval(bannerEl._slideInterval);
+    const flairStage = document.getElementById('partnershipFlairStage');
+    if (flairStage) clearInterval(flairStage,_flairInterval)
+
+    EventState.currentEventId = null;
+    EventState.currentEventData = null;
+
+    // Restore HTML
+    pane.innerHTML = `
+        <div class="events-detail-placeholder">
+            <i class="fas fa-calendar-alt"></i>
+            <p>Select an event to view details</p>
+        </div>
+    `;
+
+    // Mobile
+    if (window.innerWidth <= 768) {}
+        closeEventDetailSheet();
+}
+
 // Closes the event detail pane in MOBILE VIEW
 function closeEventDetailSheet() {
     const pane = document.getElementById('eventsDetailPane');
@@ -1455,6 +1485,7 @@ async function loadGamesForFilter() {
 
 // Sets active filter using only a primary option from the first box
 function applyPrimaryFilter(value, label) {
+    closeEventDetailPanel();
     document.getElementById('filterBox1Label').textContent = label;
     document.getElementById('eventFilter').value = value;
     EventState.selectedGame = null;
@@ -1471,6 +1502,7 @@ function applyPrimaryFilter(value, label) {
 
 // Sets active filter using submenu flyout in first box
 function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, subLabel) {
+    closeEventDetailPanel();
     document.getElementById('filterBox1Label').textContent = `${filterLabel}: ${subLabel}`;
     document.getElementById('eventFilter').value = filterVal;
     document.getElementById(subSelectId).value = subVal;
@@ -1493,6 +1525,7 @@ function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, 
 
 // Sets active filter using the selected past season
 function applyPastSeasonFilter(seasonId, seasonName) {
+    closeEventDetailPanel();
     document.getElementById('filterBox1Label').textContent = seasonName;
     document.getElementById('eventFilter').value = 'past_season';
     document.getElementById('pastSeasonSelect').value = seasonId;
@@ -1512,6 +1545,7 @@ function applyPastSeasonFilter(seasonId, seasonName) {
 
 // Sets active filter using past season and the primary selection from second filter box
 function applySecondaryFilter(value, label) {
+    closeEventDetailPanel();
     document.getElementById('filterBox2Label').textContent = label;
     document.getElementById('pastSeasonSecondaryFilter').value = value;
     closeAllFilterPanels();
@@ -1523,6 +1557,7 @@ function applySecondaryFilter(value, label) {
 
 // Sets active filter using past season and the submenu flyout option selected in the second box
 function applySecondaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, subLabel) {
+    closeEventDetailPanel();
     document.getElementById('filterBox2Label').textContent = `${filterLabel}: ${subLabel}`;
     document.getElementById('pastSeasonSecondaryFilter').value = filterVal;
     document.getElementById(subSelectId).value = subVal;
@@ -1640,6 +1675,7 @@ function initPartnershipFilterFlyout() {
    Event Filtering
    =============================== */
 function filterEvents() {
+    closeEventDetailPanel();
     const filterSelect = document.getElementById('eventFilter');
     const filterValue = filterSelect?.value || 'all';
 
@@ -1832,7 +1868,7 @@ const SingleSelectConfig = {
     scheduledFrequency: {
         hiddenInput: 'scheduledFrequency',
         display:     'scheduledFrequencyDisplay',
-        placeholder: 'Select frequency',
+        placeholder: 'Select timing',
         allowCustom: false,
         onSelect: () => { if (typeof handleFrequencyChange === 'function') handleFrequencyChange(); }
     },
@@ -1870,6 +1906,19 @@ const SingleSelectConfig = {
         display:     'scheduledLeagueDisplay',
         placeholder: 'Select a league',
         allowCustom: false
+    },
+        editScheduleVisibility: {
+        hiddenInput: 'editScheduleVisibility',
+        display:     'editScheduleVisibilityDisplay',
+        placeholder: 'Who can see this?',
+        allowCustom: false
+    },
+    editScheduleLocation: {
+        hiddenInput: 'editScheduleLocation',
+        display:     'editScheduleLocationDisplay',
+        placeholder: 'Select location',
+        allowCustom: true,
+        customPlaceholder: 'Enter custom location'
     }
 };
 
@@ -2501,4 +2550,5 @@ window.filterEventsByPastSeason = filterEventsByPastSeason;
 
 // Event Detail Panel
 window.openEventDetailPanel = openEventDetailPanel;
+window.closeEventDetailPanel = closeEventDetailPanel;
 window.closeEventDetailSheet = closeEventDetailSheet;

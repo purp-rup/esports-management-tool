@@ -101,38 +101,28 @@ async function updateGameMembership(gameId, action) {
         });
         const data = await res.json();
         if (data.success) {
-            if (typeof showDeleteSuccessMessage === 'function') {
-                showDeleteSuccessMessage(data.message);
+            if (typeof showSuccessToast === 'function') {
+                showSuccessToast(data.message);
             } else {
                 alert(data.message);
             }
             if (typeof closeCommunityModal === 'function') closeCommunityModal();
             if (typeof loadGames === 'function') loadGames();
         } else {
-            if (typeof showDeleteErrorMessage === 'function') {
-                showDeleteErrorMessage(data.message || `Failed to ${action} community`);
+            if (typeof showErrorToast === 'function') {
+                showErrorToast(data.message || `Failed to ${action} community`);
             } else {
                 alert(`Error: ${data.message}`);
             }
         }
     } catch (error) {
         console.error(`Error ${action}ing community:`, error);
-        if (typeof showDeleteErrorMessage === 'function') {
-            showDeleteErrorMessage(`Failed to ${action} community. Please try again.`);
+        if (typeof showErrorToast === 'function') {
+            showErrorToast(`Failed to ${action} community. Please try again.`);
         } else {
             alert(`Failed to ${action} community. Please try again.`);
         }
     }
-}
-
-function escapeHtml(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
 }
 
 // Fetch photos for this community and boot the carousel
@@ -320,14 +310,14 @@ async function executePhotoDelete(photoId) {
             }
             closeDeleteConfirmModal();
             renderCarousel();
-            showDeleteSuccessMessage('Photo deleted successfully.');
+            showSuccessToast('Photo deleted successfully.');
         } else {
             closeDeleteConfirmModal();
-            showDeleteErrorMessage('Delete failed: ' + data.message);
+            showErrorToast('Delete failed: ' + data.message);
         }
     } catch (e) {
         closeDeleteConfirmModal();
-        showDeleteErrorMessage('Delete failed. Please try again.');
+        showErrorToast('Delete failed. Please try again.');
     }
 }
 
