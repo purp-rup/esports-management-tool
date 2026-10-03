@@ -348,18 +348,21 @@ function getCurrentScheduleWeekDates() {
     return week;
 }
 
+// YYYY-MM-DD in the user's local timezone (toISOString would shift to UTC)
 function formatDateISO(date) {
-    return date.toISOString().split('T')[0];
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
 }
 
-function getSchedulesForDate(dateStr, dayName) {
-    return ScheduleState.currentSchedules.filter(schedule => {
-        if (schedule.frequency === 'Once') {
-            return schedule.specific_date === dateStr;
-        }
-        const withinRange = !schedule.schedule_end_date || dateStr <= schedule.schedule_end_date;
-        return withinRange && schedule.day_of_week_name === dayName;
-    });
+// Schedules that actually have an event on this date. event_dates comes from the backend,
+// so cadence (weekly/biweekly/monthly), start/end dates, the season cap and deleted events
+// all apply without re-implementing the generation rules here.
+function getSchedulesForDate(dateStr) {
+    return ScheduleState.currentSchedules.filter(schedule =>
+        (schedule.event_dates || []).includes(dateStr)
+    );
 }
 
 function renderScheduleWeekPanel() {
@@ -374,7 +377,7 @@ function renderScheduleWeekPanel() {
     weekDates.forEach((date, index) => {
         const dateStr = formatDateISO(date);
         const dayName = dayNames[index];
-        const hasEvents = getSchedulesForDate(dateStr, dayName).length > 0;
+        const hasEvents = getSchedulesForDate(dateStr).length > 0;
         const isToday = dateStr === todayStr;
 
         columnsHTML += `
@@ -411,8 +414,7 @@ function selectScheduleWeekDay(dateStr, columnIndex) {
         el.classList.toggle('active', el.dataset.date === dateStr);
     });
 
-    const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    const eventsForDay = getSchedulesForDate(dateStr, dayNames[columnIndex]);
+    const eventsForDay = getSchedulesForDate(dateStr);
     const popupRow = document.getElementById('scheduleWeekPopupRow');
     if (!popupRow) return;
 
@@ -542,11 +544,13 @@ function openCreateScheduleModal() {
     const leagueGroup = document.getElementById('scheduledLeagueGroup');
     const dayOfWeekGroup = document.getElementById('scheduledDayOfWeekGroup');
     const specificDateGroup = document.getElementById('scheduledSpecificDateGroup');
-    const endDateGroup = document.querySelector('label[for="scheduledEndDate"]')?.parentElement;
+    const startDateGroup = document.getElementById('scheduledStartDateGroup');
+    const endDateGroup = document.getElementById('scheduledEndDateGroup');
 
     if (leagueGroup) leagueGroup.style.display = 'none';
     if (dayOfWeekGroup) dayOfWeekGroup.style.display = 'block';
     if (specificDateGroup) specificDateGroup.style.display = 'none';
+    if (startDateGroup) startDateGroup.style.display = 'flex';
     if (endDateGroup) endDateGroup.style.display = 'flex';
 
     // Re-show all visibility options in case a previous session
@@ -563,10 +567,15 @@ function openCreateScheduleModal() {
 
     const dayOfWeekSelect = document.getElementById('scheduledDayOfWeek');
     const specificDateInput = document.getElementById('scheduledSpecificDate');
+    const startDateInput = document.getElementById('scheduledStartDate');
     const endDateInput = document.getElementById('scheduledEndDate');
 
     if (dayOfWeekSelect) dayOfWeekSelect.setAttribute('required', 'required');
     if (specificDateInput) specificDateInput.removeAttribute('required');
+    if (startDateInput) {
+        startDateInput.setAttribute('required', 'required');
+        startDateInput.value = formatDateISO(new Date()); // autofill today; user can change it
+    }
     if (endDateInput) endDateInput.setAttribute('required', 'required');
 
     // Update visibility labels before showing modal
@@ -611,28 +620,34 @@ function handleFrequencyChange() {
     const specificDateGroup = document.getElementById('scheduledSpecificDateGroup');
     const dayOfWeekSelect = document.getElementById('scheduledDayOfWeek');
     const specificDateInput = document.getElementById('scheduledSpecificDate');
-    const endDateGroup = document.querySelector('label[for="scheduledEndDate"]').parentElement;
+    const startDateGroup = document.getElementById('scheduledStartDateGroup');
+    const startDateInput = document.getElementById('scheduledStartDate');
+    const endDateGroup = document.getElementById('scheduledEndDateGroup');
     const endDateInput = document.getElementById('scheduledEndDate');
 
     if (frequency === 'Once') {
         // One-time event: show specific date only
         dayOfWeekGroup.style.display = 'none';
         specificDateGroup.style.display = 'flex';
+        startDateGroup.style.display = 'none';
         endDateGroup.style.display = 'none';
 
         // Update required attributes
         dayOfWeekSelect.removeAttribute('required');
         specificDateInput.setAttribute('required', 'required');
+        startDateInput.removeAttribute('required');
         endDateInput.removeAttribute('required');
     } else {
-        // Recurring event: show day of week and end date
+        // Recurring event: show day of week, start date and end date
         dayOfWeekGroup.style.display = 'block';
         specificDateGroup.style.display = 'none';
+        startDateGroup.style.display = 'flex';
         endDateGroup.style.display = 'flex';
 
         // Update required attributes
         dayOfWeekSelect.setAttribute('required', 'required');
         specificDateInput.removeAttribute('required');
+        startDateInput.setAttribute('required', 'required');
         endDateInput.setAttribute('required', 'required');
     }
 }
@@ -664,7 +679,8 @@ function buildFrequencyText(schedule) {
 function getOrdinalWeekOfMonth(dateStr) {
     const date = new Date(dateStr + 'T00:00:00');
     const weekNumber = Math.floor((date.getDate() - 1) / 7) + 1;
-    const ordinals = ['first', 'second', 'third', 'fourth', 'fifth'];
+    // A "fifth" occurrence doesn't exist every month, so the backend uses the last one instead
+    const ordinals = ['first', 'second', 'third', 'fourth', 'last'];
     return ordinals[weekNumber - 1] || `${weekNumber}th`;
 }
 
@@ -688,8 +704,9 @@ function buildScheduleOccurrenceText(schedule) {
         return `Every other ${schedule.day_of_week_name}, from ${timeRange}`;
     }
     if (schedule.frequency === 'Monthly') {
-        const anchorDate = schedule.created_at ? schedule.created_at.split('T')[0] : null;
-        const ordinal = anchorDate ? getOrdinalWeekOfMonth(anchorDate) : 'first';
+        const ordinal = schedule.schedule_start_date
+            ? getOrdinalWeekOfMonth(schedule.schedule_start_date)
+            : 'first';
         return `Every ${ordinal} ${schedule.day_of_week_name}, from ${timeRange}`;
     }
     return `${schedule.frequency} - ${schedule.day_of_week_name || 'N/A'}`;
@@ -802,6 +819,7 @@ async function handleScheduleSubmit(event) {
     } else {
         // Recurring event: use day of week and end date
         formData.day_of_week = document.getElementById('scheduledDayOfWeek').value;
+        formData.start_date = document.getElementById('scheduledStartDate').value;
         formData.end_date = document.getElementById('scheduledEndDate').value;
     }
 
@@ -874,6 +892,19 @@ function closeScheduleModal() {
 // ============================================
 // EDIT SCHEDULE MODAL
 // ============================================
+
+// Convert "3:00 PM" (as returned by the schedules API) to "15:00" for <input type="time">
+function to24HourTime(timeStr) {
+    if (!timeStr) return '';
+    const m = String(timeStr).trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])?$/);
+    if (!m) return '';
+    let hours = parseInt(m[1], 10);
+    const meridiem = m[3] ? m[3].toUpperCase() : null;
+    if (meridiem === 'PM' && hours < 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+    return `${String(hours).padStart(2, '0')}:${m[2]}`;
+}
+
 function openEditScheduleMode(scheduleId) {
     const schedule = ScheduleState.findSchedule(scheduleId) ||
                      currentSchedules.find(s => s.schedule_id === scheduleId);
@@ -941,12 +972,38 @@ function openEditScheduleMode(scheduleId) {
         ? `<input type="text" class="combo-custom-input" value="${schedule.location}" placeholder="Enter custom location" onclick="event.stopPropagation();" oninput="document.getElementById('editScheduleLocation').value = this.value;">`
         : `<span class="combo-selected-text">${schedule.location || 'Select location'}</span>`;
 
-    // Build edit form WITH league field support
+    const isOnce = schedule.frequency === 'Once';
+
+    // Day of Week options (same values as the Create modal: Sunday = 6, Monday = 0 ... Saturday = 5)
+    const dayOfWeekOptions = [
+        ['6', 'Sunday'], ['0', 'Monday'], ['1', 'Tuesday'], ['2', 'Wednesday'],
+        ['3', 'Thursday'], ['4', 'Friday'], ['5', 'Saturday']
+    ];
+    const dayOfWeekOptionsHtml = dayOfWeekOptions.map(([value, name]) => `
+        <div class="filter-box-item ${String(schedule.day_of_week) === value ? 'active' : ''}" onclick="event.stopPropagation(); selectComboValue('editScheduleDayOfWeek', '${value}', '${name}')">${name}</div>
+    `).join('');
+
+    // Read-only look-alike of the dropdowns, for fields that can't be changed
+    const buildLockedSelect = (id, text, tooltip) => `
+        <div class="filter-box tag-select-box" id="${id}TagBox" title="${tooltip}">
+            <div class="tag-select-trigger locked-select">
+                <div id="${id}Display" class="combo-select-display">
+                    <span class="combo-selected-text">${text}</span>
+                    <i class="fas fa-lock field-lock-icon"></i>
+                </div>
+                <i class="fas fa-chevron-down tag-select-arrow"></i>
+            </div>
+        </div>
+    `;
+
+    // Build edit form (layout mirrors the Create Scheduled Event modal)
     modalBody.innerHTML = `
         <form id="editScheduleForm" class="event-form-modal">
             <input type="hidden" id="editScheduleId" value="${scheduleId}">
             <input type="hidden" id="editScheduleTeamId" value="${teamId}">
+            <input type="hidden" id="editScheduleFrequency" value="${schedule.frequency}">
 
+            <!-- Event Name | Event Type (locked) -->
             <div class="form-row form-row--paired">
                 <div class="form-group">
                     <label class="required-field" for="editScheduleName">Event Name</label>
@@ -958,53 +1015,17 @@ function openEditScheduleMode(scheduleId) {
                 </div>
 
                 <div class="form-group">
-                    <label class="required-field" for="editScheduleTypeTagBox">Event Type</label>
-                    <div class="filter-box tag-select-box" id="editScheduleTypeTagBox">
-                        <div class="tag-select-trigger locked-select">
-                            <div id="editScheduleTypeDisplay" class="combo-select-display">
-                                <span class="combo-selected-text">${schedule.event_type}</span>
-                                <i class="fas fa-lock field-lock-icon"></i>
-                            </div>
-                            <i class="fas fa-chevron-down tag-select-arrow"></i>
-                        </div>
-                    </div>
+                    <label class="required-field">Event Type</label>
+                    ${buildLockedSelect('editScheduleType', schedule.event_type, 'Event type cannot be changed.')}
                     <input type="hidden" id="editScheduleType" name="event_type" value="${schedule.event_type}">
                 </div>
             </div>
 
-            <!-- League field for Match events -->
-            <div class="form-group" id="editScheduleLeagueGroup" style="display: ${schedule.event_type === 'Match' ? 'block' : 'none'};">
-                <label for="editScheduleLeagueSelect" id="editScheduleLeagueLabel">
-                    League ${schedule.event_type === 'Match' ? '<span style="color: #ff5252;">*</span>' : '(Optional)'}
-                </label>
-                <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                    Select the league this match is part of
-                </small>
-                <select id="editScheduleLeagueSelect" name="league_id" ${schedule.event_type === 'Match' ? 'required' : ''}>
-                    <option value="">Select a league</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Frequency</label>
-                <div class="input-with-icon">
-                    <input type="text" value="${buildFrequencyText(schedule)}" disabled>
-                    <i class="fas fa-lock input-lock-icon"></i>
-                </div>
-            </div>
-
-                    <label class="required-field" for="editScheduleVisibilityTagBox">Visibility</label>
-                    <div class="filter-box tag-select-box" id="editScheduleVisibilityTagBox" ${isVisibilityLocked ? 'title="Visibility cannot be changed."' : ''}>
-                        <div ${visibilityTriggerAttrs}>
-                            <div id="editScheduleVisibilityDisplay" class="combo-select-display">
-                                <span class="combo-selected-text">${visibilityDisplayText}</span>
-                                ${isVisibilityLocked ? '<i class="fas fa-lock field-lock-icon"></i>' : ''}
-                            </div>
-                            <i class="fas fa-chevron-down tag-select-arrow"></i>
-                        </div>
-                        ${isVisibilityLocked ? '' : `<div class="filter-box-panel tag-select-panel" id="editScheduleVisibilityPanel">${visibilityOptionsHtml}</div>`}
-                    </div>
-                    <input type="hidden" id="editScheduleVisibility" name="visibility" value="${isMatch ? 'team' : schedule.visibility}">
+            <!-- Frequency (locked) | Location -->
+            <div class="form-row form-row--paired">
+                <div class="form-group">
+                    <label class="required-field">Frequency</label>
+                    ${buildLockedSelect('editScheduleFrequencyLocked', schedule.frequency, 'Frequency cannot be changed.')}
                 </div>
 
                 <div class="form-group">
@@ -1022,6 +1043,126 @@ function openEditScheduleMode(scheduleId) {
                     </div>
                     <input type="hidden" id="editScheduleLocation" name="location" value="${schedule.location}">
                 </div>
+            </div>
+
+            <!-- Day of Week (recurring only) / Start Time / End Time -->
+            <div class="form-row schedule-timing-row">
+                ${isOnce ? '' : `
+                <div class="form-group" id="editScheduleDayOfWeekGroup">
+                    <label class="required-field" for="editScheduleDayOfWeekTagBox">Day of Week</label>
+                    <div class="filter-box tag-select-box" id="editScheduleDayOfWeekTagBox">
+                        <div class="tag-select-trigger" onclick="toggleFilterBox('editScheduleDayOfWeekPanel')">
+                            <div id="editScheduleDayOfWeekDisplay" class="combo-select-display">
+                                <span class="combo-selected-text">${schedule.day_of_week_name || 'Select day'}</span>
+                            </div>
+                            <i class="fas fa-chevron-down tag-select-arrow"></i>
+                        </div>
+                        <div class="filter-box-panel tag-select-panel" id="editScheduleDayOfWeekPanel">
+                            ${dayOfWeekOptionsHtml}
+                        </div>
+                    </div>
+                    <input type="hidden" id="editScheduleDayOfWeek" name="day_of_week" value="${schedule.day_of_week ?? ''}">
+                </div>`}
+
+                <div class="form-group">
+                    <label class="required-field" for="editScheduleStartTime">Start Time</label>
+                    <input type="time"
+                           id="editScheduleStartTime"
+                           name="start_time"
+                           value="${to24HourTime(schedule.start_time)}"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label class="required-field" for="editScheduleEndTime">End Time</label>
+                    <input type="time"
+                           id="editScheduleEndTime"
+                           name="end_time"
+                           value="${to24HourTime(schedule.end_time)}"
+                           required>
+                </div>
+            </div>
+
+            <!-- Visibility | League (Match events only, both locked) -->
+            <div class="form-row form-row--half">
+                <div class="form-group">
+                    <label class="required-field" for="editScheduleVisibilityTagBox">Visibility</label>
+                    <div class="form-group-text schedule-row-hint">
+                        Matches are visible to selected team(s)
+                    </div>
+                    <div class="filter-box tag-select-box" id="editScheduleVisibilityTagBox" ${isVisibilityLocked ? 'title="Visibility cannot be changed."' : ''}>
+                        <div ${visibilityTriggerAttrs}>
+                            <div id="editScheduleVisibilityDisplay" class="combo-select-display">
+                                <span class="combo-selected-text">${visibilityDisplayText}</span>
+                                ${isVisibilityLocked ? '<i class="fas fa-lock field-lock-icon"></i>' : ''}
+                            </div>
+                            <i class="fas fa-chevron-down tag-select-arrow"></i>
+                        </div>
+                        ${isVisibilityLocked ? '' : `<div class="filter-box-panel tag-select-panel" id="editScheduleVisibilityPanel">${visibilityOptionsHtml}</div>`}
+                    </div>
+                    <input type="hidden" id="editScheduleVisibility" name="visibility" value="${isMatch ? 'team' : schedule.visibility}">
+                </div>
+
+                ${isMatch ? `
+                <div class="form-group" id="editScheduleLeagueGroup">
+                    <label class="required-field" for="editScheduleLeagueTagBox">League</label>
+                    <div class="form-group-text schedule-row-hint">
+                        Select the league this match is part of
+                    </div>
+                    <div class="filter-box tag-select-box" id="editScheduleLeagueTagBox">
+                        <div class="tag-select-trigger" onclick="toggleFilterBox('editScheduleLeaguePanel')">
+                            <div id="editScheduleLeagueDisplay" class="combo-select-display">
+                                <span class="combo-selected-text">${schedule.league_name || 'Select a league'}</span>
+                            </div>
+                            <i class="fas fa-chevron-down tag-select-arrow"></i>
+                        </div>
+                        <div class="filter-box-panel tag-select-panel" id="editScheduleLeaguePanel">
+                            <div class="filter-box-flyout-loading">
+                                <i class="fas fa-spinner fa-spin"></i> Loading...
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="editScheduleLeagueSelect" name="league_id" value="${schedule.league_id ?? ''}">
+                </div>` : ''}
+            </div>
+
+            <!-- Schedule Start / End Date (recurring) or Event Date (one-time) -->
+            <div class="form-row form-row--half">
+                ${isOnce ? `
+                <div class="form-group">
+                    <label class="required-field" for="editScheduleSpecificDate">Event Date</label>
+                    <div class="form-group-text schedule-row-hint">
+                        Event will only occur on this date
+                    </div>
+                    <input type="date"
+                           id="editScheduleSpecificDate"
+                           name="specific_date"
+                           value="${schedule.specific_date || ''}"
+                           required>
+                </div>` : `
+                <div class="form-group">
+                    <label class="required-field" for="editScheduleStartDate">Schedule Start Date</label>
+                    <div class="form-group-text schedule-row-hint">
+                        Events will start being generated on this date
+                    </div>
+                    <input type="date"
+                           id="editScheduleStartDate"
+                           name="start_date"
+                           value="${schedule.schedule_start_date || ''}"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label class="required-field" for="editScheduleEndDate">Schedule End Date</label>
+                    <div class="form-group-text schedule-row-hint">
+                        Events will stop being generated after this date
+                    </div>
+                    <input type="date"
+                           id="editScheduleEndDate"
+                           name="end_date"
+                           value="${schedule.schedule_end_date || ''}"
+                           required>
+                </div>`}
             </div>
 
             <div class="form-group">
@@ -1071,61 +1212,44 @@ function openEditScheduleMode(scheduleId) {
 }
 
 // Load leagues for edit modal
+// Load leagues into the edit modal's league dropdown
 async function loadEditScheduleLeagues(teamId, currentLeagueId) {
-    const leagueSelect = document.getElementById('editScheduleLeagueSelect');
-    
-    if (!leagueSelect) {
-        console.warn('Edit league select not found');
-        return;
-    }
-    
-    leagueSelect.innerHTML = '<option value="">Loading leagues...</option>';
-    leagueSelect.disabled = true;
-    
+    const panel   = document.getElementById('editScheduleLeaguePanel');
+    const trigger = document.querySelector('#editScheduleLeagueTagBox .tag-select-trigger');
+    if (!panel) return;
+
+    // Show loading and block the trigger while fetching
+    panel.innerHTML = '<div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    if (trigger) trigger.style.pointerEvents = 'none';
+
     try {
         const response = await fetch(`/api/teams/${teamId}/leagues`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
         const data = await response.json();
-        
-        // Clear and rebuild dropdown
-        leagueSelect.innerHTML = '';
-        
-        if (data.success && data.leagues) {
-            leagueSelect.innerHTML = '<option value="">Select a league</option>';
-            
-            if (data.leagues.length === 0) {
-                const noLeaguesOption = document.createElement('option');
-                noLeaguesOption.value = '';
-                noLeaguesOption.textContent = 'No leagues assigned to team';
-                noLeaguesOption.disabled = true;
-                leagueSelect.appendChild(noLeaguesOption);
-            } else {
-                data.leagues.forEach(league => {
-                    const option = document.createElement('option');
-                    option.value = league.id;
-                    option.textContent = league.name;
-                    
-                    // Select current league if provided
-                    if (currentLeagueId && league.id === currentLeagueId) {
-                        option.selected = true;
-                    }
-                    
-                    leagueSelect.appendChild(option);
+
+        panel.innerHTML = '';
+
+        if (data.success && data.leagues?.length) {
+            data.leagues.forEach(league => {
+                const item = document.createElement('div');
+                item.className = 'filter-box-item';
+                if (currentLeagueId && String(league.id) === String(currentLeagueId)) {
+                    item.classList.add('active');
+                }
+                item.textContent = league.name;
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectComboValue('editScheduleLeagueSelect', String(league.id), league.name);
                 });
-            }
+                panel.appendChild(item);
+            });
         } else {
-            leagueSelect.innerHTML = '<option value="">Error loading leagues</option>';
-            console.error('Failed to load leagues:', data);
+            panel.innerHTML = '<div class="filter-box-flyout-loading">No leagues assigned to this team</div>';
         }
     } catch (error) {
         console.error('Error loading edit schedule leagues:', error);
-        leagueSelect.innerHTML = '<option value="">Error loading leagues</option>';
+        panel.innerHTML = '<div class="filter-box-flyout-loading">Failed to load leagues</div>';
     } finally {
-        leagueSelect.disabled = false;
+        if (trigger) trigger.style.pointerEvents = '';
     }
 }
 
@@ -1139,13 +1263,30 @@ async function handleEditScheduleSubmit(event) {
     event.preventDefault();
 
     const eventType = document.getElementById('editScheduleType').value;
+    const isOnce = document.getElementById('editScheduleFrequency').value === 'Once';
     const leagueSelect = document.getElementById('editScheduleLeagueSelect');
 
     // Validate league selection for Match events
     if (eventType === 'Match' && !leagueSelect.value) {
         showErrorToast('Please select a league for this match event.');
-        leagueSelect.focus();
         return;
+    }
+
+    const startTime = document.getElementById('editScheduleStartTime').value;
+    const endTime = document.getElementById('editScheduleEndTime').value;
+
+    // Hidden/custom inputs aren't covered by native form validation
+    if (!isOnce) {
+        if (!document.getElementById('editScheduleDayOfWeek').value) {
+            showErrorToast('Please select a day of the week.');
+            return;
+        }
+        const startDate = document.getElementById('editScheduleStartDate').value;
+        const endDate = document.getElementById('editScheduleEndDate').value;
+        if (startDate && endDate && startDate > endDate) {
+            showErrorToast('Schedule start date cannot be after the schedule end date.');
+            return;
+        }
     }
 
     const submitBtn = event.target.querySelector('button[type="submit"]');
@@ -1167,12 +1308,23 @@ async function handleEditScheduleSubmit(event) {
         event_type: eventType,
         visibility: (eventType === 'Match' || ScheduleState.isCaptainOnly) ? 'team' : document.getElementById('editScheduleVisibility').value,
         location: location,
-        description: document.getElementById('editScheduleDescription').value
+        description: document.getElementById('editScheduleDescription').value,
+        start_time: startTime,
+        end_time: endTime
     };
 
     // Add league_id for Match events
     if (eventType === 'Match' && leagueSelect.value) {
         formData.league_id = parseInt(leagueSelect.value);
+    }
+
+    // Frequency-specific fields (frequency itself is never sent)
+    if (isOnce) {
+        formData.specific_date = document.getElementById('editScheduleSpecificDate').value;
+    } else {
+        formData.day_of_week = document.getElementById('editScheduleDayOfWeek').value;
+        formData.start_date = document.getElementById('editScheduleStartDate').value;
+        formData.end_date = document.getElementById('editScheduleEndDate').value;
     }
 
     try {
