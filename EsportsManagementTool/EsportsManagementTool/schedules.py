@@ -88,7 +88,7 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             try:
-                cursor.execute("SELECT end_date FROM seasons WHERE is_active = 1 LIMIT 1")
+                cursor.execute("SELECT season_id, end_date FROM seasons WHERE is_active = 1 LIMIT 1")
                 active_season = cursor.fetchone()
                 if not active_season:
                     return jsonify({'success': False, 'message': 'No active season found'}), 400
@@ -104,6 +104,10 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                         'message': f"Schedule end date cannot extend beyond the current season "
                                    f"(ends {active_season['end_date'].strftime('%Y-%m-%d')})"
                     }), 400
+
+                requested_start_date, start_error = resolve_new_schedule_start_date(data, requested_end_date)
+                if start_error:
+                    return jsonify({'success': False, 'message': start_error}), 400
 
                 game_id = get_team_game_id(cursor, data['team_id'])
                 if game_id is None:
@@ -149,40 +153,14 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                     }), 403
 
                 if is_bulk:
-                    return create_bulk_team_schedules(cursor, mysql.connection, data, game_id, user_id)
+                    return create_bulk_team_schedules(
+                        cursor, mysql.connection, data, game_id, user_id,
+                        active_season['season_id'], requested_start_date)
 
                 # Always store the originating team_id, regardless of visibility. (Otherwise an error gets thrown)
-                schedule_team_id = data['team_id']
-                created_at = datetime.now(EST)
-                
-                # Insert scheduled event
-                cursor.execute("""
-                    INSERT INTO scheduled_events 
-                    (team_id, game_id, event_name, event_type, day_of_week, specific_date,
-                    start_time, end_time, frequency, visibility, description, 
-                    location, schedule_end_date, created_by, league_id, created_at)
-
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    schedule_team_id,
-                    game_id,
-                    data['event_name'],
-                    data['event_type'],
-                    data.get('day_of_week'),
-                    data.get('specific_date'),
-                    data['start_time'],
-                    data['end_time'],
-                    data['frequency'],
-                    data['visibility'],
-                    data.get('description', ''),
-                    data.get('location', 'TBD'),
-                    data['end_date'],
-                    user_id,
-                    league_id,
-                    created_at
-                ))
-
-                schedule_id = cursor.lastrowid
+                schedule_id = insert_scheduled_event(
+                    cursor, data, data['team_id'], game_id, data['visibility'],
+                    requested_start_date, league_id, user_id, datetime.now(EST))
                 mysql.connection.commit()
 
                 # Generate events
@@ -296,6 +274,22 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
 
                 schedules = cursor.fetchall()
 
+                # Dates each schedule actually has events on, fetched in one query.
+                # The weekly panel uses these instead of re-deriving the cadence client-side.
+                event_dates_by_schedule = {}
+                if schedules:
+                    schedule_ids = [s['schedule_id'] for s in schedules]
+                    placeholders = ','.join(['%s'] * len(schedule_ids))
+                    cursor.execute(f"""
+                        SELECT schedule_id, Date
+                        FROM generalevents
+                        WHERE schedule_id IN ({placeholders})
+                        ORDER BY Date
+                    """, tuple(schedule_ids))
+                    for row in cursor.fetchall():
+                        event_dates_by_schedule.setdefault(row['schedule_id'], []).append(
+                            row['Date'].strftime('%Y-%m-%d'))
+
                 # Format the response
                 formatted_schedules = []
                 for schedule in schedules:
@@ -325,6 +319,7 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                         'visibility': schedule['visibility'],
                         'description': schedule['description'],
                         'location': schedule['location'],
+                        'schedule_start_date': get_schedule_start_date(schedule).strftime('%Y-%m-%d'),
                         'schedule_end_date': schedule['schedule_end_date'].strftime('%Y-%m-%d'),
                         'game_title': schedule['GameTitle'],
                         'game_id': schedule['game_id'],
@@ -332,7 +327,8 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                         'created_by': schedule['created_by'],
                         'created_by_name': f"{schedule['firstname']} {schedule['lastname']}",
                         'created_at': schedule['created_at'].isoformat() if schedule.get('created_at') else None,
-                        'last_generated': schedule['last_generated'].strftime('%Y-%m-%d') if schedule['last_generated'] else None
+                        'last_generated': schedule['last_generated'].strftime('%Y-%m-%d') if schedule['last_generated'] else None,
+                        'event_dates': event_dates_by_schedule.get(schedule['schedule_id'], [])
                     })
 
                 return jsonify({
@@ -430,8 +426,9 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
     @roles_required('admin', 'gm', 'player', 'developer')
     def update_schedule():
         """
-        Update a schedule and all its associated events
-        Cannot change frequency/timing - only metadata
+        Update a schedule and all its associated events.
+        Frequency, event type, league and Match visibility are never changed here.
+        Day of week, times, start/end dates and one-time event date can be edited.
         """
         try:
             data = request.get_json()
@@ -522,6 +519,88 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                             'message': 'Selected league is not assigned to this team'
                         }), 400
 
+                # Timing changes. Every field is optional and is only acted on when it
+                # differs from what's stored. Frequency itself is never changed here.
+                def parse_date(raw):
+                    try:
+                        return datetime.strptime(raw, '%Y-%m-%d').date()
+                    except (ValueError, TypeError):
+                        return None
+
+                is_once = schedule['frequency'] == 'Once'
+                current_start_date = get_schedule_start_date(schedule)
+
+                new_start_time = data.get('start_time') or None
+                new_end_time = data.get('end_time') or None
+                if bool(new_start_time) != bool(new_end_time):
+                    return jsonify({
+                        'success': False,
+                        'message': 'Both a start time and an end time are required'
+                    }), 400
+
+                new_day_of_week = None
+                new_start_date = None
+                new_end_date = None
+                new_specific_date = None
+
+                cursor.execute("SELECT end_date FROM seasons WHERE is_active = 1 LIMIT 1")
+                active_season = cursor.fetchone()
+                season_end_date = active_season['end_date'] if active_season else None
+
+                if is_once:
+                    raw_date = data.get('specific_date')
+                    if raw_date:
+                        parsed_date = parse_date(raw_date)
+                        if not parsed_date:
+                            return jsonify({'success': False, 'message': 'Invalid event date format'}), 400
+                        if parsed_date != schedule['specific_date']:
+                            if season_end_date and parsed_date > season_end_date:
+                                return jsonify({
+                                    'success': False,
+                                    'message': f"Event date cannot extend beyond the current season "
+                                               f"(ends {season_end_date.strftime('%Y-%m-%d')})"
+                                }), 400
+                            new_specific_date = parsed_date
+                else:
+                    raw_day = data.get('day_of_week')
+                    if raw_day not in (None, ''):
+                        try:
+                            day_value = int(raw_day)
+                        except (TypeError, ValueError):
+                            day_value = None
+                        if day_value is None or not 0 <= day_value <= 6:
+                            return jsonify({'success': False, 'message': 'Invalid day of week'}), 400
+                        if day_value != schedule['day_of_week']:
+                            new_day_of_week = day_value
+
+                    final_end_date = schedule['schedule_end_date']
+                    raw_end = data.get('end_date')
+                    if raw_end:
+                        parsed_end = parse_date(raw_end)
+                        if not parsed_end:
+                            return jsonify({'success': False, 'message': 'Invalid end date format'}), 400
+                        if parsed_end != final_end_date:
+                            if season_end_date and parsed_end > season_end_date:
+                                return jsonify({
+                                    'success': False,
+                                    'message': f"Schedule end date cannot extend beyond the current season "
+                                               f"(ends {season_end_date.strftime('%Y-%m-%d')})"
+                                }), 400
+                            new_end_date = parsed_end
+                            final_end_date = parsed_end
+
+                    raw_start = data.get('start_date')
+                    if raw_start and raw_start != current_start_date.strftime('%Y-%m-%d'):
+                        new_start_date, start_error = validate_schedule_start_date(
+                            raw_start, final_end_date)
+                        if start_error:
+                            return jsonify({'success': False, 'message': start_error}), 400
+                    elif current_start_date > final_end_date:
+                        return jsonify({
+                            'success': False,
+                            'message': 'Schedule end date cannot be before the schedule start date'
+                        }), 400
+
                 # Update the schedule
                 cursor.execute("""
                     UPDATE scheduled_events 
@@ -563,11 +642,95 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
                 ))
 
                 affected_events = cursor.rowcount
+
+                today = datetime.now(EST).date()
+
+                # Day of week / start date / end date changes mean upcoming events
+                # need to be regenerated. (One-time events are moved in place instead.)
+                needs_regeneration = bool(
+                    new_day_of_week is not None or new_start_date or new_end_date)
+
+                # --- Update the schedule row ---
+                set_clauses, params = [], []
+                if new_start_time:
+                    set_clauses += ['start_time = %s', 'end_time = %s']
+                    params += [new_start_time, new_end_time]
+                if new_day_of_week is not None:
+                    set_clauses.append('day_of_week = %s')
+                    params.append(new_day_of_week)
+                if new_start_date:
+                    set_clauses.append('schedule_start_date = %s')
+                    params.append(new_start_date)
+                if new_end_date:
+                    set_clauses.append('schedule_end_date = %s')
+                    params.append(new_end_date)
+                if new_specific_date:
+                    # One-time events store the event date as start, end and specific date
+                    set_clauses += ['specific_date = %s', 'schedule_start_date = %s',
+                                    'schedule_end_date = %s', 'last_generated = %s']
+                    params += [new_specific_date] * 4
+                elif needs_regeneration:
+                    if new_start_date:
+                        # Anchor the cadence to the new start date (existing behavior)
+                        set_clauses.append('last_generated = NULL')
+                    else:
+                        # Day/end date change: only regenerate going forward so we
+                        # don't backfill past dates on the new weekday
+                        set_clauses.append('last_generated = %s')
+                        params.append(today)
+
+                if set_clauses:
+                    cursor.execute(
+                        f"UPDATE scheduled_events SET {', '.join(set_clauses)} WHERE schedule_id = %s",
+                        tuple(params + [schedule_id]))
+
+                # --- Update existing event rows ---
+                if new_start_time:
+                    if is_once:
+                        cursor.execute("""
+                            UPDATE generalevents SET StartTime = %s, EndTime = %s
+                            WHERE schedule_id = %s
+                        """, (new_start_time, new_end_time, schedule_id))
+                    else:
+                        # Upcoming events only; past events keep the time they happened at
+                        cursor.execute("""
+                            UPDATE generalevents SET StartTime = %s, EndTime = %s
+                            WHERE schedule_id = %s AND Date >= %s
+                        """, (new_start_time, new_end_time, schedule_id, today))
+
+                if new_specific_date:
+                    cursor.execute("""
+                        UPDATE generalevents SET Date = %s, season_id = %s
+                        WHERE schedule_id = %s
+                    """, (new_specific_date,
+                          get_season_for_event_date(cursor, new_specific_date),
+                          schedule_id))
+
+                removed_events = 0
+                if new_day_of_week is not None or new_start_date:
+                    cursor.execute("""
+                        DELETE FROM generalevents
+                        WHERE schedule_id = %s AND Date >= %s
+                    """, (schedule_id, today))
+                    removed_events = cursor.rowcount
+                elif new_end_date:
+                    cursor.execute("""
+                        DELETE FROM generalevents
+                        WHERE schedule_id = %s AND Date > %s
+                    """, (schedule_id, new_end_date))
+                    removed_events = cursor.rowcount
+
                 mysql.connection.commit()
+
+                message = f'Schedule updated successfully. {affected_events} event(s) updated.'
+                if needs_regeneration:
+                    regenerated = generate_events_for_schedule(cursor, schedule_id, mysql.connection)
+                    message += (f' Timing changed: {removed_events} upcoming event(s) removed, '
+                                f'{regenerated} regenerated.')
 
                 return jsonify({
                     'success': True,
-                    'message': f'Schedule updated successfully. {affected_events} event(s) updated.'
+                    'message': message
                 }), 200
 
             finally:
@@ -718,7 +881,80 @@ def register_schedule_routes(app, mysql, login_required, roles_required):
 # ============================================
 # HELPER FUNCTIONS
 # ============================================
-def create_bulk_team_schedules(cursor, connection, data, game_id, user_id):
+def get_schedule_start_date(schedule):
+    """
+    Return a schedule's start date. Legacy rows with no start date fall back
+    to the day the schedule was created (the old behavior).
+    """
+    start = schedule.get('schedule_start_date')
+    if start:
+        return start
+    created_at = schedule.get('created_at')
+    return created_at.date() if created_at else datetime.now(EST).date()
+
+
+def validate_schedule_start_date(raw_start_date, end_date):
+    """
+    Parse and validate a requested start date string (YYYY-MM-DD).
+    Past dates are allowed so schedules can be created retroactively.
+    Returns (start_date, error_message); error_message is None when valid.
+    """
+    try:
+        start_date = datetime.strptime(raw_start_date, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return None, 'Invalid start date format'
+
+    if start_date > end_date:
+        return None, 'Schedule start date cannot be after the schedule end date'
+
+    return start_date, None
+
+
+def resolve_new_schedule_start_date(data, requested_end_date):
+    """
+    Work out the start date for a schedule being created.
+    - One-time events: the event's own date.
+    - Recurring: the requested start_date, defaulting to today if omitted.
+    Returns (start_date, error_message).
+    """
+    if data['frequency'] == 'Once':
+        return data['specific_date'], None
+
+    raw_start = data.get('start_date') or datetime.now(EST).strftime('%Y-%m-%d')
+    return validate_schedule_start_date(raw_start, requested_end_date)
+
+def insert_scheduled_event(cursor, data, team_id, game_id, visibility,
+                           start_date, league_id, user_id, created_at):
+    """Insert one scheduled_events row and return its schedule_id."""
+    cursor.execute("""
+        INSERT INTO scheduled_events
+        (team_id, game_id, event_name, event_type, day_of_week, specific_date,
+        start_time, end_time, frequency, visibility, description,
+        location, schedule_start_date, schedule_end_date, created_by, league_id, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        team_id,
+        game_id,
+        data['event_name'],
+        data['event_type'],
+        data.get('day_of_week'),
+        data.get('specific_date'),
+        data['start_time'],
+        data['end_time'],
+        data['frequency'],
+        visibility,
+        data.get('description', ''),
+        data.get('location', 'TBD'),
+        start_date,
+        data['end_date'],
+        user_id,
+        league_id,
+        created_at
+    ))
+    return cursor.lastrowid
+
+
+def create_bulk_team_schedules(cursor, connection, data, game_id, user_id, season_id, start_date):
     """
     Create an independent Match schedule for every team in the current
     season for this game (the "All Teams for [game]" visibility option).
@@ -730,24 +966,6 @@ def create_bulk_team_schedules(cursor, connection, data, game_id, user_id):
     fails, nothing is created and the whole request fails.
     """
     league_id = data.get('league_id')
-
-    cursor.execute("SELECT season_id, end_date FROM seasons WHERE is_active = 1 LIMIT 1")
-    active_season = cursor.fetchone()
-    if not active_season:
-        return jsonify({'success': False, 'message': 'No active season found'}), 400
-    season_id = active_season['season_id']
-
-    try:
-        requested_end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
-    except ValueError:
-        return jsonify({'success': False, 'message': 'Invalid end date format'}), 400
-
-    if requested_end_date > active_season['end_date']:
-        return jsonify({
-            'success': False,
-            'message': f"Schedule end date cannot extend beyond the current season "
-                        f"(ends {active_season['end_date'].strftime('%Y-%m-%d')})"
-        }), 400
 
     cursor.execute("""
         SELECT TeamID, teamName FROM teams
@@ -783,31 +1001,10 @@ def create_bulk_team_schedules(cursor, connection, data, game_id, user_id):
 
     try:
         for team in teams:
-            cursor.execute("""
-                INSERT INTO scheduled_events 
-                (team_id, game_id, event_name, event_type, day_of_week, specific_date,
-                start_time, end_time, frequency, visibility, description, 
-                location, schedule_end_date, created_by, league_id, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                team['TeamID'],
-                game_id,
-                data['event_name'],
-                data['event_type'],
-                data.get('day_of_week'),
-                data.get('specific_date'),
-                data['start_time'],
-                data['end_time'],
-                data['frequency'],
+            schedule_ids.append(insert_scheduled_event(
+                cursor, data, team['TeamID'], game_id,
                 'team',  # each generated schedule is a normal team-visible schedule
-                data.get('description', ''),
-                data.get('location', 'TBD'),
-                data['end_date'],
-                user_id,
-                league_id,
-                created_at
-            ))
-            schedule_ids.append(cursor.lastrowid)
+                start_date, league_id, user_id, created_at))
 
         connection.commit()
     except Exception:
@@ -874,8 +1071,16 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
 
         # Original recurring logic for Weekly, Biweekly, Monthly
         today = datetime.now(EST).date()
-        last_generated = schedule['last_generated'] or today
-        start_date = max(today, last_generated)
+        last_generated = schedule['last_generated']
+        schedule_start_date = get_schedule_start_date(schedule)
+
+        if last_generated:
+            # Topping up an already-generated schedule: resume going forward,
+            # never earlier than the start date
+            start_date = max(today, last_generated, schedule_start_date)
+        else:
+            # First generation: begin at the start date, even if it's in the past
+            start_date = schedule_start_date
 
         # Generate events out to the end of the current season, capped by
         # the schedule's own end date if that comes sooner. Falls back to
@@ -889,39 +1094,27 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
             schedule['schedule_end_date']
         )
 
-        # Find next occurrence
-        current_date = start_date
+        # Dates that already have an event, fetched once instead of once per date
+        cursor.execute("""
+            SELECT Date FROM generalevents WHERE schedule_id = %s
+        """, (schedule_id,))
+        existing_dates = {
+            row['Date'].date() if isinstance(row['Date'], datetime) else row['Date']
+            for row in cursor.fetchall()
+        }
+
+        # Jump to the first matching weekday, then step a week at a time
+        current_date = start_date + timedelta(
+            days=(schedule['day_of_week'] - start_date.weekday()) % 7)
         events_created = 0
 
         while current_date <= end_generation_date:
-            # Check if this date matches the schedule's day of week
-            python_weekday = current_date.weekday()
+            if (current_date not in existing_dates
+                    and check_frequency_match(current_date, schedule_start_date, schedule['frequency'])):
+                create_scheduled_event_instance(cursor, schedule, current_date, connection)
+                events_created += 1
 
-            if python_weekday == schedule['day_of_week']:
-                # Check frequency
-                should_generate = check_frequency_match(
-                    current_date,
-                    start_date,
-                    schedule['frequency']
-                )
-
-                if should_generate:
-                    # Check if event already exists
-                    cursor.execute("""
-                        SELECT EventID FROM generalevents
-                        WHERE schedule_id = %s AND Date = %s
-                    """, (schedule_id, current_date))
-
-                    if not cursor.fetchone():
-                        create_scheduled_event_instance(
-                            cursor,
-                            schedule,
-                            current_date,
-                            connection
-                        )
-                        events_created += 1
-
-            current_date += timedelta(days=1)
+            current_date += timedelta(days=7)
 
         # Update last_generated date
         cursor.execute("""
@@ -939,6 +1132,14 @@ def generate_events_for_schedule(cursor, schedule_id, connection):
         return 0
 
 
+def get_week_of_month(date_value):
+    """
+    0-based week of the month a date falls in:
+    days 1-7 -> 0, 8-14 -> 1, 15-21 -> 2, 22-28 -> 3, 29-31 -> 4.
+    """
+    return (date_value.day - 1) // 7
+
+
 def check_frequency_match(current_date, start_date, frequency):
     """Check if current date matches the frequency pattern"""
     if frequency == 'Weekly':
@@ -947,8 +1148,13 @@ def check_frequency_match(current_date, start_date, frequency):
         weeks_diff = (current_date - start_date).days // 7
         return weeks_diff % 2 == 0
     elif frequency == 'Monthly':
-        # Same week of month
-        return current_date.day // 7 == start_date.day // 7
+        start_week = get_week_of_month(start_date)
+        if start_week == 4:
+            # Days 29-31 are a "fifth" occurrence, which not every month has.
+            # Use the last occurrence of the weekday in those months instead.
+            days_in_month = calendar.monthrange(current_date.year, current_date.month)[1]
+            return current_date.day + 7 > days_in_month
+        return get_week_of_month(current_date) == start_week
 
     return False
 

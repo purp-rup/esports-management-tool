@@ -238,6 +238,17 @@
     margin-bottom: 0;
 }
 
+/* Row whose field(s) are half width and centered: one visible field is half the row,
+   two visible fields sit side by side and fill it. Hidden (display: none) fields take no space. */
+.event-form-modal .form-row.form-row--half {
+    display: flex;
+    justify-content: center;
+}
+
+.event-form-modal .form-row.form-row--half > .form-group {
+    flex: 0 1 calc(50% - 0.5rem); /* half the row minus half the 1rem gap */
+}
+
 .event-form-modal label {
     font-weight: 600;
     font-size: 0.875rem;
@@ -867,9 +878,18 @@
         grid-template-columns: 1fr 1fr;
     }
 
-    /* Create Schedule modal: Start/End Time centered on mobile */
-    #createScheduledEventForm .time-row {
-        justify-content: center;
+    /* Create Schedule modal, Day of Week / Start Time / End Time: Day of Week sits alone
+       (half width, centered) with Start/End Time paired beneath it. When Day of Week is
+       hidden (one-time event), only the time pair remains. */
+    .event-form-modal .form-row.schedule-timing-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .event-form-modal .schedule-timing-row > #scheduledDayOfWeekGroup,
+    .event-form-modal .schedule-timing-row > #editScheduleDayOfWeekGroup {
+        grid-column: 1 / -1;
+        justify-self: center;
+        width: calc(50% - 0.5rem); /* same width as one column of the pair below */
     }
 
     /* Lab reservation modal: Date sits alone, centered, not stretched full-width */
@@ -897,6 +917,13 @@
 
     /* Visibility / Schedule End Date hint text - mobile only */
     .event-form-modal .schedule-row-hint {
+        display: none;
+    }
+
+    /* Create Scheduled Event modal: hide modal subtitle and any remaining
+       input subheaders (e.g. Event Date hint) - mobile only */
+    #createScheduledEventModal .modal-subtitle,
+    #createScheduledEventForm .form-group-text {
         display: none;
     }
 
