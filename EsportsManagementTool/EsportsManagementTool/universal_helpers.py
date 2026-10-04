@@ -166,10 +166,14 @@ def build_member_profile(user_row, include_gm_flag=False):
         if name.strip()
     ]
 
+    # GM badge represents a real GM role (blank/game) only.
+    # Custom roles are also is_gm=1 for permissions, but use 'custom roles' instead.
+    gm_flag = user_row['is_gm_standard'] if 'is_gm_standard' in user_row else user_row.get('is_gm')
+
     roles_list = [r for flag, r in [
         (user_row.get('is_admin') == 1, 'Admin'),
         (user_row.get('is_developer') == 1, 'Developer'),
-        (user_row.get('is_gm') == 1, 'Game Manager'),
+        (gm_flag == 1, 'Game Manager'),
         (user_row.get('is_player') == 1, 'Player'),
     ] if flag]
 
