@@ -284,6 +284,7 @@ function renderUserItems(users) {
         li.setAttribute('data-last-seen', user.last_seen);
         li.setAttribute('data-is-admin', user.is_admin ? '1' : '0');
         li.setAttribute('data-is-gm', user.is_gm ? '1' : '0');
+        li.setAttribute('data-is-gm-standard', user.is_gm_standard ? '1' : '0');
         li.setAttribute('data-is-player', user.is_player ? '1' : '0');
         li.setAttribute('data-is-developer', user.is_developer ? '1' : '0');
         li.setAttribute('data-profile-picture', user.profile_picture || '');
@@ -344,7 +345,7 @@ function revealUserList() {
 function buildBadgesFromUserItem(item) {
     const userid = parseInt(item.dataset.userid);
     const isAdmin = item.dataset.isAdmin === '1';
-    const isGm = item.dataset.isGm === '1';
+    const isGmStandard = item.dataset.isGmStandard === '1';
     const isPlayer = item.dataset.isPlayer === '1';
     const isDeveloper = item.dataset.isDeveloper ==='1';
 
@@ -356,11 +357,11 @@ function buildBadgesFromUserItem(item) {
         .filter(Boolean);
 
     // Build roles array based on data attributes.
-    // A GM with one or more custom role labels shows both - the custom label
-    // and the generic "Game Manager" badge - since they can hold each independently.
+    // Standard GMs (blank or game) get a GM role.
+    // Custom roles have GM permissions but are shown without GM roles.
     const roles = [];
     if (isAdmin) roles.push('Admin');
-    if (isGm) roles.push('Game Manager');
+    if (isGmStandard) roles.push('Game Manager');
     if (isPlayer) roles.push('Player');
     if (isDeveloper) roles.push('Developer');
 
@@ -372,7 +373,8 @@ function buildBadgesFromUserItem(item) {
     });
 
     // Custom roles aren't known to buildUniversalRoleBadges, so append their badges directly
-    if (isGm && customRoleNames.length > 0) {
+    // Custom roles are shown from their own names, independent of GM roles
+    if (customRoleNames.length > 0) {
         badgesHTML += customRoleNames
             .map(name => {
                 const color = (adminCustomRoleColorsCache && adminCustomRoleColorsCache[name]) || 'purple';

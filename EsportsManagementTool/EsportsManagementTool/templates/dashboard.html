@@ -1632,6 +1632,7 @@
                                     data-last-seen="{{ u.last_seen.strftime('%B %d, %Y; %I:%M %p') if u.last_seen else 'Never logged in' }}"
                                     data-is-admin="{{ u.is_admin }}"
                                     data-is-gm="{{ u.is_gm }}"
+                                    data-is-gm-standard="{{ 1 if u.is_gm_standard else 0 }}"
                                     data-is-player="{{ u.is_player }}"
                                     data-is-developer="{{ u.is_developer }}"
                                     data-custom-role-name="{{ u.custom_role_names or '' }}"
@@ -1658,8 +1659,13 @@
                                                 {% if u.is_developer %}
                                                 <span class="role-badge dev">Dev</span>
                                                 {% endif %}
-                                                {% if u.is_gm %}
+                                                {% if u.is_gm_standard %}
                                                 <span class="role-badge gm">GM</span>
+                                                {% endif %}
+                                                {% if u.custom_role_names %}
+                                                    {% for n in u.custom_role_names.split(', ') %}
+                                                    <span class="role-badge custom-purple">{{ n }}</span>
+                                                    {% endfor %}
                                                 {% endif %}
                                                 {% if u.is_player %}
                                                 <span class="role-badge player">Player</span>
