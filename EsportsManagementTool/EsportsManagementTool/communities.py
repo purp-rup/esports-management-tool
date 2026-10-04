@@ -92,7 +92,7 @@ def get_available_game_managers(game_id):
                 SELECT u.id, u.firstname, u.lastname, u.username, u.profile_picture
                 FROM users u
                 JOIN permissions p ON u.id = p.userid
-                WHERE p.is_gm = 1
+                WHERE p.is_gm_standard = 1
                 ORDER BY u.firstname, u.lastname
             """)
             gms = cursor.fetchall()
@@ -139,6 +139,12 @@ def assign_game_manager(game_id):
 
             if not game:
                 return jsonify({'success': False, 'message': 'Game not found'}), 404
+
+            cursor.execute("SELECT is_gm_standard FROM permissions WHERE userid = %s", (gm_user_id,))
+            perm = cursor.fetchone()
+            if not perm or not perm['is_gm_standard']:
+                return jsonify({'success': False,
+                                'message': 'User must have the Game Manager role to be assigned to a community'}), 400
 
             # Check if user is already the MANAGER of this community
             cursor.execute("SELECT gm_id FROM games WHERE gm_id = %s AND GameID = %s", (gm_user_id, game_id))
@@ -758,7 +764,7 @@ def get_community_details(game_id):
                 cursor.execute("""
                     SELECT u.id, u.firstname, u.lastname, u.username,
                            u.profile_picture, ANY_VALUE(p.is_admin) as is_admin, ANY_VALUE(p.is_developer) as is_developer,
-                           ANY_VALUE(p.is_gm) as is_gm, ANY_VALUE(p.is_player) as is_player,
+                           ANY_VALUE(p.is_gm) as is_gm, ANY_VALUE(p.is_gm_standard) as is_gm_standard, ANY_VALUE(p.is_player) as is_player,
                            ANY_VALUE(c.joined_at) as joined_at, ANY_VALUE(u.id = gm.gm_id) as is_game_manager,
                            ANY_VALUE(d.discord_username) as discord_username, ANY_VALUE(d.discord_discriminator) as discord_discriminator,
                            GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
