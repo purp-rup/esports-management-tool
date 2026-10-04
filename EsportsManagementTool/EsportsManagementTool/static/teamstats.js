@@ -439,13 +439,11 @@ function applyMatchResultModalMode() {
     }
 }
 
-// Maximum number of placement boxes (mirrors the max="7" on # of Games)
+// Maximum number of placement boxes
 const MAX_BR_GAMES = 7;
 
 /**
- * Rebuilds the Placements box row to match the number entered in # of Games
- * (clamped 1-7). Preserves already-entered values by position when the
- * count changes, so adjusting # of Games doesn't wipe out existing entries.
+ * Displays existing inputted scores
  */
 function renderBRPlacementInputs() {
     const container = document.getElementById('matchPlacementsContainer');
@@ -460,12 +458,9 @@ function renderBRPlacementInputs() {
     let count = parseInt(raw, 10);
 
     if (raw !== '' && (isNaN(count) || count < 1)) {
-        // An explicit 0 or negative value isn't allowed — snap up to the minimum
         count = 1;
         gamesInput.value = 1;
     } else if (isNaN(count)) {
-        // Field is empty mid-edit (e.g. clearing it to type a new number) —
-        // don't force a value yet, just render no boxes until they finish typing
         count = 0;
     }
 
@@ -717,7 +712,6 @@ async function submitMatchResult(event) {
         formData.points = pointsRaw === '' ? null : pointsRaw;
         formData.kills = killsRaw === '' ? null : killsRaw;
 
-        // Placement is being handled separately for now
         formData.placements = placements;
 
         formData.is_playoffs =
@@ -894,19 +888,17 @@ async function editMatchResult(eventId) {
     if (teamScoreField) teamScoreField.value = match.team_score ?? '';
     if (opponentScoreField) opponentScoreField.value = match.opponent_score ?? '';
 
-        // Set games-played/points/kills fields if they exist (battle royale games)
+        // Set games-played/points/kills fields (battle royale games)
     const gamesPlayedField = document.getElementById('matchGamesPlayed');
     const pointsField = document.getElementById('matchPoints');
     const killsField = document.getElementById('matchKills');
         if (isCurrentTeamBR() && gamesPlayedField) {
         gamesPlayedField.value = match.games ?? '1';
 
-        // Clear old boxes first so values from a previously opened match
-        // can't carry over into this one
         const placementsContainer = document.getElementById('matchPlacementsContainer');
         if (placementsContainer) placementsContainer.innerHTML = '';
 
-        renderBRPlacementInputs(); // regenerate boxes for the correct count
+        renderBRPlacementInputs();
     }
     if (isCurrentTeamBR() && Array.isArray(match.placements)) {
         const placementInputs = document.querySelectorAll(

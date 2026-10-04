@@ -188,8 +188,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                         'is_playoffs': bool(match['is_playoffs']) if match['is_playoffs'] is not None else False
                     })
 
-                # Load BR placement rows for the match history so existing
-                # results can be edited with their previously saved placements.
+                # Load BR inputs from the match history
                 placement_map = {}
                 event_ids = [match['event_id'] for match in match_events]
                 if event_ids:
@@ -368,9 +367,6 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
             team_score = int(team_score) if team_score is not None else None
             opponent_score = int(opponent_score) if opponent_score is not None else None
 
-            # Battle Royale fields are validated after the game's isBr flag is
-            # loaded below. These variables are initialized here so the standard
-            # branch remains unchanged.
             br_games = None
             br_points = None
             br_kills = None
@@ -428,7 +424,6 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                     }), 403
 
                 # Standard matches require Win/Loss.
-                # Battle Royale matches do not use the result field.
                 if int(game['isBr']) != 1:
                     if data.get('result') not in ['win', 'loss']:
                         return jsonify({
@@ -535,14 +530,11 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                             'message': 'Cannot record results for matches that haven\'t started yet'
                         }), 400
 
-                # Insert or update match result. BR and standard matches use
-                # different scoring fields, so save the appropriate set based
-                # on games.isBr rather than trusting the client.
+                # Insert or update match result
                 is_br = int(game['isBr']) == 1 if game.get('isBr') is not None else False
 
                 if is_br:
-                    # Validate and prepare BR placements. Each non-empty placement
-                    # becomes its own row in br_placements, linked to the match/event.
+                    # Validate and prepare BR placements
                     raw_placements = data.get('placements') or []
                     if not isinstance(raw_placements, list):
                         return jsonify({
@@ -606,8 +598,6 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                         br_kills
                     ))
 
-                    # Replace any existing placement rows for this match so editing
-                    # a result does not leave stale placement entries behind.
                     cursor.execute("""
                         DELETE FROM br_placements
                         WHERE event_id = %s

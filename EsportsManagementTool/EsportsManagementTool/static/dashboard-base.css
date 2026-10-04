@@ -212,16 +212,13 @@ main {
 }
 
 /* Disable scroll bar for mobile devices */
-/* Mobile devices already overlay their own scrollbar, so the permanent thin one
-   here is redundant screen-space on small viewports */
 @media (max-width: 768px) {
     * {
         scrollbar-width: none;
     }
 }
 
-/* Remove native number input spinner arrows everywhere on the site
-   (Chrome/Safari/Edge via the pseudo-elements, Firefox via appearance) */
+/* Remove input spinners */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;

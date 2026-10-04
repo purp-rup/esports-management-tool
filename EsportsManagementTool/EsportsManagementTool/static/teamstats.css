@@ -344,8 +344,6 @@
     max-width: 600px;
 }
 
-/* Battle royale Points/Kills — sit tight next to each other, unlike the wide
-   auto-fit .form-row grid used elsewhere in this modal */
 .br-stats-row {
     display: flex;
     gap: 0.5rem;
