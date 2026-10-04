@@ -2192,7 +2192,7 @@
         <div class="modal-body">
             <p class="modal-subtitle">Record the outcome of a match</p>
             <form id="recordMatchResultForm" class="event-form-modal" onsubmit="submitMatchResult(event)">
-                <!-- Match Selection + Opponent School -->
+                <!-- Match Selection + Opponent School (standard) / Placement (battle royale) -->
                 <div class="form-row">
                     <div class="form-group">
                         <label for="matchEventTagBox" class="required-field">Select Match</label>
@@ -2213,7 +2213,7 @@
                         <input type="hidden" id="matchEventSelect" name="event_id">
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" id="matchOpponentSchoolGroup">
                         <label for="matchOpponentSchool" class="required-field">Opponent's School</label>
                         <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
                             Enter the opposing school or team
@@ -2225,10 +2225,26 @@
                                maxlength="150"
                                required>
                     </div>
+
+                    <div class="form-group" id="matchGamesPlayedGroup" style="display: none;">
+                        <label for="matchGamesPlayed" class="required-field"># of Games</label>
+                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                            How many games were played (max 7)
+                        </small>
+                        <div class="score-input-group">
+                            <input type="number"
+                                   id="matchGamesPlayed"
+                                   name="games"
+                                   min="1"
+                                   max="7"
+                                   step="1"
+                                   oninput="renderBRPlacementInputs()">
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Match Results (Win/Loss + Score, combined) -->
-                <div class="form-group">
+                <!-- Match Results: Win/Loss + Score (standard games) -->
+                <div class="form-group" id="matchStandardResultsGroup">
                     <label class="required-field">Match Results</label>
                     <small style="color: var(--text-secondary); font-size: 0.8125rem; display: block;">
                         Score is optional but much appreciated!
@@ -2270,6 +2286,43 @@
                             <span class="toggle-switch-label">Playoff match?</span>
                         </label>
                     </div>
+                </div>
+
+                <!-- Match Results: Placements (battle royale games) -->
+                <div class="form-group matchresult-placements-centered" id="matchPlacementsGroup" style="display: none;">
+                    <label class="required-field">Placements</label>
+                    <div class="br-placements-row" id="matchPlacementsContainer"></div>
+                </div>
+
+                <!-- Match Results: Points + Kills (battle royale games) -->
+                <div class="br-stats-row" id="matchPointsGroup" style="display: none;">
+                    <div class="form-group">
+                        <label for="matchPoints" class="required-field">Points</label>
+                        <div class="score-input-group">
+                            <input type="number"
+                                   id="matchPoints"
+                                   name="points"
+                                   min="0"
+                                   step="1">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="matchKills">Kills</label>
+                        <div class="score-input-group">
+                            <input type="number"
+                                   id="matchKills"
+                                   name="kills"
+                                   min="0"
+                                   step="1">
+                        </div>
+                    </div>
+
+                    <label class="toggle-switch-wrapper match-playoffs-toggle" title="Check if this match was part of a playoff series">
+                        <input type="checkbox" id="matchPlayoffsBR" name="is_playoffs" value="true" class="toggle-switch-checkbox">
+                        <span class="toggle-switch-slider"></span>
+                        <span class="toggle-switch-label">Playoff match?</span>
+                    </label>
                 </div>
 
                 <div id="recordResultMessage" class="form-message" style="display: none;"></div>

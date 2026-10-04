@@ -456,6 +456,17 @@
     text-align: center;
 }
 
+.community-battle-royale-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.community-battle-royale-group .toggle-switch-wrapper {
+    align-self: center;
+    margin-top: 0.5rem;
+}
+
 /* ========================================
     Create community modal checkbox system
    ======================================== */

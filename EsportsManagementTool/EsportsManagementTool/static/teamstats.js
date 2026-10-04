@@ -113,6 +113,10 @@ async function loadStatsTab(teamId, gameId, leagueId = null) {
             matchEvents = data.match_events || [];
             availableLeagues = data.team_leagues || [];
 
+            // Get game type from the backend/database
+            // 1 = Battle Royale, 0 = standard game
+            window.currentTeamIsBR = Number(data.is_br) === 1 ? 1 : 0;
+
             // Render the complete stats UI
             renderStatsContent();
         } else {
@@ -282,12 +286,16 @@ function renderMatchHistory() {
     matchEvents.forEach((match, index) => {
         const rowIndex = Math.floor(index / 2);
 
-        const resultClass = match.result ? match.result.toLowerCase() : 'pending';
-        const resultIcon = match.result === 'win' ? 'fa-trophy' :
-                          match.result === 'loss' ? 'fa-times-circle' :
-                          'fa-clock';
-        const resultText = match.result
-            ? `${match.result.toUpperCase()}${match.score_display ? ` ${match.score_display}` : ''}`
+        const isBRTeam = isCurrentTeamBR();
+        const isBRRecorded = isBRTeam && match.games !== null && match.games !== undefined;
+        const isRecorded = isBRTeam ? isBRRecorded : !!match.result;
+
+        const resultClass = isRecorded ? (isBRTeam ? 'win' : match.result.toLowerCase()) : 'pending';
+        const resultIcon = isRecorded
+            ? (isBRTeam ? 'fa-trophy' : (match.result === 'win' ? 'fa-trophy' : 'fa-times-circle'))
+            : 'fa-clock';
+        const resultText = isRecorded
+            ? (isBRTeam ? 'RECORDED' : `${match.result.toUpperCase()}${match.score_display ? ` ${match.score_display}` : ''}`)
             : 'PENDING';
         const playoffsBadge = match.is_playoffs ? `
             <span class="match-playoffs-badge" title="Playoffs match">
@@ -389,6 +397,94 @@ function toggleMatchCardExpand(rowIndex) {
 // ============================================
 
 /**
+ * Check whether game is a BR
+ */
+function isCurrentTeamBR() {
+    return Number(window.currentTeamIsBR) === 1;
+}
+
+/**
+ * Adjusts the display to show BR scoring
+ */
+function applyMatchResultModalMode() {
+    const isBR = isCurrentTeamBR();
+
+    const opponentSchoolGroup = document.getElementById('matchOpponentSchoolGroup');
+    const gamesPlayedGroup = document.getElementById('matchGamesPlayedGroup');
+    const standardResultsGroup = document.getElementById('matchStandardResultsGroup');
+    const placementsGroup = document.getElementById('matchPlacementsGroup');
+    const pointsGroup = document.getElementById('matchPointsGroup');
+
+    if (opponentSchoolGroup) opponentSchoolGroup.style.display = isBR ? 'none' : '';
+    if (gamesPlayedGroup) gamesPlayedGroup.style.display = isBR ? '' : 'none';
+    if (standardResultsGroup) standardResultsGroup.style.display = isBR ? 'none' : '';
+    if (placementsGroup) placementsGroup.style.display = isBR ? '' : 'none';
+    if (pointsGroup) pointsGroup.style.display = isBR ? '' : 'none';
+
+    // A hidden field with `required` still blocks native form submission,
+    // so required-ness has to follow visibility
+    const opponentSchoolInput = document.getElementById('matchOpponentSchool');
+    const gamesPlayedInput = document.getElementById('matchGamesPlayed');
+    const resultRadios = document.querySelectorAll('input[name="matchResult"]');
+
+    if (opponentSchoolInput) opponentSchoolInput.required = !isBR;
+    if (gamesPlayedInput) gamesPlayedInput.required = isBR;
+    resultRadios.forEach(radio => { radio.required = !isBR; });
+
+    if (isBR) {
+        renderBRPlacementInputs();
+    } else {
+        const placementsContainer = document.getElementById('matchPlacementsContainer');
+        if (placementsContainer) placementsContainer.innerHTML = '';
+    }
+}
+
+// Maximum number of placement boxes
+const MAX_BR_GAMES = 7;
+
+/**
+ * Displays existing inputted scores
+ */
+function renderBRPlacementInputs() {
+    const container = document.getElementById('matchPlacementsContainer');
+    const gamesInput = document.getElementById('matchGamesPlayed');
+    if (!container || !gamesInput) return;
+
+    const existingValues = Array.from(
+        container.querySelectorAll('input[data-placement-index]')
+    ).map(input => input.value);
+
+    const raw = gamesInput.value;
+    let count = parseInt(raw, 10);
+
+    if (raw !== '' && (isNaN(count) || count < 1)) {
+        count = 1;
+        gamesInput.value = 1;
+    } else if (isNaN(count)) {
+        count = 0;
+    }
+
+    if (count > MAX_BR_GAMES) {
+        count = MAX_BR_GAMES;
+        gamesInput.value = MAX_BR_GAMES;
+    }
+
+    container.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'score-input-group';
+        wrapper.innerHTML = `
+            <input type="number"
+                   data-placement-index="${i}"
+                   min="1"
+                   step="1"
+                   value="${existingValues[i] || ''}">
+        `;
+        container.appendChild(wrapper);
+    }
+}
+
+/**
  * Open modal to record a match result
  * Resets form and populates match events dropdown
  */
@@ -433,6 +529,9 @@ function openRecordResultModal() {
     // ========================================
     // Populate events dropdown with available matches
     populateMatchEventsDropdown();
+
+    // Show the right fields for this team's game type (standard vs battle royale)
+    applyMatchResultModalMode();
 
     // ========================================
     // SHOW MODAL
@@ -591,18 +690,42 @@ async function submitMatchResult(event) {
     // ========================================
     // COLLECT FORM DATA
     // ========================================
-    const teamScoreRaw = document.getElementById('matchTeamScore').value.trim();
-    const opponentScoreRaw = document.getElementById('matchOpponentScore').value.trim();
+    const isBR = isCurrentTeamBR();
 
     const formData = {
         team_id: currentStatsTeamId,
-        event_id: document.getElementById('matchEventSelect').value,
-        result: document.querySelector('input[name="matchResult"]:checked')?.value,
-        is_playoffs: document.getElementById('matchPlayoffs').checked,
-        opponent_school: document.getElementById('matchOpponentSchool').value.trim(),
-        team_score: teamScoreRaw === '' ? null : teamScoreRaw,
-        opponent_score: opponentScoreRaw === '' ? null : opponentScoreRaw
+        event_id: document.getElementById('matchEventSelect').value
     };
+
+    if (isBR) {
+        const gamesRaw = document.getElementById('matchGamesPlayed').value.trim();
+        const pointsRaw = document.getElementById('matchPoints').value.trim();
+        const killsRaw = document.getElementById('matchKills').value.trim();
+
+        const placementInputs = Array.from(
+            document.querySelectorAll('#matchPlacementsContainer input[data-placement-index]')
+        );
+
+        const placements = placementInputs.map(input => input.value.trim());
+
+        formData.games = gamesRaw === '' ? null : gamesRaw;
+        formData.points = pointsRaw === '' ? null : pointsRaw;
+        formData.kills = killsRaw === '' ? null : killsRaw;
+
+        formData.placements = placements;
+
+        formData.is_playoffs =
+            document.getElementById('matchPlayoffsBR').checked;
+    } else {
+        const teamScoreRaw = document.getElementById('matchTeamScore').value.trim();
+        const opponentScoreRaw = document.getElementById('matchOpponentScore').value.trim();
+
+        formData.result = document.querySelector('input[name="matchResult"]:checked')?.value;
+        formData.opponent_school = document.getElementById('matchOpponentSchool').value.trim();
+        formData.team_score = teamScoreRaw === '' ? null : teamScoreRaw;
+        formData.opponent_score = opponentScoreRaw === '' ? null : opponentScoreRaw;
+        formData.is_playoffs = document.getElementById('matchPlayoffs').checked;
+    }
 
     // ========================================
     // VALIDATION
@@ -613,28 +736,48 @@ async function submitMatchResult(event) {
         return;
     }
 
-    if (!formData.result) {
-        showErrorToast('Please select a result (Win or Loss)');
-        resetSubmitButton(submitBtn, btnText, btnSpinner);
-        return;
-    }
+    if (isBR) {
+        if (!formData.games || formData.games < 1) {
+            showErrorToast('Please enter the number of games played');
+            resetSubmitButton(submitBtn, btnText, btnSpinner);
+            return;
+        }
 
-     if (!formData.opponent_school) {
-        showErrorToast('Please enter the opposing school or team');
-        resetSubmitButton(submitBtn, btnText, btnSpinner);
-        return;
-    }
+        const expectedPlacementCount = parseInt(formData.games, 10);
 
-    if ((formData.team_score === null) !== (formData.opponent_score === null)) {
-        showErrorToast('Please enter both scores, or leave both blank');
-        resetSubmitButton(submitBtn, btnText, btnSpinner);
-        return;
+        if (
+            formData.placements.length !== expectedPlacementCount ||
+            formData.placements.some(placement => placement === '')
+        ) {
+            showErrorToast('Please enter a placement for every game');
+            resetSubmitButton(submitBtn, btnText, btnSpinner);
+            return;
+        }
+    } else {
+        if (!formData.result) {
+            showErrorToast('Please select a result (Win or Loss)');
+            resetSubmitButton(submitBtn, btnText, btnSpinner);
+            return;
+        }
+
+        if (!formData.opponent_school) {
+            showErrorToast('Please enter the opposing school or team');
+            resetSubmitButton(submitBtn, btnText, btnSpinner);
+            return;
+        }
+
+        if ((formData.team_score === null) !== (formData.opponent_score === null)) {
+            showErrorToast('Please enter both scores, or leave both blank');
+            resetSubmitButton(submitBtn, btnText, btnSpinner);
+            return;
+        }
     }
 
     // ========================================
     // SUBMIT TO BACKEND
     // ========================================
     try {
+        console.log('Submitting match result:', formData);
         const response = await fetch('/api/teams/record-match-result', {
             method: 'POST',
             headers: {
@@ -647,7 +790,7 @@ async function submitMatchResult(event) {
 
         if (data.success) {
             // Show notification card colored by match result (win = green, loss = red)
-            if (formData.result === 'win') {
+            if (isBR || formData.result === 'win') {
                 showSuccessToast(data.message);
             } else {
                 showErrorToast(data.message);
@@ -718,6 +861,9 @@ async function editMatchResult(eventId) {
     modal.style.display = 'block';
     lockBodyScroll('recordMatchResultModal');
 
+    // Show the right fields for this team's game type (standard vs battle royale)
+    applyMatchResultModalMode();
+
     // Populate dropdown with the event pre-selected, then set other fields
     await populateMatchEventsDropdown(eventId);
 
@@ -742,10 +888,39 @@ async function editMatchResult(eventId) {
     if (teamScoreField) teamScoreField.value = match.team_score ?? '';
     if (opponentScoreField) opponentScoreField.value = match.opponent_score ?? '';
 
-    // Set playoffs checkbox if applicable
+        // Set games-played/points/kills fields (battle royale games)
+    const gamesPlayedField = document.getElementById('matchGamesPlayed');
+    const pointsField = document.getElementById('matchPoints');
+    const killsField = document.getElementById('matchKills');
+        if (isCurrentTeamBR() && gamesPlayedField) {
+        gamesPlayedField.value = match.games ?? '1';
+
+        const placementsContainer = document.getElementById('matchPlacementsContainer');
+        if (placementsContainer) placementsContainer.innerHTML = '';
+
+        renderBRPlacementInputs();
+    }
+    if (isCurrentTeamBR() && Array.isArray(match.placements)) {
+        const placementInputs = document.querySelectorAll(
+            '#matchPlacementsContainer input[data-placement-index]'
+        );
+
+        placementInputs.forEach((input, i) => {
+            input.value = match.placements[i] ?? '';
+            input.required = true;
+        });
+    }
+    if (pointsField) pointsField.value = match.points ?? '';
+    if (killsField) killsField.value = match.kills ?? '';
+
+    // Set playoffs checkbox if applicable (whichever one applies to this game type)
     const playoffsCheckbox = document.getElementById('matchPlayoffs');
+    const playoffsCheckboxBR = document.getElementById('matchPlayoffsBR');
     if (playoffsCheckbox) {
         playoffsCheckbox.checked = match.is_playoffs || false;
+    }
+    if (playoffsCheckboxBR) {
+        playoffsCheckboxBR.checked = match.is_playoffs || false;
     }
 }
 

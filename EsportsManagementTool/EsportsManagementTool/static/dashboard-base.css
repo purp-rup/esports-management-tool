@@ -210,6 +210,17 @@ select.fa-icons, option.fa-icons {
     }
 }
 
+/* Remove input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
 /* ====================================
    DROPDOWN / FILTERS
    ==================================== */
@@ -295,13 +306,6 @@ select.fa-icons, option.fa-icons {
     background: var(--hover-bg);
     color: var(--stockton-blue);
     font-weight: 600;
-}
-
-/* Visually disabled state for custom dropdown items (e.g. visibility options locked for Match events) */
-.filter-box-item.disabled-option {
-    opacity: 0.4;
-    pointer-events: none;
-    cursor: default;
 }
 
 /* Universal filter buttons

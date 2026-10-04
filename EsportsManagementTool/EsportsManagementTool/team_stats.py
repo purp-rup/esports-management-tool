@@ -34,7 +34,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
             try:
                 # Verify team exists and get game_id
                 cursor.execute("""
-                    SELECT t.gameID, g.GameTitle 
+                    SELECT t.gameID, g.GameTitle, g.isBr
                     FROM teams t
                     JOIN games g ON t.gameID = g.GameID
                     WHERE t.TeamID = %s
@@ -106,6 +106,9 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                             mr.is_playoffs,
                             mr.team_score,
                             mr.opponent_score,
+                            mr.games,
+                            mr.points,
+                            mr.kills,
                             u.firstname,
                             u.lastname
                         FROM generalevents ge
@@ -138,6 +141,9 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                             mr.is_playoffs,
                             mr.team_score,
                             mr.opponent_score,
+                            mr.games,
+                            mr.points,
+                            mr.kills,
                             u.firstname,
                             u.lastname
                         FROM generalevents ge
@@ -173,11 +179,33 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                         'opponent_school': match['opponent_school'],
                         'team_score': team_score,
                         'opponent_score': opponent_score,
+                        'games': match['games'],
+                        'points': match['points'],
+                        'kills': match['kills'],
                         'score_display': score_display,  # e.g. "2-3", or None if only W/L was recorded
                         'recorded_at': match['recorded_at'].strftime('%Y-%m-%d %H:%M:%S') if match['recorded_at'] else None,
                         'recorded_by': f"{match['firstname']} {match['lastname']}" if match['firstname'] else None,
                         'is_playoffs': bool(match['is_playoffs']) if match['is_playoffs'] is not None else False
                     })
+
+                # Load BR inputs from the match history
+                placement_map = {}
+                event_ids = [match['event_id'] for match in match_events]
+                if event_ids:
+                    placeholders = ','.join(['%s'] * len(event_ids))
+                    cursor.execute(f"""
+                        SELECT event_id, placement
+                        FROM br_placements
+                        WHERE event_id IN ({placeholders})
+                        ORDER BY game_number ASC
+                    """, tuple(event_ids))
+
+                    for placement_row in cursor.fetchall():
+                        event_id = placement_row['event_id']
+                        placement_map.setdefault(event_id, []).append(placement_row['placement'])
+
+                for match in match_events:
+                    match['placements'] = placement_map.get(match['event_id'], [])
 
                 return jsonify({
                     'success': True,
@@ -188,6 +216,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                     },
                     'match_events': match_events,
                     'game_title': team['GameTitle'],
+                    'is_br': int(team['isBr']) if team['isBr'] is not None else 0,
                     'team_leagues': [{'id': l['id'], 'name': l['name']} for l in team_leagues],
                     'current_league_filter': league_id
                 }), 200
@@ -297,16 +326,23 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
             user_id = session['id']
 
             # Validate required fields
-            if not all(k in data for k in ['team_id', 'event_id', 'result']):
-                return jsonify({
-                    'success': False,
-                    'message': 'Missing required fields'
-                }), 400
+            data = request.get_json(silent=True) or {}
 
-            if data['result'] not in ['win', 'loss']:
+            missing_fields = []
+
+            if not data.get('team_id'):
+                missing_fields.append('team_id')
+
+            if not data.get('event_id'):
+                missing_fields.append('event_id')
+
+            if missing_fields:
+                print("Missing fields in record-match-result:", missing_fields)
+                print("Received data:", data)
+
                 return jsonify({
                     'success': False,
-                    'message': 'Invalid result. Must be "win" or "loss"'
+                    'message': f'Missing required fields: {", ".join(missing_fields)}'
                 }), 400
 
             # Scores are optional — GMs can record a plain W/L without a score
@@ -330,6 +366,10 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
 
             team_score = int(team_score) if team_score is not None else None
             opponent_score = int(opponent_score) if opponent_score is not None else None
+
+            br_games = None
+            br_points = None
+            br_kills = None
 
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -373,7 +413,7 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
 
                 # Verify GM manages this game
                 cursor.execute("""
-                    SELECT gm_id FROM games WHERE GameID = %s
+                    SELECT gm_id, isBr FROM games WHERE GameID = %s
                 """, (game_id,))
 
                 game = cursor.fetchone()
@@ -382,6 +422,56 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                         'success': False,
                         'message': 'You do not have permission to record results for this team'
                     }), 403
+
+                # Standard matches require Win/Loss.
+                if int(game['isBr']) != 1:
+                    if data.get('result') not in ['win', 'loss']:
+                        return jsonify({
+                            'success': False,
+                            'message': 'Invalid result. Must be "win" or "loss"'
+                        }), 400
+
+                # Validate Battle Royale scoring fields when this team's game
+                # is marked isBr = 1 in the games table.
+                if int(game['isBr']) == 1:
+                    for label, value in (
+                        ('games', data.get('games')),
+                        ('points', data.get('points')),
+                        ('kills', data.get('kills'))
+                    ):
+                        if value is None or value == '':
+                            if label == 'games':
+                                return jsonify({
+                                    'success': False,
+                                    'message': 'Number of games played is required for Battle Royale matches'
+                                }), 400
+                            continue
+
+                        try:
+                            parsed_value = int(value)
+                        except (TypeError, ValueError):
+                            return jsonify({
+                                'success': False,
+                                'message': f'{label} must be a whole number'
+                            }), 400
+
+                        if parsed_value < 0:
+                            return jsonify({
+                                'success': False,
+                                'message': f'{label} cannot be negative'
+                            }), 400
+
+                        if label == 'games':
+                            if parsed_value < 1 or parsed_value > 7:
+                                return jsonify({
+                                    'success': False,
+                                    'message': 'Number of games played must be between 1 and 7'
+                                }), 400
+                            br_games = parsed_value
+                        elif label == 'points':
+                            br_points = parsed_value
+                        elif label == 'kills':
+                            br_kills = parsed_value
 
                 # Verify event exists and is a match
                 cursor.execute("""
@@ -441,34 +531,118 @@ def register_team_stats_routes(app, mysql, login_required, roles_required):
                         }), 400
 
                 # Insert or update match result
-                cursor.execute("""
-                    INSERT INTO match_results 
-                    (event_id, team_id, result, recorded_by, is_playoffs, opponent_school, team_score, opponent_score)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE
-                        result = VALUES(result),
-                        recorded_by = VALUES(recorded_by),
-                        is_playoffs = VALUES(is_playoffs),
-                        opponent_school = VALUES(opponent_school),
-                        team_score = VALUES(team_score),
-                        opponent_score = VALUES(opponent_score),
-                        recorded_at = CURRENT_TIMESTAMP
-                                """, (
-                    data['event_id'],
-                    data['team_id'],
-                    data['result'],
-                    user_id,
-                    data.get('is_playoffs', False),
-                    data.get('opponent_school', '') or '',
-                    team_score,
-                    opponent_score
-                ))
+                is_br = int(game['isBr']) == 1 if game.get('isBr') is not None else False
+
+                if is_br:
+                    # Validate and prepare BR placements
+                    raw_placements = data.get('placements') or []
+                    if not isinstance(raw_placements, list):
+                        return jsonify({
+                            'success': False,
+                            'message': 'Placements must be submitted as an array'
+                        }), 400
+
+                    br_placements = []
+                    for placement in raw_placements:
+                        if placement is None or str(placement).strip() == '':
+                            continue
+
+                        try:
+                            parsed_placement = int(placement)
+                        except (TypeError, ValueError):
+                            return jsonify({
+                                'success': False,
+                                'message': 'Placements must be whole numbers'
+                            }), 400
+
+                        if parsed_placement < 1:
+                            return jsonify({
+                                'success': False,
+                                'message': 'Placements must be at least 1'
+                            }), 400
+
+                        br_placements.append(parsed_placement)
+
+                    if br_games is not None and len(br_placements) != br_games:
+                        return jsonify({
+                            'success': False,
+                            'message': f'Please provide a placement for each of the {br_games} games'
+                        }), 400
+
+                    cursor.execute("""
+                        INSERT INTO match_results
+                        (event_id, team_id, result, recorded_by, is_playoffs,
+                         opponent_school, team_score, opponent_score, games, points, kills)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE
+                            result = VALUES(result),
+                            recorded_by = VALUES(recorded_by),
+                            is_playoffs = VALUES(is_playoffs),
+                            opponent_school = VALUES(opponent_school),
+                            team_score = VALUES(team_score),
+                            games = VALUES(games),
+                            points = VALUES(points),
+                            kills = VALUES(kills),
+                            recorded_at = CURRENT_TIMESTAMP
+                    """, (
+                        data['event_id'],
+                        data['team_id'],
+                        None,
+                        user_id,
+                        data.get('is_playoffs', False),
+                        '',
+                        None,
+                        None,
+                        br_games,
+                        br_points,
+                        br_kills
+                    ))
+
+                    cursor.execute("""
+                        DELETE FROM br_placements
+                        WHERE event_id = %s
+                    """, (data['event_id'],))
+
+                    if br_placements:
+                        cursor.executemany("""
+                            INSERT INTO br_placements (event_id, game_number, placement)
+                            VALUES (%s, %s, %s)
+                        """, [
+                            (data['event_id'], idx + 1, placement)
+                            for idx, placement in enumerate(br_placements)
+                        ])
+
+                    success_message = 'Battle Royale match result recorded'
+                else:
+                    cursor.execute("""
+                        INSERT INTO match_results 
+                        (event_id, team_id, result, recorded_by, is_playoffs, opponent_school, team_score, opponent_score)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE
+                            result = VALUES(result),
+                            recorded_by = VALUES(recorded_by),
+                            is_playoffs = VALUES(is_playoffs),
+                            opponent_school = VALUES(opponent_school),
+                            team_score = VALUES(team_score),
+                            opponent_score = VALUES(opponent_score),
+                            recorded_at = CURRENT_TIMESTAMP
+                    """, (
+                        data['event_id'],
+                        data['team_id'],
+                        data['result'],
+                        user_id,
+                        data.get('is_playoffs', False),
+                        data.get('opponent_school', '') or '',
+                        team_score,
+                        opponent_score
+                    ))
+                    success_message = f'Match result recorded: {data["result"].upper()}'
 
                 mysql.connection.commit()
 
                 return jsonify({
                     'success': True,
-                    'message': f'Match result recorded: {data["result"].upper()}'
+                    'message': success_message
                 }), 200
 
             finally:
