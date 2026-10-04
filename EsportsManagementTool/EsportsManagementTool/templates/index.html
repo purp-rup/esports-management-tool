@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Home - Osprey Vantage{% endblock %}
+{% block title %}Home - Esports Vantage{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='dashboard-base.css') }}">
@@ -26,7 +26,7 @@
         <div class="hero-text">
             <h1>
                 Welcome to<br>
-                <span class="hero-gradient">Osprey Vantage</span>
+                <span class="hero-gradient">Esports Vantage</span>
             </h1>
             <p>
                 Your centralized hub for competitive gaming, team management, and community engagement.
@@ -82,15 +82,19 @@
             <div class="calendar-container" style="visibility: hidden;">
                 <!-- Calendar Navigation -->
                 <div class="calendar-navigation">
-                    <a href="#" class="nav-button" id="prevMonth">
-                        <i class="fas fa-chevron-left"></i>
-                        <span>Previous</span>
-                    </a>
+                    <div class="calendar-nav-left">
+                        <a href="#" class="nav-button" id="prevMonth">
+                            <i class="fas fa-chevron-left"></i>
+                            <span>Previous</span>
+                        </a>
+                    </div>
                     <h2 class="calendar-month-year" id="currentMonthYear"></h2>
-                    <a href="#" class="nav-button" id="nextMonth">
-                        <span>Next</span>
-                        <i class="fas fa-chevron-right"></i>
-                    </a>
+                    <div class="calendar-nav-right">
+                        <a href="#" class="nav-button" id="nextMonth">
+                            <span>Next</span>
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </div>
                 </div>
 
                 <!-- Calendar Main -->

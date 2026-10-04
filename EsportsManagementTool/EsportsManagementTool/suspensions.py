@@ -28,8 +28,7 @@ def check_user_suspension(mysql, user_id):
         cursor.execute("""
             SELECT 
                 sus_id,
-                suspended_until,
-                reason
+                suspended_until
             FROM user_suspensions
             WHERE user_id = %s 
             AND is_active = TRUE 
@@ -43,14 +42,13 @@ def check_user_suspension(mysql, user_id):
 
         if suspension:
             # Make suspended_until timezone-aware before comparison
-            suspended_until = localize_datetime(suspension['suspended_until'])  # ✅ ADD THIS
-            remaining = suspended_until - datetime.now(EST)  # ✅ CHANGE THIS
+            suspended_until = localize_datetime(suspension['suspended_until']) 
+            remaining = suspended_until - datetime.now(EST)  
             days = remaining.days
             hours = remaining.seconds // 3600
 
             return True, {
-                'reason': suspension['reason'],
-                'suspended_until': suspended_until.strftime('%B %d, %Y at %I:%M %p') + ' EST',  # ✅ ADD EST
+                'suspended_until': suspended_until.strftime('%B %d, %Y at %I:%M %p') + ' EST',  
                 'remaining_days': days,
                 'remaining_hours': hours
             }
@@ -60,7 +58,7 @@ def check_user_suspension(mysql, user_id):
     except Exception as e:
         print(f"Error checking suspension: {e}")
         import traceback
-        traceback.print_exc()  # ✅ ADD THIS for better debugging
+        traceback.print_exc()  
         return False, None
 
 """
@@ -76,7 +74,7 @@ def check_session_validity(mysql):
         try:
             # Check if this user has been invalidated since they logged in
             cursor.execute("""
-                SELECT kicked_id, reason 
+                SELECT kicked_id
                 FROM invalidated_sessions 
                 WHERE user_id = %s 
                 AND invalidated_at > %s
@@ -88,17 +86,12 @@ def check_session_validity(mysql):
 
             if invalidation:
                 # Session has been invalidated - clear it
-                reason = invalidation['reason']
                 user_id = session['id']
 
                 # Clear session
                 session.clear()
 
-                # Set flash message based on reason
-                if reason == 'suspension':
-                    flash('Your account has been suspended. You have been logged out.', 'error')
-                else:
-                    flash('Your session has been terminated by an administrator.', 'error')
+                flash('You have been locked out. Contact an Admin for more information.', 'error')
 
                 # Delete the invalidation record so we don't keep showing the message
                 cursor.execute("DELETE FROM invalidated_sessions WHERE user_id = %s", (user_id,))
@@ -134,7 +127,6 @@ def suspend_user_route(mysql):
         user_id = data.get('user_id')
         duration_days = int(data.get('duration_days', 0))
         duration_hours = int(data.get('duration_hours', 0))
-        reason = data.get('reason', 'No reason provided')
 
         if not user_id:
             return jsonify({'success': False, 'message': 'User ID is required'})
@@ -147,7 +139,7 @@ def suspend_user_route(mysql):
 
         # Prevent admins from suspending themselves
         if user_id == session['id']:
-            return jsonify({'success': False, 'message': 'You cannot suspend yourself'})
+            return jsonify({'success': False, 'message': 'You cannot lock yourself out'})
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
@@ -170,17 +162,17 @@ def suspend_user_route(mysql):
             WHERE user_id = %s AND is_active = TRUE
         """, (user_id,))
 
-        # Create new suspension (sus_id will auto-increment)
+        # Create new lockout (sus_id will auto-increment)
         cursor.execute("""
             INSERT INTO user_suspensions 
-            (user_id, suspended_until, reason, suspended_by, suspended_at, is_active) 
-            VALUES (%s, %s, %s, %s, NOW(), TRUE)
-        """, (user_id, suspended_until, reason, session['id']))
+            (user_id, suspended_until, suspended_by, suspended_at, is_active) 
+            VALUES (%s, %s, %s, NOW(), TRUE)
+        """, (user_id, suspended_until, session['id']))
 
         # Invalidate user's session to force logout
         cursor.execute("""
-            INSERT INTO invalidated_sessions (user_id, reason)
-            VALUES (%s, 'suspension')
+            INSERT INTO invalidated_sessions (user_id)
+            VALUES (%s)
         """, (user_id,))
 
         # Mark user as inactive
@@ -203,7 +195,7 @@ def suspend_user_route(mysql):
 
         return jsonify({
             'success': True,
-            'message': f'User @{user["username"]} has been suspended for {duration_text}'
+            'message': f'User @{user["username"]} has been locked out for {duration_text}'
         })
 
     except Exception as e:
@@ -214,7 +206,7 @@ def suspend_user_route(mysql):
 
 
 def lift_suspension_route(mysql):
-    """Lift an active suspension for a user"""
+    """Lift an active lock out for a user"""
     try:
         data = request.get_json()
         user_id = data.get('user_id')
@@ -236,7 +228,7 @@ def lift_suspension_route(mysql):
 
         return jsonify({
             'success': True,
-            'message': 'Suspension has been lifted successfully'
+            'message': 'Lock out has been lifted successfully'
         })
 
     except Exception as e:
@@ -256,7 +248,6 @@ def get_suspension_status_route(mysql, user_id):
             SELECT 
                 s.sus_id,
                 s.suspended_until,
-                s.reason,
                 s.suspended_at,
                 CONCAT(u.firstname, ' ', u.lastname) as suspended_by_name
             FROM user_suspensions s
@@ -273,11 +264,11 @@ def get_suspension_status_route(mysql, user_id):
 
         if suspension:
             # Make datetimes timezone-aware before calculations
-            suspended_until = localize_datetime(suspension['suspended_until'])  # ✅ ADD THIS
-            suspended_at = localize_datetime(suspension['suspended_at'])  # ✅ ADD THIS
+            suspended_until = localize_datetime(suspension['suspended_until']) 
+            suspended_at = localize_datetime(suspension['suspended_at']) 
 
             # Calculate remaining time
-            remaining = suspended_until - datetime.now(EST)  # ✅ CHANGE THIS
+            remaining = suspended_until - datetime.now(EST) 
             days = remaining.days
             hours = remaining.seconds // 3600
 
@@ -286,9 +277,8 @@ def get_suspension_status_route(mysql, user_id):
                 'is_suspended': True,
                 'suspension': {
                     'sus_id': suspension['sus_id'],
-                    'reason': suspension['reason'],
-                    'suspended_until': suspended_until.strftime('%B %d, %Y at %I:%M %p') + ' EST',  # ✅ CHANGE
-                    'suspended_at': suspended_at.strftime('%B %d, %Y at %I:%M %p') + ' EST',  # ✅ CHANGE
+                    'suspended_until': suspended_until.strftime('%B %d, %Y at %I:%M %p') + ' EST',
+                    'suspended_at': suspended_at.strftime('%B %d, %Y at %I:%M %p') + ' EST',
                     'suspended_by': suspension.get('suspended_by_name', 'Unknown'),
                     'remaining_days': days,
                     'remaining_hours': hours

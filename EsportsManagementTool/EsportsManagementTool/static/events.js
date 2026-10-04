@@ -1326,7 +1326,7 @@ function closeEventDetailPanel() {
     const bannerEl = document.getElementById('eventDetailBanner');
     if (bannerEl) clearInterval(bannerEl._slideInterval);
     const flairStage = document.getElementById('partnershipFlairStage');
-    if (flairStage) clearInterval(flairStage,_flairInterval)
+    if (flairStage) clearInterval(flairStage._flairInterval);
 
     EventState.currentEventId = null;
     EventState.currentEventData = null;
@@ -1340,8 +1340,9 @@ function closeEventDetailPanel() {
     `;
 
     // Mobile
-    if (window.innerWidth <= 768) {}
+    if (window.innerWidth <= 768) {
         closeEventDetailSheet();
+    }
 }
 
 // Closes the event detail pane in MOBILE VIEW
