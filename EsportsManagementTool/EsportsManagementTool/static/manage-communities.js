@@ -345,7 +345,7 @@ function showCommunityForm(community = null) {
 
             <div class="form-row">
                 <div class="form-group">
-                    <label>Game Icon/Image</label>
+                    <center><label>Game Icon/Image</label></center>
                     <div class="community-image-upload">
                         <div class="community-image-preview" id="communityImagePreview" onclick="document.getElementById('communityImage').click()">
                             ${imagePreviewHtml}
@@ -364,7 +364,7 @@ function showCommunityForm(community = null) {
                 </div>
 
                 <div class="form-group community-battle-royale-group">
-                    <label for="communityIsBR">Battle Royale</label>
+                    <center><label for="communityIsBR">Battle Royale</label></center>
                     <label class="toggle-switch-wrapper">
                         <input type="checkbox"
                                class="toggle-switch-checkbox"
