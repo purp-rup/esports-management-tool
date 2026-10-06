@@ -170,7 +170,6 @@ body {
 /* Features Section */
 .features {
     padding: 1.5rem 0 1rem 0;
-
 }
 
 .features-header {
@@ -258,7 +257,7 @@ body {
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 3rem;
     max-width: 1000px;
     margin: 0 auto;
@@ -276,7 +275,249 @@ body {
     font-size: 1rem;
 }
 
-/* CTA Section */
+/* ============================================
+   Meet the Developers Section
+   ============================================ */
+
+.devs-section {
+    margin-top: 1.5rem;
+    padding: 1.5rem 0;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.devs-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.devs-header h2 {
+    font-size: clamp(2rem, 3vw, 2.5rem);
+}
+
+.devs-header p {
+    color: var(--text-secondary);
+    font-size: clamp(1rem, 2.5vw, 1.125rem);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.devs-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem 4rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.dev-card {
+    position: relative;
+    z-index: 1;
+}
+
+.dev-card-panel {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% + 48px);
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem 1rem 1rem;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    transition: height 0.28s ease, border-color 0.2s ease, box-shadow 0.25s ease;
+    z-index: 2;
+}
+
+.devs-grid .dev-card:nth-child(-n+4) {
+    z-index: 21;
+}
+
+.dev-card.is-open {
+    z-index: 20;
+}
+
+.dev-card.is-open .dev-card-panel {
+    border-color: var(--stockton-blue);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+
+/* Header — always visible */
+.dev-panel-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    width: 100%;
+    flex-shrink: 0;
+}
+
+.dev-avatar,
+.dev-avatar-fallback {
+    width: 125px;
+    height: 125px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+    flex-shrink: 0;
+    transition: border-color 0.2s ease;
+}
+
+.dev-avatar-fallback {
+    background: linear-gradient(135deg, var(--stockton-blue), #1976D2);
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: white;
+    font-weight: 700;
+}
+
+.dev-card.is-open .dev-avatar,
+.dev-card.is-open .dev-avatar-fallback {
+    border-color: var(--stockton-blue);
+}
+
+.dev-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: center;
+    margin: 0.25rem 0 0;
+}
+
+.dev-role {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    text-align: center;
+    margin: 0;
+}
+
+.dev-panel-body {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.875rem;
+    margin-top: 0.875rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.dev-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.dev-linkedin-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.875rem;
+    background: #0a66c2;
+    color: #fff;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: background 0.15s ease;
+}
+
+.dev-linkedin-btn:hover {
+    background: #0856a8;
+}
+
+.dev-email-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.dev-email-link:hover {
+    color: var(--stockton-blue);
+}
+
+@media (max-width: 900px) {
+    .dev-name {
+        font-size: 0.875rem;
+    }
+
+    .dev-role {
+        font-size: 0.75rem;
+    }
+
+    .dev-avatar,
+    .dev-avatar-fallback {
+        width: 80px;
+        height: 80px;
+    }
+
+    .devs-grid {
+        gap: 0.65rem 3.5rem;
+    }
+
+    .dev-card-panel {
+        padding: 0.5rem;
+    }
+}
+
+@media (max-width: 650px) {
+    .devs-grid {
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: visible;
+        gap: 0.75rem;
+        max-width: none;
+        padding: 0.5rem 1rem 1rem;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .devs-grid::-webkit-scrollbar { display: none; }
+
+    .dev-card {
+        flex: 0 0 80%;
+        scroll-snap-align: center;
+        cursor: default;
+        height: auto !important; /* override JS inline height */
+    }
+
+    .dev-card-panel {
+        position: relative;
+        left: auto;
+        transform: none;
+        width: 100%;
+        padding: 1rem;
+        height: auto !important; /* override JS inline height */
+    }
+
+    .dev-avatar,
+    .dev-avatar-fallback {
+        width: 80px;
+        height: 80px;
+    }
+
+    .dev-name { font-size: 0.875rem; }
+    .dev-role { font-size: 0.75rem; }
+}
+
+/* ============================================
+   Call to Action Section
+   ============================================ */
+
 .cta {
     text-align: center;
     padding: 1rem 2rem;
