@@ -79,6 +79,7 @@ let landingGalleryCommunitiesLoaded = false;
 // Initialize admin panel, refresh badges, and show user list once loaded
 async function initializeAdminPanel() {
     attachAdminEventListeners();
+    initUserDetailsSheet();
     await loadAdminCustomRoleColors();
     await refreshUserListBadges();
     revealUserList();
@@ -413,6 +414,42 @@ async function refreshUserListBadges() {
 // USER DETAILS PANEL
 // ============================================
 
+const adminSheetQuery = window.matchMedia('(max-width: 768px)');
+
+function openUserDetailsSheet() {
+    if (!adminSheetQuery.matches) return;
+    const panel = document.getElementById('userDetailsPanel');
+    if (!panel) return;
+
+    panel.classList.add('sheet-open');
+    document.getElementById('userDetailsBackdrop')?.classList.add('open');
+    lockBodyScroll('userDetailsPanel');
+}
+
+function closeUserDetailsSheet() {
+    const panel = document.getElementById('userDetailsPanel');
+    if (!panel || !panel.classList.contains('sheet-open')) return;
+
+    panel.classList.remove('sheet-open');
+    document.getElementById('userDetailsBackdrop')?.classList.remove('open');
+    unlockBodyScroll('userDetailsPanel');
+    closeAllFilterPanels();
+
+    document.querySelectorAll('.user-item.active').forEach(u => u.classList.remove('active'));
+}
+
+function initUserDetailsSheet() {
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (document.querySelector('.modal[style*="display: block"], .modal[style*="display: flex"], .delete-confirmation-modal.active')) return;
+        closeUserDetailsSheet();
+    }, true);
+
+    adminSheetQuery.addEventListener('change', () => {
+        if (!adminSheetQuery.matches) closeUserDetailsSheet();
+    });
+}
+
 /**
  * Handle user item click to display user details
  * Fetches user data from data attributes and displays in details panel
@@ -525,6 +562,8 @@ async function handleUserItemClick(item) {
     const userItems = document.querySelectorAll('.user-item');
     userItems.forEach(u => u.classList.remove('active'));
     item.classList.add('active');
+
+    openUserDetailsSheet();
 
     // Attach role change handler to the "Go" button
     const goBtn = document.getElementById('roleGoBtn');
@@ -1280,3 +1319,4 @@ window.closeManageLandingGalleryModal = closeManageLandingGalleryModal;
 window.switchLandingGalleryTab        = switchLandingGalleryTab;
 window.renderLandingGalleryCommunities = renderLandingGalleryCommunities;
 window.toggleRoleTypeFilterBox = toggleRoleTypeFilterBox;
+window.closeUserDetailsSheet = closeUserDetailsSheet;

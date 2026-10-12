@@ -221,7 +221,7 @@ function showAddVodModal() {
 function closeAddVodModal() {
     const modal = document.getElementById('addVodModal');
     modal.style.display = 'none';
-    lockBodyScroll('addVodModal');
+    unlockBodyScroll('addVodModal');
 
     // Reset form to clear all inputs
     document.getElementById('addVodForm').reset();

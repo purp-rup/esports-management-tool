@@ -1539,8 +1539,8 @@
                     <h2>Admin Panel</h2>
                 </div>
                 <div class="admin-btn-list">
-                    <button class="btn btn-primary" onclick="window.location.href='/admin/statistics'">
-                        <i class="fas fa-chart-line"></i> View Statistics
+                    <button class="btn btn-primary" aria-label="View Statistics" onclick="window.location.href='/admin/statistics'">
+                        <i class="fas fa-chart-line"></i> <span class="btn-label">View Statistics</span>
                     </button>
                     <div class="filter-box">
                         <button class="filter-box-btn kebab-btn" id="adminSettingsBtn" onclick="toggleFilterBox('adminSettingsPanel')">
@@ -1605,6 +1605,7 @@
             </div>
 
             <!-- User Management Section -->
+            <div class="sheet-backdrop" id="userDetailsBackdrop" onclick="closeUserDetailsSheet()"></div>
             <div class="admin-content">
                 <!-- Left column: user list -->
                 <div class="user-list">
@@ -1680,7 +1681,7 @@
                 </div>
 
                 <!-- Right column: user details (initially empty) -->
-                <div class="user-details" id="userDetailsPanel">
+                <div class="user-details mobile-sheet" id="userDetailsPanel">
                     <h3>User Details</h3>
                     <p style="margin-top: 0.75rem;">Select a user from the list to view details.</p>
                 </div>

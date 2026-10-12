@@ -647,14 +647,140 @@
 
 /* Small screens (mobile landscape) */
 @media (max-width: 768px) {
+  /* Stat cards: icon + number only */
   .admin-summary {
-    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .summary-card {
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.6rem 0.25rem;
+    min-width: 0;
+  }
+
+  .summary-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
+
+  .summary-card h3 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  /* User details as a flyout sheet */
+  .user-details.mobile-sheet {
+    height: auto;
+    background: var(--card-bg);
+    border-width: 1px 0 0;
+    border-radius: 16px 16px 0 0;
+    padding: 1rem 1.25rem 1.5rem;
+  }
+
+  .user-details.mobile-sheet.sheet-open {
+    transform: none;
+  }
+
+  /* Role management controls on one line */
+  .role-action-row {
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+  }
+
+  .role-toggle-group {
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .role-action-row .role-toggle {
+    font-size: 0.8rem;
+  }
+
+  .role-action-row .role-toggle::before {
+    width: 14px;
+    height: 14px;
+  }
+
+  .role-action-row .filter-box {
+    min-width: 0;
+  }
+
+  .role-action-row .filter-box-btn {
+    gap: 0.35rem;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .role-action-row #roleTypeFilterLabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .role-action-row .filter-box-btn i {
+    flex-shrink: 0;
+  }
+
+  .role-action-row .btn-go {
+    flex-shrink: 0;
+    width: 36px;
+    height: 34px;
+    padding: 0;
+  }
+
+  .role-action-row .btn-go i {
+    margin-right: 0;
   }
 }
 
-/* Extra small screens (mobile portrait) */
-@media (max-width: 480px) {
-  .admin-summary {
-    grid-template-columns: 1fr;
+/* Header: icon-only View Statistics */
+@media (max-width: 640px) {
+  .admin-btn-list .btn {
+    width: auto;
+    height: 38px;
+    padding: 0 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card-header--row .btn-label {
+    display: none;
   }
 }
+
+/* Larger role controls on wider phones */
+@media (min-width: 400px) and (max-width: 768px) {
+  .role-action-row {
+    gap: 0.75rem;
+  }
+
+  .role-toggle-group {
+    gap: 0.75rem;
+  }
+
+  .role-action-row .role-toggle {
+    font-size: 0.9rem;
+    gap: 0.4rem;
+  }
+
+  .role-action-row .role-toggle::before {
+    width: 16px;
+    height: 16px;
+  }
+
+  .role-action-row .filter-box-btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .role-action-row .btn-go {
+    width: 42px;
+    height: 38px;
+  }
+} 
