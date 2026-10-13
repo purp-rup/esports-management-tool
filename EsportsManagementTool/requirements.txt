@@ -24,7 +24,7 @@ Jinja2==3.1.6
 MarkupSafe==3.0.3
 proto-plus==1.26.1
 protobuf==6.33.1
-pyasn1==0.6.1
+pyasn1==0.6.4
 pyasn1_modules==0.4.2
 pycparser==2.23
 pyparsing==3.2.5
