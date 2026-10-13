@@ -26,9 +26,10 @@ def create_community():
         division = request.form.get('division', 'Other').strip()
         discord_link = request.form.get('discord_link', '').strip()
 
-        team_sizes = json.loads(team_sizes_json)
+        is_br = 1 if request.form.get('isBR') == 'true' else 0
 
         # Field Validation
+        team_sizes = json.loads(team_sizes_json)
         is_valid, error = validate_game_fields(game_title, abbreviation, description, team_sizes, division)
         if not is_valid:
             return jsonify({'success': False, 'message': error}), 400
@@ -56,8 +57,9 @@ def create_community():
                 public_id = upload_result.get('public_id')
 
         cursor.execute(
-            "INSERT INTO games (GameTitle, Abbreviation, Description, TeamSizes, Division, GameImage, cloudinary_public_id, discord_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-            (game_title, abbreviation, description, team_sizes_str, division, image_url, public_id, discord_link if discord_link else None)
+            "INSERT INTO games (GameTitle, Abbreviation, Description, TeamSizes, Division, GameImage, cloudinary_public_id, discord_link, isBR) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (game_title, abbreviation, description, team_sizes_str, division, image_url, public_id,
+             discord_link if discord_link else None, is_br)
         )
 
         game_id = cursor.lastrowid
@@ -90,7 +92,7 @@ def get_available_game_managers(game_id):
                 SELECT u.id, u.firstname, u.lastname, u.username, u.profile_picture
                 FROM users u
                 JOIN permissions p ON u.id = p.userid
-                WHERE p.is_gm = 1
+                WHERE p.is_gm_standard = 1
                 ORDER BY u.firstname, u.lastname
             """)
             gms = cursor.fetchall()
@@ -137,6 +139,12 @@ def assign_game_manager(game_id):
 
             if not game:
                 return jsonify({'success': False, 'message': 'Game not found'}), 404
+
+            cursor.execute("SELECT is_gm_standard FROM permissions WHERE userid = %s", (gm_user_id,))
+            perm = cursor.fetchone()
+            if not perm or not perm['is_gm_standard']:
+                return jsonify({'success': False,
+                                'message': 'User must have the Game Manager role to be assigned to a community'}), 400
 
             # Check if user is already the MANAGER of this community
             cursor.execute("SELECT gm_id FROM games WHERE gm_id = %s AND GameID = %s", (gm_user_id, game_id))
@@ -316,6 +324,7 @@ def get_all_games_for_management():
                 g.gm_id,
                 g.hidden,
                 g.discord_link,
+                g.isBR,
                 CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image,
                 u.username as gm_username,
                 u.firstname as gm_firstname,
@@ -370,7 +379,8 @@ def get_all_games_for_management():
                 'team_count': team_counts.get(game_id, 0),
                 'current_gm': gm_info,
                 'hidden': bool(game['hidden']),
-                'discord_link': game['discord_link']
+                'discord_link': game['discord_link'],
+                'isBR': bool(game['isBR'])
             })
 
         return jsonify({'success': True, 'games': games_data}), 200
@@ -405,9 +415,11 @@ def update_game_details(game_id):
         discord_link = request.form.get('discord_link', '').strip()
         team_sizes_json = request.form.get('team_sizes', '[]')
 
-        team_sizes = json.loads(team_sizes_json)
+        # Parse isBR string value from FormData to 1 or 0
+        is_br = 1 if request.form.get('isBR') == 'true' else 0
 
         # Field Validation
+        team_sizes = json.loads(team_sizes_json)
         is_valid, error = validate_game_fields(game_title, abbreviation, description, team_sizes, division)
         if not is_valid:
             return jsonify({'success': False, 'message': error}), 400
@@ -456,15 +468,17 @@ def update_game_details(game_id):
             cursor.execute("""
                UPDATE games 
                SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, 
-                   TeamSizes = %s, GameImage = %s, cloudinary_public_id = %s, discord_link = %s
+                   TeamSizes = %s, GameImage = %s, cloudinary_public_id = %s, discord_link = %s, isBR = %s
                WHERE GameID = %s
-           """, (game_title, abbreviation, description, division, team_sizes_str, image_url, public_id, discord_link if discord_link else None, game_id))
+           """, (game_title, abbreviation, description, division, team_sizes_str, image_url, public_id,
+                 discord_link if discord_link else None, is_br, game_id))
         else:
             cursor.execute("""
                UPDATE games 
-               SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, TeamSizes = %s, discord_link = %s
+               SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, TeamSizes = %s, discord_link = %s, isBR = %s
                WHERE GameID = %s
-           """, (game_title, abbreviation, description, division, team_sizes_str, discord_link if discord_link else None, game_id))
+           """, (game_title, abbreviation, description, division, team_sizes_str,
+                 discord_link if discord_link else None, is_br, game_id))
 
         mysql.connection.commit()
 
@@ -744,24 +758,27 @@ def get_community_details(game_id):
             member_count = member_counts.get(game_id, 0)
             team_count = team_counts.get(game_id, 0)
 
+            formatted_members = []
+            assigned_gm_id = None
             try:
                 cursor.execute("""
-                               SELECT u.id, u.firstname, u.lastname, u.username,
-                                      u.profile_picture, p.is_admin, p.is_developer, p.is_gm,
-                                      p.is_player, c.joined_at, (u.id = gm.gm_id) as is_game_manager,
-                                      d.discord_username, d.discord_discriminator,
-                                      GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
-                               FROM in_communities c
-                               JOIN games gm ON c.game_id = gm.GameID
-                               JOIN users u ON c.user_id = u.id
-                               LEFT JOIN permissions p ON u.id = p.userid
-                               LEFT JOIN discord d ON d.userid = u.id
-                               LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
-                               LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
-                               WHERE c.game_id = %s
-                               GROUP BY u.id
-                               ORDER BY (u.id = gm.gm_id) DESC, p.is_developer DESC, p.is_admin DESC, p.is_gm DESC, c.joined_at ASC
-                               """, (game_id,))
+                    SELECT u.id, u.firstname, u.lastname, u.username,
+                           u.profile_picture, ANY_VALUE(p.is_admin) as is_admin, ANY_VALUE(p.is_developer) as is_developer,
+                           ANY_VALUE(p.is_gm) as is_gm, ANY_VALUE(p.is_gm_standard) as is_gm_standard, ANY_VALUE(p.is_player) as is_player,
+                           ANY_VALUE(c.joined_at) as joined_at, ANY_VALUE(u.id = gm.gm_id) as is_game_manager,
+                           ANY_VALUE(d.discord_username) as discord_username, ANY_VALUE(d.discord_discriminator) as discord_discriminator,
+                           GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
+                   FROM in_communities c
+                   JOIN games gm ON c.game_id = gm.GameID
+                   JOIN users u ON c.user_id = u.id
+                   LEFT JOIN permissions p ON u.id = p.userid
+                   LEFT JOIN discord d ON d.userid = u.id
+                   LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
+                   LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
+                   WHERE c.game_id = %s
+                   GROUP BY u.id
+                   ORDER BY (u.id = gm.gm_id) DESC, p.is_developer DESC, p.is_admin DESC, p.is_gm DESC, c.joined_at ASC
+                   """, (game_id,))
                 members = cursor.fetchall()
 
                 # Finish building user profiles using universal_helper function

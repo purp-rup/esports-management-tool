@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Register - Osprey Vantage{% endblock %}
+{% block title %}Register - Esports Vantage{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='register.css') }}">
@@ -128,7 +128,7 @@
     form.addEventListener('submit', function(e) {
         if (password.value !== passwordconfirm.value) {
             e.preventDefault();
-            showDeleteErrorMessage('Passwords do not match!');
+            showErrorToast('Passwords do not match!');
             passwordconfirm.focus();
         }
     });

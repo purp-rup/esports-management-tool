@@ -140,7 +140,8 @@ def dashboard():
                         COALESCE(ua.is_active, 0) as is_active,
                         ua.last_seen,
                         p.is_admin,
-                        p.is_gm,
+                        COALESCE(p.is_gm, 0) as is_gm,
+                        COALESCE(p.is_gm_standard, 0) as is_gm_standard,
                         p.is_player,
                         p.is_developer,
                         GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
@@ -284,13 +285,19 @@ def manage_role():
                     clean_color = custom_role_color if custom_role_color in CUSTOM_ROLE_COLORS else 'purple'
 
                     cursor.execute(
-                        "SELECT id, name FROM custom_roles WHERE LOWER(name) = LOWER(%s)",
+                        "SELECT id, name, is_archived FROM custom_roles WHERE LOWER(name) = LOWER(%s)",
                         (clean_name,)
                     )
                     existing = cursor.fetchone()
                     if existing:
                         resolved_custom_role_id = existing['id']
                         resolved_custom_role_name = existing['name']
+                        if existing['is_archived']:
+                            # Re-creating a previously deleted role
+                            cursor.execute(
+                                "UPDATE custom_roles SET is_archived = 0, color = %s WHERE id = %s",
+                                (clean_color, existing['id'])
+                            )
                     else:
                         cursor.execute(
                             "INSERT INTO custom_roles (name, color, created_by) VALUES (%s, %s, %s)",
@@ -644,10 +651,12 @@ def search_users():
             cursor.execute("""
                 SELECT u.id, u.firstname, u.lastname, u.username, u.email, 
                        u.date,
+                       u.profile_picture,
                        COALESCE(ua.is_active, 0) as is_active,
                        ua.last_seen,
                        COALESCE(p.is_admin, 0) as is_admin, 
                        COALESCE(p.is_gm, 0) as is_gm, 
+                       COALESCE(p.is_gm_standard, 0) as is_gm_standard,
                        COALESCE(p.is_player, 0) as is_player,
                        COALESCE(p.is_developer, 0) as is_developer,
                        GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
@@ -657,7 +666,7 @@ def search_users():
                 LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
                 LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
                 GROUP BY u.id
-                ORDER BY u.firstname, u.lastname
+                ORDER BY ua.is_active DESC, u.date DESC
                 LIMIT 50
             """)
         else:
@@ -666,10 +675,12 @@ def search_users():
             cursor.execute("""
                 SELECT u.id, u.firstname, u.lastname, u.username, u.email, 
                        u.date,
+                       u.profile_picture,
                        COALESCE(ua.is_active, 0) as is_active,
                        ua.last_seen,
                        COALESCE(p.is_admin, 0) as is_admin, 
                        COALESCE(p.is_gm, 0) as is_gm, 
+                       COALESCE(p.is_gm_standard, 0) as is_gm_standard,
                        COALESCE(p.is_player, 0) as is_player,
                        COALESCE(p.is_developer, 0) as is_developer,
                        GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
@@ -684,7 +695,7 @@ def search_users():
                    OR u.email LIKE %s
                    OR CONCAT(u.firstname, ' ', u.lastname) LIKE %s
                 GROUP BY u.id
-                ORDER BY u.firstname, u.lastname
+                ORDER BY ua.is_active DESC, u.date DESC
                 LIMIT 50
             """, (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern))
 
@@ -717,11 +728,13 @@ def search_users():
                 'lastname': user['lastname'],
                 'username': user['username'],
                 'email': user['email'],
+                'profile_picture': user.get('profile_picture') or '',
                 'date_registered': date_registered,
                 'is_active': bool(user.get('is_active', 0)),
                 'last_seen': last_seen,
                 'is_admin': bool(user.get('is_admin', 0)),
                 'is_gm': bool(user.get('is_gm', 0)),
+                'is_gm_standard': bool(user.get('is_gm_standard', 0)),
                 'is_player': bool(user.get('is_player', 0)),
                 'is_developer': bool(user.get('is_developer', 0)),
                 'custom_role_names': user.get('custom_role_names') or ''

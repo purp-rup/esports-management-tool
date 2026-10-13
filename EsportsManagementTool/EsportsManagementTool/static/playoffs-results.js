@@ -299,11 +299,6 @@ function displayPlayoffsResultsModal(teams, season, placementOptions) {
     subtitle.innerHTML = 'Record final playoffs placements for your teams. ' +
         'Season ends: <strong>' + formatDate(season.end_date) + '</strong>';
     
-    const messageDiv = document.createElement('div');
-    messageDiv.id = 'playoffsResultsMessage';
-    messageDiv.className = 'form-message';
-    messageDiv.style.display = 'none';
-    
     // Notes section
     const notesSection = document.createElement('div');
     notesSection.className = 'playoffs-notes-section';
@@ -311,7 +306,6 @@ function displayPlayoffsResultsModal(teams, season, placementOptions) {
         '<textarea id="playoffsNotes" rows="3" placeholder="Add any additional context or notes about the season..."></textarea>';
     
     modalBody.appendChild(subtitle);
-    modalBody.appendChild(messageDiv);
     modalBody.appendChild(resultsContainer);
     modalBody.appendChild(notesSection);
     
@@ -339,14 +333,14 @@ function recordSingleResult(teamId, leagueId, seasonId) {
 
     if (!placementInput) {
         console.error('Could not find placement input for team:', teamId);
-        showModalMessage('error', 'Error: Could not find placement selector');
+        showPlayoffsGlobalMessage('error', 'Error: Could not find placement selector');
         return;
     }
 
     const placement = placementInput.value;
-    
+
     if (!placement || placement === '') {
-        showModalMessage('error', 'Please select a placement');
+        showPlayoffsGlobalMessage('error', 'Please select a placement');
         return;
     }
     
@@ -395,19 +389,18 @@ function recordSingleResult(teamId, leagueId, seasonId) {
                     // Check if all teams are done
                     const remainingTeams = document.querySelectorAll('.playoffs-team-card');
                     if (remainingTeams.length === 0) {
-                        showModalMessage('success', 'All results recorded! Closing modal...');
+                        showPlayoffsGlobalMessage('success', 'All results recorded! Closing modal...');
                         setTimeout(() => {
                             closePlayoffsResultsModal();
                             dismissPlayoffsBanner();
-                            showMessage('success', 'All playoffs results have been recorded successfully!');
                         }, 1500);
                     } else {
-                        showModalMessage('success', 'Result saved successfully!');
+                        showPlayoffsGlobalMessage('success', 'Result saved successfully!');
                     }
                 }, 300);
             }
         } else {
-            showModalMessage('error', data.message || 'Failed to record result');
+            showPlayoffsGlobalMessage('error', data.message || 'Failed to record result');
             if (button) {
                 button.innerHTML = originalHTML;
                 button.disabled = false;
@@ -416,7 +409,7 @@ function recordSingleResult(teamId, leagueId, seasonId) {
     })
     .catch(error => {
         console.error('Error recording result:', error);
-        showModalMessage('error', 'Failed to record result: ' + error.message);
+        showPlayoffsGlobalMessage('error', 'Failed to record result: ' + error.message);
         if (button) {
             button.innerHTML = originalHTML;
             button.disabled = false;
@@ -489,26 +482,12 @@ function closePlayoffsResultsModal() {
 // UTILITY FUNCTIONS
 // ============================================
 
-// Show message in modal
-function showModalMessage(type, message) {
-    const messageDiv = document.getElementById('playoffsResultsMessage');
-    if (messageDiv) {
-        messageDiv.textContent = message;
-        messageDiv.className = `form-message form-message-${type}`;
-        messageDiv.style.display = 'block';
-        
-        setTimeout(() => {
-            messageDiv.style.display = 'none';
-        }, 5000);
-    }
-}
-
 // Show global message
 function showPlayoffsGlobalMessage(type, message) {
     if (type === 'success') {
-        showDeleteSuccessMessage(message);
+        showSuccessToast(message);
     } else {
-        showDeleteErrorMessage(message);
+        showErrorToast(message);
     }
 }
 

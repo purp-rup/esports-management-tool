@@ -79,6 +79,7 @@ let landingGalleryCommunitiesLoaded = false;
 // Initialize admin panel, refresh badges, and show user list once loaded
 async function initializeAdminPanel() {
     attachAdminEventListeners();
+    initUserDetailsSheet();
     await loadAdminCustomRoleColors();
     await refreshUserListBadges();
     revealUserList();
@@ -284,6 +285,7 @@ function renderUserItems(users) {
         li.setAttribute('data-last-seen', user.last_seen);
         li.setAttribute('data-is-admin', user.is_admin ? '1' : '0');
         li.setAttribute('data-is-gm', user.is_gm ? '1' : '0');
+        li.setAttribute('data-is-gm-standard', user.is_gm_standard ? '1' : '0');
         li.setAttribute('data-is-player', user.is_player ? '1' : '0');
         li.setAttribute('data-is-developer', user.is_developer ? '1' : '0');
         li.setAttribute('data-profile-picture', user.profile_picture || '');
@@ -294,7 +296,7 @@ function renderUserItems(users) {
         const badgesHTML = buildBadgesFromUserItem(li);
 
         // Build user item HTML
-        const initials = `${user.firstname[0]|upper}${user.lastname[0]|upper}`;
+        const initials = `${(user.firstname?.[0] ?? '').toUpperCase()}${(user.lastname?.[0] ?? '').toUpperCase()}`;
         const avatarHTML = user.profile_picture
             ? `<img src="${user.profile_picture}" alt="${initials}">`
             : initials;
@@ -344,7 +346,7 @@ function revealUserList() {
 function buildBadgesFromUserItem(item) {
     const userid = parseInt(item.dataset.userid);
     const isAdmin = item.dataset.isAdmin === '1';
-    const isGm = item.dataset.isGm === '1';
+    const isGmStandard = item.dataset.isGmStandard === '1';
     const isPlayer = item.dataset.isPlayer === '1';
     const isDeveloper = item.dataset.isDeveloper ==='1';
 
@@ -356,11 +358,11 @@ function buildBadgesFromUserItem(item) {
         .filter(Boolean);
 
     // Build roles array based on data attributes.
-    // A GM with one or more custom role labels shows those instead of the generic
-    // "Game Manager" badge (the underlying permission is still GM either way).
+    // Standard GMs (blank or game) get a GM role.
+    // Custom roles have GM permissions but are shown without GM roles.
     const roles = [];
     if (isAdmin) roles.push('Admin');
-    if (isGm && customRoleNames.length === 0) roles.push('Game Manager');
+    if (isGmStandard) roles.push('Game Manager');
     if (isPlayer) roles.push('Player');
     if (isDeveloper) roles.push('Developer');
 
@@ -372,7 +374,8 @@ function buildBadgesFromUserItem(item) {
     });
 
     // Custom roles aren't known to buildUniversalRoleBadges, so append their badges directly
-    if (isGm && customRoleNames.length > 0) {
+    // Custom roles are shown from their own names, independent of GM roles
+    if (customRoleNames.length > 0) {
         badgesHTML += customRoleNames
             .map(name => {
                 const color = (adminCustomRoleColorsCache && adminCustomRoleColorsCache[name]) || 'purple';
@@ -410,6 +413,42 @@ async function refreshUserListBadges() {
 // ============================================
 // USER DETAILS PANEL
 // ============================================
+
+const adminSheetQuery = window.matchMedia('(max-width: 768px)');
+
+function openUserDetailsSheet() {
+    if (!adminSheetQuery.matches) return;
+    const panel = document.getElementById('userDetailsPanel');
+    if (!panel) return;
+
+    panel.classList.add('sheet-open');
+    document.getElementById('userDetailsBackdrop')?.classList.add('open');
+    lockBodyScroll('userDetailsPanel');
+}
+
+function closeUserDetailsSheet() {
+    const panel = document.getElementById('userDetailsPanel');
+    if (!panel || !panel.classList.contains('sheet-open')) return;
+
+    panel.classList.remove('sheet-open');
+    document.getElementById('userDetailsBackdrop')?.classList.remove('open');
+    unlockBodyScroll('userDetailsPanel');
+    closeAllFilterPanels();
+
+    document.querySelectorAll('.user-item.active').forEach(u => u.classList.remove('active'));
+}
+
+function initUserDetailsSheet() {
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (document.querySelector('.modal[style*="display: block"], .modal[style*="display: flex"], .delete-confirmation-modal.active')) return;
+        closeUserDetailsSheet();
+    }, true);
+
+    adminSheetQuery.addEventListener('change', () => {
+        if (!adminSheetQuery.matches) closeUserDetailsSheet();
+    });
+}
 
 /**
  * Handle user item click to display user details
@@ -510,7 +549,7 @@ async function handleUserItemClick(item) {
 
             <div class="action-buttons">
                 <button class="btn btn-secondary" onclick="openSuspendModal(${userid}, '${username}', '${firstname} ${lastname}')">
-                    <i class="fas fa-user-clock"></i> Suspend User
+                    <i class="fas fa-user-clock"></i> Lock out User
                 </button>
                 <button class="btn btn-danger" onclick="confirmRemoveUser(${userid}, '${username}', '${firstname} ${lastname}')">
                     <i class="fas fa-user-times"></i> Remove User
@@ -523,6 +562,8 @@ async function handleUserItemClick(item) {
     const userItems = document.querySelectorAll('.user-item');
     userItems.forEach(u => u.classList.remove('active'));
     item.classList.add('active');
+
+    openUserDetailsSheet();
 
     // Attach role change handler to the "Go" button
     const goBtn = document.getElementById('roleGoBtn');
@@ -787,19 +828,19 @@ async function confirmDeleteCustomRole(roleId) {
         closeDeleteConfirmModal();
 
         if (data.success) {
-            showDeleteSuccessMessage(data.message || 'Custom role deleted successfully');
+            showSuccessToast(data.message || 'Custom role deleted successfully');
 
             // Deleting a role can change GM status/badges for every user who held it,
             // so a full reload keeps the whole admin panel in sync rather than
             // patching each affected user's row individually
             setTimeout(() => window.location.reload(), 1200);
         } else {
-            showDeleteErrorMessage(data.message || 'Failed to delete custom role');
+            showErrorToast(data.message || 'Failed to delete custom role');
         }
     } catch (e) {
         console.error('Error deleting custom role:', e);
         closeDeleteConfirmModal();
-        showDeleteErrorMessage('Failed to delete custom role');
+        showErrorToast('Failed to delete custom role');
     }
 }
 
@@ -1083,11 +1124,11 @@ async function removeUser(userId, username, fullName) {
             closeRemoveUserModal();
 
             // Show success card, then reload
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
             setTimeout(() => window.location.reload(), 1200);
         } else {
             // Show error card
-            showDeleteErrorMessage(data.message);
+            showErrorToast(data.message);
 
             // Re-enable button with original text
             deleteBtn.disabled = false;
@@ -1096,7 +1137,7 @@ async function removeUser(userId, username, fullName) {
     } catch (error) {
         // Handle network or other errors
         console.error('Error removing user:', error);
-        showDeleteErrorMessage('An error occurred while removing the user. Please try again.');
+        showErrorToast('An error occurred while removing the user. Please try again.');
 
         // Re-enable button with original text
         deleteBtn.disabled = false;
@@ -1278,3 +1319,4 @@ window.closeManageLandingGalleryModal = closeManageLandingGalleryModal;
 window.switchLandingGalleryTab        = switchLandingGalleryTab;
 window.renderLandingGalleryCommunities = renderLandingGalleryCommunities;
 window.toggleRoleTypeFilterBox = toggleRoleTypeFilterBox;
+window.closeUserDetailsSheet = closeUserDetailsSheet;

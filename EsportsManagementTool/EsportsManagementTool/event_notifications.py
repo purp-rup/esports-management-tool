@@ -136,7 +136,7 @@ def check_and_send_notifications():
                 days=user['advance_notice_days'],
                 hours=user['advance_notice_hours']
             )
-            notification_time = datetime.now() + advance_time
+            notification_time = datetime.now(EST) + advance_time
 
             # Get user's team memberships
             cursor.execute("""
@@ -304,16 +304,14 @@ def check_and_send_notifications():
 # ========================================================================
 def scheduled_check_wrapper():
     """Wrapper ensures the scheduler runs safely within the Flask app context"""
-    print(f"[{datetime.now()}] ===== SCHEDULER TRIGGERED =====")
+    print(f"[{datetime.now(EST)}] ===== SCHEDULER TRIGGERED =====")
     with app.app_context():
         try:
-            print(f"[{datetime.now()}] Starting notification check...")
+            print(f"[{datetime.now(EST)}] Starting notification check...")
             check_and_send_notifications()
-            print(f"[{datetime.now()}] Notification check completed successfully")
+            print(f"[{datetime.now(EST)}] Notification check completed successfully")
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print(f"[{datetime.now()}] Error in notification scheduler: {str(e)}")
+            print(f"[{datetime.now(EST)}] Error in notification scheduler: {str(e)}")
 
 # Only start scheduler in the main process (not the reloader)
 if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:

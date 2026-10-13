@@ -166,10 +166,14 @@ def build_member_profile(user_row, include_gm_flag=False):
         if name.strip()
     ]
 
+    # GM badge represents a real GM role (blank/game) only.
+    # Custom roles are also is_gm=1 for permissions, but use 'custom roles' instead.
+    gm_flag = user_row['is_gm_standard'] if 'is_gm_standard' in user_row else user_row.get('is_gm')
+
     roles_list = [r for flag, r in [
         (user_row.get('is_admin') == 1, 'Admin'),
         (user_row.get('is_developer') == 1, 'Developer'),
-        (user_row.get('is_gm') == 1 and not custom_role_names, 'Game Manager'),
+        (gm_flag == 1, 'Game Manager'),
         (user_row.get('is_player') == 1, 'Player'),
     ] if flag]
 
@@ -244,32 +248,32 @@ def attach_profile_extras(cursor, members, current_game_id, season_id=None):
             'joined_at': row['joined_at'],
         })
 
-        # -- Teams (scoped to the given season, or the active season by default) --
-        teams_by_user = {}
-        if season_id is not None:
-            target_season_id = season_id
-        else:
-            cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
-            active_season = cursor.fetchone()
-            target_season_id = active_season['season_id'] if active_season else None
+    # -- Teams (scoped to the given season, or the active season by default) --
+    teams_by_user = {}
+    if season_id is not None:
+        target_season_id = season_id
+    else:
+        cursor.execute("SELECT season_id FROM seasons WHERE is_active = 1 LIMIT 1")
+        active_season = cursor.fetchone()
+        target_season_id = active_season['season_id'] if active_season else None
 
-        if target_season_id:
-            cursor.execute(f"""
-                SELECT tm.user_id, tm.team_id, tm.joined_at, t.teamName, t.gameID, g.GameImage
-                FROM team_members tm
-                JOIN teams t ON tm.team_id = t.TeamID
-                JOIN games g ON t.gameID = g.GameID
-                WHERE tm.user_id IN ({placeholders}) AND t.season_id = %s
-            """, tuple(member_ids) + (target_season_id,))
+    if target_season_id:
+        cursor.execute(f"""
+            SELECT tm.user_id, tm.team_id, tm.joined_at, t.teamName, t.gameID, g.GameImage
+            FROM team_members tm
+            JOIN teams t ON tm.team_id = t.TeamID
+            JOIN games g ON t.gameID = g.GameID
+            WHERE tm.user_id IN ({placeholders}) AND t.season_id = %s
+        """, tuple(member_ids) + (target_season_id,))
 
-        for row in cursor.fetchall():
-            teams_by_user.setdefault(row['user_id'], []).append({
-                'id': row['team_id'],
-                'name': row['teamName'],
-                'game_id': row['gameID'],
-                'game_icon_url': f"/game-image/{row['gameID']}" if row['GameImage'] else None,
-                'joined_at': row['joined_at'],
-            })
+    for row in cursor.fetchall():
+        teams_by_user.setdefault(row['user_id'], []).append({
+            'id': row['team_id'],
+            'name': row['teamName'],
+            'game_id': row['gameID'],
+            'game_icon_url': f"/game-image/{row['gameID']}" if row['GameImage'] else None,
+            'joined_at': row['joined_at'],
+        })
 
     cursor.execute("SELECT team_id FROM team_members WHERE user_id = %s", (session['id'],))
     viewer_team_ids = {row['team_id'] for row in cursor.fetchall()}

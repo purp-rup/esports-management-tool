@@ -25,7 +25,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Show loading state
             setButtonLoading('saveProfileBtnText', 'saveProfileBtnSpinner', true);
-            hideMessage('editProfileMessage');
 
             // Prepare form data
             const formData = new FormData(this);
@@ -45,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (response.ok) {
                     // Show success message
-                    showMessage('editProfileMessage', result.message || 'Profile updated successfully!', false);
+                    showSuccessToast(result.message || 'Profile updated successfully!');
 
                     // Update profile display with new information
                     document.querySelector('.profile-info-section .info-item:nth-child(1) .info-value').textContent =
@@ -71,11 +70,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 2000);
                 } else {
                     // Show error message
-                    showMessage('editProfileMessage', result.error || 'Failed to update profile', true);
+                    showErrorToast(result.error || 'Failed to update profile');
                 }
             } catch (error) {
                 // Show error message
-                showMessage('editProfileMessage', 'An error occurred. Please try again.', true);
+                showErrorToast('An error occurred. Please try again.');
             } finally {
                 // Reset button state
                 setButtonLoading('saveProfileBtnText', 'saveProfileBtnSpinner', false);
@@ -96,19 +95,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Validate: New password must be different from current password
             if (newPassword === currentPassword) {
-                showMessage('changePasswordMessage', 'New password cannot be the same as your current password', true);
+                showErrorToast('New password cannot be the same as your current password');
                 return;
             }
 
             // Validate: New password and confirmation must match
             if (newPassword !== confirmPassword) {
-                showMessage('changePasswordMessage', 'Passwords do not match', true);
+                showErrorToast('Passwords do not match');
                 return;
             }
 
             // Show loading state
             setButtonLoading('changePasswordBtnText', 'changePasswordBtnSpinner', true);
-            hideMessage('changePasswordMessage');
 
             // Prepare form data
             const formData = new FormData(this);
@@ -128,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (response.ok) {
                     // Show success message
-                    showMessage('changePasswordMessage', result.message || 'Password changed successfully!', false);
+                    showSuccessToast(result.message || 'Password changed successfully!');
 
                     // Wait briefly so user sees the success message
                     // Then log out for security reasons (new password requires new session)
@@ -147,11 +145,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 1500);
                 } else {
                     // Show error message
-                    showMessage('changePasswordMessage', result.error || 'Failed to change password', true);
+                    showErrorToast(result.error || 'Failed to change password');
                 }
             } catch (error) {
                 // Show error message
-                showMessage('changePasswordMessage', 'An error occurred. Please try again.', true);
+                showErrorToast('An error occurred. Please try again.');
             } finally {
                 // Reset button state
                 setButtonLoading('changePasswordBtnText', 'changePasswordBtnSpinner', false);
@@ -171,7 +169,6 @@ function openAvatarModal() {
     // Reset form state
     document.getElementById('uploadAvatarForm').reset();
     document.getElementById('avatarPreview').style.display = 'none';
-    document.getElementById('avatarUploadMessage').style.display = 'none';
 }
 
 function closeAvatarModal() {
@@ -232,7 +229,6 @@ function setupAvatarUploadForm() {
         const submitBtn = uploadForm.querySelector('button[type="submit"]');
         const submitBtnText = document.getElementById('uploadBtnText');
         const submitBtnSpinner = document.getElementById('uploadBtnSpinner');
-        const messageDiv = document.getElementById('avatarUploadMessage');
 
         // Show loading state
         submitBtn.disabled = true;
@@ -266,9 +262,7 @@ function setupAvatarUploadForm() {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            messageDiv.textContent = 'Avatar updated successfully!';
-            messageDiv.className = 'form-message success';
-            messageDiv.style.display = 'block';
+            showSuccessToast('Avatar updated successfully!');
 
             // Clear the stored blob
             window.avatarCroppedImageBlob = null;
@@ -280,9 +274,7 @@ function setupAvatarUploadForm() {
             throw new Error(data.error || 'Failed to upload avatar');
         }
         } catch (error) {
-            messageDiv.textContent = error.message;
-            messageDiv.className = 'form-message error';
-            messageDiv.style.display = 'block';
+            showErrorToast(error.message);
 
             submitBtn.disabled = false;
             submitBtnText.style.display = 'inline';
@@ -293,13 +285,6 @@ function setupAvatarUploadForm() {
 
 // Sync the user's Discord avatar to their account
 async function syncAvatarFromModal() {
-    const messageDiv = document.getElementById('avatarUploadMessage');
-
-    // Hide any previous messages
-    if (messageDiv) {
-        messageDiv.style.display = 'none';
-    }
-
     try {
         // Request avatar sync from server
         const response = await fetch('/discord/sync-avatar', {
@@ -313,11 +298,7 @@ async function syncAvatarFromModal() {
 
         if (response.ok && data.success) {
             // Show success message
-            if (messageDiv) {
-                messageDiv.textContent = data.message;
-                messageDiv.className = 'form-message success';
-                messageDiv.style.display = 'block';
-            }
+            showSuccessToast(data.message);
 
             // Close modal and reload to profile tab after brief delay
             setTimeout(() => {
@@ -335,11 +316,7 @@ async function syncAvatarFromModal() {
         console.error('Error syncing Discord avatar:', error);
 
         // Show error message
-        if (messageDiv) {
-            messageDiv.textContent = error.message || 'Failed to sync Discord avatar. Make sure you have Discord connected.';
-            messageDiv.className = 'form-message error';
-            messageDiv.style.display = 'block';
-        }
+        showErrorToast(error.message || 'Failed to sync Discord avatar. Make sure you have Discord connected.');
     }
 }
 
@@ -349,14 +326,12 @@ async function syncAvatarFromModal() {
 function openEditProfileModal() {
     // Show modal - fields are already pre-populated by Flask template
     document.getElementById('editProfileModal').style.display = 'flex';
-    hideMessage('editProfileMessage');
     lockBodyScroll('editProfileModal');
 }
 
 function closeEditProfileModal() {
     document.getElementById('editProfileModal').style.display = 'none';
     document.getElementById('editProfileForm').reset();
-    hideMessage('editProfileMessage');
     unlockBodyScroll('editProfileModal');
 }
 
@@ -368,27 +343,12 @@ function openChangePasswordModal() {
 function closeChangePasswordModal() {
     document.getElementById('changePasswordModal').style.display = 'none';
     document.getElementById('changePasswordForm').reset();
-    hideMessage('changePasswordMessage');
     unlockBodyScroll('changePasswordModal');
 }
 
 // ============================================
 // UTILITY FUNCTIONS
 // ============================================
-
-// Show success/error message upon submission
-function showMessage(elementId, message, isError = false) {
-    const messageElement = document.getElementById(elementId);
-    messageElement.textContent = message;
-    messageElement.className = isError ? 'form-message error' : 'form-message success';
-    messageElement.style.display = 'block';
-}
-
-// Hide the message element in a modal
-function hideMessage(elementId) {
-    const messageElement = document.getElementById(elementId);
-    messageElement.style.display = 'none';
-}
 
 // Show/hide loading spinner in a button
 function setButtonLoading(textId, spinnerId, isLoading) {

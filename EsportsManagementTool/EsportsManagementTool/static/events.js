@@ -79,8 +79,11 @@ function attachEventListeners() {
     // Events tab click
     const eventsTab = document.querySelector('[data-tab="events"]');
     if (eventsTab) {
-        eventsTab.addEventListener('click', () => setTimeout(loadEvents, 100));
-    }
+        eventsTab.addEventListener('click', () => {
+            closeEventDetailPanel();
+            setTimeout(loadEvents, 100);
+        });
+}
 
     // Delete modal background click (close on backdrop)
     const deleteModal = document.getElementById('deleteEventConfirmModal');
@@ -94,6 +97,12 @@ function attachEventListeners() {
     const createEventForm = document.getElementById('createEventForm');
     if (createEventForm) {
         createEventForm.addEventListener('submit', handleCreateEventSubmit);
+    }
+
+    // Create lab reservation form submission
+    const createLabReservationForm = document.getElementById('createLabReservationForm');
+    if (createLabReservationForm) {
+        createLabReservationForm.addEventListener('submit', handleCreateLabReservationSubmit);
     }
 
     // Filter box flyouts
@@ -475,6 +484,157 @@ function closeCreateEventModal() {
     unlockBodyScroll('createEventModal');
 }
 
+/* =================================
+   Create Lab Reservation
+   ================================= */
+// Tracks which reservation is being edited, if any (null = creating a new one)
+let editingLabReservationId = null;
+
+function openCreateLabReservationModal(existingReservation = null) {
+    const modal = document.getElementById('createLabReservationModal');
+    const form = document.getElementById('createLabReservationForm');
+    const formMessage = document.getElementById('labReservationFormMessage');
+    const titleEl = document.getElementById('labReservationModalTitle');
+    const submitBtnText = document.getElementById('labSubmitBtnText');
+
+    editingLabReservationId = existingReservation ? existingReservation.id : null;
+
+    // Show modal
+    setElementDisplay(modal, 'block');
+    lockBodyScroll('createLabReservationModal');
+
+    // Reset form and state
+    form.reset();
+    resetComboSelector('labChoice');
+    resetComboSelector('labPriority');
+    resetComboSelector('labStatus');
+    resetReservedGameSelector();
+    setElementDisplay(formMessage, 'none');
+    resetLabCapacityIndicator();
+    initializeLabCapacityChecks();
+
+    if (titleEl) titleEl.textContent = existingReservation ? 'Edit Reservation' : 'Reserve the Lab!';
+    if (submitBtnText) submitBtnText.textContent = existingReservation ? 'Save Changes' : 'Reserve Lab';
+
+    // Character Counter
+    attachCharacterCounter('labDescription', 250);
+
+    // Load games, then pre-fill once the game list (and thus its icons) is ready
+    setTimeout(async () => {
+        await initializeReservedGameSelector();
+
+        if (existingReservation) {
+            document.getElementById('labReservationDate').value = existingReservation.date;
+            document.getElementById('labStartTime').value = existingReservation.start_time_raw;
+            document.getElementById('labEndTime').value = existingReservation.end_time_raw;
+            selectComboValue('labChoice', existingReservation.lab_choice);
+            selectComboValue('labPriority', existingReservation.priority);
+            selectComboValue('labStatus', existingReservation.lab_status);
+            selectReservedGame(existingReservation.game_name);
+
+            const descriptionEl = document.getElementById('labDescription');
+            if (descriptionEl) {
+                descriptionEl.value = existingReservation.description || '';
+                descriptionEl.dispatchEvent(new Event('input'));
+            }
+
+            checkLabAvailability();
+        }
+    }, 50);
+}
+
+// Close create/edit lab reservation modal
+function closeCreateLabReservationModal() {
+    const modal = document.getElementById('createLabReservationModal');
+    setElementDisplay(modal, 'none');
+    unlockBodyScroll('createLabReservationModal');
+    editingLabReservationId = null;
+}
+
+// Handle create lab reservation form submission
+async function handleCreateLabReservationSubmit(e) {
+    e.preventDefault();
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const submitBtnText = document.getElementById('labSubmitBtnText');
+    const submitBtnSpinner = document.getElementById('labSubmitBtnSpinner');
+    const formMessage = document.getElementById('labReservationFormMessage');
+
+    // Validate lab choice has been selected
+    if (!document.getElementById('labChoice')?.value) {
+        formMessage.textContent = 'Please select a lab.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+        return;
+    }
+
+    // Validate a game has been selected
+    if (!document.getElementById('reservedGame')?.value) {
+        formMessage.textContent = 'Please select a game.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+        return;
+    }
+
+    // Validate priority has been selected
+    if (!document.getElementById('labPriority')?.value) {
+        formMessage.textContent = 'Please select a priority.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+        return;
+    }
+
+    // Validate lab status has been selected
+    if (!document.getElementById('labStatus')?.value) {
+        formMessage.textContent = 'Please select a lab status.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+        return;
+    }
+
+    // Set loading state
+    submitBtn.disabled = true;
+    setElementDisplay(submitBtnText, 'none');
+    setElementDisplay(submitBtnSpinner, 'inline-block');
+
+    const formData = new FormData(e.target);
+    const isEditing = !!editingLabReservationId;
+    const url = isEditing ? `/api/lab-reservations/${editingLabReservationId}` : '/api/lab-reservations';
+    const method = isEditing ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showSuccessToast(data.message || (isEditing ? 'Lab reservation updated!' : 'Lab reservation created successfully!'));
+
+            if (data.impacted_names && data.impacted_names.length > 0) {
+                setTimeout(() => showInfoToast(buildLabImpactMessage(data.impacted_names)), 500);
+                setTimeout(() => window.location.reload(), 3200);
+            } else {
+                setTimeout(() => window.location.reload(), 900);
+            }
+        } else {
+            throw new Error(data.message || 'Failed to save lab reservation');
+        }
+    } catch (error) {
+        formMessage.textContent = error.message || 'Failed to create lab reservation. Please try again.';
+        formMessage.className = 'form-message error';
+        formMessage.style.display = 'block';
+
+        // Reset button state
+        submitBtn.disabled = false;
+        setElementDisplay(submitBtnText, 'inline');
+        setElementDisplay(submitBtnSpinner, 'none');
+    }
+}
+
 // Handle event type change - hide game field for Misc events
 function handleEventTypeChange() {
     const eventType = document.getElementById('eventType')?.value;
@@ -584,14 +744,14 @@ async function handleCreateEventSubmit(e) {
         if (response.ok && data.success) {
             const [successMsg, deletionMsg] = (data.message || 'Event created successfully!').split('\n');
 
-            showDeleteSuccessMessage(successMsg || 'Event created successfully!');
+            showSuccessToast(successMsg || 'Event created successfully!');
 
             // Developers have no deletion time limit, so they never get this reminder.
             const showDeletionReminder = deletionMsg && !window.userPermissions?.is_developer;
             let reloadDelay = 900;
 
             if (showDeletionReminder) {
-                setTimeout(() => showInfoMessage(deletionMsg), 700);
+                setTimeout(() => showInfoToast(deletionMsg), 700);
                 reloadDelay = 1800;
             }
 
@@ -899,14 +1059,14 @@ async function confirmDeleteEvent(eventId) {
             }
 
             // Show success notification FIRST
-            showDeleteSuccessMessage(data.message);
+            showSuccessToast(data.message);
 
             // If schedule was auto-deleted, show additional notification with proper delay
             if (data.schedule_deleted && data.schedule_name) {
                 // Wait for first notification to appear and settle
                 setTimeout(() => {
-                    if (typeof window.showInfoMessage === 'function') {
-                        window.showInfoMessage(
+                    if (typeof window.showInfoToast === 'function') {
+                        window.showInfoToast(
                             `Schedule "${data.schedule_name}" was automatically removed (no events remaining)`,
                             4000
                         );
@@ -931,7 +1091,7 @@ async function confirmDeleteEvent(eventId) {
         }
     } catch (error) {
         console.error('Error deleting event:', error);
-        showDeleteErrorMessage('An error occurred while deleting the event');
+        showErrorToast('An error occurred while deleting the event');
         window.closeDeleteConfirmModal();
     }
 }
@@ -941,11 +1101,11 @@ function handleDeleteError(message) {
     window.closeDeleteConfirmModal();
 
     if (message.includes('expired') || message.includes('24')) {
-        showDeleteErrorMessage(`⏰ ${message}\n\nOnly developers can delete events after 24 hours.`);
+        showErrorToast(`⏰ ${message}\n\nOnly developers can delete events after 24 hours.`);
     } else if (message.includes('creator')) {
-        showDeleteErrorMessage(`🚫 ${message}`);
+        showErrorToast(`🚫 ${message}`);
     } else {
-        showDeleteErrorMessage('Error: ' + message);
+        showErrorToast('Error: ' + message);
     }
 }
 
@@ -1157,6 +1317,34 @@ function partnershipRow(partnerships) {
     `;
 }
 
+// Closes the event detail panel
+function closeEventDetailPanel() {
+    const pane = document.getElementById('eventsDetailPane');
+    if (!pane) return;
+
+    // Closes banners/flairs on closed teams
+    const bannerEl = document.getElementById('eventDetailBanner');
+    if (bannerEl) clearInterval(bannerEl._slideInterval);
+    const flairStage = document.getElementById('partnershipFlairStage');
+    if (flairStage) clearInterval(flairStage._flairInterval);
+
+    EventState.currentEventId = null;
+    EventState.currentEventData = null;
+
+    // Restore HTML
+    pane.innerHTML = `
+        <div class="events-detail-placeholder">
+            <i class="fas fa-calendar-alt"></i>
+            <p>Select an event to view details</p>
+        </div>
+    `;
+
+    // Mobile
+    if (window.innerWidth <= 768) {
+        closeEventDetailSheet();
+    }
+}
+
 // Closes the event detail pane in MOBILE VIEW
 function closeEventDetailSheet() {
     const pane = document.getElementById('eventsDetailPane');
@@ -1298,6 +1486,7 @@ async function loadGamesForFilter() {
 
 // Sets active filter using only a primary option from the first box
 function applyPrimaryFilter(value, label) {
+    closeEventDetailPanel();
     document.getElementById('filterBox1Label').textContent = label;
     document.getElementById('eventFilter').value = value;
     EventState.selectedGame = null;
@@ -1314,6 +1503,7 @@ function applyPrimaryFilter(value, label) {
 
 // Sets active filter using submenu flyout in first box
 function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, subLabel) {
+    closeEventDetailPanel();
     document.getElementById('filterBox1Label').textContent = `${filterLabel}: ${subLabel}`;
     document.getElementById('eventFilter').value = filterVal;
     document.getElementById(subSelectId).value = subVal;
@@ -1336,6 +1526,7 @@ function applyPrimaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, 
 
 // Sets active filter using the selected past season
 function applyPastSeasonFilter(seasonId, seasonName) {
+    closeEventDetailPanel();
     document.getElementById('filterBox1Label').textContent = seasonName;
     document.getElementById('eventFilter').value = 'past_season';
     document.getElementById('pastSeasonSelect').value = seasonId;
@@ -1355,6 +1546,7 @@ function applyPastSeasonFilter(seasonId, seasonName) {
 
 // Sets active filter using past season and the primary selection from second filter box
 function applySecondaryFilter(value, label) {
+    closeEventDetailPanel();
     document.getElementById('filterBox2Label').textContent = label;
     document.getElementById('pastSeasonSecondaryFilter').value = value;
     closeAllFilterPanels();
@@ -1366,6 +1558,7 @@ function applySecondaryFilter(value, label) {
 
 // Sets active filter using past season and the submenu flyout option selected in the second box
 function applySecondaryFilterWithSub(filterVal, filterLabel, subSelectId, subVal, subLabel) {
+    closeEventDetailPanel();
     document.getElementById('filterBox2Label').textContent = `${filterLabel}: ${subLabel}`;
     document.getElementById('pastSeasonSecondaryFilter').value = filterVal;
     document.getElementById(subSelectId).value = subVal;
@@ -1483,6 +1676,7 @@ function initPartnershipFilterFlyout() {
    Event Filtering
    =============================== */
 function filterEvents() {
+    closeEventDetailPanel();
     const filterSelect = document.getElementById('eventFilter');
     const filterValue = filterSelect?.value || 'all';
 
@@ -1639,11 +1833,98 @@ const SingleSelectConfig = {
         placeholder: 'Select location',
         allowCustom: true,
         customPlaceholder: 'Enter custom location'
+    },
+    labChoice: {
+        hiddenInput: 'labChoice',
+        display: 'labChoiceSelectDisplay',
+        placeholder: 'Select lab',
+        allowCustom: false,
+        onSelect: () => onLabReservationFieldChanged()
+    },
+    labPriority: {
+        hiddenInput: 'labPriority',
+        display: 'labPrioritySelectDisplay',
+        placeholder: 'Select priority',
+        allowCustom: false,
+        onSelect: () => onLabReservationFieldChanged()
+    },
+    labStatus: {
+        hiddenInput: 'labStatus',
+        display: 'labStatusSelectDisplay',
+        placeholder: 'Select lab status',
+        allowCustom: false,
+        onSelect: () => onLabReservationFieldChanged()
+    },
+    // Scheduled event modal dropdowns
+    scheduledEventType: {
+        hiddenInput: 'scheduledEventType',
+        display:     'scheduledEventTypeDisplay',
+        placeholder: 'Select type',
+        allowCustom: false,
+        onSelect: () => {
+            if (typeof handleEventTypeChangeForLeague    === 'function') handleEventTypeChangeForLeague();
+            if (typeof handleEventTypeChangeForVisibility === 'function') handleEventTypeChangeForVisibility();
+        }
+    },
+    scheduledFrequency: {
+        hiddenInput: 'scheduledFrequency',
+        display:     'scheduledFrequencyDisplay',
+        placeholder: 'Select timing',
+        allowCustom: false,
+        onSelect: () => { if (typeof handleFrequencyChange === 'function') handleFrequencyChange(); }
+    },
+    scheduledLocation: {
+        hiddenInput: 'scheduledLocation',
+        display:     'scheduledLocationDisplay',
+        placeholder: 'Select location',
+        allowCustom: false,
+        onSelect: (value) => {
+            const customGroup = document.getElementById('scheduledCustomLocationGroup');
+            const customInput = document.getElementById('scheduledCustomLocation');
+            if (value === 'other') {
+                if (customGroup) customGroup.style.display = 'block';
+                if (customInput) customInput.required = true;
+            } else {
+                if (customGroup) customGroup.style.display = 'none';
+                if (customInput) { customInput.required = false; customInput.value = ''; }
+            }
+        }
+    },
+    scheduledDayOfWeek: {
+        hiddenInput: 'scheduledDayOfWeek',
+        display:     'scheduledDayOfWeekDisplay',
+        placeholder: 'Select day',
+        allowCustom: false
+    },
+        scheduledVisibility: {
+        hiddenInput: 'scheduledVisibility',
+        display:     'scheduledVisibilityDisplay',
+        placeholder: 'Who can see this?',
+        allowCustom: false
+    },
+    scheduledLeagueSelect: {
+        hiddenInput: 'scheduledLeagueSelect',
+        display:     'scheduledLeagueDisplay',
+        placeholder: 'Select a league',
+        allowCustom: false
+    },
+        editScheduleVisibility: {
+        hiddenInput: 'editScheduleVisibility',
+        display:     'editScheduleVisibilityDisplay',
+        placeholder: 'Who can see this?',
+        allowCustom: false
+    },
+    editScheduleLocation: {
+        hiddenInput: 'editScheduleLocation',
+        display:     'editScheduleLocationDisplay',
+        placeholder: 'Select location',
+        allowCustom: true,
+        customPlaceholder: 'Enter custom location'
     }
 };
 
 // Select a value in any single-select combobox registered in SingleSelectConfig
-function selectComboValue(key, value) {
+function selectComboValue(key, value, displayLabel) {
     const config = SingleSelectConfig[key];
     if (!config) {
         console.error(`Invalid combo key: ${key}`);
@@ -1675,7 +1956,7 @@ function selectComboValue(key, value) {
 
         const span = document.createElement('span');
         span.className = 'combo-selected-text';
-        span.textContent = value;
+        span.textContent = displayLabel || value;
         displayArea.appendChild(span);
     }
 
@@ -1937,6 +2218,84 @@ function clearSelectedTags(field, context = 'create') {
     refreshTagPanelOptions(field, context);
 }
 
+/* ===============================
+   Single-select game system (Reserved Game)
+   =============================== */
+
+// Initialize the reserved-game single-select combobox
+async function initializeReservedGameSelector() {
+    const panel = document.getElementById('reservedGameOptionsPanel');
+    if (!panel) return;
+
+    panel.innerHTML = '<div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+
+    try {
+        const games = await loadGamesList();
+        renderReservedGamePanel(games);
+    } catch (error) {
+        console.error('Error initializing reserved game selector:', error);
+        panel.innerHTML = '<div class="filter-box-flyout-loading">Failed to load games</div>';
+    }
+}
+
+// Render the option list inside the reserved-game panel.
+// N/A always appears last, for reservations with no specific game or one not in the list.
+function renderReservedGamePanel(games) {
+    const panel = document.getElementById('reservedGameOptionsPanel');
+    if (!panel) return;
+
+    const gameItems = games.map(game => `
+        <div class="filter-box-item" onclick="event.stopPropagation(); selectReservedGame('${escapeQuotes(game.GameTitle)}')">
+            ${game.image_url
+                ? `<img src="${game.image_url}" class="game-option-icon" alt="" onerror="handleGameIconError(this, 'game-option-icon-fallback')">`
+                : `<i class="fas fa-gamepad game-option-icon-fallback"></i>`}
+            ${game.GameTitle}
+        </div>
+    `).join('');
+
+    const naItem = `
+        <div class="filter-box-item" onclick="event.stopPropagation(); selectReservedGame('N/A')">
+            <i class="fas fa-ban game-option-icon-fallback"></i>
+            N/A
+        </div>
+    `;
+
+    panel.innerHTML = gameItems + naItem;
+}
+
+// Select a single game for the reserved-game field
+function selectReservedGame(value) {
+    const hiddenInput = document.getElementById('reservedGame');
+    const displayArea = document.getElementById('reservedGameSelectDisplay');
+    if (!hiddenInput || !displayArea) return;
+
+    let iconHtml;
+    if (value === 'N/A') {
+        iconHtml = `<i class="fas fa-ban game-tag-icon"></i>`;
+    } else {
+        const cachedList = EventState.gamesListCache;
+        const item = cachedList?.find(g => g.GameTitle === value);
+        iconHtml = item?.image_url
+            ? `<img src="${item.image_url}" class="game-tag-icon-img" alt="" onerror="handleGameIconError(this, 'game-tag-icon')">`
+            : `<i class="fas fa-gamepad game-tag-icon"></i>`;
+    }
+
+    hiddenInput.value = value;
+    displayArea.innerHTML = `${iconHtml}<span class="combo-selected-text">${value}</span>`;
+
+    clearLabReservationBlockMessage();
+    closeAllFilterPanels();
+}
+
+// Reset the reserved-game selector back to its placeholder
+function resetReservedGameSelector() {
+    const hiddenInput = document.getElementById('reservedGame');
+    const displayArea = document.getElementById('reservedGameSelectDisplay');
+
+    if (hiddenInput) hiddenInput.value = '';
+    if (displayArea) displayArea.innerHTML = '<span class="combo-placeholder">Select game</span>';
+}
+
 /* ==============================
    State Messages
    ============================== */
@@ -2192,4 +2551,5 @@ window.filterEventsByPastSeason = filterEventsByPastSeason;
 
 // Event Detail Panel
 window.openEventDetailPanel = openEventDetailPanel;
+window.closeEventDetailPanel = closeEventDetailPanel;
 window.closeEventDetailSheet = closeEventDetailSheet;

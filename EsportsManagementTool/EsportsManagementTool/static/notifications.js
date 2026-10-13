@@ -313,9 +313,9 @@ function showNotificationCard(message, type = 'success', duration = 3000) {
  * Show a success notification card
  *
  * @example
- * showDeleteSuccessMessage('Team deleted successfully!');
+ * showSuccessToast('Team deleted successfully!');
  */
-function showDeleteSuccessMessage(message, duration = 3000) {
+function showSuccessToast(message, duration = 3000) {
     showNotificationCard(message, 'success', duration);
 }
 
@@ -323,9 +323,9 @@ function showDeleteSuccessMessage(message, duration = 3000) {
  * Show an error notification card
  *
  * @example
- * showDeleteErrorMessage('Failed to delete team. Please try again.');
+ * showErrorToast('Failed to delete team. Please try again.');
  */
-function showDeleteErrorMessage(message, duration = 4000) {
+function showErrorToast(message, duration = 4000) {
     showNotificationCard(message, 'error', duration);
 }
 
@@ -333,9 +333,9 @@ function showDeleteErrorMessage(message, duration = 4000) {
  * Show an info notification card
  *
  * @example
- * showInfoMessage('Schedule automatically cleaned up');
+ * showInfoToast('Schedule automatically cleaned up');
  */
-function showInfoMessage(message, duration = 4000) {
+function showInfoToast(message, duration = 4000) {
     showNotificationCard(message, 'info', duration);
 }
 
@@ -346,7 +346,7 @@ window.autoSaveNotifications = autoSaveNotifications;
 window.showNotificationDisabledMessage = showNotificationDisabledMessage;
 window.subscribeToEvent = subscribeToEvent;
 window.unsubscribeFromEvent = unsubscribeFromEvent;
-window.showDeleteSuccessMessage = showDeleteSuccessMessage;
-window.showDeleteErrorMessage = showDeleteErrorMessage;
-window.showInfoMessage = showInfoMessage;
+window.showSuccessToast = showSuccessToast;
+window.showErrorToast = showErrorToast;
+window.showInfoToast = showInfoToast;
 window.NotificationQueue = NotificationQueue;

@@ -4,7 +4,8 @@
 
 // Global variables - use unique names to avoid conflicts with dashboard scripts
 let currentDate = new Date();
-let calendarEventsData = {};  
+let calendarEventsData = {};
+let calendarLabReservationsData = {};
 let isUserLoggedIn = false;
 let clickOutsideHandler = null; // Listens for clicks outside popups
 let activeAnchorElement = null;
@@ -16,9 +17,11 @@ window.currentEventData = null;
 // Mobile day-sheet state
 let _activeDayKey      = null;
 let _activeDayEvents   = null;
+let _activeDayType     = 'events'; // 'events' or 'labs' - which list _activeDayEvents holds
 let _showBackButton    = false;
 let _backButtonDayKey  = null;
 let _backButtonDayEvents = null;
+let _backButtonDayType = 'events';
 
 const CALENDAR_MOBILE_BREAKPOINT = 768; // matches .mobile-sheet breakpoint in dashboard-base.css
 
@@ -127,8 +130,175 @@ document.addEventListener('DOMContentLoaded', function() {
 
     initializeCalendar();
     setupNavigation();
+    setupCalendarViewTabs();
     loadCalendarEvents();
 });
+
+// Events / Lab Reservations view tabs (dashboard calendar only).
+// Tracks which calendar view is currently displayed
+let currentCalendarView = 'events';
+
+// Builds the tabs that appear in the calendar navigation bar.
+function setupCalendarViewTabs() {
+    const eventsViewTab = document.querySelector('.calendar-view-tabs .tab-button[data-view="events"]');
+    if (eventsViewTab) {
+        eventsViewTab.classList.add('active');
+    }
+
+    const legendInfoWrapper = document.getElementById('calendarLegendInfoWrapper');
+    if (legendInfoWrapper) {
+        initInfoIcon(legendInfoWrapper, 'Legend');
+    }
+    updateCalendarLegendTooltip();
+}
+
+// Switches which button is highlighted based on which tab was last selected.
+function switchCalendarView(view, btnElement) {
+    if (view === currentCalendarView) {
+        return;
+    }
+
+    document.querySelectorAll('.calendar-view-tabs .tab-button').forEach(function(btn) {
+        btn.classList.remove('active');
+    });
+    btnElement.classList.add('active');
+
+    currentCalendarView = view;
+    updateCalendarLegendTooltip();
+
+    const eventLegendCard = document.getElementById('eventLegendCard');
+    const labLegendCard = document.getElementById('labLegendCard');
+    const todayEventsCard = document.getElementById('todayEventsCard');
+    const todayReservationsCard = document.getElementById('todayReservationsCard');
+
+    if (view === 'labs') {
+        setElementDisplay(eventLegendCard, 'none');
+        setElementDisplay(labLegendCard, 'block');
+        setElementDisplay(todayEventsCard, 'none');
+        setElementDisplay(todayReservationsCard, 'block');
+        loadCalendarLabReservations();
+        loadMyLabReservations();
+    } else {
+        setElementDisplay(labLegendCard, 'none');
+        setElementDisplay(eventLegendCard, 'block');
+        setElementDisplay(todayReservationsCard, 'none');
+        setElementDisplay(todayEventsCard, 'block');
+        loadCalendarEvents();
+    }
+}
+
+// Pulls all lab reservations to display as pills on the reservation calendar
+function loadCalendarLabReservations() {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+
+    console.log(`Loading lab reservations for ${year}-${month}`);
+
+    fetch(`/api/calendar/labs?year=${year}&month=${month}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Lab reservations loaded:', data);
+            calendarLabReservationsData = data;
+            displayLabReservations();
+            updateTodayLabReservations();
+            revealCalendar();
+        })
+        .catch(error => {
+            console.error('Error loading lab reservations:', error);
+            calendarLabReservationsData = {};
+            displayLabReservations();
+            updateTodayLabReservations();
+            revealCalendar();
+        });
+}
+
+// Maps a lab_choice display name to the short key used for CSS/data attributes
+function getLabChoiceKey(labChoice) {
+    const map = {
+        'Blue Lab': 'blue',
+        'Gold Lab': 'gold',
+        'Center Office': 'center'
+    };
+    return map[labChoice] || 'center';
+}
+
+function displayLabReservations() {
+    document.querySelectorAll('.events-container').forEach(container => {
+        container.innerHTML = '';
+    });
+    document.querySelectorAll('.mobile-event-dots').forEach(container => {
+        container.innerHTML = '';
+    });
+
+    let labCount = 0;
+
+    Object.keys(calendarLabReservationsData).forEach(dateKey => {
+        const labs = calendarLabReservationsData[dateKey];
+        const container = document.getElementById(`events-${dateKey}`);
+
+        if (!container || !labs || labs.length === 0) return;
+
+        labCount += labs.length;
+
+        const displayLabs = labs.slice(0, 3);
+        const hasMore = labs.length > 3;
+
+        displayLabs.forEach(lab => {
+            const labEl = createLabReservationElement(lab);
+            container.appendChild(labEl);
+        });
+
+        if (hasMore) {
+            const overflow = document.createElement('div');
+            overflow.className = 'event-overflow';
+            overflow.textContent = `+${labs.length - 3} more`;
+            const hiddenLabs = labs.slice(3);
+            overflow.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleCellOverflow(overflow, hiddenLabs, createLabReservationElement);
+            });
+            container.appendChild(overflow);
+        }
+    });
+
+    Object.keys(calendarLabReservationsData).forEach(dateKey => {
+        renderMobileLabDots(dateKey, calendarLabReservationsData[dateKey] || []);
+    });
+
+    console.log(`Displayed ${labCount} lab reservations`);
+}
+
+// Builds the reservation pill
+function createLabReservationElement(lab) {
+    const labEl = document.createElement('div');
+    labEl.className = 'event lab-reservation';
+    labEl.setAttribute('data-lab-choice', getLabChoiceKey(lab.lab_choice));
+    labEl.setAttribute('data-priority', lab.priority || '');
+
+    const title = document.createElement('div');
+    title.className = 'event-title';
+    title.textContent = lab.game_name ? `${lab.lab_choice} · ${lab.game_name}` : lab.lab_choice;
+    labEl.appendChild(title);
+
+    if (lab.time) {
+        const time = document.createElement('div');
+        time.className = 'event-time';
+        time.textContent = lab.time;
+        labEl.appendChild(time);
+    }
+
+    labEl.addEventListener('click', function(e) {
+        e.stopPropagation();
+        openLabReservationPopup(lab, this);
+    });
+
+    return labEl;
+}
 
 function initializeCalendar() {
     console.log('Initializing calendar for:', currentDate);
@@ -136,6 +306,7 @@ function initializeCalendar() {
     renderCalendar();
 }
 
+// Builds the calendar navigation bar with the month, year, info tooltip, and navigation tabs.
 function setupNavigation() {
     const prevBtn = document.getElementById('prevMonth');
     const nextBtn = document.getElementById('nextMonth');
@@ -157,11 +328,28 @@ function setupNavigation() {
     }
 }
 
+// Adjusts which calendar is shown based on which tab is selected.
 function updateCalendar() {
-    console.log('Updating calendar to:', currentDate);
     updateCalendarHeader();
     renderCalendar();
-    loadCalendarEvents();
+    if (currentCalendarView === 'labs') {
+        loadCalendarLabReservations();
+    } else {
+        loadCalendarEvents();
+    }
+}
+
+/** Keeps the calendar legend info-icon's tooltip content in sync with whichever view is active.
+ *  Both the desktop hover tooltip and the mobile info sheet read from this same element. */
+function updateCalendarLegendTooltip() {
+    const tooltip = document.getElementById('calendarLegendInfoTooltip');
+    if (!tooltip) return;
+
+    const sourceCard = currentCalendarView === 'labs'
+        ? document.querySelector('.lab-legend-types')
+        : document.getElementById('eventLegendCard');
+
+    tooltip.innerHTML = sourceCard ? sourceCard.innerHTML : '';
 }
 
 function updateCalendarHeader() {
@@ -241,7 +429,11 @@ function renderCalendar() {
         cell.addEventListener('click', function(e) {
             if (!isCalendarMobileView()) return;
             if (e.target.closest('.calendar-overflow-panel')) return;
-            openDaySheet(dateKey, calendarEventsData[dateKey] || []);
+            if (currentCalendarView === 'labs') {
+                openDaySheet(dateKey, calendarLabReservationsData[dateKey] || [], 'labs');
+            } else {
+                openDaySheet(dateKey, calendarEventsData[dateKey] || [], 'events');
+            }
         });
 
         grid.appendChild(cell);
@@ -289,6 +481,9 @@ function revealCalendar() {
 
 function displayEvents() {
     document.querySelectorAll('.events-container').forEach(container => {
+        container.innerHTML = '';
+    });
+    document.querySelectorAll('.mobile-event-dots').forEach(container => {
         container.innerHTML = '';
     });
 
@@ -397,6 +592,60 @@ function updateTodayEvents() {
         type.className = `today-event-type ${event.event_type}`;
         type.textContent = event.event_type;
         item.appendChild(type);
+
+        container.appendChild(item);
+    });
+}
+
+// Updates lab reservations to display the current day's reservations
+function updateTodayLabReservations() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const dateKey = `${year}-${month}-${day}`;
+
+    const todayLabs = calendarLabReservationsData[dateKey] || [];
+    const container = document.getElementById('todayReservationsList');
+
+    if (!container) {
+        console.error('Today reservations list container not found');
+        return;
+    }
+
+    if (todayLabs.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.875rem;">No reservations today</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    todayLabs.forEach(lab => {
+        const item = document.createElement('div');
+        item.className = 'today-event-item';
+
+        const title = document.createElement('div');
+        title.className = 'today-event-title';
+        title.textContent = lab.lab_choice;
+        item.appendChild(title);
+
+        if (lab.time) {
+            const time = document.createElement('div');
+            time.className = 'today-event-time';
+            time.innerHTML = `<i class="fas fa-clock"></i> ${lab.time}`;
+            item.appendChild(time);
+        }
+
+        if (lab.lab_status) {
+            const status = document.createElement('div');
+            status.className = 'today-reservation-status';
+            status.innerHTML = `<i class="fas fa-desktop"></i> ${lab.lab_status}`;
+            item.appendChild(status);
+        }
+
+        const priority = document.createElement('div');
+        priority.className = `today-event-type priority-${lab.priority}`;
+        priority.textContent = lab.priority;
+        item.appendChild(priority);
 
         container.appendChild(item);
     });
@@ -519,6 +768,119 @@ function displayEventDetails(event) {
 function formatCalendarGameName(gameName, teamName, isScheduled) {
     if (isScheduled && teamName) return teamName;
     return gameName || null;
+}
+
+function openLabReservationPopup(lab, clickedElement) {
+    window.closeEventPopup();
+    const labPopupId = `lab-${lab.id}`;
+    window.currentEventId = labPopupId;
+    activeAnchorElement = clickedElement;
+
+    const mobileView = isCalendarMobileView();
+
+    const popup = document.createElement('div');
+    popup.id = 'landingEventPopup';
+    popup.className = mobileView ? 'popup-event-item mobile-sheet' : 'popup-event-item';
+    popup.style.visibility = mobileView ? 'visible' : 'hidden';
+    popup.innerHTML = `<div class="popup-arrow"></div>`;
+
+    if (mobileView) {
+        document.body.appendChild(popup);
+        const backdrop = ensureCalendarPopupBackdrop();
+        requestAnimationFrame(() => {
+            popup.classList.add('sheet-open');
+            backdrop.classList.add('open');
+        });
+        lockBodyScroll('calendarEventPopup');
+    } else {
+        const container = document.querySelector('.calendar-container') || document.body;
+        container.appendChild(popup);
+
+        if (clickedElement) {
+            positionPopup(popup, clickedElement, false);
+        }
+
+        clickOutsideHandler = function(e) {
+            if (!popup.contains(e.target) && (!clickedElement || !clickedElement.contains(e.target))) {
+                window.closeEventPopup();
+            }
+        };
+
+        setTimeout(() => {
+            if (window.currentEventId === labPopupId) {
+                document.addEventListener('click', clickOutsideHandler);
+                window.addEventListener('resize', handleDynamicReposition);
+                window.addEventListener('scroll', handleDynamicReposition, true);
+            }
+        }, 50);
+    }
+
+    // No fetch needed - the month's cached lab data already has every field we show
+    displayLabReservationPopupDetails(lab, popup, mobileView ? null : clickedElement);
+}
+
+function displayLabReservationPopupDetails(lab, popup, clickedElement) {
+    if (!popup) return;
+
+    const labChoiceKey = getLabChoiceKey(lab.lab_choice);
+    popup.setAttribute('data-lab-choice', labChoiceKey);
+
+    popup.innerHTML = `
+        <div class="popup-arrow"></div>
+        <div class="lab-popup-details popup-inner-wrapper" data-lab-choice="${labChoiceKey}">
+
+            <h3 class="popup-title">${lab.lab_choice}${lab.game_name ? ` · ${lab.game_name}` : ''}</h3>
+
+            <div class="popup-grid-content">
+                <div class="popup-row">
+                    <span class="popup-icon"><i class="fas fa-desktop"></i></span>
+                    <span class="popup-text">${lab.lab_choice}</span>
+                </div>
+
+                <div class="popup-row">
+                    <span class="popup-icon"><i class="fas fa-clock"></i></span>
+                    <span class="popup-text">${lab.time || 'No time specified'}</span>
+                </div>
+
+                <div class="popup-row">
+                    <span class="popup-icon"><i class="fas fa-flag"></i></span>
+                    <span class="popup-text" style="text-transform: capitalize;">${lab.priority || 'N/A'}</span>
+                </div>
+
+                <div class="popup-games-box">
+                    <span class="popup-icon"><i class="fas fa-gamepad"></i></span>
+                    <span class="popup-text">${lab.game_name || 'N/A'}</span>
+                </div>
+
+                <div class="popup-row full-width">
+                    <span class="popup-icon"><i class="fas fa-th-large"></i></span>
+                    <span class="popup-text">${lab.lab_status || 'N/A'}</span>
+                </div>
+            </div>
+
+            ${lab.description ? `
+                <div class="popup-description-box">
+                    <span class="popup-icon"><i class="fas fa-align-left"></i></span>
+                    <span class="popup-text">${lab.description}</span>
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    // If opened from the day sheet on mobile, add a back button
+    if (_showBackButton && isCalendarMobileView()) {
+        _showBackButton = false;
+        const backBtn = document.createElement('button');
+        backBtn.className = 'calendar-popup-back-btn';
+        backBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+        backBtn.addEventListener('click', _handleDaySheetBackButtonClick);
+        const inner = popup.querySelector('.lab-popup-details');
+        if (inner) inner.insertBefore(backBtn, inner.firstChild);
+    }
+
+    if (clickedElement) {
+        positionPopup(popup, clickedElement, true);
+    }
 }
 
 function openEventPopup(event_id, clickedElement) {
@@ -711,14 +1073,7 @@ function displayEventPopupDetails(data, popup, clickedElement){
         const backBtn = document.createElement('button');
         backBtn.className = 'calendar-popup-back-btn';
         backBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
-        backBtn.addEventListener('click', () => {
-            const dayKey    = _backButtonDayKey;
-            const dayEvents = _backButtonDayEvents;
-            _backButtonDayKey    = null;
-            _backButtonDayEvents = null;
-            window.closeEventPopup();
-            openDaySheet(dayKey, dayEvents);
-        });
+        backBtn.addEventListener('click', _handleDaySheetBackButtonClick);
         const inner = popup.querySelector('.event-popup-details');
         if (inner) inner.insertBefore(backBtn, inner.firstChild);
     }
@@ -817,7 +1172,7 @@ let _overflowTrigger = null;
  * Toggle the overflow expansion panel for a day cell.
  * Opens if closed, closes if the same cell is clicked again.
  */
-function toggleCellOverflow(overflowEl, hiddenEvents) {
+function toggleCellOverflow(overflowEl, hiddenItems, createElementFn = createEventElement) {
     const cell = overflowEl.closest('.calendar-cell');
 
     if (_overflowCell === cell) {
@@ -840,7 +1195,7 @@ function toggleCellOverflow(overflowEl, hiddenEvents) {
 
     const cellMirror = document.createElement('div');
     cellMirror.className = 'calendar-cell calendar-overflow-inner';
-    hiddenEvents.forEach(event => cellMirror.appendChild(createEventElement(event)));
+    hiddenItems.forEach(item => cellMirror.appendChild(createElementFn(item)));
     panel.appendChild(cellMirror);
 
     document.body.appendChild(panel);
@@ -901,6 +1256,24 @@ window.addEventListener('resize', handleOverflowReposition);
 // MOBILE DAY SHEET
 // ============================================
 
+/** Render one colored dot per unique lab choice for a day (mobile view) */
+function renderMobileLabDots(dateKey, labs) {
+    const container = document.getElementById(`dots-${dateKey}`);
+    if (!container) return;
+    container.innerHTML = '';
+
+    const seen = new Set();
+    labs.forEach(l => { if (l.lab_choice) seen.add(getLabChoiceKey(l.lab_choice)); });
+
+    ['blue', 'gold', 'center'].forEach(key => {
+        if (seen.has(key)) {
+            const dot = document.createElement('div');
+            dot.className = `mobile-event-dot mobile-lab-dot--${key}`;
+            container.appendChild(dot);
+        }
+    });
+}
+
 /** Render one colored dot per unique event type for a day */
 function renderMobileDots(dateKey, events) {
     const container = document.getElementById(`dots-${dateKey}`);
@@ -936,11 +1309,12 @@ function _ensureDaySheet() {
 }
 
 /** Open the bottom sheet listing all events for a given day */
-function openDaySheet(dateKey, events) {
+function openDaySheet(dateKey, items, type = 'events') {
     _ensureDaySheet();
 
     _activeDayKey    = dateKey;
-    _activeDayEvents = events;
+    _activeDayEvents = items;
+    _activeDayType   = type;
 
     const sheet    = document.getElementById('calendarDaySheet');
     const backdrop = document.getElementById('calendarDaySheetBackdrop');
@@ -953,11 +1327,27 @@ function openDaySheet(dateKey, events) {
 
     let html = `<h3 class="calendar-day-sheet-title">${title}</h3>`;
 
-    if (!events || events.length === 0) {
-        html += `<p class="calendar-day-sheet-empty">No events this day.</p>`;
+    if (!items || items.length === 0) {
+        html += `<p class="calendar-day-sheet-empty">No ${type === 'labs' ? 'reservations' : 'events'} this day.</p>`;
+    } else if (type === 'labs') {
+        html += `<div class="calendar-day-sheet-list">`;
+        items.forEach(lab => {
+            const priorityKey = (lab.priority || '').toLowerCase();
+            const titleText   = lab.game_name ? `${lab.lab_choice} · ${lab.game_name}` : lab.lab_choice;
+            html += `
+                <div class="calendar-day-sheet-event" data-lab-id="${lab.id}">
+                    <div class="calendar-day-sheet-event-meta">
+                        <span class="calendar-day-sheet-event-time">${lab.time || 'No time specified'}</span>
+                        <span class="today-event-type priority-${priorityKey}">${capitalizeFirst(lab.priority || '')}</span>
+                    </div>
+                    <div class="calendar-day-sheet-event-title">${titleText}</div>
+                </div>
+            `;
+        });
+        html += `</div>`;
     } else {
         html += `<div class="calendar-day-sheet-list">`;
-        events.forEach(event => {
+        items.forEach(event => {
             const timeStr   = event.start_time ? formatTime(event.start_time) : 'All day';
             const typeLabel = capitalizeFirst(event.event_type || 'event');
             html += `
@@ -977,7 +1367,11 @@ function openDaySheet(dateKey, events) {
 
     sheet.querySelectorAll('.calendar-day-sheet-event').forEach(item => {
         item.addEventListener('click', () => {
-            openEventFromDaySheet(parseInt(item.dataset.eventId, 10));
+            if (type === 'labs') {
+                openLabReservationFromDaySheet(parseInt(item.dataset.labId, 10));
+            } else {
+                openEventFromDaySheet(parseInt(item.dataset.eventId, 10));
+            }
         });
     });
 
@@ -995,6 +1389,7 @@ function closeDaySheet() {
     unlockBodyScroll('calendarDaySheet');
     _activeDayKey    = null;
     _activeDayEvents = null;
+    _activeDayType   = 'events';
 }
 
 /**
@@ -1005,10 +1400,41 @@ function closeDaySheet() {
 function openEventFromDaySheet(eventId) {
     _backButtonDayKey    = _activeDayKey;
     _backButtonDayEvents = _activeDayEvents;
+    _backButtonDayType   = _activeDayType;
     _showBackButton      = true;
 
     closeDaySheet();
     openEventPopup(eventId, null);
+}
+
+/**
+ * Open a lab reservation's detail from the day sheet.
+ * Mirrors openEventFromDaySheet, but looks the reservation up from the
+ * already-loaded day list instead of fetching it (same as clicking a pill).
+ */
+function openLabReservationFromDaySheet(labId) {
+    _backButtonDayKey    = _activeDayKey;
+    _backButtonDayEvents = _activeDayEvents;
+    _backButtonDayType   = _activeDayType;
+    _showBackButton      = true;
+
+    const lab = (_activeDayEvents || []).find(l => l.id === labId);
+    closeDaySheet();
+    if (lab) {
+        openLabReservationPopup(lab, null);
+    }
+}
+
+/** Shared handler for the popup's back button: returns to the day sheet it was opened from */
+function _handleDaySheetBackButtonClick() {
+    const dayKey    = _backButtonDayKey;
+    const dayEvents = _backButtonDayEvents;
+    const dayType   = _backButtonDayType;
+    _backButtonDayKey    = null;
+    _backButtonDayEvents = null;
+    _backButtonDayType   = 'events';
+    window.closeEventPopup();
+    openDaySheet(dayKey, dayEvents, dayType);
 }
 
 // ============================================

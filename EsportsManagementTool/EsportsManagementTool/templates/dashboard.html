@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Osprey Vantage{% endblock %}
+{% block title %}Dashboard - Esports Vantage{% endblock %}
 
 {% block extra_css %}
 <!-- Import external CSS file(s) -->
@@ -27,6 +27,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='manage-communities.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='playoffs.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='stream-schedule.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='lab-reservations.css') }}">
 
 <!-- Import Calendar CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
@@ -41,7 +42,7 @@
     </div>
 
     <!-- Tab Navigation -->
-    <div class="tab-navigation">
+        <div class="tab-navigation" id="mainTabNavigation">
         <button class="tab-button {% if preferred_tab == 'calendar' %}active{% endif %}" data-tab="calendar">
             <i class="fa-regular fa-calendar tab-icon"></i>
             <span>Calendar</span>
@@ -80,15 +81,34 @@
         <div class="calendar-container" style="visibility: hidden;">
             <!-- Calendar Navigation -->
             <div class="calendar-navigation">
-                <button class="nav-button" id="prevMonth">
-                    <i class="fas fa-chevron-left"></i>
-                    <span>Previous</span>
-                </button>
+                <div class="calendar-nav-left">
+                    <button class="nav-button" id="prevMonth">
+                        <i class="fas fa-chevron-left"></i>
+                        <span>Previous</span>
+                    </button>
+                    <div class="info-icon-wrapper" id="calendarLegendInfoWrapper">
+                        <i class="fas fa-info-circle info-icon" id="calendarLegendInfoIcon"></i>
+                        <div class="info-tooltip" id="calendarLegendInfoTooltip"></div>
+                    </div>
+                </div>
                 <h2 class="calendar-month-year" id="currentMonthYear"></h2>
-                <button class="nav-button" id="nextMonth">
-                    <span>Next</span>
-                    <i class="fas fa-chevron-right"></i>
-                </button>
+                <div class="calendar-nav-right">
+                    <!-- Events / Lab Reservations view tabs (placeholder — not wired up yet) -->
+                    <div class="tab-navigation calendar-view-tabs">
+                        <button class="tab-button active" data-view="events" onclick="switchCalendarView('events', this)">
+                            <i class="fas fa-calendar-day tab-icon"></i>
+                            <span>Events</span>
+                        </button>
+                        <button class="tab-button" data-view="labs" onclick="switchCalendarView('labs', this)">
+                            <i class="fas fa-desktop tab-icon"></i>
+                            <span>Lab Reservations</span>
+                        </button>
+                    </div>
+                    <button class="nav-button" id="nextMonth">
+                        <span>Next</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
             </div>
             <!-- Main Calendar Section -->
             <div class="calendar-main">
@@ -112,7 +132,7 @@
             <!-- Calendar legend widget -->
             <div class="widget-sidebar">
                 <!-- Event Type Legend Card -->
-                <div class="widget-card">
+                <div class="widget-card" id="eventLegendCard">
                     <h3><i class="fas fa-palette"></i> Event Types</h3>
                     <div class="legend-items">
                         <div class="legend-item">
@@ -135,17 +155,79 @@
                             <div class="legend-color misc"></div>
                             <span class="legend-label">Misc</span>
                         </div>
-                        <div class="legend-item">
+                        <div class="legend-item legend-item--mobile-hide">
                             <div class="legend-color scheduled-indicator"></div>
                             <span class="legend-label">Recurring/Scheduled</span>
                         </div>
                     </div>
                 </div>
+                <!-- Lab Reservation Legend Card (shown only in Lab Reservations view) -->
+                <div class="widget-card" id="labLegendCard" style="display: none;">
+                    <div class="lab-legend-layout">
+                        <div class="lab-legend-types">
+                            <h3><i class="fas fa-desktop"></i> Lab Reservations</h3>
+                            <div class="legend-columns">
+                                <div class="legend-column">
+                                    <div class="legend-column-title">Lab</div>
+                                    <div class="legend-items">
+                                        <div class="legend-item">
+                                            <div class="legend-color lab-blue"></div>
+                                            <span class="legend-label">Blue Lab</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color lab-gold"></div>
+                                            <span class="legend-label">Gold Lab</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color lab-center"></div>
+                                            <span class="legend-label">Center Office</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="legend-column legend-column--mobile-hide">
+                                    <div class="legend-column-title">Priority</div>
+                                    <div class="legend-items">
+                                        <div class="legend-item">
+                                            <div class="legend-color priority-casual"></div>
+                                            <span class="legend-label">Casual</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color priority-practice"></div>
+                                            <span class="legend-label">Practice</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color priority-scrim"></div>
+                                            <span class="legend-label">Scrim</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color priority-match"></div>
+                                            <span class="legend-label">Match</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lab-legend-divider"></div>
+                        <div class="lab-legend-mine">
+                            <h3><i class="fas fa-list"></i> My Reservations</h3>
+                            <div class="my-reservations-list" id="myReservationsList">
+                                <p style="color: var(--text-secondary); font-size: 0.875rem;">No upcoming reservations</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <!-- Today's Events Card -->
-                <div class="widget-card">
+                <div class="widget-card" id="todayEventsCard">
                     <h3><i class="fas fa-calendar-day"></i> Today's Events</h3>
                     <div class="today-events-list" id="todayEventsList">
-                        <p style="color: var(--text-secondary); font-size: 0.875rem;">No events today</p>   
+                        <p style="color: var(--text-secondary); font-size: 0.875rem;">No events today</p>
+                    </div>
+                </div>
+                <!-- Today's Reservations Card (shown only in Lab Reservations view) -->
+                <div class="widget-card" id="todayReservationsCard" style="display: none;">
+                    <h3><i class="fas fa-calendar-day"></i> Today's Reservations</h3>
+                    <div class="today-events-list" id="todayReservationsList">
+                        <p style="color: var(--text-secondary); font-size: 0.875rem;">No reservations today</p>
                     </div>
                 </div>
             </div>
@@ -339,7 +421,6 @@
                         </div>
                         </div>
 
-                        <div id="discordActionMessage" class="form-message" style="display: none;"></div>
                     </div>
                 </div>
             </div>
@@ -440,7 +521,6 @@
                         </div>
                     </div>
 
-                    <div id="notificationMessage" class="form-message" style="display: none;"></div>
                 </div>
             </div>
         </div>
@@ -543,7 +623,6 @@
                     <p>No Game Managers available</p>
                 </div>
 
-                <div id="assignGMMessage" class="form-message" style="display: none; margin-top: 1rem;"></div>
             </div>
         </div>
     </div>
@@ -694,10 +773,13 @@
                         </div>
                     </div>
 
-                    <!-- Create Event Button (stays in top right) -->
+                    <!-- Create Event / Create Lab Reservation Buttons (stay in top right) -->
                     {% if user.is_admin or user.is_developer or user.is_gm %}
-                    <button class="btn btn-primary" onclick="openCreateEventModal()">
-                        <i class="fas fa-plus"></i>
+                    <button class="btn btn-primary" onclick="openCreateEventModal()" title="Create an event">
+                        <i class="fas fa-calendar-day"></i>
+                    </button>
+                    <button class="btn btn-primary" onclick="openCreateLabReservationModal()" title="Create a lab reservation">
+                        <i class="fas fa-desktop"></i>
                     </button>
                     {% endif %}
                 </div>
@@ -753,7 +835,7 @@
                 <div class="modal-body">
 
                     <form id="createEventForm" class="event-form-modal">
-                        <div class="form-row">
+                        <div class="form-row form-row--paired">
                             <div class="form-group">
                                 <label for="eventName" class="required-field">Event Name</label>
                                 <input type="text" id="eventName" name="eventName" placeholder="Enter event name" required>
@@ -789,17 +871,17 @@
                             </small>
                         </div>
 
-                        <div class="form-row">
+                        <div class="form-row form-row--paired">
                             <!-- Game selection combobox -->
                             <div class="form-group" id="gameFieldGroup">
                                 <label for="gameTagBox" class="tag-select-label">Games</label>
-                                <div style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.35rem;">
+                                <div class="tag-select-subtext" style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.35rem;">
                                     Select games from the dropdown
                                 </div>
 
                                 <div class="filter-box tag-select-box" id="gameTagBox">
                                     <div class="tag-select-trigger" onclick="toggleFilterBox('gameOptionsPanel')">
-                                        <div id="selectedGamesContainer" class="selected-games-container tag-select-tags" data-empty-text="No games selected">
+                                        <div id="selectedGamesContainer" class="selected-games-container tag-select-tags" data-empty-text="No games selected" data-empty-text-mobile="No games">
                                             <!-- Selected game tags will appear here -->
                                         </div>
                                         <i class="fas fa-chevron-down tag-select-arrow"></i>
@@ -816,13 +898,13 @@
                             <!-- Partnership selection combobox -->
                             <div class="form-group" id="partnershipFieldGroup">
                                 <label for="partnershipTagBox" class="tag-select-label">Partnerships</label>
-                                <div style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.35rem;">
+                                <div class="tag-select-subtext" style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.35rem;">
                                     Select existing partnerships or add a new one
                                 </div>
 
                                 <div class="filter-box tag-select-box" id="partnershipTagBox">
                                     <div class="tag-select-trigger" onclick="toggleFilterBox('partnershipOptionsPanel')">
-                                        <div id="selectedPartnershipsContainer" class="selected-games-container tag-select-tags" data-empty-text="No partnerships selected">
+                                        <div id="selectedPartnershipsContainer" class="selected-games-container tag-select-tags" data-empty-text="No partnerships selected" data-empty-text-mobile="No partnerships">
                                             <!-- Selected partnership tags will appear here -->
                                         </div>
                                         <i class="fas fa-chevron-down tag-select-arrow"></i>
@@ -837,7 +919,7 @@
                             </div>
                         </div>
 
-                        <div class="form-row">
+                        <div class="form-row form-row--paired">
                             <div class="form-group">
                                 <label for="eventDate" class="required-field">Date</label>
                                 <input type="date" id="eventDate" name="eventDate" required>
@@ -893,8 +975,6 @@
                             <textarea id="eventDescription" name="eventDescription" placeholder="Enter event description" rows="4" required></textarea>
                         </div>
 
-                        <div id="formMessage" class="form-message" style="display: none;"></div>
-
                         <div class="form-actions">
                             <button type="button" class="btn btn-secondary" onclick="closeCreateEventModal()">Cancel</button>
                             <button type="submit" class="btn btn-primary">
@@ -918,11 +998,12 @@
                     <div class="sidebar-header-top">
                         <h2>Teams</h2>
                         {% if user.is_admin or user.is_developer or user.is_gm %}
-                        <button id="createTeamSidebarBtn"
-                                class="btn btn-primary btn-create-team-sidebar"
-                                onclick="openCreateTeam()">
-                            <i class="fas fa-plus"></i>
-                        </button>
+                        <div class="filter-box create-team-dropdown hidden" id="createTeamDropdown">
+                            <button type="button" class="btn btn-primary" onclick="toggleFilterBox('createTeamFilterPanel')" title="Create Team">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="filter-box-panel" id="createTeamFilterPanel"></div>
+                        </div>
                         {% endif %}
                     </div>
                     <!-- View Switcher Dropdown moves below the header row -->
@@ -933,21 +1014,23 @@
                     </div>
                 </div>
 
-                <!-- Loading State -->
-                <div id="teamsSidebarLoading" class="sidebar-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>Loading teams...</p>
-                </div>
+                <div class="teams-sidebar-body">
+                    <!-- Loading State -->
+                    <div id="teamsSidebarLoading" class="sidebar-loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading teams...</p>
+                    </div>
 
-                <!-- Team List -->
-                <div id="teamsSidebarList" class="teams-list" style="display: none;">
-                    <!-- Teams will be populated here by JavaScript -->
-                </div>
+                    <!-- Team List -->
+                    <div id="teamsSidebarList" class="teams-list" style="display: none;">
+                        <!-- Teams will be populated here by JavaScript -->
+                    </div>
 
-                <!-- Empty State -->
-                <div id="teamsSidebarEmpty" class="sidebar-empty" style="display: none;">
-                    <i class="fas fa-shield-alt"></i>
-                    <p>No teams available</p>
+                    <!-- Empty State -->
+                    <div id="teamsSidebarEmpty" class="sidebar-empty" style="display: none;">
+                        <i class="fas fa-shield-alt"></i>
+                        <p>No teams available</p>
+                    </div>
                 </div>
             </aside>
 
@@ -1212,98 +1295,105 @@
                 <p class="modal-subtitle">Set up a recurring event for this team</p>
 
                 <form id="createScheduledEventForm" class="event-form-modal">
-                    <div class="form-group">
-                        <label for="scheduledEventName">Event Name *</label>
-                        <input type="text"
+                    <div class="form-row form-row--paired">
+                        <div class="form-group">
+                            <label class="required-field" for="scheduledEventName">Event Name</label>
+                            <input type="text"
                                id="scheduledEventName"
                                name="event_name"
                                placeholder="e.g., Weekly Practice Session"
                                required>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="scheduledEventType">Event Type *</label>
-                            <select id="scheduledEventType" name="event_type" required>
-                                <option value="">Select type</option>
-                                <option value="Match">Match</option>
-                                <option value="Practice">Practice</option>
-                                <option value="Misc">Misc</option>
-                            </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="scheduledFrequency">Frequency *</label>
-                            <select id="scheduledFrequency" name="frequency" required onchange="handleFrequencyChange()">
-                                <option value="">Select frequency</option>
-                                <option value="Once">Once</option>
-                                <option value="Weekly">Weekly</option>
-                                <option value="Biweekly">Biweekly</option>
-                                <option value="Monthly">Monthly</option>
-                            </select>
+                            <label class="required-field" for="scheduledEventTypeTagBox">Event Type</label>
+                            <div class="filter-box tag-select-box" id="scheduledEventTypeTagBox">
+                                <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledEventTypePanel')">
+                                    <div id="scheduledEventTypeDisplay" class="combo-select-display">
+                                        <span class="combo-placeholder">Select type</span>
+                                    </div>
+                                    <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                </div>
+                                <div class="filter-box-panel tag-select-panel" id="scheduledEventTypePanel">
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledEventType', 'Match')">Match</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledEventType', 'Practice')">Practice</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledEventType', 'Misc')">Misc</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="scheduledEventType" name="event_type">
                         </div>
                     </div>
 
-                    <div class="form-group" id="scheduledLeagueGroup" style="display: none;">
-                        <label for="scheduledLeagueSelect">League <span style="color: #ff5252;">*</span></label>
-                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                            Select the league this match is part of
-                        </small>
-                        <select id="scheduledLeagueSelect" name="league_id">
-                            <option value="">Select a league</option>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="scheduledLocation">Location *</label>
-                        <select id="scheduledLocation" name="location" required>
-                            <option value="">Select location</option>
-                            <option value="Campus Center">Campus Center</option>
-                            <option value="Campus Center Coffee House">Campus Center Coffee House</option>
-                            <option value="Campus Center Event Room">Campus Center Event Room</option>
-                            <option value="D-108">D-108</option>
-                            <option value="Esports Lab (Commons Building 80)">Esports Lab (Commons Building 80)</option>
-                            <option value="Lakeside Lodge">Lakeside Lodge</option>
-                            <option value="Online">Online</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group" id="scheduledCustomLocationGroup" style="display: none;">
-                        <label for="scheduledCustomLocation">Custom Location</label>
-                        <input type="text"
-                               id="scheduledCustomLocation"
-                               name="custom_location"
-                               placeholder="Enter custom location">
-                    </div>
-
-                    <!-- Day of Week - Hidden when "Once" is selected -->
-                    <div class="form-group" id="scheduledDayOfWeekGroup">
-                        <label for="scheduledDayOfWeek">Day of Week *</label>
-                        <select id="scheduledDayOfWeek" name="day_of_week">
-                            <option value="">Select day</option>
-                            <option value="6">Sunday</option>
-                            <option value="0">Monday</option>
-                            <option value="1">Tuesday</option>
-                            <option value="2">Wednesday</option>
-                            <option value="3">Thursday</option>
-                            <option value="4">Friday</option>
-                            <option value="5">Saturday</option>
-                        </select>
-                    </div>
-
-                    <!-- Specific Date - Shown only when "Once" is selected -->
-                    <div class="form-group" id="scheduledSpecificDateGroup" style="display: none;">
-                        <label for="scheduledSpecificDate">Event Date *</label>
-                        <input type="date"
-                               id="scheduledSpecificDate"
-                               name="specific_date">
-                    </div>
-
-                    <div class="form-row">
+                    <div class="form-row form-row--paired">
                         <div class="form-group">
-                            <label for="scheduledStartTime">Start Time *</label>
+                            <label class="required-field" for="scheduledFrequencyTagBox">Frequency</label>
+                            <div class="filter-box tag-select-box" id="scheduledFrequencyTagBox">
+                                <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledFrequencyPanel')">
+                                    <div id="scheduledFrequencyDisplay" class="combo-select-display">
+                                        <span class="combo-placeholder">Select timing</span>
+                                    </div>
+                                    <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                </div>
+                                <div class="filter-box-panel tag-select-panel" id="scheduledFrequencyPanel">
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledFrequency', 'Once')">Once</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledFrequency', 'Weekly')">Weekly</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledFrequency', 'Biweekly')">Biweekly</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledFrequency', 'Monthly')">Monthly</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="scheduledFrequency" name="frequency">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="required-field" for="scheduledLocationTagBox">Location</label>
+                            <div class="filter-box tag-select-box" id="scheduledLocationTagBox">
+                                <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledLocationPanel')">
+                                    <div id="scheduledLocationDisplay" class="combo-select-display">
+                                        <span class="combo-placeholder">Select location</span>
+                                    </div>
+                                    <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                </div>
+                                <div class="filter-box-panel tag-select-panel" id="scheduledLocationPanel">
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Campus Center')">Campus Center</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Campus Center Coffee House')">Campus Center Coffee House</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Campus Center Event Room')">Campus Center Event Room</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'D-108')">D-108</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Esports Lab (Commons Building 80)')">Esports Lab (Commons Building 80)</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Lakeside Lodge')">Lakeside Lodge</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledLocation', 'Online')">Online</div>
+                                  <div class="filter-box-item" onclick="event.stopPropagation(); selectScheduledCustomLocation()">Other</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="scheduledLocation" name="location">
+                        </div>
+                    </div>
+
+                    <div class="form-row schedule-timing-row" id="scheduledDayOfWeekRow">
+                        <!-- Day of Week - Hidden when "Once" is selected -->
+                        <div class="form-group" id="scheduledDayOfWeekGroup">
+                            <label class="required-field" for="scheduledDayOfWeekTagBox">Day of Week</label>
+                            <div class="filter-box tag-select-box" id="scheduledDayOfWeekTagBox">
+                                <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledDayOfWeekPanel')">
+                                    <div id="scheduledDayOfWeekDisplay" class="combo-select-display">
+                                        <span class="combo-placeholder">Select day</span>
+                                    </div>
+                                    <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                </div>
+                                <div class="filter-box-panel tag-select-panel" id="scheduledDayOfWeekPanel">
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '6', 'Sunday')">Sunday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '0', 'Monday')">Monday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '1', 'Tuesday')">Tuesday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '2', 'Wednesday')">Wednesday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '3', 'Thursday')">Thursday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '4', 'Friday')">Friday</div>
+                                    <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('scheduledDayOfWeek', '5', 'Saturday')">Saturday</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="scheduledDayOfWeek" name="day_of_week">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="required-field" for="scheduledStartTime">Start Time</label>
                             <input type="time"
                                    id="scheduledStartTime"
                                    name="start_time"
@@ -1311,7 +1401,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="scheduledEndTime">End Time *</label>
+                            <label class="required-field" for="scheduledEndTime">End Time</label>
                             <input type="time"
                                    id="scheduledEndTime"
                                    name="end_time"
@@ -1319,28 +1409,86 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="scheduledVisibility">Visibility *</label>
-                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                            Match types events are only visible to this team.
-                        </small>
-                        <select id="scheduledVisibility" name="visibility" required>
-                            <option value="">Who can see this?</option>
-                            <option value="team" id="visibilityTeamOption">Team Only</option>
-                            <option value="game_players" id="visibilityPlayersOption">Players</option>
-                            <option value="game_community" id="visibilityCommunityOption">Community Members</option>
-                        </select>
+                    <div class="form-row form-row--half">
+                        <div class="form-group">
+                             <label class="required-field" for="scheduledVisibility">Visibility</label>
+                            <div class="form-group-text schedule-row-hint">
+                                Matches are visible to selected team(s)
+                            </div>
+                            <div class="filter-box tag-select-box" id="scheduledVisibilityTagBox">
+                                <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledVisibilityPanel')">
+                                    <div id="scheduledVisibilityDisplay" class="combo-select-display">
+                                        <span class="combo-placeholder">Who can see this?</span>
+                                    </div>
+                                    <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                </div>
+                                <div class="filter-box-panel tag-select-panel" id="scheduledVisibilityPanel">
+                                    <div class="filter-box-item" id="visibilityTeamOption" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'team', this.textContent)">Team Only</div>
+                                    <div class="filter-box-item" id="visibilityPlayersOption" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'game_players', this.textContent)">Players</div>
+                                    <div class="filter-box-item" id="visibilityCommunityOption" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'game_community', this.textContent)">Community Members</div>
+                                    <div class="filter-box-item" id="visibilityAllTeamsOption" style="display: none;" onclick="event.stopPropagation(); selectComboValue('scheduledVisibility', 'all_teams', this.textContent)">All Teams</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="scheduledVisibility" name="visibility">
+                        </div>
+
+                        <!-- League - Shown only for Match events -->
+                        <div class="form-group" id="scheduledLeagueGroup" style="display: none;">
+                            <label for="scheduledLeagueTagBox">League <span style="color: #ff5252;">*</span></label>
+                            <div class="form-group-text schedule-row-hint">
+                                Select the league this match is part of
+                            </div>
+                            <div class="filter-box tag-select-box" id="scheduledLeagueTagBox">
+                                <div class="tag-select-trigger" onclick="toggleFilterBox('scheduledLeaguePanel')">
+                                    <div id="scheduledLeagueDisplay" class="combo-select-display">
+                                        <span class="combo-placeholder">Select a league</span>
+                                    </div>
+                                    <i class="fas fa-chevron-down tag-select-arrow"></i>
+                                </div>
+                                <div class="filter-box-panel tag-select-panel" id="scheduledLeaguePanel">
+                                    <div class="filter-box-flyout-loading">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading...
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="scheduledLeagueSelect" name="league_id">
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="scheduledEndDate">Schedule End Date *</label>
-                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
-                            Events will stop being generated after this date
-                        </small>
-                        <input type="date"
-                               id="scheduledEndDate"
-                               name="end_date"
-                               required>
+                    <div class="form-row form-row--half">
+                        <!-- Schedule Start Date - Hidden when "Once" is selected -->
+                        <div class="form-group" id="scheduledStartDateGroup">
+                            <label class="required-field" for="scheduledStartDate">Schedule Start Date</label>
+                            <div class="form-group-text schedule-row-hint">
+                                Events will start being generated on this date
+                            </div>
+                            <input type="date"
+                                   id="scheduledStartDate"
+                                   name="start_date"
+                                   required>
+                        </div>
+
+                        <div class="form-group" id="scheduledEndDateGroup">
+                            <label class="required-field" for="scheduledEndDate">Schedule End Date</label>
+                            <div class="form-group-text schedule-row-hint">
+                                Events will stop being generated after this date
+                            </div>
+                            <input type="date"
+                                   id="scheduledEndDate"
+                                   name="end_date"
+                                   required>
+                        </div>
+
+                        <!-- Specific Date - Shown only when "Once" is selected -->
+                        <div class="form-group" id="scheduledSpecificDateGroup" style="display: none;">
+                            <label class="required-field" for="scheduledSpecificDate">Event Date</label>
+                            <div class="form-group-text">
+                                Event will only occur on this date
+                            </div>
+                            <input type="date"
+                                   id="scheduledSpecificDate"
+                                   name="specific_date">
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -1350,8 +1498,6 @@
                                   placeholder="Event description (optional)"
                                   rows="3"></textarea>
                     </div>
-
-                    <div id="scheduledEventMessage" class="form-message" style="display: none;"></div>
 
                     <div class="form-actions">
                         <button type="button" class="btn btn-secondary" onclick="closeCreateScheduleModal()">
@@ -1391,11 +1537,10 @@
             <div class="card-header card-header--row">
                 <div>
                     <h2>Admin Panel</h2>
-                    <p style="font-size: 88%; color: var(--text-secondary)">Manage users, roles, and permissions</p>
                 </div>
                 <div class="admin-btn-list">
-                    <button class="btn btn-primary" onclick="window.location.href='/admin/statistics'">
-                        <i class="fas fa-chart-line"></i> View Statistics
+                    <button class="btn btn-primary" aria-label="View Statistics" onclick="window.location.href='/admin/statistics'">
+                        <i class="fas fa-chart-line"></i> <span class="btn-label">View Statistics</span>
                     </button>
                     <div class="filter-box">
                         <button class="filter-box-btn kebab-btn" id="adminSettingsBtn" onclick="toggleFilterBox('adminSettingsPanel')">
@@ -1460,6 +1605,7 @@
             </div>
 
             <!-- User Management Section -->
+            <div class="sheet-backdrop" id="userDetailsBackdrop" onclick="closeUserDetailsSheet()"></div>
             <div class="admin-content">
                 <!-- Left column: user list -->
                 <div class="user-list">
@@ -1487,6 +1633,7 @@
                                     data-last-seen="{{ u.last_seen.strftime('%B %d, %Y; %I:%M %p') if u.last_seen else 'Never logged in' }}"
                                     data-is-admin="{{ u.is_admin }}"
                                     data-is-gm="{{ u.is_gm }}"
+                                    data-is-gm-standard="{{ 1 if u.is_gm_standard else 0 }}"
                                     data-is-player="{{ u.is_player }}"
                                     data-is-developer="{{ u.is_developer }}"
                                     data-custom-role-name="{{ u.custom_role_names or '' }}"
@@ -1513,8 +1660,13 @@
                                                 {% if u.is_developer %}
                                                 <span class="role-badge dev">Dev</span>
                                                 {% endif %}
-                                                {% if u.is_gm %}
+                                                {% if u.is_gm_standard %}
                                                 <span class="role-badge gm">GM</span>
+                                                {% endif %}
+                                                {% if u.custom_role_names %}
+                                                    {% for n in u.custom_role_names.split(', ') %}
+                                                    <span class="role-badge custom-purple">{{ n }}</span>
+                                                    {% endfor %}
                                                 {% endif %}
                                                 {% if u.is_player %}
                                                 <span class="role-badge player">Player</span>
@@ -1529,7 +1681,7 @@
                 </div>
 
                 <!-- Right column: user details (initially empty) -->
-                <div class="user-details" id="userDetailsPanel">
+                <div class="user-details mobile-sheet" id="userDetailsPanel">
                     <h3>User Details</h3>
                     <p style="margin-top: 0.75rem;">Select a user from the list to view details.</p>
                 </div>
@@ -1541,6 +1693,145 @@
 </div>
 
 <!-- Global Modals (Accessible from all tabs) -->
+<!-- Create/Edit Lab Reservation -->
+{% if user.is_admin or user.is_developer or user.is_gm %}
+<div id="createLabReservationModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <div class="modal-header">
+            <h2 id="labReservationModalTitle">Create a New Lab Reservation!</h2>
+            <button class="modal-close" onclick="closeCreateLabReservationModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+
+            <form id="createLabReservationForm" class="event-form-modal">
+                <div class="lab-capacity-section" id="labCapacitySection">
+                    <div class="lab-capacity-bar-track">
+                        <div class="lab-capacity-bar-fill" id="labCapacityBarFill"></div>
+                        <div class="lab-capacity-bar-fill lab-capacity-bar-fill--selected" id="labCapacitySelectedFill"></div>
+                    </div>
+                    <div class="lab-capacity-message" id="labCapacityMessage"></div>
+                </div>
+
+                <div class="form-row form-row--paired">
+                    <!-- Lab choice combobox -->
+                    <div class="form-group">
+                        <label for="labChoiceTagBox" class="required-field">Lab Choice</label>
+                        <div class="filter-box tag-select-box" id="labChoiceTagBox">
+                            <div class="tag-select-trigger" onclick="toggleFilterBox('labChoiceOptionsPanel')">
+                                <div id="labChoiceSelectDisplay" class="combo-select-display">
+                                    <span class="combo-placeholder">Select lab</span>
+                                </div>
+                                <i class="fas fa-chevron-down tag-select-arrow"></i>
+                            </div>
+                            <div class="filter-box-panel tag-select-panel" id="labChoiceOptionsPanel">
+                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labChoice', 'Blue Lab')">Blue Lab</div>
+                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labChoice', 'Gold Lab')">Gold Lab</div>
+                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labChoice', 'Center Office')">Center Office</div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="labChoice" name="labChoice">
+                    </div>
+
+                    <!-- Reserved game combobox (single-select) -->
+                    <div class="form-group" id="reservedGameFieldGroup">
+                        <label for="reservedGameTagBox" class="required-field">Reserved Game</label>
+                        <div class="filter-box tag-select-box" id="reservedGameTagBox">
+                            <div class="tag-select-trigger" onclick="toggleFilterBox('reservedGameOptionsPanel')">
+                                <div id="reservedGameSelectDisplay" class="combo-select-display">
+                                    <span class="combo-placeholder">Select game</span>
+                                </div>
+                                <i class="fas fa-chevron-down tag-select-arrow"></i>
+                            </div>
+                            <div class="filter-box-panel tag-select-panel" id="reservedGameOptionsPanel">
+                                <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="reservedGame" name="reservedGame" required>
+                    </div>
+                </div>
+
+                <div class="form-row lab-date-row">
+                    <div class="form-group lab-date-group" style="margin: 0;">
+                        <label for="labReservationDate" class="required-field">Date</label>
+                        <input type="date" id="labReservationDate" name="labReservationDate" required>
+                    </div>
+                </div>
+
+                <div class="form-row lab-time-row">
+                    <div class="form-group" style="margin: 0;">
+                        <label for="labStartTime" class="required-field">Start Time</label>
+                        <input type="time" id="labStartTime" name="labStartTime" step="900" required>
+                    </div>
+
+                    <div class="form-group" style="margin: 0;">
+                        <label for="labEndTime" class="required-field">End Time</label>
+                        <input type="time" id="labEndTime" name="labEndTime" step="900" required>
+                    </div>
+                </div>
+
+                <div class="form-row form-row--paired">
+                    <!-- Priority combobox -->
+                    <div class="form-group">
+                        <label for="labPriorityTagBox" class="required-field">Priority</label>
+                        <div class="filter-box tag-select-box" id="labPriorityTagBox">
+                            <div class="tag-select-trigger" onclick="toggleFilterBox('labPriorityOptionsPanel')">
+                                <div id="labPrioritySelectDisplay" class="combo-select-display">
+                                    <span class="combo-placeholder">Select priority</span>
+                                </div>
+                                <i class="fas fa-chevron-down tag-select-arrow"></i>
+                            </div>
+                            <div class="filter-box-panel tag-select-panel" id="labPriorityOptionsPanel">
+                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labPriority', 'Match')">Match</div>
+                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labPriority', 'Scrim')">Scrim</div>
+                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labPriority', 'Practice')">Practice</div>
+                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labPriority', 'Casual')">Casual</div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="labPriority" name="labPriority">
+                    </div>
+
+                    <!-- Lab status combobox -->
+                    <div class="form-group">
+                        <label for="labStatusTagBox" class="required-field">Lab Status</label>
+                        <div class="filter-box tag-select-box" id="labStatusTagBox">
+                            <div class="tag-select-trigger" onclick="toggleFilterBox('labStatusOptionsPanel')">
+                                <div id="labStatusSelectDisplay" class="combo-select-display">
+                                    <span class="combo-placeholder">Select lab status</span>
+                                </div>
+                                <i class="fas fa-chevron-down tag-select-arrow"></i>
+                            </div>
+                            <div class="filter-box-panel tag-select-panel" id="labStatusOptionsPanel">
+                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labStatus', 'Whole Lab')">Whole Lab</div>
+                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labStatus', 'Half Lab')">Half Lab</div>
+                                <div class="filter-box-item" onclick="event.stopPropagation(); selectComboValue('labStatus', '5 Computers or Less')">5 Computers or Less</div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="labStatus" name="labStatus">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="labDescription">Description</label>
+                    <textarea id="labDescription" name="labDescription" placeholder="Enter additional details (optional)" rows="4"></textarea>
+                </div>
+
+                <div id="labReservationFormMessage" class="form-message" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateLabReservationModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="labSubmitBtnText">Reserve Lab</span>
+                        <i id="labSubmitBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Edit Profile -->
 <div id="editProfileModal" class="modal">
     <div class="modal-content">
@@ -1549,32 +1840,34 @@
             <span class="close" onclick="closeEditProfileModal()">&times;</span>
         </div>
 
-        <form id="editProfileForm" class="modal-form">
+        <div class="modal-body">
+        <form id="editProfileForm" class="event-form-modal">
             <div class="form-row">
                 <div class="form-group">
-                    <label for="editFirstName">First Name *</label>
+                    <label for="editFirstName" class="required-field">First Name</label>
                     <input type="text" id="editFirstName" name="firstname" required value="{{ user.firstname }}">
                 </div>
 
                 <div class="form-group">
-                    <label for="editLastName">Last Name *</label>
+                    <label for="editLastName" class="required-field">Last Name</label>
                     <input type="text" id="editLastName" name="lastname" required value="{{ user.lastname }}">
                 </div>
             </div>
 
             <div class="form-group">
-                <label for="editUsername">Username *</label>
+                <label for="editUsername" class="required-field">Username</label>
                 <input type="text" id="editUsername" name="username" required value="{{ user.username }}">
                 <small>This will be your unique identifier</small>
             </div>
 
             <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="editEmail" name="email" value="{{ user.email }}" readonly>
+                <label for="editEmail">Email</label>
+                <div class="input-with-icon">
+                    <input type="email" id="editEmail" name="email" value="{{ user.email }}" readonly>
+                    <i class="fas fa-lock input-lock-icon"></i>
+                </div>
                 <small>You cannot change your email address</small>
             </div>
-
-            <div id="editProfileMessage" class="form-message" style="display: none;"></div>
 
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
@@ -1584,6 +1877,7 @@
                 </button>
             </div>
         </form>
+        </div>
     </div>
 </div>
 
@@ -1615,24 +1909,23 @@
             <span class="close" onclick="closeChangePasswordModal()">&times;</span>
         </div>
 
-        <form id="changePasswordForm" class="modal-form">
+        <div class="modal-body">
+        <form id="changePasswordForm" class="event-form-modal">
             <div class="form-group">
-                <label for="currentPassword">Current Password *</label>
+                <label for="currentPassword" class="required-field">Current Password</label>
                 <input type="password" id="currentPassword" name="current_password" required>
             </div>
 
             <div class="form-group">
-                <label for="newPassword">New Password *</label>
+                <label for="newPassword" class="required-field">New Password</label>
                 <input type="password" id="newPassword" name="new_password" required minlength="8">
                 <small>Must be at least 8 characters</small>
             </div>
 
             <div class="form-group">
-                <label for="confirmPassword">Confirm New Password *</label>
+                <label for="confirmPassword" class="required-field">Confirm New Password</label>
                 <input type="password" id="confirmPassword" name="confirm_password" required>
             </div>
-
-            <div id="changePasswordMessage" class="form-message" style="display: none;"></div>
 
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
@@ -1642,12 +1935,13 @@
                 </button>
             </div>
         </form>
+        </div>
     </div>
 </div>
 
 <!-- Change Avatar Modal -->
 <div id="changeAvatarModal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal">
         <div class="modal-header">
             <h2>Change Profile Picture</h2>
             <button class="modal-close" onclick="closeAvatarModal()">
@@ -1838,12 +2132,12 @@
                 <input type="hidden" id="gameIDField" name="game_id">
 
                 <div class="form-group">
-                    <label for="teamTitle">Team Title</label>
+                    <label for="teamTitle" class="required-field">Team Title </label>
                     <input type="text" id="teamTitle" name="team_title" placeholder="Enter team title" required>
                 </div>
 
                 <div class="form-group">
-                    <label>Team Size</label>
+                    <label class="required-field">Team Size</label>
                     <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
                         Select the applicable team size.
                     </p>
@@ -1853,7 +2147,7 @@
                 </div>
 
                 <div class="form-group" id="leaguesFieldGroup">
-                    <label for="teamLeaguesDropdown">Leagues (Optional)</label>
+                    <label for="teamLeaguesDropdown">Leagues</label>
                     <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
                         Select leagues this team will compete in - they'll appear as tags below
                     </div>
@@ -1905,7 +2199,7 @@
         <div class="modal-body">
             <p class="modal-subtitle">Record the outcome of a match</p>
             <form id="recordMatchResultForm" class="event-form-modal" onsubmit="submitMatchResult(event)">
-                <!-- Match Selection + Opponent School -->
+                <!-- Match Selection + Opponent School (standard) / Placement (battle royale) -->
                 <div class="form-row">
                     <div class="form-group">
                         <label for="matchEventTagBox" class="required-field">Select Match</label>
@@ -1926,7 +2220,7 @@
                         <input type="hidden" id="matchEventSelect" name="event_id">
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" id="matchOpponentSchoolGroup">
                         <label for="matchOpponentSchool" class="required-field">Opponent's School</label>
                         <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
                             Enter the opposing school or team
@@ -1938,10 +2232,26 @@
                                maxlength="150"
                                required>
                     </div>
+
+                    <div class="form-group" id="matchGamesPlayedGroup" style="display: none;">
+                        <label for="matchGamesPlayed" class="required-field"># of Games</label>
+                        <small style="color: var(--text-secondary); font-size: 0.8125rem; margin-top: 0.25rem; display: block;">
+                            How many games were played (max 7)
+                        </small>
+                        <div class="score-input-group">
+                            <input type="number"
+                                   id="matchGamesPlayed"
+                                   name="games"
+                                   min="1"
+                                   max="7"
+                                   step="1"
+                                   oninput="renderBRPlacementInputs()">
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Match Results (Win/Loss + Score, combined) -->
-                <div class="form-group">
+                <!-- Match Results: Win/Loss + Score (standard games) -->
+                <div class="form-group" id="matchStandardResultsGroup">
                     <label class="required-field">Match Results</label>
                     <small style="color: var(--text-secondary); font-size: 0.8125rem; display: block;">
                         Score is optional but much appreciated!
@@ -1983,6 +2293,43 @@
                             <span class="toggle-switch-label">Playoff match?</span>
                         </label>
                     </div>
+                </div>
+
+                <!-- Match Results: Placements (battle royale games) -->
+                <div class="form-group matchresult-placements-centered" id="matchPlacementsGroup" style="display: none;">
+                    <label class="required-field">Placements</label>
+                    <div class="br-placements-row" id="matchPlacementsContainer"></div>
+                </div>
+
+                <!-- Match Results: Points + Kills (battle royale games) -->
+                <div class="br-stats-row" id="matchPointsGroup" style="display: none;">
+                    <div class="form-group">
+                        <label for="matchPoints" class="required-field">Points</label>
+                        <div class="score-input-group">
+                            <input type="number"
+                                   id="matchPoints"
+                                   name="points"
+                                   min="0"
+                                   step="1">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="matchKills">Kills</label>
+                        <div class="score-input-group">
+                            <input type="number"
+                                   id="matchKills"
+                                   name="kills"
+                                   min="0"
+                                   step="1">
+                        </div>
+                    </div>
+
+                    <label class="toggle-switch-wrapper match-playoffs-toggle" title="Check if this match was part of a playoff series">
+                        <input type="checkbox" id="matchPlayoffsBR" name="is_playoffs" value="true" class="toggle-switch-checkbox">
+                        <span class="toggle-switch-slider"></span>
+                        <span class="toggle-switch-label">Playoff match?</span>
+                    </label>
                 </div>
 
                 <div id="recordResultMessage" class="form-message" style="display: none;"></div>
@@ -2037,7 +2384,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="editTeamLeaguesDropdown">Leagues (Optional)</label>
+                    <label for="editTeamLeaguesDropdown">Leagues</label>
                     <div style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 0.5rem;">
                         Select leagues this team will compete in
                     </div>
@@ -2318,7 +2665,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <!-- Delete Modal js (must be called first) -->
 <script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
-<script src="{{ url_for('static', filename='notifications.js') }}"></script>
 <script src="{{ url_for('static', filename='photo-upload.js') }}"></script>
 <!-- Rest of js imports -->
 <script src="{{ url_for('static', filename='badges.js') }}"></script>
@@ -2341,6 +2687,7 @@
 <script src="{{ url_for('static', filename='manage-communities.js') }}"></script>
 <script src="{{ url_for('static', filename='playoffs-results.js') }}"></script>
 <script src="{{ url_for('static', filename='stream-schedule.js') }}"></script>
+<script src="{{ url_for('static', filename='lab-reservations.js') }}"></script>
 <!-- Must load second-to-last -->
 <script src="{{ url_for('static', filename='modals.js') }}"></script>
 <script src="{{ url_for('static', filename='calendar.js') }}"></script>

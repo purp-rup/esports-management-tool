@@ -142,6 +142,15 @@ select.fa-icons, option.fa-icons {
     --event-misc: #eab308;
     --event-misc-light: rgba(234, 179, 8, 0.1);
     --event-misc-hover: #ca8a04;
+
+    --lab-blue: #60a5fa;
+    --lab-blue-light: rgba(96, 165, 250, 0.1);
+
+    --lab-gold: #facc15;
+    --lab-gold-light: rgba(250, 204, 21, 0.1);
+
+    --lab-center: #cbd5e1;
+    --lab-center-light: rgba(203, 213, 225, 0.1);
 }
 
 /* Empty states */
@@ -199,6 +208,17 @@ select.fa-icons, option.fa-icons {
     * {
         scrollbar-width: none;
     }
+}
+
+/* Remove input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
 }
 
 /* ====================================
@@ -600,7 +620,7 @@ select.fa-icons, option.fa-icons {
 }
 
 .role-badge.player {
-  background-color: #e3d500;
+  background-color: #b38a26;
   color: white;
 }
 

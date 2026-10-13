@@ -990,11 +990,9 @@
     box-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
-/* --------------------------------------------
-   RESPONSIVE DESIGN
-   Mobile and tablet adaptations
-   -------------------------------------------- */
-
+/* ==============================
+   Mobile friendliness
+   ============================== */
 @media (max-width: 1024px) {
     .schedule-cards-grid {
         grid-template-columns: 1fr;

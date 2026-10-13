@@ -324,7 +324,7 @@ async function submitLeagueForm(event) {
 
         if (response.ok) {
             // Show success notification using universal system
-            showDeleteSuccessMessage(
+            showSuccessToast(
                 data.message || (isEditing ? 'League updated successfully' : 'League created successfully')
             );
 
@@ -424,7 +424,7 @@ async function executeLeagueDeletion(leagueId) {
             closeDeleteConfirmModal();
 
             // Show success notification using universal system
-            showDeleteSuccessMessage(data.message || 'League deleted successfully');
+            showSuccessToast(data.message || 'League deleted successfully');
 
             // Reload leagues after a short delay (modal stays open)
             setTimeout(() => {
@@ -433,12 +433,12 @@ async function executeLeagueDeletion(leagueId) {
         } else {
             // Close modal and show error notification
             closeDeleteConfirmModal();
-            showDeleteErrorMessage(data.error || 'Failed to delete league');
+            showErrorToast(data.error || 'Failed to delete league');
         }
     } catch (error) {
         console.error('Error deleting league:', error);
         closeDeleteConfirmModal();
-        showDeleteErrorMessage('Failed to delete league');
+        showErrorToast('Failed to delete league');
     }
 }
 
