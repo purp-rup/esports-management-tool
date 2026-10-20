@@ -206,10 +206,10 @@ async function submitPartnershipRename(partnershipId) {
             EventState.partnershipsListCache = null;
             loadPartnershipManagementList();
         } else {
-            alert(data.message || 'Failed to rename partnership');
+            showErrorToast(data.message || 'Failed to rename partnership');
         }
     } catch {
-        alert('Failed to rename partnership');
+        showErrorToast('Failed to rename partnership');
     }
 }
 
@@ -223,10 +223,10 @@ async function deletePartnership(partnershipId) {
             EventState.partnershipsListCache = null;
             loadPartnershipManagementList();
         } else {
-            alert(data.message || 'Failed to remove partnership');
+            showErrorToast(data.message || 'Failed to remove partnership');
         }
     } catch {
-        alert('Failed to remove partnership');
+        showErrorToast(data.message || 'Failed to remove partnership');
     }
 }
 
@@ -545,8 +545,6 @@ async function handleUserItemClick(item) {
                 </button>
             </div>
 
-            <div id="roleStatusMessage" style="display: none; margin-top: 1rem; padding: 0.75rem; border-radius: 4px;"></div>
-
             <div class="action-buttons">
                 <button class="btn btn-secondary" onclick="openSuspendModal(${userid}, '${username}', '${firstname} ${lastname}')">
                     <i class="fas fa-user-clock"></i> Lock out User
@@ -805,7 +803,7 @@ function selectCustomRoleColor(key) {
 }
 
 // Opens the universal delete confirmation modal (modalDelete.js) for a custom role,
-// instead of a browser confirm()/alert() dialog
+// instead of a browser confirm() dialog
 function deleteCustomRole(id, name) {
     openDeleteConfirmModal({
         title: 'Delete Custom Role?',
@@ -873,10 +871,10 @@ function submitCustomRoleName() {
         // No text input rendered means we're in remove mode and nothing was picked
         const list = document.getElementById('customRoleExistingList');
         if (list && !list.querySelector('.custom-role-option')) {
-            alert('This user has no custom roles to remove.');
+            showInfoToast('This user has no custom roles to remove.');
             return;
         }
-        alert('Select a custom role to remove.');
+        showInfoToast('Select a custom role to remove.');
         return;
     }
 
@@ -898,7 +896,6 @@ async function handleRoleChange(username) {
     const activeToggle = document.querySelector('.role-toggle.active');
     const roleSelect = document.getElementById('roleTypeSelect');
     const goBtn = document.getElementById('roleGoBtn');
-    const statusMessage = document.getElementById('roleStatusMessage');
 
     // Validate elements exist
     if (!activeToggle || !roleSelect) return;
@@ -919,22 +916,13 @@ async function handleRoleChange(username) {
     if (isCustomRole && action === 'assign' &&
         currentUserCustomRoleNames.length >= MAX_CUSTOM_ROLES_PER_USER &&
         !currentUserCustomRoleNames.includes(customRoleName)) {
-        statusMessage.style.display = 'block';
-        statusMessage.style.backgroundColor = '#f8d7da';
-        statusMessage.style.color = '#721c24';
-        statusMessage.style.border = '1px solid #f5c6cb';
-        statusMessage.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i> This user already has the maximum of ${MAX_CUSTOM_ROLES_PER_USER} custom roles. Remove one before adding another.
-        `;
+        showErrorToast(`This user already has the maximum of ${MAX_CUSTOM_ROLES_PER_USER} custom roles. Remove one before adding another.`);
         return;
     }
 
     // Disable button during request to prevent duplicate submissions
     goBtn.disabled = true;
     goBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-
-    // Hide any previous status messages
-    statusMessage.style.display = 'none';
 
     try {
         // Make API request to manage role
@@ -955,9 +943,6 @@ async function handleRoleChange(username) {
 
         const data = await response.json();
 
-        // Show status message container
-        statusMessage.style.display = 'block';
-
         if (data.success) {
             // If a brand new custom role name may have just been created server-side,
             // drop the cache so it appears in the list next time the modal opens.
@@ -966,37 +951,17 @@ async function handleRoleChange(username) {
                 adminCustomRoleColorsCache = null;
             }
 
-            // Display success message with green styling
-            statusMessage.style.backgroundColor = '#d4edda';
-            statusMessage.style.color = '#155724';
-            statusMessage.style.border = '1px solid #c3e6cb';
-            statusMessage.innerHTML = `
-                <i class="fas fa-check-circle"></i> ${data.message}
-            `;
-
-            // Reload page after 2 seconds to show updated stats and badges
+            showSuccessToast(data.message, 2000);
             setTimeout(() => {
                 window.location.reload();
             }, 2000);
         } else {
-            // Display error message with red styling
-            statusMessage.style.backgroundColor = '#f8d7da';
-            statusMessage.style.color = '#721c24';
-            statusMessage.style.border = '1px solid #f5c6cb';
-            statusMessage.innerHTML = `
-                <i class="fas fa-exclamation-circle"></i> ${data.message}
-            `;
+            showErrorToast(data.message || 'Failed to update role');
         }
     } catch (error) {
         // Handle network or other errors
         console.error('Error managing role:', error);
-        statusMessage.style.display = 'block';
-        statusMessage.style.backgroundColor = '#f8d7da';
-        statusMessage.style.color = '#721c24';
-        statusMessage.style.border = '1px solid #f5c6cb';
-        statusMessage.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i> Failed to update role. Please try again.
-        `;
+        showErrorToast('Failed to update role. Please try again.');
     } finally {
         // Re-enable button with original icon
         goBtn.disabled = false;
