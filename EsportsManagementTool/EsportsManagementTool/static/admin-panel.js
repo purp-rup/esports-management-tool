@@ -601,9 +601,19 @@ function toggleRoleTypeFilterBox() {
     const btn = panel.previousElementSibling;
     if (!btn) return;
 
-    const rect = btn.getBoundingClientRect();
-    panel.style.top = `${rect.bottom + 4}px`;
-    panel.style.left = `${rect.left}px`;
+    // On mobile the panel becomes a bottom sheet (CSS !important)
+    if (window.innerWidth <= 768) return;
+
+    const place = () => {
+        // Closed (selection, click-off, ESC): stop tracking
+        if (!panel.classList.contains('open')) return false;
+        const rect = btn.getBoundingClientRect();
+        panel.style.top = `${rect.bottom + 4}px`;
+        panel.style.left = `${rect.left}px`;
+    };
+
+    place();
+    AnchoredPopups.track(panel, place);
 }
 
 // Selection handler for the role-type filter-box dropdown.
