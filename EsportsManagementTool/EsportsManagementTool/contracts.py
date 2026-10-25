@@ -40,14 +40,24 @@ def today_est():
 #   everyone   - any logged-in user
 #   player     - users assigned to a team in the active season
 #   leadership - admins / GMs (incl. custom roles), once the active season has started
+#   any_role   - anyone who qualifies as player OR leadership (so users with no role are excluded)
+#   everyone_started - any logged-in user, once the active season has started
+# An entry with a 'link' is not a form: picking it opens that site and counts as completed.
 CONTRACT_TYPES = [
+    {'key': 'qualtrics',                  'label': 'Qualtrics',                  'audience': 'everyone_started',
+     'link': 'https://stockton.co1.qualtrics.com/jfe/form/SV_bEp75ZERuLbEE2p'},
     {'key': 'player_agreement',           'label': 'Player Agreement',           'audience': 'player'},
     {'key': 'media_agreement',            'label': 'Media Agreement',            'audience': 'player'},
-    {'key': 'jersey_interest',            'label': 'Jersey Interest Form',       'audience': 'everyone'},
+    {'key': 'jersey_interest',            'label': 'Jersey Interest Form',       'audience': 'any_role'},
     {'key': 'leadership_agreement',       'label': 'Leadership Agreement',       'audience': 'leadership'},
     {'key': 'leadership_jacket_interest', 'label': 'Leadership Jacket Interest', 'audience': 'leadership'},
 ]
 CONTRACT_LABELS = {c['key']: c['label'] for c in CONTRACT_TYPES}
+CONTRACT_LINKS = {c['key']: c['link'] for c in CONTRACT_TYPES if c.get('link')}
+
+# Contracts that trigger the dashboard reminder card while they're unfilled.
+# (Jersey Interest and Leadership Jacket Interest are optional, so no reminder.)
+CONTRACT_REMINDER_KEYS = {'qualtrics', 'leadership_agreement', 'player_agreement', 'media_agreement'}
 
 
 # =====================================
@@ -256,8 +266,7 @@ PLAYER_AGREEMENT_V1 = {
                help='A Z followed by your digits (e.g., Z00123456).'),
         _field('gamertag', 'text', 'Preferred Name / Gamertag', required=True, max_length=50),
         _field('games', 'checkbox_group', 'Game Title(s) (select all games you will be competing for)', required=True,
-               options=['Call of Duty', 'Super Smash Bros', 'Valorant', 'Marvel Rivals',
-                        'Rocket League', 'Fortnite', 'Overwatch 2', 'Apex Legends']),
+               options_from='games'),
 
         _section('Player Participation Agreement', [
             'Participation in Stockton Esports is a privilege and requires participants to meet '
@@ -546,8 +555,7 @@ MEDIA_AGREEMENT_V1 = {
                     'Stockton Esports.'),
         _field('games', 'checkbox_group',
                'Game / Team (select all you are currently participating in)', required=True,
-               options=['Call of Duty', 'Super Smash Bros', 'Valorant', 'Marvel Rivals',
-                        'Rocket League', 'Fortnite', 'Overwatch 2', 'Apex Legends']),
+               options_from='games'),
         _field('role', 'radio', 'Participant Role', required=True, allow_other=True,
                options=['Student Leader', 'Player', 'Student Leader & Player']),
 
@@ -659,13 +667,246 @@ MEDIA_AGREEMENT_V1 = {
     ],
 }
 
+# Request-type answers that reveal each branch of the jersey form
+JERSEY_FIRST = 'Esports Jersey Request (First Time Jersey)'
+JERSEY_SECOND = 'Esports Jersey Renewal (Second Jersey)'
+JERSEY_THIRD = 'Esports Jersey Review (Third Jersey Request & Review)'
+IF_FIRST_JERSEY = {'field': 'request_type', 'equals': JERSEY_FIRST}
+IF_SECOND_JERSEY = {'field': 'request_type', 'equals': JERSEY_SECOND}
+IF_THIRD_JERSEY = {'field': 'request_type', 'equals': JERSEY_THIRD}
+
+# "Fall 2025 and Spring 2026" (any case)
+JERSEY_SEMESTERS_PATTERN = r'(?i)(fall|spring) 20\d{2} and (fall|spring) 20\d{2}'
+
+JERSEY_INTEREST_V1 = {
+    'version': 1,
+    'title': '{season} Esports Jersey Interest Form',
+    'subtitle': 'Request an Esports Jersey for {season}.',
+    'requires_signature': False,
+    'blocks': [
+        _section('Jersey Eligibility & Guidelines', [
+            'This form is to request an Esports Jersey for {season}. If {season} marks your '
+            'second semester as a Stockton Esports competitor, then please fill out this form '
+            'to request your well-earned jersey!',
+        ], step_label='Guidelines', icon='fa-shirt'),
+        _section('Eligibility', [
+            'To be eligible to receive an Esports Jersey you must have already competed for 2 '
+            'Competitive Seasons or {season} is your second competitive season. We will send '
+            'out this form again next semester, so please only fill out if you are eligible '
+            'during {season}.',
+        ], level='sub'),
+        _section('Replacement Jerseys', [
+            'Please be considerate and reasonable in this request. We are trying to ensure everyone '
+            'who has not received a jersey before obtains one if eligible. If you have received a '
+            'jersey in past semesters but need a new one for a legit reason, please let us know '
+            'below. Valid reasons include but are not necessarily limited to:',
+        ], items=[
+            'Jersey does not fit anymore',
+            'IGN change',
+            'Worn out',
+            'etc.',
+        ], level='sub'),
+        _section('Jersey Lettering', [
+            'Please note that the lettering on the back of the Jersey will be in ALL CAPS.',
+        ], level='sub'),
+        _section('Jersey Limit', [
+            'We are establishing a general rule limiting each student to a maximum of 2 jerseys '
+            'throughout your time as a competitive player, but an exception can be made depending '
+            'on the reasoning. If this is applicable to you, please also fill out the form.',
+        ], level='sub'),
+        _section('New Jersey Design', [
+            'Since we are transitioning to new jersey designs and would like all players to receive '
+            'the new design, if you are requesting your first jersey with our new design, treat it '
+            'as if it were your first jersey request.',
+            'For any questions, comments, or concerns please contact @Mythirby on Discord.',
+        ], level='sub'),
+
+        _section('Player Information', [
+            'Please provide your contact information and main competitive game.',
+        ], step_label='Your Information', icon='fa-user'),
+        _field('email', 'text', 'Email', required=True, readonly=True, prefill='email'),
+        _field('full_name', 'text', 'Full Name', required=True, prefill='full_name'),
+        _field('discord', 'text', 'Discord Contact', required=True, max_length=50,
+               help='Please input your Discord username in case we need to reach out regarding '
+                    'anything Jersey-related.'),
+        _field('main_game', 'radio', 'What is your main competitive game at Stockton (only one)?',
+               required=True, options_from='games'),
+
+        _section('Jersey Details', [
+            "Please only continue if you've played two competitive seasons at Stockton.",
+        ], step_label='Jersey Details', icon='fa-shirt'),
+        _field('jersey_size', 'radio', 'Jersey Size', required=True,
+               options=['S', 'M', 'L', 'XL', '2XL']),
+        _field('jersey_text', 'text', 'Jersey Name/Text', required=True, uppercase=True,
+               max_length=30,
+               help='Please input the name/IGN you would like displayed on the back of your jersey '
+                    '(it will print in ALL CAPS). Please refrain from any potentially '
+                    "inappropriate language/names. We reserve the right to deny jersey requests "
+                    'based on inappropriate naming.'),
+
+        _section('Reason for Filling Out the Form', [
+            "I hope you've been reading the descriptions. Please do not continue if you have not "
+            "yet played two semesters competitively at Stockton unless you've been otherwise "
+            'authorized.',
+        ], step_label='Request', icon='fa-clipboard-list'),
+        _field('request_type', 'radio', 'Request Type', required=True,
+               options=[JERSEY_FIRST, JERSEY_SECOND, JERSEY_THIRD]),
+
+        _section('Esports Jersey Request', [
+            'Use this section if this is the first jersey you are going to receive, and please '
+            'only fill this out if this will be at least your second semester competing for '
+            'Stockton Esports.',
+        ], level='sub', show_if=IF_FIRST_JERSEY),
+        _field('semesters_played', 'text', 'Confirm the two semesters you played', required=True,
+               max_length=60, pattern=JERSEY_SEMESTERS_PATTERN,
+               pattern_message='Use the format "Fall 2025 and Spring 2026" (Fall/Spring 20XX and '
+                               'Fall/Spring 20XX).',
+               help='Format: Fall/Spring 20XX and Fall/Spring 20XX (for example, Fall 2025 and '
+                    'Spring 2026). Please follow this format exactly; it makes data collection '
+                    'easier and ensures we do not miss your response.',
+               show_if=IF_FIRST_JERSEY),
+
+        _section('Esports Jersey Renewal', [
+            'Use this section of the form only if you have received a jersey before and are '
+            'requesting a second one for any reason we have suggested is acceptable. Thank you!',
+        ], level='sub', show_if=IF_SECOND_JERSEY),
+        _field('second_jersey_reason', 'text', 'Reason for Second Jersey', required=True,
+               max_length=500,
+               help='Please provide the reasoning you would like a second jersey (jersey does not '
+                    'fit anymore, IGN change, worn out, etc.)',
+               show_if=IF_SECOND_JERSEY),
+        _field('ack_second_jersey', 'acknowledge',
+               'I acknowledge that this is my second and most likely last jersey for my '
+               'competitive career with Stockton Esports.',
+               title='Second Jersey Acknowledgement', required=True,
+               description=['This is an acknowledgement that you are receiving a second Esports '
+                            'Jersey. For fairness and respect of others we want to set a limit of '
+                            '2 jerseys per player throughout their competitive career here at '
+                            'Stockton Esports.'],
+               show_if=IF_SECOND_JERSEY),
+
+        _section('Third Jersey Request & Review', [
+            'Please provide the reasoning for a third jersey request. As stated before, we really '
+            'want to try to be at a limit of 2 jerseys per player throughout their competitive '
+            'career here at Stockton Esports. We do understand that certain unforeseen '
+            'circumstances may arise (you might lose the jersey, it gets stolen, it gets damaged, '
+            'etc.). We just ask that you please be reasonable in your request in asking for an '
+            'Esports Jersey beyond the second one. We cannot guarantee that we will be able to '
+            'fulfill the request, but will be open to hearing the reasoning for the request and '
+            'for a potential renewal of a third jersey.',
+        ], level='sub', show_if=IF_THIRD_JERSEY),
+        _field('third_jersey_reason', 'text', 'Reason for Third Esports Jersey', required=True,
+               max_length=500, show_if=IF_THIRD_JERSEY),
+        _field('ack_third_jersey', 'acknowledge',
+               'I acknowledge this is my third jersey and it will most likely not be provided '
+               'unless otherwise authorized.',
+               title='Third Jersey Acknowledgement', required=True,
+               show_if=IF_THIRD_JERSEY),
+    ],
+}
+
+# Request-type answers that reveal each branch of the jacket form
+JACKET_FIRST = 'Leadership Jacket Request (First Time Jacket)'
+JACKET_RENEWAL = 'Leadership Jacket Renewal (Second/Replacement Jacket)'
+IF_FIRST_JACKET = {'field': 'request_type', 'equals': JACKET_FIRST}
+IF_RENEWAL_JACKET = {'field': 'request_type', 'equals': JACKET_RENEWAL}
+
+LEADERSHIP_JACKET_INTEREST_V1 = {
+    'version': 1,
+    'title': '{season} Leadership Jacket Interest Form',
+    'subtitle': 'Request a Stockton Esports Leadership Jacket.',
+    'requires_signature': False,
+    'blocks': [
+        _section('Leadership Jacket Eligibility & Guidelines', [
+            'This form is to request a Stockton Esports Leadership Jacket in recognition of your '
+            'hard work, dedication, and contributions to our organization. We are proud to reward '
+            'leaders and supporters who work tirelessly to make a positive impact within our '
+            'community.',
+            'If you are a member of our leadership team and have not already received a leadership '
+            'jacket, please complete this form.',
+        ], step_label='Guidelines', icon='fa-shirt'),
+        _section('Eligibility', [
+            'To be eligible for a Leadership Jacket, student leaders must have demonstrated '
+            'consistent dedication and effort toward improving Stockton Esports and must not have '
+            'previously received a jacket.',
+        ], level='sub'),
+        _section('Faculty & Staff', [
+            'Faculty and staff affiliated with the ESPM department who support Stockton Esports '
+            'are also invited to complete this form so we can coordinate apparel orders '
+            'accordingly.',
+        ], level='sub'),
+        _section('Jacket Limit & Replacements', [
+            'We are establishing a general rule of a maximum of one Leadership Jacket per person '
+            'at this time. If you previously received a jacket and it no longer fits, was lost, '
+            'stolen, or damaged, please select "Leadership Jacket Renewal" below. While we cannot '
+            'guarantee a replacement, we will review each request individually.',
+        ], level='sub'),
+        _section('Questions', [
+            'For any questions, comments, or concerns, please contact @Mythirby or @fireleads_ on '
+            'Discord.',
+        ], level='sub'),
+
+        _section('Leader Information', [
+            'Please provide your name and your role within Stockton Esports.',
+        ], step_label='Your Information', icon='fa-user'),
+        _field('email', 'text', 'Email', required=True, readonly=True, prefill='email'),
+        _field('full_name', 'text', 'Full Name (First and Last)', required=True,
+               prefill='full_name'),
+        _field('role', 'radio', 'What is your role within Stockton Esports?', required=True,
+               options=['Student Leader', 'Faculty/Staff (ESPM)']),
+
+        _section('Jacket Sizing', [
+            "Jackets are based on standard men's/unisex sizing. If you typically wear women's "
+            'sizing, you may prefer to order one size down for a more tailored fit or your usual '
+            'size for a relaxed fit. Please review sizing carefully before submitting, as '
+            'exchanges may not be guaranteed.',
+        ], step_label='Jacket Size', icon='fa-ruler'),
+        _field('jacket_size', 'radio', 'Leadership Jacket Size', required=True,
+               options=['S', 'M', 'L', 'XL', '2XL', '3XL'],
+               help='Please select your jacket size.'),
+
+        _section('Reason for Filling Out the Form', [
+            'Select the option that matches your situation.',
+        ], step_label='Request', icon='fa-clipboard-list'),
+        _field('request_type', 'radio', 'Request Type', required=True,
+               options=[JACKET_FIRST, JACKET_RENEWAL]),
+
+        _section('Leadership Esports Jacket', [
+            'This section is for those who have been recognized as esports leadership for at '
+            'least two semesters (including this one). If you have a jacket already, please do '
+            'not fill out this form. Thanks!',
+        ], level='sub', show_if=IF_FIRST_JACKET),
+
+        _section('Leadership Esports Jacket Renewal', [
+            'Note we are limiting jackets to one unless justifiably extreme circumstances occur. '
+            "If you feel like you need a new jacket, however, don't hesitate to fill out this "
+            "section. Please be patient as we'll evaluate your reasoning, and know even if we "
+            'accept the justification, we still need to prioritize those receiving their first '
+            'jacket. Thank you.',
+        ], level='sub', show_if=IF_RENEWAL_JACKET),
+        _field('renewal_reason', 'text', 'Reason for Second Jacket', required=True,
+               max_length=500,
+               help='Please provide the reasoning you would like a second jacket (jacket does not '
+                    'fit anymore, lost it, stolen, worn out, etc.). As stated above, we cannot '
+                    'guarantee that we can get you a second jacket, but will try our best to see '
+                    'what can be done.',
+               show_if=IF_RENEWAL_JACKET),
+        _field('ack_second_jacket', 'acknowledge',
+               'I acknowledge I am requesting my second jacket and there is a low chance this '
+               'request is fulfilled.',
+               title='Leadership Jacket Acknowledgement', required=True,
+               show_if=IF_RENEWAL_JACKET),
+    ],
+}
+
 # contract_key -> {version: definition}. The highest version is the one new signers get.
 FORMS = {
     'leadership_agreement': {1: LEADERSHIP_AGREEMENT_V1},
     'player_agreement': {1: PLAYER_AGREEMENT_V1},
     'media_agreement': {1: MEDIA_AGREEMENT_V1},
+    'jersey_interest': {1: JERSEY_INTEREST_V1},
+    'leadership_jacket_interest': {1: LEADERSHIP_JACKET_INTEREST_V1},
 }
-
 
 DEFAULT_STEP_ICON = 'fa-file-lines'
 
@@ -728,6 +969,47 @@ def apply_season_name(form, season_name):
         return value
 
     return fill(form)
+
+
+def get_available_games(cursor, season_id):
+    """Titles of the game communities people can currently pick (not hidden), A to Z."""
+    cursor.execute("""
+        SELECT GameTitle
+        FROM games
+        WHERE COALESCE(hidden, 0) = 0
+        ORDER BY GameTitle
+    """)
+    return [row['GameTitle'] for row in cursor.fetchall()]
+
+
+# options_from value -> function(cursor, season_id) returning the option labels
+OPTION_SOURCES = {
+    'games': get_available_games,
+}
+
+def fill_dynamic_options(form, cursor, season_id, keep=None):
+    """
+    Fill the options of every field declared with options_from='<source>' from the
+    database, so lists like games are never hardcoded in a form.
+
+    keep - a signed submission's responses. Anything it chose is kept in the list even
+           if it has since become unavailable, so the signed copy still shows what was
+           selected. Leave it out when filling out or validating a new submission.
+    """
+    cache, blocks = {}, []
+    for block in form['blocks']:
+        source = block.get('options_from') if block['type'] == 'field' else None
+        if source:
+            if source not in cache:
+                cache[source] = OPTION_SOURCES[source](cursor, season_id)
+            options = list(cache[source])
+            chosen = (keep or {}).get(block['key'])
+            for value in (chosen if isinstance(chosen, list) else [chosen]):
+                if isinstance(value, str) and value and value not in options:
+                    options.append(value)
+            block = {**block, 'options': options}
+        blocks.append(block)
+    return {**form, 'blocks': blocks}
 
 
 
@@ -873,6 +1155,8 @@ def get_contract_access(cursor, user_id: int):
         'everyone': True,
         'player': on_team,
         'leadership': is_leadership,
+        'everyone_started': season_started,
+        'any_role': on_team or is_leadership,
     }
     accessible = [c['key'] for c in CONTRACT_TYPES if audience_access.get(c['audience'], False)]
     return season_id, accessible
@@ -895,7 +1179,8 @@ def get_available_contracts(cursor, user_id: int) -> list[dict]:
         completed = {row['contract_key'] for row in cursor.fetchall()}
 
     return [
-        {'key': key, 'label': CONTRACT_LABELS[key], 'completed': key in completed}
+        {'key': key, 'label': CONTRACT_LABELS[key], 'completed': key in completed,
+         'link': CONTRACT_LINKS.get(key)}
         for key in accessible
     ]
 
@@ -950,6 +1235,25 @@ def register_contract_routes(app, mysql, login_required):
         finally:
             cursor.close()
 
+    @app.route('/api/contracts/reminders')
+    @login_required
+    def api_contract_reminders():
+        """Reminder-worthy contracts the current user still has to fill out (feeds the dashboard card)."""
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            contracts = get_available_contracts(cursor, session['id'])
+            pending = [
+                {'key': c['key'], 'label': c['label']}
+                for c in contracts
+                if c['key'] in CONTRACT_REMINDER_KEYS and not c['completed']
+            ]
+            return jsonify({'contracts': pending})
+        except Exception as e:
+            print(f"Error loading contract reminders: {str(e)}")
+            return jsonify({'contracts': [], 'error': 'Failed to load reminders'}), 500
+        finally:
+            cursor.close()
+
     @app.route('/api/contracts/<contract_key>/form')
     @login_required
     def api_contract_form(contract_key):
@@ -983,11 +1287,16 @@ def register_contract_routes(app, mysql, login_required):
                     'submitted_display': format_display_date(row['submitted_at']),
                 }
 
+            form = apply_season_name(
+                get_form(contract_key, row['form_version'] if row else None),
+                get_season_name(cursor, season_id))
+            # Game lists come from the live communities; a signed copy keeps what was chosen
+            form = fill_dynamic_options(form, cursor, season_id,
+                                        keep=submission['responses'] if submission else None)
+
             return jsonify({
                 'success': True,
-                'form': apply_season_name(
-                    get_form(contract_key, row['form_version'] if row else None),
-                    get_season_name(cursor, season_id)),
+                'form': form,
                 'prefill': get_prefill(cursor, user_id),
                 'signed_date': today_est().isoformat(),
                 'submission': submission,
@@ -1021,6 +1330,7 @@ def register_contract_routes(app, mysql, login_required):
                 return jsonify({'success': False,
                                 'message': 'You have already submitted this form this season.'}), 409
 
+            form = fill_dynamic_options(form, cursor, season_id)
             clean, errors, signed_name = validate_responses(
                 form, payload.get('responses'), get_prefill(cursor, user_id)
             )
@@ -1037,8 +1347,9 @@ def register_contract_routes(app, mysql, login_required):
                   json.dumps(clean)))
             mysql.connection.commit()
 
+            verb = 'signed and submitted' if form.get('requires_signature', True) else 'submitted'
             return jsonify({'success': True,
-                            'message': f'{CONTRACT_LABELS[contract_key]} signed and submitted.'})
+                            'message': f'{CONTRACT_LABELS[contract_key]} {verb}.'})
 
         except MySQLdb.IntegrityError:
             # Unique key caught a double-submit that slipped past the check above
@@ -1049,6 +1360,45 @@ def register_contract_routes(app, mysql, login_required):
             mysql.connection.rollback()
             print(f"Error submitting contract: {str(e)}")
             return jsonify({'success': False, 'message': 'Failed to submit this form.'}), 500
+        finally:
+            cursor.close()
+
+
+    @app.route('/api/contracts/<contract_key>/visit', methods=['POST'])
+    @login_required
+    def api_visit_contract_link(contract_key):
+        """Link-type options (e.g. Qualtrics): record that the user went to the site."""
+        if contract_key not in CONTRACT_LINKS:
+            return jsonify({'success': False, 'message': "This option isn't available."}), 404
+
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            user_id = session['id']
+            season_id, accessible = get_contract_access(cursor, user_id)
+
+            if not season_id or contract_key not in accessible:
+                return jsonify({'success': False,
+                                'message': 'This option is not available to you right now.'}), 403
+
+            # Nothing to fill out: the visit itself is the completion record for this season
+            if not fetch_submission(cursor, user_id, season_id, contract_key):
+                cursor.execute("""
+                    INSERT INTO contract_submissions
+                        (user_id, season_id, contract_key, form_version, signed_name, responses)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (user_id, season_id, contract_key, 1, None, json.dumps({})))
+                mysql.connection.commit()
+
+            return jsonify({'success': True})
+
+        except MySQLdb.IntegrityError:
+            # A double click raced past the check above; it is already recorded
+            mysql.connection.rollback()
+            return jsonify({'success': True})
+        except Exception as e:
+            mysql.connection.rollback()
+            print(f"Error recording contract link visit: {str(e)}")
+            return jsonify({'success': False, 'message': 'Failed to record this visit.'}), 500
         finally:
             cursor.close()
 
@@ -1078,6 +1428,7 @@ def register_contract_routes(app, mysql, login_required):
                 return jsonify({'success': False,
                                 'message': 'This form is not available to you right now.'}), 403
 
+            form = fill_dynamic_options(form, cursor, season_id)
             step_form = {'blocks': [b for b in form['blocks'] if b['step'] == step]}
             _, errors, _ = validate_responses(
                 step_form, payload.get('responses'), get_prefill(cursor, user_id)

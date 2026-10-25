@@ -78,51 +78,6 @@
     flex-shrink: 0;
 }
 
-/* Mobile: the kebab panel is already a bottom sheet at this width, so the
-   contracts list expands inline beneath its trigger (tap to toggle). */
-@media (max-width: 768px) {
-    .contracts-flyout-trigger {
-        flex-wrap: wrap;
-        justify-content: space-between;
-    }
-
-    .contracts-flyout-trigger::before {
-        display: none;
-    }
-
-    /* Chevron moves back to the right and points down / up */
-    .contracts-flyout-trigger > i {
-        order: 0;
-        transform: rotate(-90deg);
-        transition: transform 0.2s;
-    }
-
-    .contracts-flyout-trigger.flyout-expanded > i {
-        transform: rotate(90deg);
-    }
-
-    .contracts-flyout {
-        position: static;
-        flex-basis: 100%;
-        width: 100%;
-        min-width: 0;
-        max-height: 10rem;
-        padding: 0 0 0 1rem;
-        border: none;
-        border-radius: 10px;
-        background: transparent;
-        box-shadow: none;
-    }
-
-    .contracts-flyout-trigger:hover .contracts-flyout {
-        display: none;
-    }
-
-    .contracts-flyout-trigger.flyout-expanded .contracts-flyout {
-        display: block;
-    }
-}
-
 /* ============================================
    CONTRACT MODAL: SHELL
    Glass + neon look: blurred overlay, translucent panel, blue glow. Scoped to
@@ -626,9 +581,48 @@
     color: #ef4444;
 }
 
+/* ===========================
+   Dashboard reminder card
+   =========================== */
+.contract-reminder-card > i:first-child {
+    font-size: 1.25rem;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+}
+
+.contract-reminder-body {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.contract-reminder-body p {
+    margin: 0;
+}
+
+.contract-reminder-body ul {
+    margin: 0.4rem 0;
+    padding-left: 1.25rem;
+    font-weight: 600;
+}
+
+.contract-reminder-dismiss {
+    background: none;
+    border: none;
+    color: white;
+    opacity: 0.8;
+    cursor: pointer;
+    padding: 0.2rem;
+    font-size: 0.85rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.contract-reminder-dismiss:hover {
+    opacity: 1;
+}
+
 /* ============================================
-   CONTRACT MODAL: MOBILE
-   Lighter effects on phones (blur and big glows are the expensive part)
+   Mobile friendliness
    ============================================ */
 @media (max-width: 768px) {
     .modal.contract-modal {
@@ -647,6 +641,11 @@
 
     .contract-modal .modal-header {
         padding: 1.25rem 1.25rem 1rem;
+    }
+
+    /* Mobile only: drop the description line under the form title */
+    .contract-modal .contract-modal-subtitle {
+        display: none;
     }
 
     .contract-progress {
@@ -680,5 +679,52 @@
 
     .contract-ack {
         padding: 0.75rem;
+    }
+
+        .contracts-flyout-trigger {
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+
+    .contracts-flyout-trigger::before {
+        display: none;
+    }
+
+    /* Chevron moves back to the right and points down / up */
+    .contracts-flyout-trigger > i {
+        order: 0;
+        transform: rotate(-90deg);
+        transition: transform 0.2s;
+    }
+
+    .contracts-flyout-trigger.flyout-expanded > i {
+        transform: rotate(90deg);
+    }
+
+    .contracts-flyout {
+        position: static;
+        flex-basis: 100%;
+        width: 100%;
+        min-width: 0;
+        max-height: 10rem;
+        padding: 0 0 0 1rem;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .contracts-flyout-trigger:hover .contracts-flyout {
+        display: none;
+    }
+
+    .contracts-flyout-trigger.flyout-expanded .contracts-flyout {
+        display: block;
+    }
+
+    .contract-reminder-card {
+        left: 10px;
+        right: 10px;
+        max-width: none !important;
     }
 }

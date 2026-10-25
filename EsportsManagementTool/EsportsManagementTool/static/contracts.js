@@ -60,7 +60,12 @@ function setupContractsFlyout() {
         const item = e.target.closest('[data-contract-key]');
         if (!item) return;
         e.stopPropagation();
-        openContractForm(item.dataset.contractKey);
+        const contract = availableContracts.find(c => c.key === item.dataset.contractKey);
+        if (contract && contract.link) {
+            visitContractLink(contract);
+        } else {
+            openContractForm(item.dataset.contractKey);
+        }
     });
 }
 
@@ -138,14 +143,21 @@ function renderContractsFlyout(contracts) {
 
         const label = document.createElement('span');
         label.textContent = contract.label;
+        if (contract.link) {
+            // Opens another site: small arrow after the label
+            const external = document.createElement('i');
+            external.className = 'fas fa-arrow-up-right-from-square contract-link-icon';
+            external.setAttribute('aria-hidden', 'true');
+            label.append(' ', external);
+        }
         item.appendChild(label);
 
         if (contract.completed) {
             item.classList.add('is-complete');
             const check = document.createElement('i');
             check.className = 'fas fa-check contract-complete-icon';
-            check.title = 'Signed';
-            check.setAttribute('aria-label', 'Signed');
+            check.title = 'Completed';
+            check.setAttribute('aria-label', 'Completed');
             item.appendChild(check);
         }
 
@@ -196,6 +208,27 @@ async function openContractForm(contractKey) {
         if (requestId !== contractRequestId) return;
         closeContractModal();
         contractToast('An error occurred. Please try again.', true);
+    }
+}
+
+/**
+ * Link-type option (e.g. Qualtrics): open the site, then record that the person went.
+ * The tab is opened first, straight from the click, so browsers don't block it as a
+ * popup. The visit is recorded once; later clicks just open the site again.
+ */
+async function visitContractLink(contract) {
+    document.getElementById('contractsFlyoutTrigger')?.classList.remove('flyout-expanded');
+    closeAllFilterPanels();
+
+    window.open(contract.link, '_blank', 'noopener');
+
+    if (contract.completed) return;
+
+    try {
+        const response = await fetch(`/api/contracts/${encodeURIComponent(contract.key)}/visit`, { method: 'POST' });
+        if (response.ok) loadContractsFlyout(true);   // refresh so the check mark shows
+    } catch (error) {
+        console.error('Error recording link visit:', error);
     }
 }
 
@@ -252,7 +285,8 @@ function showContractForm(contractKey, data) {
     if (readOnly) {
         banner.replaceChildren();
         const icon = contractEl('i', 'fas fa-check-circle');
-        banner.append(icon, ` Signed on ${submission.submitted_display}`);
+        const verb = data.form.requires_signature === false ? 'Submitted' : 'Signed';
+        banner.append(icon, ` ${verb} on ${submission.submitted_display}`);
         banner.style.display = 'block';
     } else {
         banner.style.display = 'none';
@@ -341,7 +375,7 @@ function updateContractFooter() {
     if (!isLast) {
         label.append(readOnly ? 'Next ' : 'Continue ', contractEl('i', 'fas fa-arrow-right'));
     } else {
-        label.textContent = readOnly ? 'Close' : 'Sign & Submit';
+        label.textContent = readOnly ? 'Close' : (form.requires_signature === false ? 'Submit' : 'Sign & Submit');
     }
 }
 
@@ -752,6 +786,95 @@ function contractToast(message, isError = false) {
     const toast = isError ? window.showErrorToast : window.showSuccessToast;
     if (typeof toast === 'function') toast(message);
 }
+
+// ============================================
+// DASHBOARD REMINDER CARD
+// ============================================
+
+/**
+ * Persistent, dismissable card listing the contracts the user still has to
+ * fill out. Styled like the blue info toast and stacked through
+ * NotificationQueue, but it never auto-dismisses. Dismissing only closes it
+ * for this page load - it comes back on the next dashboard load until every
+ * listed contract is completed (nothing is stored server-side).
+ */
+function renderContractReminder(contracts) {
+    const card = document.createElement('div');
+    card.className = 'contract-reminder-card';
+
+    const items = contracts
+        .map(c => `<li>${escapeHtml(c.label)}</li>`)
+        .join('');
+
+    card.innerHTML = `
+        <i class="fas fa-file-contract"></i>
+        <div class="contract-reminder-body">
+            <p>You've been assigned the following contract(s):</p>
+            <ul>${items}</ul>
+            <p>Please visit the '...' button on the Profile Tab to fill out all contracts. Thank you!</p>
+        </div>
+        <button type="button" class="contract-reminder-dismiss" aria-label="Dismiss">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+
+    card.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        font-size: 0.9375rem;
+        font-weight: 500;
+        max-width: 400px;
+        background: #3b82f6;
+        border: 1px solid #2563eb;
+        color: white;
+        transform: translateX(400px);
+        opacity: 0;
+        transition: all 0.3s ease-out;
+    `;
+
+    document.body.appendChild(card);
+    window.NotificationQueue.add(card);
+
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            card.style.transform = 'translateX(0)';
+            card.style.opacity = '1';
+        }, 50);
+    });
+
+    card.querySelector('.contract-reminder-dismiss').addEventListener('click', () => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateX(400px)';
+        setTimeout(() => {
+            window.NotificationQueue.remove(card);
+            card.remove();
+        }, 300);
+    });
+}
+
+/** On page load, show the reminder card if the user has unfilled contracts */
+async function loadContractReminder() {
+    try {
+        const response = await fetch('/api/contracts/reminders');
+        if (!response.ok) throw new Error(`Request failed (${response.status})`);
+
+        const data = await response.json();
+        const contracts = data.contracts || [];
+        if (contracts.length) renderContractReminder(contracts);
+    } catch (error) {
+        console.error('Failed to load contract reminders:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadContractReminder);
 
 // ============================================
 // EXPORT FUNCTIONS TO GLOBAL SCOPE
