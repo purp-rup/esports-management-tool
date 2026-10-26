@@ -12,7 +12,6 @@
  */
 
 const CONTRACTS_MOBILE_BREAKPOINT = 768;   // matches the site-wide mobile cutoff
-const CONTRACTS_FLYOUT_GAP = 12;           // px between the kebab panel and the flyout
 
 let contractsLoaded = false;
 let contractsLoading = false;
@@ -38,21 +37,14 @@ function setupContractsFlyout() {
     const flyout = document.getElementById('contractsFlyout');
     if (!trigger || !flyout) return;
 
-    // Desktop: hover opens the flyout (CSS) - load the list and place it to the left.
-    // requestAnimationFrame lets our placement run after any other positioning logic.
-    trigger.addEventListener('mouseenter', () => {
-        loadContractsFlyout();
-        requestAnimationFrame(() => positionContractsFlyout(trigger));
-    });
+    // Placement (desktop hover), scroll tracking, and the mobile expand/collapse
+    // all come from the shared flyout helper in universal-helpers.js
+    initFlyoutTriggers(trigger.parentElement);
 
-    // Mobile: tap the row to expand/collapse the list inline
-    trigger.addEventListener('click', (e) => {
-        if (window.innerWidth > CONTRACTS_MOBILE_BREAKPOINT) return;
-        if (e.target.closest('.contracts-flyout')) return;  // taps on an option are handled below
-
-        e.stopPropagation();
-        trigger.classList.toggle('flyout-expanded');
-        loadContractsFlyout();
+    // Load the list the first time the row is hovered (desktop) or tapped (mobile)
+    trigger.addEventListener('mouseenter', () => loadContractsFlyout());
+    trigger.addEventListener('click', () => {
+        if (window.innerWidth <= CONTRACTS_MOBILE_BREAKPOINT) loadContractsFlyout();
     });
 
     // Option selected (event delegation so re-rendering the list is safe)
@@ -72,30 +64,6 @@ function setupContractsFlyout() {
 // ============================================
 // FLYOUT
 // ============================================
-
-/**
- * Always opens the flyout to the LEFT of the trigger (the kebab sits at the
- * far right of the card), clamped to the viewport. No-op on mobile, where the
- * list renders inline.
- */
-function positionContractsFlyout(trigger) {
-    const flyout = trigger.querySelector('.contracts-flyout');
-    if (!flyout || window.innerWidth <= CONTRACTS_MOBILE_BREAKPOINT) return;
-
-    const triggerRect = trigger.getBoundingClientRect();
-    const flyoutRect = flyout.getBoundingClientRect();
-
-    let left = triggerRect.left - flyoutRect.width - CONTRACTS_FLYOUT_GAP;
-    let top = triggerRect.top - 6;
-
-    left = Math.max(8, left);
-    if (top + flyoutRect.height > window.innerHeight) {
-        top = Math.max(8, window.innerHeight - flyoutRect.height - 8);
-    }
-
-    flyout.style.left = `${left}px`;
-    flyout.style.top = `${top}px`;
-}
 
 /**
  * Fetch the contracts available to the current user and render them.
@@ -122,7 +90,7 @@ async function loadContractsFlyout(force = false) {
 
         // Content height changed - re-place the flyout if it's currently showing
         const trigger = document.getElementById('contractsFlyoutTrigger');
-        if (trigger && trigger.matches(':hover')) positionContractsFlyout(trigger);
+        if (trigger && trigger.matches(':hover')) positionFlyout(trigger);
     }
 }
 
