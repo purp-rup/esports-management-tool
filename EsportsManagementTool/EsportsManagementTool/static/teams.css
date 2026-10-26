@@ -385,6 +385,158 @@
     pointer-events: none;
 }
 
+/* Remove-player button: revealed over the avatar on hover, avatar dimmed behind it */
+.roster-members-grid .member-pill-avatar-wrap {
+    position: relative;
+    display: flex;
+    flex-shrink: 0;
+    border-radius: 50%;
+}
+
+.roster-members-grid .member-pill-avatar-wrap::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.65);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+/* inset + margin:auto centers it without a transform, so the
+   .btn-icon-danger hover scale doesn't make it jump */
+.roster-members-grid .member-pill-avatar-wrap .btn-icon-danger {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    z-index: 1;
+    opacity: 0;
+}
+
+.roster-members-grid .member-pill-avatar-wrap:hover::after,
+.roster-members-grid .member-pill-avatar-wrap:focus-within::after {
+    opacity: 1;
+}
+
+.roster-members-grid .member-pill-avatar-wrap:hover .btn-icon-danger,
+.roster-members-grid .member-pill-avatar-wrap .btn-icon-danger:focus-visible {
+    opacity: 1;
+}
+
+/* Touch screens have no hover, so keep the button reachable as a small
+   badge on the avatar's bottom-right corner (no dimming) */
+@media (hover: none) {
+    .roster-members-grid .member-pill-avatar-wrap .btn-icon-danger {
+        inset: auto;
+        right: -6px;
+        bottom: -6px;
+        margin: 0;
+        opacity: 1;
+        background: #000;
+    }
+}
+
+/* Form completion indicator (leadership only) - top right of roster cards */
+.roster-members-grid .member-pill {
+    position: relative;
+}
+
+.roster-members-grid .contract-indicator {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
+}
+
+/* Lift the hovered indicator (and its card) so the tooltip isn't trapped under later cards */
+.roster-members-grid .contract-indicator:hover {
+    z-index: 300;
+}
+
+.roster-members-grid .member-pill:has(.contract-indicator:hover) {
+    z-index: 300;
+}
+
+/* The icon itself is the badge: black circle, neon border + symbol, soft glow */
+.roster-members-grid .contract-indicator .info-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #000;
+    border: 2px solid currentColor;
+    font-size: 0.85rem;
+    cursor: help;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.roster-members-grid .contract-indicator:hover .info-icon {
+    transform: scale(1.1);
+}
+
+/* Beat the shared blue hover color so the state color always shows */
+.roster-members-grid .contract-indicator--complete .info-icon,
+.roster-members-grid .contract-indicator--complete:hover .info-icon {
+    color: #39ff14;
+    text-shadow: 0 0 6px rgba(57, 255, 20, 0.8);
+    box-shadow: 0 0 8px rgba(57, 255, 20, 0.55), inset 0 0 6px rgba(57, 255, 20, 0.25);
+}
+
+.roster-members-grid .contract-indicator--incomplete .info-icon,
+.roster-members-grid .contract-indicator--incomplete:hover .info-icon {
+    color: #ff073a;
+    text-shadow: 0 0 6px rgba(255, 7, 58, 0.8);
+    box-shadow: 0 0 8px rgba(255, 7, 58, 0.55), inset 0 0 6px rgba(255, 7, 58, 0.25);
+}
+
+/* Spinning highlight: a conic gradient (red with a white comet) masked to the
+   2px border ring, rotated as a whole. */
+.roster-members-grid .contract-indicator--incomplete .info-icon::after {
+    content: '';
+    position: absolute;
+    inset: -2px; /* covers the border box */
+    border-radius: 50%;
+    background: conic-gradient(#ff073a 0deg 230deg, #fff 330deg, #ff073a 360deg);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+    pointer-events: none;
+    animation: contract-indicator-spin 2.8s linear infinite;
+}
+
+@keyframes contract-indicator-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .roster-members-grid .contract-indicator--incomplete .info-icon::after {
+        animation: none;
+    }
+}
+
+/* Force the glyph into a square box so it centers on its strokes, not its text box */
+.roster-members-grid .contract-indicator .info-icon::before {
+    display: block;
+    width: 1em;
+    line-height: 1;
+    text-align: center;
+    transform: translateY(1px);
+}
+
+.contract-indicator-state {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+}
+
+.contract-indicator-state--complete { color: #4CAF50; }
+.contract-indicator-state--missing  { color: #ff5252; }
+
+
 /* Tab states */
 .tab-coming-soon {
     display: flex;

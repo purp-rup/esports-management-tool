@@ -59,6 +59,10 @@ CONTRACT_LINKS = {c['key']: c['link'] for c in CONTRACT_TYPES if c.get('link')}
 # (Jersey Interest and Leadership Jacket Interest are optional, so no reminder.)
 CONTRACT_REMINDER_KEYS = {'qualtrics', 'leadership_agreement', 'player_agreement', 'media_agreement'}
 
+# Player-focused forms tracked by the roster completion indicator.
+# (Jersey Interest is optional, so it isn't counted.)
+PLAYER_FORM_KEYS = ('qualtrics', 'player_agreement', 'media_agreement')
+CONTRACT_AUDIENCES = {c['key']: c['audience'] for c in CONTRACT_TYPES}
 
 # =====================================
 # FORM DEFINITIONS
@@ -1183,6 +1187,42 @@ def get_available_contracts(cursor, user_id: int) -> list[dict]:
          'link': CONTRACT_LINKS.get(key)}
         for key in accessible
     ]
+
+
+def get_player_form_status(cursor, user_ids, season_id, season_started=True):
+    """
+    Player-form completion for a group of users (e.g. a team roster) in one season.
+    Returns {user_id: {'complete': bool, 'forms': [{'key', 'label', 'completed'}, ...]}}.
+
+    Mirrors get_contract_access: forms gated on the season having begun
+    (Qualtrics) aren't required before then.
+    """
+    if not user_ids or not season_id:
+        return {}
+
+    keys = [k for k in PLAYER_FORM_KEYS
+            if season_started or CONTRACT_AUDIENCES[k] != 'everyone_started']
+
+    user_placeholders = ', '.join(['%s'] * len(user_ids))
+    key_placeholders = ', '.join(['%s'] * len(keys))
+    cursor.execute(f"""
+        SELECT user_id, contract_key
+        FROM contract_submissions
+        WHERE season_id = %s
+          AND user_id IN ({user_placeholders})
+          AND contract_key IN ({key_placeholders})
+    """, (season_id, *user_ids, *keys))
+
+    completed = {}
+    for row in cursor.fetchall():
+        completed.setdefault(row['user_id'], set()).add(row['contract_key'])
+
+    status = {}
+    for user_id in user_ids:
+        done = completed.get(user_id, set())
+        forms = [{'key': k, 'label': CONTRACT_LABELS[k], 'completed': k in done} for k in keys]
+        status[user_id] = {'complete': all(f['completed'] for f in forms), 'forms': forms}
+    return status
 
 
 def fetch_submission(cursor, user_id, season_id, contract_key):
