@@ -78,6 +78,77 @@ document.addEventListener('click', (e) => {
 });
 
 /**
+ * Keeps fixed-position popups (flyouts, info tooltips, fixed dropdown panels)
+ * glued to their anchor while the page or any scroll container moves.
+ *
+ * One capturing scroll listener and one resize listener are shared by all
+ * tracked popups, and they are removed automatically when none remain.
+ */
+const AnchoredPopups = (() => {
+    const tracked = new Map(); // popupEl -> reposition callback
+    let listening = false;
+    let frame = null;
+
+    function run() {
+        frame = null;
+        tracked.forEach((reposition, popup) => {
+            if (!popup.isConnected || reposition() === false) {
+                tracked.delete(popup);
+            }
+        });
+        if (!tracked.size) stopListening();
+    }
+
+    function onViewportChange(e) {
+        // Ignore scrolling that happens inside a tracked popup (e.g. a flyout list)
+        if (e && e.target instanceof Node &&
+            [...tracked.keys()].some(p => p.contains(e.target))) return;
+
+        if (!frame) frame = requestAnimationFrame(run);
+    }
+
+    function startListening() {
+        if (listening) return;
+        window.addEventListener('scroll', onViewportChange, true);
+        window.addEventListener('resize', onViewportChange);
+        listening = true;
+    }
+
+    function stopListening() {
+        if (!listening) return;
+        window.removeEventListener('scroll', onViewportChange, true);
+        window.removeEventListener('resize', onViewportChange);
+        listening = false;
+    }
+
+    return {
+        track(popup, reposition) {
+            if (!popup || typeof reposition !== 'function') return;
+            tracked.set(popup, reposition);
+            startListening();
+        },
+        untrack(popup) {
+            tracked.delete(popup);
+            if (!tracked.size) stopListening();
+        }
+    };
+})();
+
+// Flyout mobile layout
+function isMobileViewport() {
+    return window.innerWidth <= 768;
+}
+
+// Removes the inline styles desktop positioning leaves behind, so the
+// mobile CSS can take over again
+function resetFlyoutInlineStyles(flyout) {
+    flyout.style.position = '';
+    flyout.style.left = '';
+    flyout.style.top = '';
+    flyout.style.display = '';
+}
+
+/**
  * Position a flyout submenu to the left if it would overflow the
  * right edge of the viewport.
  *
@@ -87,9 +158,31 @@ function positionFlyout(triggerEl) {
     const flyout = triggerEl.querySelector('.filter-box-flyout');
     if (!flyout) return;
 
-    // On mobile the flyout renders inline
-    if (window.innerWidth <= 768) return;
+    // Mobile renders the flyout inline: make sure no desktop leftovers remain
+    if (isMobileViewport()) {
+        resetFlyoutInlineStyles(flyout);
+        return;
+    }
 
+    placeFlyout(triggerEl, flyout);
+
+    // Keep following the trigger while the page / a scroll container moves
+    AnchoredPopups.track(flyout, () => {
+        // Crossed into the mobile layout: hand control back to the CSS
+        if (isMobileViewport()) {
+            resetFlyoutInlineStyles(flyout);
+            return false;
+        }
+        // Hover ended or the parent panel closed: stop tracking
+        if (!triggerEl.isConnected || getComputedStyle(flyout).display === 'none') {
+            return false;
+        }
+        placeFlyout(triggerEl, flyout);
+    });
+}
+
+// Computes and applies the fixed coordinates for a flyout
+function placeFlyout(triggerEl, flyout) {
     flyout.style.display = 'block';
     flyout.style.position = 'fixed';
 
@@ -123,23 +216,43 @@ function positionFlyout(triggerEl) {
  */
 function initFlyoutTriggers(scope = document) {
     scope.querySelectorAll('.filter-box-item--flyout').forEach(trigger => {
+        // Guard against double-binding if this runs again on the same trigger
+        // (two handlers would toggle the flyout open and straight back closed)
+        if (trigger._flyoutBound) return;
+        trigger._flyoutBound = true;
+
         trigger.addEventListener('mouseenter', () => positionFlyout(trigger));
 
-        // Triggers cards to open in mobile view
-        if (window.innerWidth <= 768) {
-            trigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const isExpanded = trigger.classList.contains('flyout-expanded');
-                document.querySelectorAll('.filter-box-item--flyout.flyout-expanded').forEach(t => {
-                    t.classList.remove('flyout-expanded');
-                });
-                if (!isExpanded) {
-                    trigger.classList.add('flyout-expanded');
-                }
+        // Tap-to-expand on mobile. Always attached; the width is checked at
+        // click time so resizing/rotating after load still works.
+        trigger.addEventListener('click', (e) => {
+            if (!isMobileViewport()) return;
+
+            e.stopPropagation();
+            const isExpanded = trigger.classList.contains('flyout-expanded');
+            document.querySelectorAll('.filter-box-item--flyout.flyout-expanded').forEach(t => {
+                t.classList.remove('flyout-expanded');
             });
-        }
+            if (!isExpanded) {
+                trigger.classList.add('flyout-expanded');
+            }
+        });
     });
 }
+
+// When the viewport crosses the mobile breakpoint, wipe flyout state from the
+// other layout so desktop inline coordinates never leak into mobile (or
+// expanded mobile flyouts into desktop)
+let _flyoutWasMobile = isMobileViewport();
+window.addEventListener('resize', () => {
+    const nowMobile = isMobileViewport();
+    if (nowMobile === _flyoutWasMobile) return;
+    _flyoutWasMobile = nowMobile;
+
+    document.querySelectorAll('.filter-box-flyout').forEach(resetFlyoutInlineStyles);
+    document.querySelectorAll('.filter-box-item--flyout.flyout-expanded')
+        .forEach(t => t.classList.remove('flyout-expanded'));
+});
 
 /* Shared platform metadata for social media link behavior
  *
@@ -366,11 +479,18 @@ function initInfoIcon(wrapperEl, titleOrFn) {
         positionInfoTooltip(wrapperEl);
         void t.offsetHeight;
         t.classList.add('info-tooltip--visible');
+
+        // Re-anchor to the icon while the page / a scroll container moves
+        AnchoredPopups.track(t, () => {
+            if (!t.classList.contains('info-tooltip--visible')) return false;
+            positionInfoTooltip(wrapperEl);
+        });
     });
     wrapperEl.addEventListener('mouseleave', () => {
         const t = wrapperEl.querySelector('.info-tooltip');
         if (!t) return;
         t.classList.remove('info-tooltip--visible'); // fade out in place
+        AnchoredPopups.untrack(t);
 
         clearTimeout(t._flipTimer);
         // Remove direction class only after the exit transition finishes
@@ -471,6 +591,7 @@ window.debounce = debounce;
 window.escapeHtml = escapeHtml;
 window.lockBodyScroll = lockBodyScroll;
 window.unlockBodyScroll = unlockBodyScroll;
+window.AnchoredPopups = AnchoredPopups;
 window.positionInfoTooltip = positionInfoTooltip;
 window.openInfoSheet = openInfoSheet;
 window.closeInfoSheet = closeInfoSheet;
