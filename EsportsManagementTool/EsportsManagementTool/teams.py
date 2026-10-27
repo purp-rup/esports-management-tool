@@ -1,6 +1,7 @@
 from EsportsManagementTool import app, mysql, EST, login_required, roles_required, localize_datetime, season_roles
 from EsportsManagementTool.universal_helpers import get_user_permissions, get_team_game_id, format_time_to_12hr, \
     is_all_day_event, build_member_profile, select_profile_communities, attach_profile_extras
+from EsportsManagementTool.contracts import get_player_form_status, today_est
 from flask import Flask, render_template, request, session, jsonify
 from datetime import datetime, timedelta
 import MySQLdb.cursors
@@ -966,6 +967,7 @@ def team_details(team_id):
                 member_count = 0
 
             formatted_members = []
+            contract_status = {}
             try:
                 # Determine if season_roles (past) or permissions (current) should be used
                 use_season_roles = (season_id is not None and season_is_active == 0)
@@ -1017,6 +1019,17 @@ def team_details(team_id):
                 # Finish building user profile on roster tab
                 attach_profile_extras(cursor, members, game_id, season_id=season_id)
 
+                # Player-form completion indicator - leadership only.
+                # Wrapped separately so a failure here can never blank the roster.
+                if can_manage:
+                    try:
+                        season_started = bool(team['start_date']) and team['start_date'] <= today_est()
+                        contract_status = get_player_form_status(
+                            cursor, [m['id'] for m in members], season_id, season_started
+                        )
+                    except Exception as e:
+                        print(f"Error fetching contract status: {e}")
+
                 # Format response to build accurate user profiles
                 formatted_members = [build_member_profile(m) for m in members]
 
@@ -1052,7 +1065,8 @@ def team_details(team_id):
                     'season_id': season_id,
                     'season_name': season_name,
                     'season_is_active': season_is_active,
-                    'uses_season_roles': use_season_roles  # Flag for frontend
+                    'uses_season_roles': use_season_roles,  # Flag for frontend
+                    'contract_status': contract_status
                 }
             }), 200
 

@@ -1026,13 +1026,7 @@
         font-size: 1.75rem;
     }
 
-    .popup-event-item.mobile-sheet .notification-opt-in {
-        flex-wrap: wrap;
-        max-width: 100%;
-    }
-
     .popup-event-item.mobile-sheet .notification-btn {
-        flex: 1 1 100%;
         justify-content: center;
         text-align: center;
         white-space: normal;

@@ -87,6 +87,10 @@
                             <i class="fas fa-chevron-left"></i>
                             <span>Previous</span>
                         </a>
+                        <div class="info-icon-wrapper" id="calendarLegendInfoWrapper">
+                            <i class="fas fa-info-circle info-icon" id="calendarLegendInfoIcon"></i>
+                            <div class="info-tooltip" id="calendarLegendInfoTooltip"></div>
+                        </div>
                     </div>
                     <h2 class="calendar-month-year" id="currentMonthYear"></h2>
                     <div class="calendar-nav-right">
@@ -120,7 +124,7 @@
 
                 <div class="widget-sidebar">
                     <!-- Event Type Legend Card -->
-                    <div class="widget-card">
+                    <div class="widget-card" id="eventLegendCard">
                         <h3><i class="fas fa-palette"></i> Event Types</h3>
                         <div class="legend-items">
                             <div class="legend-item">
@@ -143,7 +147,7 @@
                                 <div class="legend-color misc"></div>
                                 <span class="legend-label">Misc</span>
                             </div>
-                            <div class="legend-item">
+                            <div class="legend-item legend-item--mobile-hide">
                                 <div class="legend-color scheduled-indicator"></div>
                                 <span class="legend-label">Recurring/Scheduled</span>
                             </div>
@@ -442,6 +446,13 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Universal info bottom sheet for mobile -->
+<div id="infoSheet" class="info-sheet">
+    <h3 class="info-sheet-title" id="infoSheetTitle"></h3>
+    <div id="infoSheetContent"></div>
+</div>
+<div class="sheet-backdrop" id="infoSheetBackdrop" onclick="closeInfoSheet()"></div>
+
 <script>
     // Set user login status for calendar functionality
     {% if session.loggedin %}

@@ -189,11 +189,18 @@ function placeFlyout(triggerEl, flyout) {
     const triggerRect = triggerEl.getBoundingClientRect();
     const flyoutRect = flyout.getBoundingClientRect();
 
-    let left = triggerRect.right + 6;
+    // Opens right by default; data-flyout-side="left" opens left instead
+    const opensLeft = triggerEl.dataset.flyoutSide === 'left';
+
+    let left = opensLeft
+        ? triggerRect.left - flyoutRect.width - 6
+        : triggerRect.right + 6;
     let top = triggerRect.top - 6;
 
-    // Flip to the trigger's left side if it would overflow the right edge
-    if (left + flyoutRect.width > window.innerWidth) {
+    // Flip to the other side if it would run off the viewport
+    if (opensLeft) {
+        if (left < 8) left = triggerRect.right + 6;
+    } else if (left + flyoutRect.width > window.innerWidth) {
         left = triggerRect.left - flyoutRect.width - 6;
     }
 
@@ -208,6 +215,26 @@ function placeFlyout(triggerEl, flyout) {
     flyout.style.display = '';
 }
 
+let _hoveredFlyoutTrigger = null;
+let _flyoutRepositionQueued = false;
+
+/* Flyouts are position: fixed, so they don't move with the page. While the
+ * pointer is on a flyout trigger, re-place its flyout whenever anything
+ * scrolls or the window resizes so it stays attached to its dropdown. */
+function repositionHoveredFlyout(e) {
+    // Ignore scrolling inside a flyout's own list
+    if (e?.target instanceof Element && e.target.closest('.filter-box-flyout')) return;
+    if (_flyoutRepositionQueued) return;
+
+    _flyoutRepositionQueued = true;
+    requestAnimationFrame(() => {
+        _flyoutRepositionQueued = false;
+        if (_hoveredFlyoutTrigger?.matches(':hover')) positionFlyout(_hoveredFlyoutTrigger);
+    });
+}
+window.addEventListener('scroll', repositionHoveredFlyout, { capture: true, passive: true });
+window.addEventListener('resize', repositionHoveredFlyout);
+
 /**
  * Wires up hover-positioning and mobile tap-to-expand behavior for
  * every .filter-box-item--flyout trigger within the given scope.
@@ -216,18 +243,22 @@ function placeFlyout(triggerEl, flyout) {
  */
 function initFlyoutTriggers(scope = document) {
     scope.querySelectorAll('.filter-box-item--flyout').forEach(trigger => {
-        // Guard against double-binding if this runs again on the same trigger
-        // (two handlers would toggle the flyout open and straight back closed)
-        if (trigger._flyoutBound) return;
-        trigger._flyoutBound = true;
+        // Safe to call more than once for the same elements
+        if (trigger.dataset.flyoutBound) return;
+        trigger.dataset.flyoutBound = '1';
 
-        trigger.addEventListener('mouseenter', () => positionFlyout(trigger));
+        trigger.addEventListener('mouseenter', () => {
+            _hoveredFlyoutTrigger = trigger;
+            positionFlyout(trigger);
+        });
+        trigger.addEventListener('mouseleave', () => {
+            if (_hoveredFlyoutTrigger === trigger) _hoveredFlyoutTrigger = null;
+        });
 
-        // Tap-to-expand on mobile. Always attached; the width is checked at
-        // click time so resizing/rotating after load still works.
+        // Triggers cards to open in mobile view (checked at click time so
+        // resizing across the breakpoint keeps working)
         trigger.addEventListener('click', (e) => {
-            if (!isMobileViewport()) return;
-
+            if (window.innerWidth > 768) return;
             e.stopPropagation();
             const isExpanded = trigger.classList.contains('flyout-expanded');
             document.querySelectorAll('.filter-box-item--flyout.flyout-expanded').forEach(t => {

@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='dashboard-base.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='tabs.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='contracts.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='modals.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='notifications.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='admin-panel.css') }}">
@@ -259,6 +260,13 @@
                             <div class="filter-box-item"
                                  onclick="openChangePasswordModal(); closeAllFilterPanels();">
                                 <span>Change Password</span>
+                            </div>
+                            <div class="filter-box-item filter-box-item--flyout contracts-flyout-trigger" id="contractsFlyoutTrigger" data-flyout-side="left">
+                                <span>Contracts/Forms</span>
+                                <i class="fas fa-chevron-left"></i>
+                                <div class="filter-box-flyout contracts-flyout" id="contractsFlyout">
+                                    <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1901,6 +1909,51 @@
     </div>
 </div>
 
+<!-- Contract / Form modal (a stepped wizard; content is rendered by contracts.js) -->
+<div id="contractModal" class="modal contract-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="contract-modal-icon"><i class="fas fa-file-signature"></i></div>
+            <div class="contract-modal-heading">
+                <h2 id="contractModalTitle">Contract</h2>
+                <p id="contractModalSubtitle" class="contract-modal-subtitle" style="display: none;"></p>
+            </div>
+            <span class="close" onclick="closeContractModal()">&times;</span>
+        </div>
+
+        <!-- Step indicator + progress bar (built by contracts.js) -->
+        <div id="contractProgress" class="contract-progress" style="display: none;">
+            <div class="contract-progress-top">
+                <span id="contractStepCaption" class="contract-step-caption"></span>
+                <div id="contractStepper" class="contract-stepper"></div>
+            </div>
+            <div class="contract-progress-bar">
+                <div id="contractProgressFill" class="contract-progress-fill"></div>
+            </div>
+        </div>
+
+        <div class="modal-body">
+            <div id="contractModalLoading" class="contract-modal-loading">
+                <i class="fas fa-spinner fa-spin"></i> Loading...
+            </div>
+            <div id="contractSignedBanner" class="contract-signed-banner" style="display: none;"></div>
+
+            <form id="contractForm" class="event-form-modal" novalidate style="display: none;">
+                <div id="contractFormBody"></div>
+            </form>
+        </div>
+
+        <!-- Pinned footer. The submit button lives outside the form, so form="" ties it back -->
+        <div id="contractFooter" class="contract-modal-footer" style="display: none;">
+            <button type="button" class="btn btn-secondary" id="contractCancelBtn" onclick="contractBack()">Cancel</button>
+            <button type="submit" form="contractForm" class="btn btn-primary" id="contractSubmitBtn">
+                <span id="contractSubmitBtnText">Continue</span>
+                <i id="contractSubmitBtnSpinner" class="fas fa-spinner fa-spin" style="display: none;"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Change Password -->
 <div id="changePasswordModal" class="modal">
     <div class="modal-content">
@@ -2673,6 +2726,7 @@
 <script src="{{ url_for('static', filename='teams-sidebar.js') }}"></script>
 <script src="{{ url_for('static', filename='teams.js') }}"></script>
 <script src="{{ url_for ('static', filename='profile.js')}}"></script>
+<script src="{{ url_for('static', filename='contracts.js') }}"></script>
 <script src="{{ url_for('static', filename='suspensions.js') }}"></script>
 <script src="{{ url_for('static', filename='events.js') }}"></script>
 <script src="{{ url_for('static', filename='admin-panel.js') }}"></script>

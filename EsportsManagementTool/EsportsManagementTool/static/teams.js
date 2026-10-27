@@ -187,7 +187,7 @@ async function loadTeamDetails(teamId) {
                 }
             }
 
-            loadRosterTab(team.members || []);
+            loadRosterTab(team.members || [], team.contract_status || {});
         }
     } catch (error) {
         console.error('Error loading team details:', error);
@@ -378,10 +378,43 @@ async function loadNextScheduledEvent(teamId, gameId) {
 // ============================================
 
 /**
+ * Build the leadership-only form completion indicator for a roster card.
+ * Reuses the shared info icon (hover tooltip on desktop, bottom sheet on mobile).
+ * @param {Object} status  { complete: bool, forms: [{key, label, completed}] }
+ * @param {Object} member  Roster member (name used for the mobile sheet title)
+ */
+function createContractIndicator(status, member) {
+    const wrapper = document.createElement('div');
+    wrapper.className = `info-icon-wrapper contract-indicator contract-indicator--${status.complete ? 'complete' : 'incomplete'}`;
+
+    const rows = status.forms.map(form => `
+        <div class="info-tooltip-row">
+            <span class="info-tooltip-label">${escapeHtml(form.label)}</span>
+            <span class="info-tooltip-value contract-indicator-state contract-indicator-state--${form.completed ? 'complete' : 'missing'}">
+                <i class="fas ${form.completed ? 'fa-check' : 'fa-times'}"></i>
+                ${form.completed ? 'Complete' : 'Missing'}
+            </span>
+        </div>
+    `).join('');
+
+    wrapper.innerHTML = `
+        <i class="fas ${status.complete ? 'fa-check' : 'fa-times'} info-icon"></i>
+        <div class="info-tooltip">${rows}</div>
+    `;
+
+    initInfoIcon(wrapper, `${member.name} · Player Forms`);
+
+    // Keep taps/clicks on the indicator from also opening the profile panel
+    wrapper.addEventListener('click', (e) => e.stopPropagation());
+
+    return wrapper;
+}
+
+/**
  * Load roster tab with team members
  * Uses season-aware badge rendering for historical accuracy
  */
-async function loadRosterTab(members) {
+async function loadRosterTab(members, contractStatus = {}) {
     const rosterList = document.getElementById('rosterMembersList');
     const rosterEmpty = document.getElementById('rosterEmpty');
 
@@ -423,11 +456,26 @@ async function loadRosterTab(members) {
 
         const pill = createMemberPill(member, {
             size: 'large',
-            actionsHtml: removeBtn,
             onSelect: (m) => openRosterDetailPanel(m)
         });
 
         if (member.is_captain) pill.classList.add('member-pill--captain');
+
+        // Remove button lives over the avatar (revealed on hover, see teams.css)
+        if (canManage) {
+            const avatar = pill.querySelector('.member-pill-avatar, .member-pill-initials');
+            if (avatar) {
+                const avatarWrap = document.createElement('div');
+                avatarWrap.className = 'member-pill-avatar-wrap';
+                avatar.replaceWith(avatarWrap);
+                avatarWrap.appendChild(avatar);
+                avatarWrap.insertAdjacentHTML('beforeend', removeBtn);
+            }
+        }
+
+        // Leadership-only form completion indicator (server omits data for everyone else)
+        const formStatus = contractStatus[member.id];
+        if (formStatus) pill.appendChild(createContractIndicator(formStatus, member));
 
         fragment.appendChild(pill);
     });
