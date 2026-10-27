@@ -849,6 +849,32 @@ main {
     font-weight: 700;
 }
 
+/* Contracts overview: completion indicators */
+.contract-status {
+    font-size: 1rem;
+}
+
+.contract-status-yes {
+    color: #22c55e;
+}
+
+.contract-status-no {
+    color: #ef4444;
+}
+
+.contract-status-na {
+    color: var(--text-secondary);
+}
+
+/* Per-contract tables can have many columns: scroll sideways instead of clipping */
+.contract-table-scroll {
+    overflow-x: auto;
+}
+
+.contract-table-scroll .contract-th-nowrap {
+    white-space: nowrap;
+}
+
 .game-view-title-icon {
     display: inline-flex;
     align-items: center;

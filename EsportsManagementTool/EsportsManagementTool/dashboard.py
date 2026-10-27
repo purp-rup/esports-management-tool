@@ -16,19 +16,9 @@ load_dotenv()
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
-
-## =============================================
-## THE FOLLOWING WAS PRODUCED ALONGSIDE CLAUDEAI
-## =============================================
-
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-"""
-Main route to allow all users to access the dashboard.
-"""
 
 
 @app.route('/dashboard')
@@ -630,9 +620,45 @@ def get_user_managed_game(user_id, game_id=None):
         return jsonify({'success': False, 'message': 'Failed to get managed game'}), 500
 
 
-"""
-Method to search users in Admin Panel based on input from user in search bar.
-"""
+# Role filter values accepted by /admin/search-users.
+# Custom roles are passed as "custom:<role_id>" and handled in build_role_filter_clause().
+ROLE_FILTER_CLAUSES = {
+    'admin': "COALESCE(p.is_admin, 0) = 1",
+    'developer': "COALESCE(p.is_developer, 0) = 1",
+    'gm': "COALESCE(p.is_gm_standard, 0) = 1",
+    'player': "COALESCE(p.is_player, 0) = 1",
+    # Mirrors build_member_profile(): "Member" means no standard role and no custom role
+    'member': """(COALESCE(p.is_admin, 0) = 0
+                  AND COALESCE(p.is_developer, 0) = 0
+                  AND COALESCE(p.is_gm_standard, 0) = 0
+                  AND COALESCE(p.is_player, 0) = 0
+                  AND NOT EXISTS (
+                      SELECT 1 FROM user_custom_roles ucr2
+                      JOIN custom_roles cr2 ON cr2.id = ucr2.custom_role_id
+                      WHERE ucr2.user_id = u.id AND cr2.is_archived = 0
+                  ))""",
+}
+
+
+def build_role_filter_clause(role_filter: str):
+    """
+    Returns (sql_clause, params) for the admin user-search role filter,
+    or None if the value isn't a recognized role.
+    Uses EXISTS for custom roles so the GROUP_CONCAT of a user's custom
+    role names in the main query still lists ALL of their roles.
+    """
+    if role_filter in ROLE_FILTER_CLAUSES:
+        return ROLE_FILTER_CLAUSES[role_filter], []
+
+    if role_filter.startswith('custom:') and role_filter[7:].isdigit():
+        return """EXISTS (
+            SELECT 1 FROM user_custom_roles ucr2
+            JOIN custom_roles cr2 ON cr2.id = ucr2.custom_role_id
+            WHERE ucr2.user_id = u.id AND cr2.id = %s AND cr2.is_archived = 0
+        )""", [int(role_filter[7:])]
+
+    return None
+
 
 
 @app.route('/admin/search-users')
@@ -643,61 +669,54 @@ def search_users():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-        # Get search query from URL parameter
+        # Get search query and optional role filter from URL parameters
         search_query = request.args.get('query', '').strip()
+        role_filter = request.args.get('role', '').strip()
 
-        if not search_query:
-            # If empty search, return all users (or first 50)
-            cursor.execute("""
-                SELECT u.id, u.firstname, u.lastname, u.username, u.email, 
-                       u.date,
-                       u.profile_picture,
-                       COALESCE(ua.is_active, 0) as is_active,
-                       ua.last_seen,
-                       COALESCE(p.is_admin, 0) as is_admin, 
-                       COALESCE(p.is_gm, 0) as is_gm, 
-                       COALESCE(p.is_gm_standard, 0) as is_gm_standard,
-                       COALESCE(p.is_player, 0) as is_player,
-                       COALESCE(p.is_developer, 0) as is_developer,
-                       GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
-                FROM users u
-                LEFT JOIN permissions p ON u.id = p.userid
-                LEFT JOIN user_activity ua ON u.id = ua.userid
-                LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
-                LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
-                GROUP BY u.id
-                ORDER BY ua.is_active DESC, u.date DESC
-                LIMIT 50
-            """)
-        else:
-            # Search for matching users
+        where_clauses = []
+        params = []
+
+        if search_query:
             search_pattern = f"%{search_query}%"
-            cursor.execute("""
-                SELECT u.id, u.firstname, u.lastname, u.username, u.email, 
-                       u.date,
-                       u.profile_picture,
-                       COALESCE(ua.is_active, 0) as is_active,
-                       ua.last_seen,
-                       COALESCE(p.is_admin, 0) as is_admin, 
-                       COALESCE(p.is_gm, 0) as is_gm, 
-                       COALESCE(p.is_gm_standard, 0) as is_gm_standard,
-                       COALESCE(p.is_player, 0) as is_player,
-                       COALESCE(p.is_developer, 0) as is_developer,
-                       GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
-                FROM users u
-                LEFT JOIN permissions p ON u.id = p.userid
-                LEFT JOIN user_activity ua ON u.id = ua.userid
-                LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
-                LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
-                WHERE u.firstname LIKE %s
+            where_clauses.append("""(u.firstname LIKE %s
                    OR u.lastname LIKE %s
                    OR u.username LIKE %s
                    OR u.email LIKE %s
-                   OR CONCAT(u.firstname, ' ', u.lastname) LIKE %s
-                GROUP BY u.id
-                ORDER BY ua.is_active DESC, u.date DESC
-                LIMIT 50
-            """, (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern))
+                   OR CONCAT(u.firstname, ' ', u.lastname) LIKE %s)""")
+            params.extend([search_pattern] * 5)
+
+        if role_filter:
+            role_clause = build_role_filter_clause(role_filter)
+            if role_clause is None:
+                return jsonify({'success': False, 'message': 'Invalid role filter'}), 400
+            where_clauses.append(role_clause[0])
+            params.extend(role_clause[1])
+
+        # where_sql is built only from the fixed clauses above; user input goes through params
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+        cursor.execute(f"""
+            SELECT u.id, u.firstname, u.lastname, u.username, u.email, 
+                   u.date,
+                   u.profile_picture,
+                   COALESCE(ua.is_active, 0) as is_active,
+                   ua.last_seen,
+                   COALESCE(p.is_admin, 0) as is_admin, 
+                   COALESCE(p.is_gm, 0) as is_gm, 
+                   COALESCE(p.is_gm_standard, 0) as is_gm_standard,
+                   COALESCE(p.is_player, 0) as is_player,
+                   COALESCE(p.is_developer, 0) as is_developer,
+                   GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
+            FROM users u
+            LEFT JOIN permissions p ON u.id = p.userid
+            LEFT JOIN user_activity ua ON u.id = ua.userid
+            LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
+            LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
+            {where_sql}
+            GROUP BY u.id
+            ORDER BY ua.is_active DESC, u.date DESC
+            LIMIT 50
+        """, tuple(params))
 
         users = cursor.fetchall()
 
@@ -756,11 +775,6 @@ def search_users():
 
     finally:
         cursor.close()
-
-
-"""
-Route allowing admins to remove user data from the site. This includes email, password, profile picture, etc.
-"""
 
 
 @app.route('/admin/remove-user', methods=['POST'])

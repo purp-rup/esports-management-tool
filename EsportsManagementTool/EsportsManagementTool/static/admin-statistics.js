@@ -47,21 +47,22 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================
 // VIEW STATE & NAVIGATION
 // ============================================
-// Tracks which top-level tab (Competitive/Community) is active, so the
-// floating game tabs know which per-game view to render.
+// Tracks which top-level tab (Competitive/Community/Contracts) is active, so the
+// floating tabs know which per-game or per-contract view to render.
 let currentStatsView = 'competitive';
 
 // Guards so community charts/carousels only render once, the first time their tab is opened
 let communityChartsInitialized = false;
 let communityTrendsChartsRendered = false;
 
-// Toggles the Competitive / Community view tabs and swaps the corresponding content containers.
+// Toggles the Competitive / Community / Contracts view tabs and swaps the corresponding content containers.
 function switchStatsView(view, btnEl) {
     document.querySelectorAll('.stats-view-tabs .tab-button').forEach(btn => {
         btn.classList.remove('active');
     });
     btnEl.classList.add('active');
     currentStatsView = view;
+    setFloatingTabSet(view);
 
     if (view === 'community') {
         if (!communityChartsInitialized) {
@@ -71,21 +72,138 @@ function switchStatsView(view, btnEl) {
         }
     }
 
-    // Re-render whichever floating tab (Overview or a specific game) is
-    // currently selected so it reflects the newly active Competitive/Community view
-    const activeTab = document.querySelector('.stats-floating-tab.active');
-    const gameId = activeTab ? activeTab.dataset.game : 'overview';
-
-    if (gameId === 'overview') {
-        showOverviewView();
-    } else if (view === 'community') {
-        showCommunityGameView(gameId, activeTab.querySelector('.stats-floating-tab-label').textContent, activeTab.dataset.icon);
+    // Re-render whichever floating tab (Overview or a specific game/contract) is
+    // currently selected so it reflects the newly active view
+    const activeTab = getActiveFloatingTab();
+    if (activeTab) {
+        openFloatingTab(activeTab);
     } else {
-        showGameView(gameId, activeTab.querySelector('.stats-floating-tab-label').textContent, activeTab.dataset.icon);
+        showOverviewView();
     }
 }
 
+// Shows the floating tab set that belongs to the active top-level view
+// (games for Competitive/Community, contracts for Contracts).
+function setFloatingTabSet(view) {
+    const showContracts = view === 'contracts';
+    document.querySelector('.stats-floating-tabs-inner[data-tabset="games"]').style.display = showContracts ? 'none' : '';
+    document.querySelector('.stats-floating-tabs-inner[data-tabset="contracts"]').style.display = showContracts ? '' : 'none';
+
+    // Reset the pan position and let the existing scroll listener refresh the arrows
+    const track = document.getElementById('statsFloatingTabsTrack');
+    if (track) {
+        track.scrollLeft = 0;
+        track.dispatchEvent(new Event('scroll'));
+    }
+}
+
+// Returns the selected tab within the currently visible floating tab set
+function getActiveFloatingTab() {
+    const tabSet = currentStatsView === 'contracts' ? 'contracts' : 'games';
+    return document.querySelector(`.stats-floating-tabs-inner[data-tabset="${tabSet}"] .stats-floating-tab.active`);
+}
+
+// Single dispatcher: renders the view that matches a floating tab + the active top-level view
+function openFloatingTab(btn) {
+    const label = btn.querySelector('.stats-floating-tab-label').textContent;
+
+    if (currentStatsView === 'contracts') {
+        if (btn.dataset.contract === 'overview') {
+            showContractsOverviewView();
+        } else {
+            showContractDetailView(btn.dataset.contract, label, btn.dataset.icon);
+        }
+    } else if (btn.dataset.game === 'overview') {
+        showOverviewView();
+    } else if (currentStatsView === 'community') {
+        showCommunityGameView(btn.dataset.game, label, btn.dataset.icon);
+    } else {
+        showGameView(btn.dataset.game, label, btn.dataset.icon);
+    }
+}
+
+function hideContractViews() {
+    document.getElementById('statsContractsView').style.display = 'none';
+    document.getElementById('statsContractDetailView').style.display = 'none';
+}
+
+function hideNonContractViews() {
+    ['statsOverviewView', 'statsCommunityView', 'statsGameView', 'statsGameCommunityView'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+    });
+}
+
+function showContractsOverviewView() {
+    hideNonContractViews();
+    document.getElementById('statsContractDetailView').style.display = 'none';
+    document.getElementById('statsContractsView').style.display = '';
+
+    // Immediate feedback while the fetch below is in flight
+    document.getElementById('contractsOverviewTableWrap').style.display = 'none';
+    document.getElementById('contractsOverviewCardsWrap').style.display = 'none';
+    document.getElementById('contractsOverviewLoading').style.display = '';
+
+    const seasonParam = window.selectedSeason ? `?season_id=${window.selectedSeason}` : '';
+
+    const reveal = () => {
+        document.getElementById('contractsOverviewLoading').style.display = 'none';
+        document.getElementById('contractsOverviewTableWrap').style.display = '';
+        document.getElementById('contractsOverviewCardsWrap').style.display = '';
+    };
+
+    fetch(`/api/admin/statistics/contracts${seasonParam}`)
+        .then(res => res.json())
+        .then(data => {
+            reveal();
+            renderContractsOverviewTable(data.statistics);
+        })
+        .catch(() => {
+            reveal();
+            renderContractsOverviewTable({ contracts: [], members: [] });
+        });
+}
+
+// All five contract tabs share one table, so a slow response for a tab the
+// user already left must not render over the tab they're on now
+let contractDetailRequestId = 0;
+
+function showContractDetailView(contractKey, contractTitle, iconClass) {
+    hideNonContractViews();
+    document.getElementById('statsContractsView').style.display = 'none';
+    document.getElementById('statsContractDetailView').style.display = '';
+    document.getElementById('contractViewTitleText').textContent = contractTitle;
+    document.getElementById('contractViewTitleIcon').className = `fas ${iconClass}`;
+
+    // Immediate feedback while the fetch below is in flight
+    document.getElementById('contractDetailTableWrap').style.display = 'none';
+    document.getElementById('contractDetailCardsWrap').style.display = 'none';
+    document.getElementById('contractDetailLoading').style.display = '';
+
+    const seasonParam = window.selectedSeason ? `?season_id=${window.selectedSeason}` : '';
+    const requestId = ++contractDetailRequestId;
+
+    const reveal = () => {
+        document.getElementById('contractDetailLoading').style.display = 'none';
+        document.getElementById('contractDetailTableWrap').style.display = '';
+        document.getElementById('contractDetailCardsWrap').style.display = '';
+    };
+
+    fetch(`/api/admin/statistics/contracts/${contractKey}${seasonParam}`)
+        .then(res => res.json())
+        .then(data => {
+            if (requestId !== contractDetailRequestId) return;
+            reveal();
+            renderContractDetailTable(data.statistics);
+        })
+        .catch(() => {
+            if (requestId !== contractDetailRequestId) return;
+            reveal();
+            renderContractDetailTable({ columns: [], rows: [] });
+        });
+}
+
 function showOverviewView() {
+    hideContractViews();
     document.getElementById('statsGameView').style.display = 'none';
     document.getElementById('statsGameCommunityView').style.display = 'none';
 
@@ -104,8 +222,8 @@ function showOverviewView() {
     }
 }
 
-// Pulls a game's data after selecting its tab
 function showGameView(gameId, gameTitle, gameIconUrl) {
+    hideContractViews();
     document.getElementById('statsOverviewView').style.display = 'none';
     document.getElementById('statsCommunityView').style.display = 'none';
     document.getElementById('statsGameCommunityView').style.display = 'none';
@@ -146,6 +264,7 @@ function showGameView(gameId, gameTitle, gameIconUrl) {
 // Pulls a game's Community-tab data (partnerships for now; the event-type
 // chart and event list join this once the backend returns them)
 function showCommunityGameView(gameId, gameTitle, gameIconUrl) {
+    hideContractViews();
     document.getElementById('statsOverviewView').style.display = 'none';
     document.getElementById('statsCommunityView').style.display = 'none';
     document.getElementById('statsGameView').style.display = 'none';
@@ -192,20 +311,16 @@ function initStatsFloatingTabs() {
     const leftArrow = document.getElementById('statsFloatingTabsArrowLeft');
     const rightArrow = document.getElementById('statsFloatingTabsArrowRight');
 
-    // Wire up each floating tab (Overview + per-game) to switch views
+    // Wire up each floating tab (Overview + per-game/per-contract) to switch views
     document.querySelectorAll('.stats-floating-tab').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.stats-floating-tab').forEach(b => b.classList.remove('active'));
+            // Only clear "active" within this tab's own set so each set remembers its selection
+            btn.closest('.stats-floating-tabs-inner')
+                .querySelectorAll('.stats-floating-tab')
+                .forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
-            const gameId = btn.dataset.game;
-            if (gameId === 'overview') {
-                showOverviewView();
-            } else if (currentStatsView === 'community') {
-                showCommunityGameView(gameId, btn.querySelector('.stats-floating-tab-label').textContent, btn.dataset.icon);
-            } else {
-                showGameView(gameId, btn.querySelector('.stats-floating-tab-label').textContent, btn.dataset.icon);
-            }
+            openFloatingTab(btn);
         });
     });
 
@@ -966,7 +1081,7 @@ function setCommunityGameTrendsDuration(duration, el) {
  * Renders a list of items into a table (desktop) and card list (mobile),
  * grouped into collapsible season sections. Shared by renderGameStatsTable() and renderCommunityGameEventsList()
  */
-function renderSeasonGroupedList({ items, tbody, cardsWrap, toggleFn, getSeasonName, getConference = null, seasonCardExtra = null, buildRow, buildCard }) {
+function renderSeasonGroupedList({ items, tbody, cardsWrap, toggleFn, getSeasonName, getConference = null, seasonCardExtra = null, columnCount = 6, buildRow, buildCard }) {
     const blockClasses = ['game-team-block-a', 'game-team-block-b', 'game-team-block-c'];
     let previousConference = null;
     let previousSeason; // stays undefined for season-filtered views (no season_name sent)
@@ -986,7 +1101,7 @@ function renderSeasonGroupedList({ items, tbody, cardsWrap, toggleFn, getSeasonN
                 const seasonGapRow = document.createElement('tr');
                 seasonGapRow.className = 'game-stats-league-gap';
                 seasonGapRow.dataset.seasonIdx = currentSeasonIdx - 1;
-                seasonGapRow.innerHTML = '<td colspan="6"></td>';
+                seasonGapRow.innerHTML = `<td colspan="${columnCount}"></td>`;
                 tbody.appendChild(seasonGapRow);
             }
 
@@ -994,7 +1109,7 @@ function renderSeasonGroupedList({ items, tbody, cardsWrap, toggleFn, getSeasonN
             seasonRow.className = 'game-stats-season-header game-stats-season-header-toggle';
             seasonRow.dataset.seasonIdx = currentSeasonIdx;
             seasonRow.innerHTML = `
-                <td colspan="6">
+                <td colspan="${columnCount}">
                     <i class="fas fa-chevron-down game-stats-season-chevron"></i>
                     ${seasonName || 'Unknown Season'}
                 </td>
@@ -1019,7 +1134,7 @@ function renderSeasonGroupedList({ items, tbody, cardsWrap, toggleFn, getSeasonN
             const gapRow = document.createElement('tr');
             gapRow.className = 'game-stats-league-gap';
             gapRow.dataset.seasonIdx = seasonIndex;
-            gapRow.innerHTML = '<td colspan="6"></td>';
+            gapRow.innerHTML = `<td colspan="${columnCount}"></td>`;
             tbody.appendChild(gapRow);
         }
 
@@ -1186,11 +1301,139 @@ function toggleSeasonGroup(seasonIdx, scopeSelectors = [null]) {
 }
 
 function toggleGameStatsSeason(seasonIdx) {
-    toggleSeasonGroup(seasonIdx);
+    toggleSeasonGroup(seasonIdx, ['#gameStatsTableBody', '#gameStatsCardsWrap']);
 }
 
 function toggleCommunityEventsSeason(seasonIdx) {
     toggleSeasonGroup(seasonIdx, ['#communityGameEventsTableBody', '#communityGameEventsCardsWrap']);
+}
+
+function toggleContractsOverviewSeason(seasonIdx) {
+    toggleSeasonGroup(seasonIdx, ['#contractsOverviewTableBody', '#contractsOverviewCardsWrap']);
+}
+
+function toggleContractDetailSeason(seasonIdx) {
+    toggleSeasonGroup(seasonIdx, ['#contractDetailTableBody', '#contractDetailCardsWrap']);
+}
+
+// Text answers show as-is; True/False (optional acknowledgements) reuse the check/X icons
+function renderContractCell(value) {
+    if (value === true || value === false) return renderContractStatus(value);
+    return escapeHtml(value || '—');
+}
+
+// Builds a contract's submissions (table for desktop, cards for mobile) from
+// whatever columns the backend derived from that contract's form
+function renderContractDetailTable(stats) {
+    const columns = (stats && stats.columns) || [];
+    const rows = (stats && stats.rows) || [];
+    const tbody = document.getElementById('contractDetailTableBody');
+    const cardsWrap = document.getElementById('contractDetailCardsWrap');
+    tbody.innerHTML = '';
+    cardsWrap.innerHTML = '';
+
+    // Short labels (Email, Z Number, ...) stay on one line; long form questions still wrap
+    document.getElementById('contractDetailHead').innerHTML =
+        columns.map(col => `<th${col.label.length <= 12 ? ' class="contract-th-nowrap"' : ''}>${escapeHtml(col.label)}</th>`).join('');
+
+    if (rows.length === 0) {
+        tbody.innerHTML = `
+            <tr class="game-stats-loading-row">
+                <td colspan="${columns.length || 1}">No submissions for this period</td>
+            </tr>
+        `;
+        cardsWrap.innerHTML = `<div class="game-stats-card-loading">No submissions for this period</div>`;
+        return;
+    }
+
+    // Cards lead with the person's name when the form has one
+    const titleCol = columns.find(col => col.key === 'full_name') || columns[0];
+    const cellClass = col => col.kind === 'checkbox_group' ? ' class="game-stats-cell-wrap"'
+        : col.key === 'full_name' ? ' class="game-stats-team-name"'
+        : '';
+
+    renderSeasonGroupedList({
+        items: rows,
+        tbody,
+        cardsWrap,
+        toggleFn: toggleContractDetailSeason,
+        getSeasonName: row => row.season_name,
+        columnCount: columns.length,
+        buildRow: row => columns.map(col =>
+            `<td${cellClass(col)}>${renderContractCell(row.values[col.key])}</td>`
+        ).join(''),
+        buildCard: row => `
+            <div class="game-stats-card-header">
+                <span class="game-stats-card-team">${renderContractCell(row.values[titleCol.key])}</span>
+            </div>
+            ${columns.filter(col => col !== titleCol).map(col => `
+            <div class="game-stats-card-row">
+                <span class="game-stats-card-label">${escapeHtml(col.label)}</span>
+                <span class="game-stats-card-value${col.kind === 'checkbox_group' ? ' game-stats-cell-wrap' : ''}">${renderContractCell(row.values[col.key])}</span>
+            </div>
+            `).join('')}
+        `
+    });
+}
+
+// Check = submitted, X = expected but not submitted, dash = doesn't apply to this member
+function renderContractStatus(status) {
+    if (status === true) {
+        return '<i class="fas fa-check contract-status contract-status-yes" title="Completed"></i>';
+    }
+    if (status === false) {
+        return '<i class="fas fa-times contract-status contract-status-no" title="Not completed"></i>';
+    }
+    return '<span class="contract-status-na" title="Not applicable">—</span>';
+}
+
+// Builds the Contracts overview (table for desktop, cards for mobile)
+function renderContractsOverviewTable(stats) {
+    const contracts = (stats && stats.contracts) || [];
+    const members = (stats && stats.members) || [];
+    const tbody = document.getElementById('contractsOverviewTableBody');
+    const cardsWrap = document.getElementById('contractsOverviewCardsWrap');
+    tbody.innerHTML = '';
+    cardsWrap.innerHTML = '';
+
+    document.getElementById('contractsOverviewHead').innerHTML =
+        '<th>Name</th><th>Username</th>' + contracts.map(c => `<th>${escapeHtml(c.label)}</th>`).join('');
+
+    if (members.length === 0) {
+        tbody.innerHTML = `
+            <tr class="game-stats-loading-row">
+                <td colspan="${contracts.length + 2}">No contract data for this period</td>
+            </tr>
+        `;
+        cardsWrap.innerHTML = `<div class="game-stats-card-loading">No contract data for this period</div>`;
+        return;
+    }
+
+    renderSeasonGroupedList({
+        items: members,
+        tbody,
+        cardsWrap,
+        toggleFn: toggleContractsOverviewSeason,
+        getSeasonName: member => member.season_name,
+        columnCount: contracts.length + 2, // Name + Username + one per contract
+        buildRow: member => `
+            <td class="game-stats-team-name">${escapeHtml(member.name)}</td>
+            <td>${escapeHtml(member.username || '—')}</td>
+            ${contracts.map(c => `<td>${renderContractStatus(member.statuses[c.key])}</td>`).join('')}
+        `,
+        buildCard: member => `
+            <div class="game-stats-card-header">
+                <span class="game-stats-card-team">${escapeHtml(member.name)}</span>
+                <span class="game-stats-card-conference">${escapeHtml(member.username || '—')}</span>
+            </div>
+            ${contracts.map(c => `
+            <div class="game-stats-card-row">
+                <span class="game-stats-card-label">${escapeHtml(c.label)}</span>
+                <span class="game-stats-card-value">${renderContractStatus(member.statuses[c.key])}</span>
+            </div>
+            `).join('')}
+        `
+    });
 }
 
 // Displays a list of matches down via data

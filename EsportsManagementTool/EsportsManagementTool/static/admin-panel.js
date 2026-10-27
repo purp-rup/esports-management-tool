@@ -245,7 +245,9 @@ async function filterUsers() {
 //Utilizes the universal debounce function
 const debouncedUserSearch = debounce(async (searchQuery, userItemsContainer) => {
     try {
-        const response = await fetch(`/admin/search-users?query=${encodeURIComponent(searchQuery)}`);
+        const params = new URLSearchParams({ query: searchQuery });
+        if (userRoleFilter) params.set('role', userRoleFilter);
+        const response = await fetch(`/admin/search-users?${params}`);
         const data = await response.json();
 
         if (data.success) {
@@ -264,6 +266,55 @@ const debouncedUserSearch = debounce(async (searchQuery, userItemsContainer) => 
         revealUserList();
     }
 }, 300);
+
+// Currently selected role in the user-search role filter ('' = all roles).
+// Standard roles use keys like 'admin'; custom roles use 'custom:<id>'.
+let userRoleFilter = '';
+
+// Opens/closes the role filter dropdown and refreshes its custom role list
+function toggleUserRoleFilterBox() {
+    toggleFilterBox('userRoleFilterPanel');
+    populateUserRoleFilterCustomItems();
+}
+
+// Fills the dropdown with the current (non-archived) custom roles, reusing the shared roles cache
+async function populateUserRoleFilterCustomItems() {
+    const container = document.getElementById('userRoleFilterCustomItems');
+    if (!container) return;
+
+    try {
+        const roles = await getCustomRolesList();
+        container.innerHTML = roles.map(r => {
+            const value = `custom:${r.id}`;
+            const dotHex = CUSTOM_ROLE_COLOR_HEX[r.color] || CUSTOM_ROLE_COLOR_HEX.purple;
+            return `
+                <div class="filter-box-item${userRoleFilter === value ? ' active' : ''}"
+                     data-value="${value}"
+                     onclick="applyUserRoleFilter('${value}', '${escapeQuotes(r.name)}')">
+                    <span class="custom-role-option-label">
+                        <span class="custom-role-dot" style="background: ${dotHex};"></span>
+                        ${escapeHtml(r.name)}
+                    </span>
+                </div>`;
+        }).join('');
+    } catch (e) {
+        console.error('Error loading custom roles for filter:', e);
+        container.innerHTML = '<div class="filter-box-flyout-loading">Failed to load custom roles</div>';
+    }
+}
+
+// Selection handler for the role filter dropdown
+function applyUserRoleFilter(value, label) {
+    closeAllFilterPanels();
+
+    userRoleFilter = value;
+    document.getElementById('userRoleFilterLabel').textContent = label;
+    document.querySelectorAll('#userRoleFilterPanel .filter-box-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === value);
+    });
+
+    filterUsers();
+}
 
 // Render full user list on admin panel (left side list)
 function renderUserItems(users) {
@@ -725,23 +776,29 @@ async function openCustomRoleModal() {
     await loadCustomRolesList(isRemoving);
 }
 
+
+async function getCustomRolesList() {
+    if (!EventState.customRolesListCache) {
+        const response = await fetch('/api/admin/custom-roles');
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Failed to load custom roles');
+        EventState.customRolesListCache = data.roles;
+    }
+    return EventState.customRolesListCache;
+}
+
 // Fetches (and caches on EventState) the list of existing, non-archived custom roles,
 // so previously-created roles can be reused instead of retyped/duplicated. Roles the
 // current user already has are highlighted with a checkmark; when removing, the list
 // is scoped down to only the roles they actually have.
+// Fetches (and caches on EventState) the list of existing, non-archived custom roles.
+// Shared by the Custom Role modal and the user-search role filter.
 async function loadCustomRolesList(isRemoving) {
     const list = document.getElementById('customRoleExistingList');
     if (!list) return;
 
     try {
-        if (!EventState.customRolesListCache) {
-            const response = await fetch('/api/admin/custom-roles');
-            const data = await response.json();
-            if (!data.success) throw new Error(data.message || 'Failed to load custom roles');
-            EventState.customRolesListCache = data.roles;
-        }
-
-        let roles = EventState.customRolesListCache;
+        let roles = await getCustomRolesList();
 
         if (isRemoving) {
             roles = roles.filter(r => currentUserCustomRoleNames.includes(r.name));
@@ -1288,6 +1345,8 @@ function renderLandingGalleryAdminGrid() {
 // ============================================
 window.initializeAdminPanel = initializeAdminPanel;
 window.filterUsers = filterUsers;
+window.toggleUserRoleFilterBox = toggleUserRoleFilterBox;
+window.applyUserRoleFilter = applyUserRoleFilter;
 window.closeRemoveUserModal = closeRemoveUserModal;
 window.openManageLandingGalleryModal  = openManageLandingGalleryModal;
 window.closeManageLandingGalleryModal = closeManageLandingGalleryModal;

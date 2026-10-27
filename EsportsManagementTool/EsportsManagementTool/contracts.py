@@ -722,7 +722,7 @@ JERSEY_INTEREST_V1 = {
             'Since we are transitioning to new jersey designs and would like all players to receive '
             'the new design, if you are requesting your first jersey with our new design, treat it '
             'as if it were your first jersey request.',
-            'For any questions, comments, or concerns please contact @Mythirby on Discord.',
+            'For any questions, comments, or concerns please reach out on Discord.',
         ], level='sub'),
 
         _section('Player Information', [
@@ -846,7 +846,7 @@ LEADERSHIP_JACKET_INTEREST_V1 = {
             'guarantee a replacement, we will review each request individually.',
         ], level='sub'),
         _section('Questions', [
-            'For any questions, comments, or concerns, please contact @Mythirby or @fireleads_ on '
+            'For any questions, comments, or concerns, please reach out on Discord '
             'Discord.',
         ], level='sub'),
 
