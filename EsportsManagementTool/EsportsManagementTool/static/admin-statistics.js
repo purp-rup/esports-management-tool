@@ -25,6 +25,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set up floating game tabs pan arrows
     initStatsFloatingTabs();
 
+    // Keep sticky table headers just below the site navbar
+    syncStickyTableOffset();
+    window.addEventListener('resize', syncStickyTableOffset);
+
     // Populate Notable Performances cards
     notableCarousel.init(window.statisticsData && window.statisticsData.notable_performances);
 
@@ -43,6 +47,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+/**
+ * The site navbar (base.html) is sticky at the top of the page, so sticky
+ * table headers must sit below it or they'd slide underneath. Measure it
+ * and publish the height as a CSS variable used by .game-stats-table thead th.
+ */
+function syncStickyTableOffset() {
+    const navbar = document.querySelector('.navbar');
+    const height = navbar ? Math.ceil(navbar.getBoundingClientRect().height) : 0;
+    document.documentElement.style.setProperty('--site-navbar-height', `${height}px`);
+}
 
 // ============================================
 // VIEW STATE & NAVIGATION
@@ -257,7 +272,6 @@ function showGameView(gameId, gameTitle, gameIconUrl) {
             document.getElementById('gameStatsLoading').style.display = 'none';
             document.getElementById('gameStatsTableWrap').style.display = '';
             document.getElementById('gameStatsCardsWrap').style.display = '';
-            renderGameStatsTable(getMockGameStats()); // TEMP fallback until backend returns real match data
         });
 }
 
@@ -1082,7 +1096,7 @@ function setCommunityGameTrendsDuration(duration, el) {
  * grouped into collapsible season sections. Shared by renderGameStatsTable() and renderCommunityGameEventsList()
  */
 function renderSeasonGroupedList({ items, tbody, cardsWrap, toggleFn, getSeasonName, getConference = null, seasonCardExtra = null, columnCount = 6, buildRow, buildCard }) {
-    const blockClasses = ['game-team-block-a', 'game-team-block-b', 'game-team-block-c'];
+    const blockClasses = ['game-team-block-a', 'game-team-block-b'];
     let previousConference = null;
     let previousSeason; // stays undefined for season-filtered views (no season_name sent)
     let seasonIndex = -1;

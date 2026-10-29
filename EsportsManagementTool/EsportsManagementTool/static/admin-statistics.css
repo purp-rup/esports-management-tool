@@ -804,6 +804,9 @@ main {
     border: 2px solid var(--border-color);
     border-radius: 12px;
     overflow: hidden;
+    /* clip keeps the rounded corners but, unlike hidden, doesn't create a
+       scroll container, so the sticky header below can stick to the page */
+    overflow: clip;
     background: var(--dark-bg);
 }
 
@@ -814,12 +817,20 @@ main {
 
 .game-stats-table thead th {
     background: var(--stockton-blue);
-    color: #fff;
-    font-weight: 700;
+    color: #000;
+    font-weight: 550;
     text-align: center;
     padding: 0.75rem 1rem;
     font-size: 0.9rem;
     border-bottom: 2px solid var(--border-color);
+    /* Keep column headers visible while scrolling the page, just below the
+       site navbar (--site-navbar-height is set in admin-statistics.js) */
+    position: sticky;
+    top: var(--site-navbar-height, 0px);
+    z-index: 2;
+    /* With border-collapse, borders don't travel with sticky cells,
+       so an inset shadow redraws the bottom border while stuck */
+    box-shadow: inset 0 -2px 0 var(--border-color);
 }
 
 .game-stats-table tbody td {
@@ -840,10 +851,9 @@ main {
     max-width: 260px;
 }
 
-/* Alternating team blocks — swap the three colors below for whatever fits your palette */
+/* Alternating team blocks — two-tone: muted blue / muted black */
 .game-team-block-a td { background: rgba(121, 189, 233, 0.10); }
-.game-team-block-b td { background: rgba(56, 239, 125, 0.08); }
-.game-team-block-c td { background: rgba(255, 152, 0, 0.08); }
+.game-team-block-b td { background: rgba(0, 0, 0, 0.10); }
 
 .game-stats-team-name {
     font-weight: 700;
@@ -936,9 +946,9 @@ main {
 .game-stats-table tbody tr.game-stats-season-header td {
     text-align: center;
     font-size: 1.1rem;
-    font-weight: 800;
+    font-weight: 650;
     letter-spacing: 0.02em;
-    color: #fff;
+    color: #000;
     background: var(--stockton-blue);
     padding: 0.6rem 1rem;
     border-bottom: 2px solid var(--border-color);
@@ -1005,8 +1015,7 @@ main {
 }
 
 .game-stats-card.game-team-block-a { background: rgba(121, 189, 233, 0.10); }
-.game-stats-card.game-team-block-b { background: rgba(56, 239, 125, 0.08); }
-.game-stats-card.game-team-block-c { background: rgba(255, 152, 0, 0.08); }
+.game-stats-card.game-team-block-b { background: rgba(0, 0, 0, 0.10); }
 
 .game-stats-card-header {
     display: flex;

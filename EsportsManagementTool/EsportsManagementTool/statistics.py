@@ -1714,7 +1714,7 @@ def register_statistics_routes(app, mysql, login_required, roles_required):
         }), 200
 
 
-    @app.route('/api/admin/statistics/game/<int:game_id>/community')
+    @app.route('/api/admin/statistics/game/<int:game_id>')
     @login_required
     @roles_required('admin', 'developer')
     def api_game_statistics(game_id):
