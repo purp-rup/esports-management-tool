@@ -3,12 +3,9 @@ Contracts / program forms.
 
 Backend for everything contract-related:
   - which contracts a user can access (and which they've completed)
-  - the form definitions (single source of truth for the modal, the
-    server-side validation, and the read-only view of a signed form)
-  - submitting a contract
-
-Submissions live in contract_submissions (see contracts.sql); the answers
-that vary by form are stored as JSON in its `responses` column.
+  - the form definitions: the single source of truth for the modal (contracts.js),
+    the server-side validation, and the read-only view of a signed form
+  - saving a submitted contract
 """
 import json
 import re
@@ -28,6 +25,7 @@ Z_NUMBER_PATTERN = r'[Zz]\d{6,10}'
 # Loose email check for the Parent Email field
 EMAIL_PATTERN = r'[^@\s]+@[^@\s]+\.[^@\s]+'
 
+
 def today_est():
     return datetime.now(EST).date()
 
@@ -37,10 +35,10 @@ def today_est():
 # =====================================
 # Every contract/form in the system, in the order they appear in the flyout.
 # 'audience' controls who can see it (resolved in get_contract_access):
-#   everyone   - any logged-in user
-#   player     - users assigned to a team in the active season
-#   leadership - admins / GMs (incl. custom roles), once the active season has started
-#   any_role   - anyone who qualifies as player OR leadership (so users with no role are excluded)
+#   everyone         - any logged-in user
+#   player           - users assigned to a team in the active season
+#   leadership       - admins / GMs (incl. custom roles), once the active season has started
+#   any_role         - anyone who qualifies as player OR leadership (so users with no role are excluded)
 #   everyone_started - any logged-in user, once the active season has started
 # An entry with a 'link' is not a form: picking it opens that site and counts as completed.
 CONTRACT_TYPES = [
@@ -54,6 +52,7 @@ CONTRACT_TYPES = [
 ]
 CONTRACT_LABELS = {c['key']: c['label'] for c in CONTRACT_TYPES}
 CONTRACT_LINKS = {c['key']: c['link'] for c in CONTRACT_TYPES if c.get('link')}
+CONTRACT_AUDIENCES = {c['key']: c['audience'] for c in CONTRACT_TYPES}
 
 # Contracts that trigger the dashboard reminder card while they're unfilled.
 # (Jersey Interest and Leadership Jacket Interest are optional, so no reminder.)
@@ -62,20 +61,34 @@ CONTRACT_REMINDER_KEYS = {'qualtrics', 'leadership_agreement', 'player_agreement
 # Player-focused forms tracked by the roster completion indicator.
 # (Jersey Interest is optional, so it isn't counted.)
 PLAYER_FORM_KEYS = ('qualtrics', 'player_agreement', 'media_agreement')
-CONTRACT_AUDIENCES = {c['key']: c['audience'] for c in CONTRACT_TYPES}
+
 
 # =====================================
 # FORM DEFINITIONS
 # =====================================
-# A form is a list of blocks, rendered top to bottom:
+# A form is a dict: version, title ('{season}' is filled with the active season's
+# name), subtitle, blocks, and optionally requires_signature=False (a form with
+# nothing to sign: "Submit" instead of "Sign & Submit").
+#
+# Blocks render top to bottom:
 #   section - read-only text (heading, paragraphs, bullet items; level='sub' for a sub-heading)
 #   field   - something the user fills in. kind is one of:
 #       text            single-line text (readonly + prefill pulls a value from the account)
 #       radio           pick one (allow_other adds an "Other:" write-in)
 #       checkbox_group  pick any number
 #       acknowledge     a single required "I agree" checkbox (title/description/items above it)
-#       signature       typed full legal name (stored in the signed_name column too)
+#       signature       typed full legal name (stored in the signed_name column too,
+#                       unless secondary=True, e.g. a parent's signature)
 #       date_auto       signature date, set by the server (never typed)
+#
+# Field options (all optional): required, max_length (default 200), pattern +
+# pattern_message, uppercase, help (hint text: above a signature input, below others), options (radio /
+# checkbox_group), options_from (fill options from OPTION_SOURCES, e.g. 'games'),
+# allow_other (radio), readonly + prefill (value comes from the account, never
+# the client).
+# Any block can take show_if=_when(field, answer): it only appears (and is only
+# validated) while that radio question has that answer.
+#
 # To change a form's wording or fields after people have signed it, add a
 # new version to FORMS - signed records keep rendering with the version they signed.
 
@@ -92,6 +105,39 @@ def _field(key, kind, label='', **opts):
 
 def _ack(key, title, description, statement):
     return _field(key, 'acknowledge', statement, title=title, description=[description], required=True)
+
+
+def _when(field, equals):
+    """A show_if condition: show a block only while radio `field` is answered `equals`."""
+    return {'field': field, 'equals': equals}
+
+
+# Fields several forms share, defined once so wording and rules never drift apart
+SIGNATURE_HELP = 'Typing your full legal name serves as your electronic signature.'
+
+
+def _email_field():
+    return _field('email', 'text', 'Email', required=True, readonly=True, prefill='email')
+
+
+def _full_name_field(label='Full Name'):
+    return _field('full_name', 'text', label, required=True, prefill='full_name')
+
+
+def _z_number_field():
+    return _field('z_number', 'text', 'Z Number', required=True, uppercase=True, max_length=20,
+                  pattern=Z_NUMBER_PATTERN,
+                  pattern_message='Enter your Z number: a Z followed by digits (e.g., Z00123456).',
+                  help='A Z followed by your digits (e.g., Z00123456).')
+
+
+def _signature_field(label, key='signature', help=SIGNATURE_HELP, **opts):
+    return _field(key, 'signature', label, required=True, max_length=150, help=help, **opts)
+
+
+def _signed_date_field(label='Date of Signature', key='signed_date', **opts):
+    return _field(key, 'date_auto', label, required=True, **opts)
+
 
 LEADERSHIP_AGREEMENT_V1 = {
     'version': 1,
@@ -116,12 +162,9 @@ LEADERSHIP_AGREEMENT_V1 = {
             'Please provide your information and the leadership role or area in which you are '
             'serving within Stockton Esports.',
         ], step_label='Leader Information', icon='fa-user'),
-        _field('email', 'text', 'Email', required=True, readonly=True, prefill='email'),
-        _field('full_name', 'text', 'Full Name', required=True, prefill='full_name'),
-        _field('z_number', 'text', 'Z Number', required=True, uppercase=True, max_length=20,
-               pattern=Z_NUMBER_PATTERN,
-               pattern_message='Enter your Z number: a Z followed by digits (e.g., Z00123456).',
-               help='A Z followed by your digits (e.g., Z00123456).'),
+        _email_field(),
+        _full_name_field(),
+        _z_number_field(),
         _field('department', 'radio', 'Department / Leadership Area', required=True, allow_other=True,
                options=['Senior Leadership', 'Game Management', 'Social Media', 'Production', 'Community']),
         _field('positions', 'checkbox_group', 'Leadership Position(s)', required=False,
@@ -234,10 +277,8 @@ LEADERSHIP_AGREEMENT_V1 = {
                    'University policies and procedures.',
                    'I confirm that the information provided in this form is accurate and complete.',
                ]),
-        _field('signature', 'signature', 'Digital Signature (Type Full Name)', required=True,
-               max_length=150,
-               help='Typing your full legal name serves as your electronic signature.'),
-        _field('signed_date', 'date_auto', 'Date of Signature', required=True),
+        _signature_field('Signature', help='Type full name'),
+        _signed_date_field(),
     ],
 }
 
@@ -262,14 +303,12 @@ PLAYER_AGREEMENT_V1 = {
             'information will be used to identify your Stockton Esports participation and '
             'maintain program records.',
         ], step_label='Participant Information', icon='fa-user'),
-        _field('email', 'text', 'Email', required=True, readonly=True, prefill='email'),
-        _field('full_name', 'text', 'Full Name', required=True, prefill='full_name'),
-        _field('z_number', 'text', 'Z Number', required=True, uppercase=True, max_length=20,
-               pattern=Z_NUMBER_PATTERN,
-               pattern_message='Enter your Z number: a Z followed by digits (e.g., Z00123456).',
-               help='A Z followed by your digits (e.g., Z00123456).'),
-        _field('gamertag', 'text', 'Preferred Name / Gamertag', required=True, max_length=50),
-        _field('games', 'checkbox_group', 'Game Title(s) (select all games you will be competing for)', required=True,
+        _email_field(),
+        _full_name_field(),
+        _z_number_field(),
+        _field('gamertag', 'text', 'In Game Name', required=True, max_length=50),
+        _field('games', 'checkbox_group', 'Game Title(s)', required=True,
+               help='Select all games you will be competing for.',
                options_from='games'),
 
         _section('Player Participation Agreement', [
@@ -499,16 +538,14 @@ PLAYER_AGREEMENT_V1 = {
                    'the additional expectations outlined in the Stockton Esports Leadership '
                    'Agreement.',
                ]),
-        _field('signature', 'signature', 'Digital Signature (Full Legal Name)', required=True,
-               max_length=150,
-               help='Typing your full legal name serves as your electronic signature.'),
-        _field('signed_date', 'date_auto', 'Date of Signature', required=True),
+        _signature_field('Signature', help='Full Legal Name'),
+        _signed_date_field(),
     ],
 }
 
 # Answer that reveals the parent/guardian section of the media agreement
 MEDIA_MINOR_ANSWER = 'I am under 18 and have obtained parental/guardian consent'
-IF_MINOR = {'field': 'age_confirmation', 'equals': MEDIA_MINOR_ANSWER}
+IF_MINOR = _when('age_confirmation', MEDIA_MINOR_ANSWER)
 
 MEDIA_AGREEMENT_V1 = {
     'version': 1,
@@ -548,17 +585,15 @@ MEDIA_AGREEMENT_V1 = {
         _section('Participant Information', [
             'Please provide your information as it appears in Stockton University records.',
         ], step_label='Participant Information', icon='fa-user'),
-        _field('email', 'text', 'Email', required=True, readonly=True, prefill='email'),
-        _field('full_name', 'text', 'Full Name', required=True, prefill='full_name'),
-        _field('z_number', 'text', 'Z Number', required=True, uppercase=True, max_length=20,
-               pattern=Z_NUMBER_PATTERN,
-               pattern_message='Enter your Z number: a Z followed by digits (e.g., Z00123456).',
-               help='A Z followed by your digits (e.g., Z00123456).'),
-        _field('gamertag', 'text', 'Preferred Name / Gamertag', required=True, max_length=50,
+        _email_field(),
+        _full_name_field(),
+        _z_number_field(),
+        _field('gamertag', 'text', 'In Game Name', required=True, max_length=50,
                help='Please enter the name or gamertag you commonly use when participating in '
                     'Stockton Esports.'),
         _field('games', 'checkbox_group',
-               'Game / Team (select all you are currently participating in)', required=True,
+               'Game Title(s)', required=True,
+               help='Select all you are currently participating in.',
                options_from='games'),
         _field('role', 'radio', 'Participant Role', required=True, allow_other=True,
                options=['Student Leader', 'Player', 'Student Leader & Player']),
@@ -575,8 +610,9 @@ MEDIA_AGREEMENT_V1 = {
                description=['By selecting the option below, you confirm that you have read and '
                             'understand the Media Agreement & Release above and voluntarily '
                             'provide the permissions described in that agreement.']),
-        _field('age_confirmation', 'radio', 'Age Confirmation: Are you 18 years of age or older?',
+        _field('age_confirmation', 'radio', 'Age Confirmation',
                required=True,
+               help='Are you 18 years of age or older?',
                options=['I am 18 years of age or older', MEDIA_MINOR_ANSWER]),
 
         _section('Parent / Guardian Consent (Under 18 Only)', [
@@ -585,11 +621,11 @@ MEDIA_AGREEMENT_V1 = {
             'that they have reviewed and consent to the Stockton Esports Media Agreement & '
             'Release on behalf of the participant.',
         ], level='sub', show_if=IF_MINOR),
-        _field('parent_name', 'text', 'Parent / Guardian Full Name', required=True,
+        _field('parent_name', 'text', 'Parent / Guardian Name', required=True,
                max_length=150, show_if=IF_MINOR),
         _field('parent_relationship', 'radio', 'Relationship to Participant', required=True,
                allow_other=True, options=['Parent', 'Legal Guardian'], show_if=IF_MINOR),
-        _field('parent_email', 'text', 'Parent / Guardian Email Address', required=True,
+        _field('parent_email', 'text', 'Parent / Guardian Email', required=True,
                max_length=150, pattern=EMAIL_PATTERN,
                pattern_message='Enter a valid email address.',
                help='Please provide an email address where the parent or legal guardian may be '
@@ -607,11 +643,10 @@ MEDIA_AGREEMENT_V1 = {
                    "to capture and use the participant's likeness, voice, username/gamertag, "
                    'gameplay, and participation as described in the agreement.',
                ]),
-        _field('parent_signature', 'signature', 'Parent / Guardian Electronic Signature',
-               required=True, max_length=150, secondary=True, show_if=IF_MINOR,
-               help='Typing your full legal name serves as your electronic signature.'),
-        _field('parent_signed_date', 'date_auto', 'Parent / Guardian Date of Signature',
-               required=True, show_if=IF_MINOR),
+        _signature_field('Parent / Guardian Signature', key='parent_signature',
+                         secondary=True, show_if=IF_MINOR),
+        _signed_date_field('Parent / Guardian Date of Signature', key='parent_signed_date',
+                           show_if=IF_MINOR),
 
         _section('Media Visibility & Identification Preferences', [
             'These preferences help Stockton Esports understand how you would like your name, '
@@ -664,10 +699,8 @@ MEDIA_AGREEMENT_V1 = {
                    'I understand that this agreement applies to my participation in Stockton '
                    'Esports.',
                ]),
-        _field('signature', 'signature', 'Digital Signature (Full Legal Name)', required=True,
-               max_length=150,
-               help='Typing your full legal name serves as your electronic signature.'),
-        _field('signed_date', 'date_auto', 'Date of Signature', required=True),
+        _signature_field('Signature', help='Full Legal Name'),
+        _signed_date_field(),
     ],
 }
 
@@ -675,9 +708,9 @@ MEDIA_AGREEMENT_V1 = {
 JERSEY_FIRST = 'Esports Jersey Request (First Time Jersey)'
 JERSEY_SECOND = 'Esports Jersey Renewal (Second Jersey)'
 JERSEY_THIRD = 'Esports Jersey Review (Third Jersey Request & Review)'
-IF_FIRST_JERSEY = {'field': 'request_type', 'equals': JERSEY_FIRST}
-IF_SECOND_JERSEY = {'field': 'request_type', 'equals': JERSEY_SECOND}
-IF_THIRD_JERSEY = {'field': 'request_type', 'equals': JERSEY_THIRD}
+IF_FIRST_JERSEY = _when('request_type', JERSEY_FIRST)
+IF_SECOND_JERSEY = _when('request_type', JERSEY_SECOND)
+IF_THIRD_JERSEY = _when('request_type', JERSEY_THIRD)
 
 # "Fall 2025 and Spring 2026" (any case)
 JERSEY_SEMESTERS_PATTERN = r'(?i)(fall|spring) 20\d{2} and (fall|spring) 20\d{2}'
@@ -728,13 +761,13 @@ JERSEY_INTEREST_V1 = {
         _section('Player Information', [
             'Please provide your contact information and main competitive game.',
         ], step_label='Your Information', icon='fa-user'),
-        _field('email', 'text', 'Email', required=True, readonly=True, prefill='email'),
-        _field('full_name', 'text', 'Full Name', required=True, prefill='full_name'),
+        _email_field(),
+        _full_name_field(),
         _field('discord', 'text', 'Discord Contact', required=True, max_length=50,
                help='Please input your Discord username in case we need to reach out regarding '
                     'anything Jersey-related.'),
-        _field('main_game', 'radio', 'What is your main competitive game at Stockton (only one)?',
-               required=True, options_from='games'),
+        _field('main_game', 'radio', 'Main Competitive Title',
+               required=True, help='Choose only one.', options_from='games'),
 
         _section('Jersey Details', [
             "Please only continue if you've played two competitive seasons at Stockton.",
@@ -761,20 +794,20 @@ JERSEY_INTEREST_V1 = {
             'only fill this out if this will be at least your second semester competing for '
             'Stockton Esports.',
         ], level='sub', show_if=IF_FIRST_JERSEY),
-        _field('semesters_played', 'text', 'Confirm the two semesters you played', required=True,
+        _field('semesters_played', 'text', 'Semesters', required=True,
                max_length=60, pattern=JERSEY_SEMESTERS_PATTERN,
                pattern_message='Use the format "Fall 2025 and Spring 2026" (Fall/Spring 20XX and '
                                'Fall/Spring 20XX).',
-               help='Format: Fall/Spring 20XX and Fall/Spring 20XX (for example, Fall 2025 and '
-                    'Spring 2026). Please follow this format exactly; it makes data collection '
-                    'easier and ensures we do not miss your response.',
+               help='Confirm the two semesters you played. Format: Fall/Spring 20XX and '
+                    'Fall/Spring 20XX (for example, Fall 2025 and Spring 2026). Please follow '
+                    'this format exactly.',
                show_if=IF_FIRST_JERSEY),
 
         _section('Esports Jersey Renewal', [
             'Use this section of the form only if you have received a jersey before and are '
             'requesting a second one for any reason we have suggested is acceptable. Thank you!',
         ], level='sub', show_if=IF_SECOND_JERSEY),
-        _field('second_jersey_reason', 'text', 'Reason for Second Jersey', required=True,
+        _field('second_jersey_reason', 'text', 'Second Jersey Reason', required=True,
                max_length=500,
                help='Please provide the reasoning you would like a second jersey (jersey does not '
                     'fit anymore, IGN change, worn out, etc.)',
@@ -799,7 +832,7 @@ JERSEY_INTEREST_V1 = {
             'fulfill the request, but will be open to hearing the reasoning for the request and '
             'for a potential renewal of a third jersey.',
         ], level='sub', show_if=IF_THIRD_JERSEY),
-        _field('third_jersey_reason', 'text', 'Reason for Third Esports Jersey', required=True,
+        _field('third_jersey_reason', 'text', 'Third Jersey Reason', required=True,
                max_length=500, show_if=IF_THIRD_JERSEY),
         _field('ack_third_jersey', 'acknowledge',
                'I acknowledge this is my third jersey and it will most likely not be provided '
@@ -812,8 +845,8 @@ JERSEY_INTEREST_V1 = {
 # Request-type answers that reveal each branch of the jacket form
 JACKET_FIRST = 'Leadership Jacket Request (First Time Jacket)'
 JACKET_RENEWAL = 'Leadership Jacket Renewal (Second/Replacement Jacket)'
-IF_FIRST_JACKET = {'field': 'request_type', 'equals': JACKET_FIRST}
-IF_RENEWAL_JACKET = {'field': 'request_type', 'equals': JACKET_RENEWAL}
+IF_FIRST_JACKET = _when('request_type', JACKET_FIRST)
+IF_RENEWAL_JACKET = _when('request_type', JACKET_RENEWAL)
 
 LEADERSHIP_JACKET_INTEREST_V1 = {
     'version': 1,
@@ -846,17 +879,15 @@ LEADERSHIP_JACKET_INTEREST_V1 = {
             'guarantee a replacement, we will review each request individually.',
         ], level='sub'),
         _section('Questions', [
-            'For any questions, comments, or concerns, please reach out on Discord '
-            'Discord.',
+            'For any questions, comments, or concerns, please reach out on Discord.',
         ], level='sub'),
 
         _section('Leader Information', [
             'Please provide your name and your role within Stockton Esports.',
         ], step_label='Your Information', icon='fa-user'),
-        _field('email', 'text', 'Email', required=True, readonly=True, prefill='email'),
-        _field('full_name', 'text', 'Full Name (First and Last)', required=True,
-               prefill='full_name'),
-        _field('role', 'radio', 'What is your role within Stockton Esports?', required=True,
+        _email_field(),
+        _full_name_field(),
+        _field('role', 'radio', 'Role in Stockton Esports', required=True,
                options=['Student Leader', 'Faculty/Staff (ESPM)']),
 
         _section('Jacket Sizing', [
@@ -888,7 +919,7 @@ LEADERSHIP_JACKET_INTEREST_V1 = {
             'accept the justification, we still need to prioritize those receiving their first '
             'jacket. Thank you.',
         ], level='sub', show_if=IF_RENEWAL_JACKET),
-        _field('renewal_reason', 'text', 'Reason for Second Jacket', required=True,
+        _field('renewal_reason', 'text', 'Second Jacket Reason', required=True,
                max_length=500,
                help='Please provide the reasoning you would like a second jacket (jacket does not '
                     'fit anymore, lost it, stolen, worn out, etc.). As stated above, we cannot '
@@ -950,12 +981,12 @@ def get_form(contract_key, version=None):
         return with_steps(versions[version])
     return with_steps(versions[max(versions)])
 
+
 def get_season_name(cursor, season_id):
     """The display name of a season ('' if it has none)."""
     cursor.execute("SELECT season_name FROM seasons WHERE season_id = %s", (season_id,))
     row = cursor.fetchone() or {}
     return (row.get('season_name') or '').strip()
-
 
 
 def apply_season_name(form, season_name):
@@ -986,10 +1017,12 @@ def get_available_games(cursor, season_id):
     return [row['GameTitle'] for row in cursor.fetchall()]
 
 
-# options_from value -> function(cursor, season_id) returning the option labels
+# options_from value -> function(cursor, season_id) returning the option labels.
+# (get_available_games ignores season_id; the parameter keeps every source callable the same way.)
 OPTION_SOURCES = {
     'games': get_available_games,
 }
+
 
 def fill_dynamic_options(form, cursor, season_id, keep=None):
     """
@@ -1014,7 +1047,6 @@ def fill_dynamic_options(form, cursor, season_id, keep=None):
             block = {**block, 'options': options}
         blocks.append(block)
     return {**form, 'blocks': blocks}
-
 
 
 # =====================================
@@ -1056,11 +1088,12 @@ def validate_responses(form, data, prefill):
             else:
                 value = raw.strip() if isinstance(raw, str) else ''
 
+            max_length = block.get('max_length', 200)
             if required and not value:
                 errors[key] = 'This field is required.'
                 continue
-            if len(value) > block.get('max_length', 200):
-                errors[key] = f"Must be {block.get('max_length', 200)} characters or fewer."
+            if len(value) > max_length:
+                errors[key] = f"Must be {max_length} characters or fewer."
                 continue
             pattern = block.get('pattern')
             if value and pattern and not re.fullmatch(pattern, value):
@@ -1119,41 +1152,40 @@ def validate_responses(form, data, prefill):
 # =====================================
 # ACCESS + COMPLETION
 # =====================================
+def _placeholders(values):
+    """'%s, %s, ...' for an IN (...) list."""
+    return ', '.join(['%s'] * len(values))
+
+
 def get_contract_access(cursor, user_id: int):
     """
     Returns (season_id, accessible_keys) for the active season: the contract
-    keys this user may currently fill out.
+    keys this user may currently fill out. season_id is None when no season is active.
     """
-    # Seasons are flagged is_active as soon as they're created, which can be
-    # before their start_date, so "has begun" is checked separately.
-    cursor.execute("SELECT season_id, start_date FROM seasons WHERE is_active = 1 LIMIT 1")
-    active_season = cursor.fetchone()
-    season_id = active_season['season_id'] if active_season else None
-    season_started = bool(active_season) and active_season['start_date'] <= today_est()
+    # One query for the season plus this user's standing in it. Seasons are flagged
+    # is_active as soon as they're created, which can be before their start_date,
+    # so "has begun" is checked separately below.
+    cursor.execute("""
+        SELECT s.season_id, s.start_date,
+               EXISTS (SELECT 1
+                       FROM team_members tm
+                       JOIN teams t ON tm.team_id = t.TeamID
+                       WHERE tm.user_id = %s AND t.season_id = s.season_id) AS on_team,
+               EXISTS (SELECT 1
+                       FROM season_roles sr
+                       WHERE sr.userid = %s AND sr.season_id = s.season_id
+                         AND (sr.is_admin = 1 OR sr.is_gm = 1)) AS has_leadership_role
+        FROM seasons s
+        WHERE s.is_active = 1
+        LIMIT 1
+    """, (user_id, user_id))
+    season = cursor.fetchone()
 
-    on_team = False
-    is_leadership = False
-
-    if season_id:
-        # Player-focused contracts: assigned to at least one team this season
-        cursor.execute("""
-            SELECT 1
-            FROM team_members tm
-            JOIN teams t ON tm.team_id = t.TeamID
-            WHERE tm.user_id = %s AND t.season_id = %s
-            LIMIT 1
-        """, (user_id, season_id))
-        on_team = cursor.fetchone() is not None
-
-    if season_started:
-        # Leadership contracts: admin or GM (custom roles are stored as is_gm = 1)
-        cursor.execute("""
-            SELECT 1
-            FROM season_roles
-            WHERE userid = %s AND season_id = %s AND (is_admin = 1 OR is_gm = 1)
-            LIMIT 1
-        """, (user_id, season_id))
-        is_leadership = cursor.fetchone() is not None
+    season_id = season['season_id'] if season else None
+    season_started = bool(season) and season['start_date'] <= today_est()
+    on_team = bool(season) and bool(season['on_team'])               # player contracts: on a team this season
+    # Leadership contracts: admin or GM (custom roles are stored as is_gm = 1)
+    is_leadership = season_started and bool(season['has_leadership_role'])
 
     audience_access = {
         'everyone': True,
@@ -1166,21 +1198,38 @@ def get_contract_access(cursor, user_id: int):
     return season_id, accessible
 
 
+def get_completed_keys(cursor, user_ids, season_id, keys=None):
+    """
+    {user_id: {contract_key, ...}} for the contracts these users have completed in a
+    season ('completed' = a submission exists), optionally limited to `keys`.
+    """
+    sql = f"""
+        SELECT user_id, contract_key
+        FROM contract_submissions
+        WHERE season_id = %s AND user_id IN ({_placeholders(user_ids)})
+    """
+    params = [season_id, *user_ids]
+    if keys is not None:
+        sql += f" AND contract_key IN ({_placeholders(keys)})"
+        params += keys
+
+    cursor.execute(sql, params)
+    completed = {}
+    for row in cursor.fetchall():
+        completed.setdefault(row['user_id'], set()).add(row['contract_key'])
+    return completed
+
+
 def get_available_contracts(cursor, user_id: int) -> list[dict]:
     """
-    Contracts the user can access, as [{'key', 'label', 'completed'}, ...]
-    in display order. 'completed' = a submission exists for the active season.
+    Contracts the user can access, as [{'key', 'label', 'completed', 'link'}, ...]
+    in display order.
     """
     season_id, accessible = get_contract_access(cursor, user_id)
 
     completed = set()
     if season_id and accessible:
-        cursor.execute("""
-            SELECT contract_key
-            FROM contract_submissions
-            WHERE user_id = %s AND season_id = %s
-        """, (user_id, season_id))
-        completed = {row['contract_key'] for row in cursor.fetchall()}
+        completed = get_completed_keys(cursor, [user_id], season_id).get(user_id, set())
 
     return [
         {'key': key, 'label': CONTRACT_LABELS[key], 'completed': key in completed,
@@ -1202,20 +1251,7 @@ def get_player_form_status(cursor, user_ids, season_id, season_started=True):
 
     keys = [k for k in PLAYER_FORM_KEYS
             if season_started or CONTRACT_AUDIENCES[k] != 'everyone_started']
-
-    user_placeholders = ', '.join(['%s'] * len(user_ids))
-    key_placeholders = ', '.join(['%s'] * len(keys))
-    cursor.execute(f"""
-        SELECT user_id, contract_key
-        FROM contract_submissions
-        WHERE season_id = %s
-          AND user_id IN ({user_placeholders})
-          AND contract_key IN ({key_placeholders})
-    """, (season_id, *user_ids, *keys))
-
-    completed = {}
-    for row in cursor.fetchall():
-        completed.setdefault(row['user_id'], set()).add(row['contract_key'])
+    completed = get_completed_keys(cursor, user_ids, season_id, keys)
 
     status = {}
     for user_id in user_ids:
@@ -1261,17 +1297,47 @@ def format_display_date(value):
 # =====================================
 # ROUTES
 # =====================================
+FORM_UNAVAILABLE = "This form isn't available yet."
+ALREADY_SUBMITTED = 'You have already submitted this form this season.'
+
+
+def _fail(message, status, **extra):
+    """A JSON error in the shape contracts.js expects: {success: False, message, ...}."""
+    return jsonify({'success': False, 'message': message, **extra}), status
+
+
+def _not_available(noun='form'):
+    return _fail(f'This {noun} is not available to you right now.', 403)
+
+
+def _field_errors(errors):
+    return _fail('Please fix the highlighted fields.', 400, errors=errors)
+
+
+def _check_access(cursor, contract_key, noun='form'):
+    """
+    Returns (season_id, None) if the current user may fill out this contract right
+    now, otherwise (season_id, <403 response>) for the route to return as-is.
+    """
+    season_id, accessible = get_contract_access(cursor, session['id'])
+    if season_id and contract_key in accessible:
+        return season_id, None
+    return season_id, _not_available(noun)
+
+
 def register_contract_routes(app, mysql, login_required):
     """Register all contract routes. Called from __init__.py."""
+
+    def dict_cursor():
+        return mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     @app.route('/api/contracts/available')
     @login_required
     def api_available_contracts():
         """Contracts the current user can open (feeds the profile flyout)."""
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor = dict_cursor()
         try:
-            contracts = get_available_contracts(cursor, session['id'])
-            return jsonify({'contracts': contracts})
+            return jsonify({'contracts': get_available_contracts(cursor, session['id'])})
         finally:
             cursor.close()
 
@@ -1279,12 +1345,11 @@ def register_contract_routes(app, mysql, login_required):
     @login_required
     def api_contract_reminders():
         """Reminder-worthy contracts the current user still has to fill out (feeds the dashboard card)."""
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor = dict_cursor()
         try:
-            contracts = get_available_contracts(cursor, session['id'])
             pending = [
                 {'key': c['key'], 'label': c['label']}
-                for c in contracts
+                for c in get_available_contracts(cursor, session['id'])
                 if c['key'] in CONTRACT_REMINDER_KEYS and not c['completed']
             ]
             return jsonify({'contracts': pending})
@@ -1302,22 +1367,21 @@ def register_contract_routes(app, mysql, login_required):
         if the user already signed it, their submission (shown read-only).
         """
         if contract_key not in FORMS:
-            return jsonify({'success': False, 'message': "This form isn't available yet."}), 404
+            return _fail(FORM_UNAVAILABLE, 404)
 
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor = dict_cursor()
         try:
             user_id = session['id']
             season_id, accessible = get_contract_access(cursor, user_id)
 
             if not season_id:
-                return jsonify({'success': False, 'message': 'There is no active season.'}), 403
+                return _fail('There is no active season.', 403)
 
             row = fetch_submission(cursor, user_id, season_id, contract_key)
 
             # A signed form can always be viewed by its signer; filling one out needs access
             if not row and contract_key not in accessible:
-                return jsonify({'success': False,
-                                'message': 'This form is not available to you right now.'}), 403
+                return _not_available()
 
             submission = None
             if row:
@@ -1343,7 +1407,7 @@ def register_contract_routes(app, mysql, login_required):
             })
         except Exception as e:
             print(f"Error loading contract form: {str(e)}")
-            return jsonify({'success': False, 'message': 'Failed to load this form.'}), 500
+            return _fail('Failed to load this form.', 500)
         finally:
             cursor.close()
 
@@ -1353,31 +1417,26 @@ def register_contract_routes(app, mysql, login_required):
         """Validate and save a signed contract for the active season."""
         form = get_form(contract_key)
         if not form:
-            return jsonify({'success': False, 'message': "This form isn't available yet."}), 404
+            return _fail(FORM_UNAVAILABLE, 404)
 
         payload = request.get_json(silent=True) or {}
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor = dict_cursor()
 
         try:
             user_id = session['id']
-            season_id, accessible = get_contract_access(cursor, user_id)
-
-            if not season_id or contract_key not in accessible:
-                return jsonify({'success': False,
-                                'message': 'This form is not available to you right now.'}), 403
+            season_id, denied = _check_access(cursor, contract_key)
+            if denied:
+                return denied
 
             if fetch_submission(cursor, user_id, season_id, contract_key):
-                return jsonify({'success': False,
-                                'message': 'You have already submitted this form this season.'}), 409
+                return _fail(ALREADY_SUBMITTED, 409)
 
             form = fill_dynamic_options(form, cursor, season_id)
             clean, errors, signed_name = validate_responses(
                 form, payload.get('responses'), get_prefill(cursor, user_id)
             )
             if errors:
-                return jsonify({'success': False,
-                                'message': 'Please fix the highlighted fields.',
-                                'errors': errors}), 400
+                return _field_errors(errors)
 
             cursor.execute("""
                 INSERT INTO contract_submissions
@@ -1394,31 +1453,27 @@ def register_contract_routes(app, mysql, login_required):
         except MySQLdb.IntegrityError:
             # Unique key caught a double-submit that slipped past the check above
             mysql.connection.rollback()
-            return jsonify({'success': False,
-                            'message': 'You have already submitted this form this season.'}), 409
+            return _fail(ALREADY_SUBMITTED, 409)
         except Exception as e:
             mysql.connection.rollback()
             print(f"Error submitting contract: {str(e)}")
-            return jsonify({'success': False, 'message': 'Failed to submit this form.'}), 500
+            return _fail('Failed to submit this form.', 500)
         finally:
             cursor.close()
-
 
     @app.route('/api/contracts/<contract_key>/visit', methods=['POST'])
     @login_required
     def api_visit_contract_link(contract_key):
         """Link-type options (e.g. Qualtrics): record that the user went to the site."""
         if contract_key not in CONTRACT_LINKS:
-            return jsonify({'success': False, 'message': "This option isn't available."}), 404
+            return _fail("This option isn't available.", 404)
 
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor = dict_cursor()
         try:
             user_id = session['id']
-            season_id, accessible = get_contract_access(cursor, user_id)
-
-            if not season_id or contract_key not in accessible:
-                return jsonify({'success': False,
-                                'message': 'This option is not available to you right now.'}), 403
+            season_id, denied = _check_access(cursor, contract_key, noun='option')
+            if denied:
+                return denied
 
             # Nothing to fill out: the visit itself is the completion record for this season
             if not fetch_submission(cursor, user_id, season_id, contract_key):
@@ -1438,10 +1493,9 @@ def register_contract_routes(app, mysql, login_required):
         except Exception as e:
             mysql.connection.rollback()
             print(f"Error recording contract link visit: {str(e)}")
-            return jsonify({'success': False, 'message': 'Failed to record this visit.'}), 500
+            return _fail('Failed to record this visit.', 500)
         finally:
             cursor.close()
-
 
     @app.route('/api/contracts/<contract_key>/validate-step', methods=['POST'])
     @login_required
@@ -1452,35 +1506,27 @@ def register_contract_routes(app, mysql, login_required):
         """
         form = get_form(contract_key)
         if not form:
-            return jsonify({'success': False, 'message': "This form isn't available yet."}), 404
+            return _fail(FORM_UNAVAILABLE, 404)
 
         payload = request.get_json(silent=True) or {}
         step = payload.get('step')
         if not isinstance(step, int) or isinstance(step, bool) or not 0 <= step < len(form['steps']):
-            return jsonify({'success': False, 'message': 'Invalid step.'}), 400
+            return _fail('Invalid step.', 400)
 
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor = dict_cursor()
         try:
-            user_id = session['id']
-            season_id, accessible = get_contract_access(cursor, user_id)
-
-            if not season_id or contract_key not in accessible:
-                return jsonify({'success': False,
-                                'message': 'This form is not available to you right now.'}), 403
+            season_id, denied = _check_access(cursor, contract_key)
+            if denied:
+                return denied
 
             form = fill_dynamic_options(form, cursor, season_id)
             step_form = {'blocks': [b for b in form['blocks'] if b['step'] == step]}
             _, errors, _ = validate_responses(
-                step_form, payload.get('responses'), get_prefill(cursor, user_id)
+                step_form, payload.get('responses'), get_prefill(cursor, session['id'])
             )
-            if errors:
-                return jsonify({'success': False,
-                                'message': 'Please fix the highlighted fields.',
-                                'errors': errors}), 400
-
-            return jsonify({'success': True})
+            return _field_errors(errors) if errors else jsonify({'success': True})
         except Exception as e:
             print(f"Error validating contract step: {str(e)}")
-            return jsonify({'success': False, 'message': 'Failed to check this step.'}), 500
+            return _fail('Failed to check this step.', 500)
         finally:
             cursor.close()
