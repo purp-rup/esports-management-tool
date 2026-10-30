@@ -1617,11 +1617,28 @@
             <div class="admin-content">
                 <!-- Left column: user list -->
                 <div class="user-list">
-                    <h3>User Management</h3>
-                    <input type="text" id="userSearch"
-                           placeholder="Search users..."
-                           class="search-input"
-                           oninput="filterUsers()">
+                    <div class="user-search-row">
+                        <input type="text" id="userSearch"
+                               placeholder="Search users..."
+                               class="search-input"
+                               oninput="filterUsers()">
+                        <div class="filter-box" id="userRoleFilterBox">
+                            <button class="filter-box-btn" type="button" onclick="toggleUserRoleFilterBox()">
+                                <span id="userRoleFilterLabel">All Roles</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="filter-box-panel filter-box-panel--right" id="userRoleFilterPanel">
+                                <div class="filter-box-item active" data-value="" onclick="applyUserRoleFilter('', 'All Roles')">All Roles</div>
+                                <div class="filter-box-item" data-value="admin" onclick="applyUserRoleFilter('admin', 'Admin')">Admin</div>
+                                <div class="filter-box-item" data-value="developer" onclick="applyUserRoleFilter('developer', 'Developer')">Developer</div>
+                                <div class="filter-box-item" data-value="gm" onclick="applyUserRoleFilter('gm', 'Game Manager')">Game Manager</div>
+                                <div class="filter-box-item" data-value="player" onclick="applyUserRoleFilter('player', 'Player')">Player</div>
+                                <div class="filter-box-item" data-value="member" onclick="applyUserRoleFilter('member', 'Member')">Member</div>
+                                <!-- Custom roles are injected here when the panel opens -->
+                                <div id="userRoleFilterCustomItems"></div>
+                            </div>
+                        </div>
+                    </div>
                     <!-- User List Loading Spinner -->
                     <div id="userListLoadingSpinner" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                         <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>

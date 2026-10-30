@@ -1,35 +1,44 @@
 /* ============================================================================
- * Contracts logic
- * - Profile kebab menu: "Contracts/Forms" flyout (loads the contracts the
- *   current user can access, opens left on desktop, expands inline on mobile)
- * - Contract modal: builds the form from the definition served by
- *   /api/contracts/<key>/form, submits it, and shows signed forms read-only.
- *   Validation happens on the server; this file only displays its errors.
+ * Contracts
+ * - Profile kebab menu: "Contracts/Forms" flyout (lists the contracts the current
+ *   user can access; opens beside the menu on desktop, expands inline on mobile)
+ * - Contract modal: builds a stepped form from the server's definition, submits
+ *   it, and shows signed forms read-only. Validation happens on the server; this
+ *   file only displays its errors.
+ * - Dashboard reminder card for contracts the user still has to fill out
  *
- * Depends on universal-helpers.js (closeAllFilterPanels, lockBodyScroll,
- * unlockBodyScroll) and the global toast helpers (showSuccessToast, showErrorToast).
+ * Server API (contracts.py):
+ *   GET  /api/contracts/available            contracts for the flyout
+ *   GET  /api/contracts/reminders            unfilled contracts for the reminder card
+ *   GET  /api/contracts/<key>/form           form definition (+ submission if signed)
+ *   POST /api/contracts/<key>/validate-step  check one step before moving on
+ *   POST /api/contracts/<key>/submit         sign and submit the whole form
+ *   POST /api/contracts/<key>/visit          record a visit to a link-type contract
+ *
+ * Depends on:
+ *   universal-helpers.js  initFlyoutTriggers, positionFlyout, closeAllFilterPanels,
+ *                         lockBodyScroll, unlockBodyScroll, escapeHtml
+ *   toast helpers         window.showSuccessToast, window.showErrorToast
+ *   window.NotificationQueue (stacks the reminder card)
  * ============================================================================
  */
-
-const CONTRACTS_MOBILE_BREAKPOINT = 768;   // matches the site-wide mobile cutoff
 
 let contractsLoaded = false;
 let contractsLoading = false;
 let availableContracts = [];
 
-let activeContract = null;     // { key, form, readOnly, step, reached, errorSteps } while a form is open
-let contractRequestId = 0;     // guards against a slow response landing after the modal was closed
+/** Set while a form is open: { key, form, readOnly, step, reached, errorSteps } */
+let activeContract = null;
+let contractRequestId = 0;   // guards against a slow response landing after the modal was closed
 
 // ============================================
 // INITIALIZATION
 // ============================================
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', () => {
     setupContractsFlyout();
-
-    const contractForm = document.getElementById('contractForm');
-    if (contractForm) contractForm.addEventListener('submit', submitContractForm);
-
+    document.getElementById('contractForm')?.addEventListener('submit', submitContractForm);
     document.getElementById('contractFormBody')?.addEventListener('change', updateContractVisibility);
+    loadContractReminder();
 });
 
 function setupContractsFlyout() {
@@ -37,28 +46,54 @@ function setupContractsFlyout() {
     const flyout = document.getElementById('contractsFlyout');
     if (!trigger || !flyout) return;
 
-    // Placement (desktop hover), scroll tracking, and the mobile expand/collapse
-    // all come from the shared flyout helper in universal-helpers.js
+    // Hover placement, scroll tracking and the mobile expand/collapse come from the shared helper
     initFlyoutTriggers(trigger.parentElement);
 
-    // Load the list the first time the row is hovered (desktop) or tapped (mobile)
-    trigger.addEventListener('mouseenter', () => loadContractsFlyout());
-    trigger.addEventListener('click', () => {
-        if (window.innerWidth <= CONTRACTS_MOBILE_BREAKPOINT) loadContractsFlyout();
-    });
+    // Load the list on first hover (desktop) or tap (mobile). The arrow function matters:
+    // passing the handler directly would hand the event in as `force`.
+    ['mouseenter', 'click'].forEach(type => trigger.addEventListener(type, () => loadContractsFlyout()));
 
-    // Option selected (event delegation so re-rendering the list is safe)
+    // Event delegation, so re-rendering the list is safe
     flyout.addEventListener('click', (e) => {
         const item = e.target.closest('[data-contract-key]');
         if (!item) return;
-        e.stopPropagation();
+        e.stopPropagation();   // keep the click from toggling the mobile accordion
+
         const contract = availableContracts.find(c => c.key === item.dataset.contractKey);
-        if (contract && contract.link) {
-            visitContractLink(contract);
-        } else {
-            openContractForm(item.dataset.contractKey);
-        }
+        if (contract?.link) visitContractLink(contract);
+        else openContractForm(item.dataset.contractKey);
     });
+}
+
+/** Collapse the mobile accordion and close any open filter panel. */
+function closeContractsMenu() {
+    document.getElementById('contractsFlyoutTrigger')?.classList.remove('flyout-expanded');
+    closeAllFilterPanels();
+}
+
+// ============================================
+// API
+// ============================================
+function contractUrl(key, action) {
+    return `/api/contracts/${encodeURIComponent(key)}/${action}`;
+}
+
+/**
+ * Call a per-contract endpoint and resolve to { response, data } (data = parsed JSON).
+ * Passing a body makes it a JSON POST; without one it's a GET.
+ */
+async function contractRequest(key, action, body) {
+    const response = await fetch(contractUrl(key, action), body === undefined ? undefined : {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    return { response, data: await response.json() };
+}
+
+function contractToast(message, isError = false) {
+    const toast = isError ? window.showErrorToast : window.showSuccessToast;
+    if (typeof toast === 'function') toast(message);
 }
 
 // ============================================
@@ -66,9 +101,9 @@ function setupContractsFlyout() {
 // ============================================
 
 /**
- * Fetch the contracts available to the current user and render them.
- * Runs once per page load; pass force = true to refresh (e.g. after a
- * form is submitted). A failed load is retried on the next hover/tap.
+ * Fetch the contracts available to the current user and render them. Runs once
+ * per page load; pass force = true to refresh (e.g. after a submit). A failed
+ * load is retried on the next hover/tap.
  */
 async function loadContractsFlyout(force = false) {
     if (contractsLoading || (contractsLoaded && !force)) return;
@@ -78,8 +113,7 @@ async function loadContractsFlyout(force = false) {
         const response = await fetch('/api/contracts/available');
         if (!response.ok) throw new Error(`Request failed (${response.status})`);
 
-        const data = await response.json();
-        availableContracts = data.contracts || [];
+        availableContracts = (await response.json()).contracts || [];
         renderContractsFlyout(availableContracts);
         contractsLoaded = true;
     } catch (error) {
@@ -88,9 +122,9 @@ async function loadContractsFlyout(force = false) {
     } finally {
         contractsLoading = false;
 
-        // Content height changed - re-place the flyout if it's currently showing
+        // Content height changed: re-place the flyout if it's showing
         const trigger = document.getElementById('contractsFlyoutTrigger');
-        if (trigger && trigger.matches(':hover')) positionFlyout(trigger);
+        if (trigger?.matches(':hover')) positionFlyout(trigger);
     }
 }
 
@@ -103,18 +137,14 @@ function renderContractsFlyout(contracts) {
         return;
     }
 
-    flyout.replaceChildren();
-    contracts.forEach(contract => {
-        const item = document.createElement('div');
-        item.className = 'filter-box-flyout-item';
+    flyout.replaceChildren(...contracts.map(contract => {
+        const item = contractEl('div', 'filter-box-flyout-item');
         item.dataset.contractKey = contract.key;
 
-        const label = document.createElement('span');
-        label.textContent = contract.label;
+        const label = contractEl('span', '', contract.label);
         if (contract.link) {
             // Opens another site: small arrow after the label
-            const external = document.createElement('i');
-            external.className = 'fas fa-arrow-up-right-from-square contract-link-icon';
+            const external = contractEl('i', 'fas fa-arrow-up-right-from-square contract-link-icon');
             external.setAttribute('aria-hidden', 'true');
             label.append(' ', external);
         }
@@ -122,46 +152,34 @@ function renderContractsFlyout(contracts) {
 
         if (contract.completed) {
             item.classList.add('is-complete');
-            const check = document.createElement('i');
-            check.className = 'fas fa-check contract-complete-icon';
+            const check = contractEl('i', 'fas fa-check contract-complete-icon');
             check.title = 'Completed';
             check.setAttribute('aria-label', 'Completed');
             item.appendChild(check);
         }
-
-        flyout.appendChild(item);
-    });
+        return item;
+    }));
 }
 
 function renderContractsFlyoutMessage(message) {
-    const flyout = document.getElementById('contractsFlyout');
-    if (!flyout) return;
-
-    const el = document.createElement('div');
-    el.className = 'filter-box-flyout-loading';
-    el.textContent = message;
-    flyout.replaceChildren(el);
+    document.getElementById('contractsFlyout')
+        ?.replaceChildren(contractEl('div', 'filter-box-flyout-loading', message));
 }
 
 // ============================================
 // CONTRACT MODAL
 // ============================================
 
-/**
- * Called when an option is picked from the flyout. Opens the modal with the
- * fillable form, or the signed copy (read-only) if it's already submitted.
- */
+/** Open the modal with the fillable form, or the signed copy (read-only) if already submitted. */
 async function openContractForm(contractKey) {
-    document.getElementById('contractsFlyoutTrigger')?.classList.remove('flyout-expanded');
-    closeAllFilterPanels();
+    closeContractsMenu();
 
     const requestId = ++contractRequestId;
     showContractModalLoading();
     openContractModal();
 
     try {
-        const response = await fetch(`/api/contracts/${encodeURIComponent(contractKey)}/form`);
-        const data = await response.json();
+        const { response, data } = await contractRequest(contractKey, 'form');
         if (requestId !== contractRequestId) return;   // modal was closed while loading
 
         if (!response.ok || !data.success) {
@@ -169,7 +187,6 @@ async function openContractForm(contractKey) {
             contractToast(data.message || 'Unable to open this form.', true);
             return;
         }
-
         showContractForm(contractKey, data);
     } catch (error) {
         console.error('Error opening contract:', error);
@@ -181,19 +198,16 @@ async function openContractForm(contractKey) {
 
 /**
  * Link-type option (e.g. Qualtrics): open the site, then record that the person went.
- * The tab is opened first, straight from the click, so browsers don't block it as a
- * popup. The visit is recorded once; later clicks just open the site again.
+ * The tab opens first, straight from the click, so browsers don't treat it as a popup.
+ * The visit is recorded once; later clicks just reopen the site.
  */
 async function visitContractLink(contract) {
-    document.getElementById('contractsFlyoutTrigger')?.classList.remove('flyout-expanded');
-    closeAllFilterPanels();
-
+    closeContractsMenu();
     window.open(contract.link, '_blank', 'noopener');
-
     if (contract.completed) return;
 
     try {
-        const response = await fetch(`/api/contracts/${encodeURIComponent(contract.key)}/visit`, { method: 'POST' });
+        const response = await fetch(contractUrl(contract.key, 'visit'), { method: 'POST' });
         if (response.ok) loadContractsFlyout(true);   // refresh so the check mark shows
     } catch (error) {
         console.error('Error recording link visit:', error);
@@ -214,26 +228,28 @@ function closeContractModal() {
     unlockBodyScroll('contractModal');
 }
 
+/** Show or hide an element by id. `display` is the value used when shown ('' = stylesheet default). */
+function setContractVisible(id, visible, display = '') {
+    document.getElementById(id).style.display = visible ? display : 'none';
+}
+
 function showContractModalLoading() {
     document.getElementById('contractModalTitle').textContent = 'Loading...';
-    document.getElementById('contractModalSubtitle').style.display = 'none';
-    document.getElementById('contractModalLoading').style.display = 'flex';
-    document.getElementById('contractSignedBanner').style.display = 'none';
-    document.getElementById('contractProgress').style.display = 'none';
-    document.getElementById('contractForm').style.display = 'none';
-    document.getElementById('contractFooter').style.display = 'none';
+    setContractVisible('contractModalLoading', true, 'flex');
+    ['contractModalSubtitle', 'contractSignedBanner', 'contractProgress', 'contractForm', 'contractFooter']
+        .forEach(id => setContractVisible(id, false));
 }
 
 function showContractForm(contractKey, data) {
-    const submission = data.submission;
+    const { form, submission } = data;
     const readOnly = Boolean(submission);
     activeContract = {
         key: contractKey,
-        form: data.form,
+        form,
         readOnly,
         step: 0,
-        reached: readOnly ? data.form.steps.length : 0,   // furthest step the person can jump to (a signed form is fully open)
-        errorSteps: new Set()                             // steps holding a server-reported error
+        reached: readOnly ? form.steps.length : 0,   // furthest step the person can jump to (a signed form is fully open)
+        errorSteps: new Set()                        // steps holding a server-reported error
     };
 
     // A signed form shows exactly what was signed; a new one starts from the account's details
@@ -241,29 +257,26 @@ function showContractForm(contractKey, data) {
         ? { ...submission.responses }
         : { ...data.prefill, signed_date: data.signed_date };
 
-    document.getElementById('contractModalTitle').textContent = data.form.title;
+    document.getElementById('contractModalTitle').textContent = form.title;
 
     const subtitle = document.getElementById('contractModalSubtitle');
-    subtitle.textContent = data.form.subtitle || '';
-    subtitle.style.display = data.form.subtitle ? '' : 'none';
+    subtitle.textContent = form.subtitle || '';
+    setContractVisible('contractModalSubtitle', Boolean(form.subtitle));
 
-    renderContractForm(data.form, values, readOnly);
+    renderContractForm(form, values, readOnly);
 
     const banner = document.getElementById('contractSignedBanner');
+    banner.replaceChildren();
     if (readOnly) {
-        banner.replaceChildren();
-        const icon = contractEl('i', 'fas fa-check-circle');
-        const verb = data.form.requires_signature === false ? 'Submitted' : 'Signed';
-        banner.append(icon, ` ${verb} on ${submission.submitted_display}`);
-        banner.style.display = 'block';
-    } else {
-        banner.style.display = 'none';
+        const verb = form.requires_signature === false ? 'Submitted' : 'Signed';
+        banner.append(contractEl('i', 'fas fa-check-circle'), ` ${verb} on ${submission.submitted_display}`);
     }
+    setContractVisible('contractSignedBanner', readOnly, 'block');
 
     setContractSubmitting(false);
-    document.getElementById('contractModalLoading').style.display = 'none';
-    document.getElementById('contractForm').style.display = '';   // '' lets .event-form-modal's own layout apply
-    document.getElementById('contractFooter').style.display = '';
+    setContractVisible('contractModalLoading', false);
+    setContractVisible('contractForm', true);     // '' lets .event-form-modal's own layout apply
+    setContractVisible('contractFooter', true);
     goToContractStep(0);
 }
 
@@ -276,10 +289,10 @@ function goToContractStep(index) {
     if (!activeContract) return;
 
     const last = activeContract.form.steps.length - 1;
-    activeContract.step = Math.min(Math.max(index, 0), last);
+    const step = activeContract.step = Math.min(Math.max(index, 0), last);
 
     document.querySelectorAll('#contractFormBody .contract-step').forEach(panel => {
-        panel.hidden = Number(panel.dataset.step) !== activeContract.step;
+        panel.hidden = Number(panel.dataset.step) !== step;
     });
 
     renderContractProgress();
@@ -288,21 +301,17 @@ function goToContractStep(index) {
 }
 
 function renderContractProgress() {
-    const { form, step, reached, errorSteps } = activeContract;
-    const steps = form.steps;
+    const { form: { steps }, step, reached, errorSteps } = activeContract;
 
     // A single-step form needs no indicator
-    document.getElementById('contractProgress').style.display = steps.length > 1 ? '' : 'none';
+    setContractVisible('contractProgress', steps.length > 1);
 
     document.getElementById('contractStepCaption').textContent =
         `Step ${step + 1} of ${steps.length} \u2014 ${steps[step].label}`;
     document.getElementById('contractProgressFill').style.width =
         `${((step + 1) / steps.length) * 100}%`;
 
-    const stepper = document.getElementById('contractStepper');
-    stepper.replaceChildren();
-
-    steps.forEach((meta, i) => {
+    document.getElementById('contractStepper').replaceChildren(...steps.map((meta, i) => {
         const hasError = errorSteps.has(i) && i !== step;
         const isDone = i < reached && i !== step && !hasError;
 
@@ -320,8 +329,8 @@ function renderContractProgress() {
         else dot.textContent = String(i + 1);
 
         dot.addEventListener('click', () => goToContractStep(i));
-        stepper.appendChild(dot);
-    });
+        return dot;
+    }));
 }
 
 function updateContractFooter() {
@@ -331,32 +340,23 @@ function updateContractFooter() {
     // Left button leaves the modal on the first step, otherwise steps back
     const left = document.getElementById('contractCancelBtn');
     left.replaceChildren();
-    if (step === 0) {
-        left.textContent = readOnly ? 'Close' : 'Cancel';
-    } else {
-        left.append(contractEl('i', 'fas fa-arrow-left'), ' Back');
-    }
+    if (step === 0) left.textContent = readOnly ? 'Close' : 'Cancel';
+    else left.append(contractEl('i', 'fas fa-arrow-left'), ' Back');
 
     // Right button: Continue / Next on the way through, Sign & Submit (or Close) at the end
-    const label = document.getElementById('contractSubmitBtnText');
-    label.replaceChildren();
-    if (!isLast) {
-        label.append(readOnly ? 'Next ' : 'Continue ', contractEl('i', 'fas fa-arrow-right'));
-    } else {
-        label.textContent = readOnly ? 'Close' : (form.requires_signature === false ? 'Submit' : 'Sign & Submit');
-    }
+    const right = document.getElementById('contractSubmitBtnText');
+    right.replaceChildren();
+    if (isLast) right.textContent = readOnly ? 'Close' : (form.requires_signature === false ? 'Submit' : 'Sign & Submit');
+    else right.append(readOnly ? 'Next ' : 'Continue ', contractEl('i', 'fas fa-arrow-right'));
 }
 
 function contractBack() {
-    if (!activeContract || activeContract.step === 0) {
-        closeContractModal();
-        return;
-    }
-    goToContractStep(activeContract.step - 1);
+    if (!activeContract || activeContract.step === 0) closeContractModal();
+    else goToContractStep(activeContract.step - 1);
 }
 
 // ============================================
-// FORM RENDERING (built from the server's form definition)
+// FORM RENDERING (from the server's form definition)
 // ============================================
 function contractEl(tag, className, text) {
     const node = document.createElement(tag);
@@ -364,6 +364,9 @@ function contractEl(tag, className, text) {
     if (text !== undefined) node.textContent = text;
     return node;
 }
+
+/** Class for the "required" marker on legends and acknowledgement titles. */
+const contractRequired = (field) => field.required ? 'contract-required' : '';
 
 /** Mark a section/field that only appears when a radio question has a given answer. */
 function markContractConditional(node, block) {
@@ -378,17 +381,16 @@ function updateContractVisibility() {
     const root = document.getElementById('contractFormBody');
     root.querySelectorAll('.contract-conditional').forEach(node => {
         const checked = root.querySelector(`input[type="radio"][name="${node.dataset.showIfField}"]:checked`);
-        node.hidden = !(checked && checked.value === node.dataset.showIfEquals);
+        node.hidden = checked?.value !== node.dataset.showIfEquals;
     });
 }
 
 function renderContractForm(form, values, readOnly) {
     const body = document.getElementById('contractFormBody');
-    body.replaceChildren();
 
-    // One panel per step. They all stay in the DOM (only one is visible), so answers
-    // survive moving between steps and the collect/error code still sees every field.
-    form.steps.forEach((meta, index) => {
+    // One panel per step. All stay in the DOM (only one is visible), so answers
+    // survive moving between steps and collect/error code still sees every field.
+    body.replaceChildren(...form.steps.map((meta, index) => {
         const panel = contractEl('div', 'contract-step');
         panel.dataset.step = index;
         panel.hidden = index !== 0;
@@ -400,9 +402,8 @@ function renderContractForm(form, values, readOnly) {
                     : renderContractField(block, values, readOnly)
             );
         });
-
-        body.appendChild(panel);
-    });
+        return panel;
+    }));
 
     updateContractVisibility();
 }
@@ -410,12 +411,8 @@ function renderContractForm(form, values, readOnly) {
 function renderContractSection(block, stepMeta) {
     const isSub = block.level === 'sub';
     const isStepHead = !isSub && Boolean(block.heading);   // the heading that opens a step
-
-    let className = 'contract-section';
-    if (isSub) className += ' contract-section--sub';
-    else if (isStepHead) className += ' contract-step-head';
-    else className += ' contract-lead';                    // unheaded intro text
-    const wrap = contractEl('div', className);
+    const variant = isSub ? 'contract-section--sub' : isStepHead ? 'contract-step-head' : 'contract-lead';
+    const wrap = contractEl('div', `contract-section ${variant}`);
 
     if (block.heading) {
         const title = contractEl(isSub ? 'h4' : 'h3', 'contract-section-title');
@@ -424,7 +421,7 @@ function renderContractSection(block, stepMeta) {
         wrap.appendChild(title);
     }
     (block.paragraphs || []).forEach(text => wrap.appendChild(contractEl('p', 'contract-text', text)));
-    if (block.items && block.items.length) wrap.appendChild(renderContractList(block.items));
+    if (block.items?.length) wrap.appendChild(renderContractList(block.items));
     markContractConditional(wrap, block);
     return wrap;
 }
@@ -435,106 +432,100 @@ function renderContractList(items) {
     return list;
 }
 
+/** Appends the field's controls to `group`, by kind (signature shares the text renderer). */
+const CONTRACT_FIELD_RENDERERS = {
+    text: appendContractTextField,
+    signature: appendContractTextField,
+    date_auto: appendContractDateField,
+    radio: appendContractRadioField,
+    checkbox_group: appendContractCheckboxField,
+    acknowledge: appendContractAcknowledgeField
+};
+
 function renderContractField(field, values, readOnly) {
     const group = contractEl('div', 'form-group contract-field');
     group.dataset.fieldKey = field.key;
-
-    switch (field.kind) {
-        case 'text':
-        case 'signature':
-            appendContractTextField(group, field, values, readOnly);
-            break;
-        case 'date_auto':
-            appendContractDateField(group, field, values);
-            break;
-        case 'radio':
-            appendContractRadioField(group, field, values, readOnly);
-            break;
-        case 'checkbox_group':
-            appendContractCheckboxField(group, field, values, readOnly);
-            break;
-        case 'acknowledge':
-            appendContractAcknowledgeField(group, field, values, readOnly);
-            break;
-    }
+    CONTRACT_FIELD_RENDERERS[field.kind]?.(group, field, values, readOnly);
     markContractConditional(group, field);
     return group;
 }
 
+function createContractLabel(forId, text, required) {
+    return Object.assign(contractEl('label', required ? 'required-field' : '', text), { htmlFor: forId });
+}
+
+/** Text input; `props` are set as DOM properties (id, name, value, maxLength, ...). */
+function createContractTextInput(props) {
+    return Object.assign(contractEl('input'), { type: 'text', ...props });
+}
+
+/** Wrap an input with the padlock icon used for fields the person can't edit. */
+function lockContractInput(input) {
+    const wrap = contractEl('div', 'input-with-icon');
+    wrap.append(input, contractEl('i', 'fas fa-lock input-lock-icon'));
+    return wrap;
+}
+
+function createContractFieldset(field) {
+    const fieldset = contractEl('fieldset', 'contract-fieldset');
+    fieldset.appendChild(contractEl('legend', contractRequired(field), field.label));
+    if (field.help) fieldset.appendChild(contractEl('small', 'contract-help', field.help));
+    return fieldset;
+}
+
 function appendContractTextField(group, field, values, readOnly) {
     const id = `contractField_${field.key}`;
-
-    const label = contractEl('label', field.required ? 'required-field' : '', field.label);
-    label.htmlFor = id;
-    group.appendChild(label);
+    group.appendChild(createContractLabel(id, field.label, field.required));
 
     // Signature instructions read better above the input; other hints sit below it
     const help = field.help ? contractEl('small', 'contract-help', field.help) : null;
-    if (help && field.kind === 'signature') group.appendChild(help);
+    const helpFirst = field.kind === 'signature';
+    if (help && helpFirst) group.appendChild(help);
 
-    const input = contractEl('input');
-    input.type = 'text';
-    input.id = id;
-    input.name = field.key;
-    input.autocomplete = 'off';
-    input.maxLength = field.max_length || 200;
-    input.value = values[field.key] ?? '';
+    const input = createContractTextInput({
+        id,
+        name: field.key,
+        autocomplete: 'off',
+        maxLength: field.max_length || 200,
+        value: values[field.key] ?? '',
+        readOnly: readOnly || Boolean(field.readonly)
+    });
+    group.appendChild(field.readonly ? lockContractInput(input) : input);
 
-    if (field.readonly) {
-        input.readOnly = true;
-        const wrap = contractEl('div', 'input-with-icon');
-        wrap.appendChild(input);
-        wrap.appendChild(contractEl('i', 'fas fa-lock input-lock-icon'));
-        group.appendChild(wrap);
-    } else {
-        input.readOnly = readOnly;
-        group.appendChild(input);
-    }
-
-    if (help && field.kind !== 'signature') group.appendChild(help);
+    if (help && !helpFirst) group.appendChild(help);
 }
 
 function appendContractDateField(group, field, values) {
     const id = `contractField_${field.key}`;
+    group.appendChild(createContractLabel(id, field.label, true));
 
-    const label = contractEl('label', 'required-field', field.label);
-    label.htmlFor = id;
-    group.appendChild(label);
-
-    // Display only - the server sets the real date when the form is submitted
-    const input = contractEl('input');
-    input.type = 'text';
-    input.id = id;
-    input.readOnly = true;
-    input.value = values[field.key] ? formatContractDate(values[field.key]) : '';
-
-    const wrap = contractEl('div', 'input-with-icon');
-    wrap.appendChild(input);
-    wrap.appendChild(contractEl('i', 'fas fa-lock input-lock-icon'));
-    group.appendChild(wrap);
+    // Display only: the server sets the real date when the form is submitted
+    const date = values[field.key];
+    group.appendChild(lockContractInput(createContractTextInput({
+        id,
+        readOnly: true,
+        value: date ? formatContractDate(date) : ''
+    })));
 }
 
 function appendContractRadioField(group, field, values, readOnly) {
-    const fieldset = contractEl('fieldset', 'contract-fieldset');
-    fieldset.appendChild(contractEl('legend', field.required ? 'contract-required' : '', field.label));
-
+    const fieldset = createContractFieldset(field);
     field.options.forEach(option => {
-        fieldset.appendChild(
-            createContractChoice('radio', field.key, option, values[field.key] === option, readOnly)
-        );
+        fieldset.appendChild(createContractChoice('radio', field.key, option, values[field.key] === option, readOnly));
     });
 
     if (field.allow_other) {
         const row = createContractChoice('radio', field.key, 'Other', values[field.key] === 'Other', readOnly, 'Other:');
         const radio = row.querySelector('input');
 
-        const otherInput = contractEl('input', 'contract-other-input');
-        otherInput.type = 'text';
-        otherInput.name = `${field.key}_other`;
-        otherInput.maxLength = 100;
-        otherInput.autocomplete = 'off';
-        otherInput.value = values[`${field.key}_other`] ?? '';
-        otherInput.disabled = readOnly || !radio.checked;
+        const otherInput = createContractTextInput({
+            className: 'contract-other-input',
+            name: `${field.key}_other`,
+            maxLength: 100,
+            autocomplete: 'off',
+            value: values[`${field.key}_other`] ?? '',
+            disabled: readOnly || !radio.checked
+        });
         row.appendChild(otherInput);
 
         // The write-in only works while "Other" is the selected option
@@ -550,42 +541,28 @@ function appendContractRadioField(group, field, values, readOnly) {
 }
 
 function appendContractCheckboxField(group, field, values, readOnly) {
-    const fieldset = contractEl('fieldset', 'contract-fieldset');
-    fieldset.appendChild(contractEl('legend', field.required ? 'contract-required' : '', field.label));
-
+    const fieldset = createContractFieldset(field);
     const selected = Array.isArray(values[field.key]) ? values[field.key] : [];
     field.options.forEach(option => {
-        fieldset.appendChild(
-            createContractChoice('checkbox', field.key, option, selected.includes(option), readOnly)
-        );
+        fieldset.appendChild(createContractChoice('checkbox', field.key, option, selected.includes(option), readOnly));
     });
-
     group.appendChild(fieldset);
 }
 
 function appendContractAcknowledgeField(group, field, values, readOnly) {
     group.classList.add('contract-ack');
-
-    group.appendChild(contractEl('div', field.required ? 'contract-ack-title contract-required' : 'contract-ack-title', field.title));
+    group.appendChild(contractEl('div', `contract-ack-title ${contractRequired(field)}`, field.title));
     (field.description || []).forEach(text => group.appendChild(contractEl('p', 'contract-text', text)));
-    if (field.items && field.items.length) group.appendChild(renderContractList(field.items));
-
-    group.appendChild(
-        createContractChoice('checkbox', field.key, 'agree', values[field.key] === true, readOnly, field.label)
-    );
+    if (field.items?.length) group.appendChild(renderContractList(field.items));
+    group.appendChild(createContractChoice('checkbox', field.key, 'agree', values[field.key] === true, readOnly, field.label));
 }
 
 function createContractChoice(type, name, value, checked, disabled, labelText) {
     const label = contractEl('label', 'contract-choice');
-
-    const input = contractEl('input');
-    input.type = type;
-    input.name = name;
-    input.value = value;
-    input.checked = checked;
-    input.disabled = disabled;
-
-    label.append(input, contractEl('span', '', labelText ?? value));
+    label.append(
+        Object.assign(contractEl('input'), { type, name, value, checked, disabled }),
+        contractEl('span', '', labelText ?? value)
+    );
     return label;
 }
 
@@ -603,32 +580,28 @@ function formatContractDate(iso) {
 /** Read the current answers out of the rendered form, keyed by field. */
 function collectContractResponses(form) {
     const root = document.getElementById('contractFormBody');
+    const inputs = (name, state = '') => root.querySelectorAll(`input[name="${name}"]${state}`);
     const data = {};
 
-    form.blocks.forEach(block => {
-        if (block.type !== 'field' || block.kind === 'date_auto') return;
-        const key = block.key;
+    form.blocks.forEach(({ type, kind, key }) => {
+        if (type !== 'field' || kind === 'date_auto') return;
 
-        switch (block.kind) {
+        switch (kind) {
             case 'text':
             case 'signature':
-                data[key] = root.querySelector(`input[name="${key}"]`).value;
+                data[key] = inputs(key)[0].value;
                 break;
             case 'radio': {
-                const checked = root.querySelector(`input[type="radio"][name="${key}"]:checked`);
+                const checked = inputs(key, ':checked')[0];
                 data[key] = checked ? checked.value : '';
-                if (checked && checked.value === 'Other') {
-                    data[`${key}_other`] = root.querySelector(`input[name="${key}_other"]`).value;
-                }
+                if (checked?.value === 'Other') data[`${key}_other`] = inputs(`${key}_other`)[0].value;
                 break;
             }
             case 'checkbox_group':
-                data[key] = Array.from(
-                    root.querySelectorAll(`input[type="checkbox"][name="${key}"]:checked`)
-                ).map(input => input.value);
+                data[key] = Array.from(inputs(key, ':checked'), input => input.value);
                 break;
             case 'acknowledge':
-                data[key] = root.querySelector(`input[name="${key}"]`).checked;
+                data[key] = inputs(key)[0].checked;
                 break;
         }
     });
@@ -655,69 +628,63 @@ async function submitContractForm(e) {
     else await validateContractStep();
 }
 
-/** "Continue": have the server check the current step before moving on. */
-async function validateContractStep() {
+/**
+ * POST the current answers to a contract endpoint. Resolves to the server's result
+ * on success, or null on failure (after showing the errors and a toast, unless the
+ * modal was closed in the meantime). Keeps the submit button busy while it runs.
+ */
+async function postContractResponses(action, extra, failMessage) {
     const contract = activeContract;
-    const stepIndex = contract.step;
     setContractSubmitting(true);
 
     try {
-        const response = await fetch(`/api/contracts/${encodeURIComponent(contract.key)}/validate-step`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ step: stepIndex, responses: collectContractResponses(contract.form) })
+        const { response, data } = await contractRequest(contract.key, action, {
+            ...extra,
+            responses: collectContractResponses(contract.form)
         });
-        const result = await response.json();
-        if (contract !== activeContract) return;   // modal was closed while checking
+        if (response.ok && data.success) return data;
 
-        if (response.ok && result.success) {
-            contract.reached = Math.max(contract.reached, stepIndex + 1);
-            goToContractStep(stepIndex + 1);
-        } else {
-            if (result.errors) showContractErrors(result.errors);
-            contractToast(result.message || 'Please fix the highlighted fields.', true);
+        if (contract === activeContract) {
+            if (data.errors) showContractErrors(data.errors);
+            contractToast(data.message || failMessage, true);
         }
     } catch (error) {
-        console.error('Error checking contract step:', error);
+        console.error(`Error calling contract ${action}:`, error);
         contractToast('An error occurred. Please try again.', true);
     } finally {
         setContractSubmitting(false);
     }
+    return null;
+}
+
+/** "Continue": have the server check the current step before moving on. */
+async function validateContractStep() {
+    const contract = activeContract;
+    const stepIndex = contract.step;
+
+    const result = await postContractResponses('validate-step', { step: stepIndex }, 'Please fix the highlighted fields.');
+    if (!result || contract !== activeContract) return;   // failed, or modal closed while checking
+
+    contract.reached = Math.max(contract.reached, stepIndex + 1);
+    goToContractStep(stepIndex + 1);
 }
 
 /** Last step: sign and submit the whole form. */
 async function submitContract() {
     const contract = activeContract;
-    setContractSubmitting(true);
 
-    try {
-        const response = await fetch(`/api/contracts/${encodeURIComponent(contract.key)}/submit`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ responses: collectContractResponses(contract.form) })
-        });
-        const result = await response.json();
+    const result = await postContractResponses('submit', {}, 'Failed to submit.');
+    if (!result) return;
 
-        if (response.ok && result.success) {
-            contractToast(result.message || 'Submitted successfully!');
-            if (contract === activeContract) closeContractModal();
-            loadContractsFlyout(true);   // refresh so the new checkmark shows
-        } else if (contract === activeContract) {
-            if (result.errors) showContractErrors(result.errors);
-            contractToast(result.message || 'Failed to submit.', true);
-        }
-    } catch (error) {
-        console.error('Error submitting contract:', error);
-        contractToast('An error occurred. Please try again.', true);
-    } finally {
-        setContractSubmitting(false);
-    }
+    contractToast(result.message || 'Submitted successfully!');
+    if (contract === activeContract) closeContractModal();
+    loadContractsFlyout(true);   // refresh so the new checkmark shows
 }
 
 function setContractSubmitting(isSubmitting) {
     document.getElementById('contractSubmitBtn').disabled = isSubmitting;
-    document.getElementById('contractSubmitBtnText').style.display = isSubmitting ? 'none' : 'inline';
-    document.getElementById('contractSubmitBtnSpinner').style.display = isSubmitting ? 'inline' : 'none';
+    setContractVisible('contractSubmitBtnText', !isSubmitting, 'inline');
+    setContractVisible('contractSubmitBtnSpinner', isSubmitting, 'inline');
 }
 
 function showContractErrors(errors) {
@@ -743,16 +710,11 @@ function showContractErrors(errors) {
 }
 
 function clearContractErrors() {
-    if (activeContract) activeContract.errorSteps.clear();
+    activeContract?.errorSteps.clear();
     document.querySelectorAll('#contractFormBody .has-error').forEach(group => {
         group.classList.remove('has-error');
         group.querySelectorAll('.contract-error').forEach(node => node.remove());
     });
-}
-
-function contractToast(message, isError = false) {
-    const toast = isError ? window.showErrorToast : window.showSuccessToast;
-    if (typeof toast === 'function') toast(message);
 }
 
 // ============================================
@@ -760,25 +722,19 @@ function contractToast(message, isError = false) {
 // ============================================
 
 /**
- * Persistent, dismissable card listing the contracts the user still has to
- * fill out. Styled like the blue info toast and stacked through
- * NotificationQueue, but it never auto-dismisses. Dismissing only closes it
- * for this page load - it comes back on the next dashboard load until every
+ * Persistent, dismissable card listing the contracts the user still has to fill
+ * out. Stacked through NotificationQueue but never auto-dismissed. Dismissing
+ * only closes it for this page load; it returns on the next load until every
  * listed contract is completed (nothing is stored server-side).
+ * Static styling lives in contracts.css; only the slide animation is set here.
  */
 function renderContractReminder(contracts) {
-    const card = document.createElement('div');
-    card.className = 'contract-reminder-card';
-
-    const items = contracts
-        .map(c => `<li>${escapeHtml(c.label)}</li>`)
-        .join('');
-
+    const card = contractEl('div', 'contract-reminder-card');
     card.innerHTML = `
         <i class="fas fa-file-contract"></i>
         <div class="contract-reminder-body">
             <p>You've been assigned the following contract(s):</p>
-            <ul>${items}</ul>
+            <ul>${contracts.map(c => `<li>${escapeHtml(c.label)}</li>`).join('')}</ul>
             <p>Please visit the '...' button on the Profile Tab to fill out all contracts. Thank you!</p>
         </div>
         <button type="button" class="contract-reminder-dismiss" aria-label="Dismiss">
@@ -786,63 +742,37 @@ function renderContractReminder(contracts) {
         </button>
     `;
 
-    card.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 10000;
-        padding: 1rem 1.5rem;
-        border-radius: 8px;
-        display: flex;
-        align-items: flex-start;
-        gap: 0.75rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        font-size: 0.9375rem;
-        font-weight: 500;
-        max-width: 400px;
-        background: #3b82f6;
-        border: 1px solid #2563eb;
-        color: white;
-        transform: translateX(400px);
-        opacity: 0;
-        transition: all 0.3s ease-out;
-    `;
+    // Slide in from / out to the right (the card starts off-screen in CSS)
+    const slide = (visible) => {
+        card.style.transform = visible ? 'translateX(0)' : 'translateX(400px)';
+        card.style.opacity = visible ? '1' : '0';
+    };
 
     document.body.appendChild(card);
     window.NotificationQueue.add(card);
-
-    requestAnimationFrame(() => {
-        setTimeout(() => {
-            card.style.transform = 'translateX(0)';
-            card.style.opacity = '1';
-        }, 50);
-    });
+    setTimeout(() => slide(true), 50);   // let the browser paint the off-screen state first
 
     card.querySelector('.contract-reminder-dismiss').addEventListener('click', () => {
-        card.style.opacity = '0';
-        card.style.transform = 'translateX(400px)';
+        slide(false);
         setTimeout(() => {
             window.NotificationQueue.remove(card);
             card.remove();
-        }, 300);
+        }, 300);   // matches the CSS transition
     });
 }
 
-/** On page load, show the reminder card if the user has unfilled contracts */
+/** On page load, show the reminder card if the user has unfilled contracts. */
 async function loadContractReminder() {
     try {
         const response = await fetch('/api/contracts/reminders');
         if (!response.ok) throw new Error(`Request failed (${response.status})`);
 
-        const data = await response.json();
-        const contracts = data.contracts || [];
+        const { contracts = [] } = await response.json();
         if (contracts.length) renderContractReminder(contracts);
     } catch (error) {
         console.error('Failed to load contract reminders:', error);
     }
 }
-
-document.addEventListener('DOMContentLoaded', loadContractReminder);
 
 // ============================================
 // EXPORT FUNCTIONS TO GLOBAL SCOPE
