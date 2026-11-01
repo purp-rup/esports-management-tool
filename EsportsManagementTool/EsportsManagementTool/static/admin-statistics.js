@@ -1175,6 +1175,14 @@ function renderSeasonGroupedList({ items, tbody, cardsWrap, toggleFn, getSeasonN
 function renderGameStatsTable(gameStats) {
     const tbody = document.getElementById('gameStatsTableBody');
     const cardsWrap = document.getElementById('gameStatsCardsWrap');
+    const isBR = Number(gameStats.is_br) === 1;
+    const recordHeader = document.getElementById('gameStatsRecordHeader');
+    if (recordHeader) recordHeader.textContent = isBR ? 'Total Points' : 'Reg Season Record';
+
+    const getRecordValue = team => isBR
+        ? (team.regular_season_points ?? 0)
+        : (team.regular_season_record || '—');
+    const recordLabel = isBR ? 'Total Points' : 'Record';
     tbody.innerHTML = '';
     cardsWrap.innerHTML = '';
 
@@ -1191,7 +1199,7 @@ function renderGameStatsTable(gameStats) {
             <td class="game-stats-team-name">${team.team_title}</td>
             <td>${team.conference || '—'}</td>
             <td>${renderMatchList(team.regular_season_matches)}</td>
-            <td><span class="game-stats-record-badge">${team.regular_season_record || '—'}</span></td>
+            <td><span class="game-stats-record-badge">${getRecordValue(team)}</span></td>
             <td>
                 <div class="game-stats-qualified">${team.playoffs_status || ''}</div>
                 ${renderMatchList(team.playoffs_matches)}
@@ -1214,8 +1222,8 @@ function renderGameStatsTable(gameStats) {
                 <span class="game-stats-card-value">${renderMatchList(team.regular_season_matches, false) || '—'}</span>
             </div>
             <div class="game-stats-card-row">
-                <span class="game-stats-card-label">Record</span>
-                <span class="game-stats-card-value"><span class="game-stats-record-badge">${team.regular_season_record || '—'}</span></span>
+                <span class="game-stats-card-label">${recordLabel}</span>
+                <span class="game-stats-card-value"><span class="game-stats-record-badge">${getRecordValue(team)}</span></span>
             </div>
             <div class="game-stats-card-row game-stats-card-playoffs">
                 <span class="game-stats-card-label">Playoffs</span>
