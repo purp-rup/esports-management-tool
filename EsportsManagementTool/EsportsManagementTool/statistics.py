@@ -6,6 +6,7 @@ from EsportsManagementTool import playoffs_results
 from EsportsManagementTool.universal_helpers import format_time_to_12hr
 from flask import render_template, request, jsonify
 import MySQLdb.cursors
+import math
 
 class EsportsStatistics:
     """Centralized statistics calculator for Stockton Esports program"""
@@ -1082,13 +1083,14 @@ class EsportsStatistics:
 
         # Game Manager — one per game, pulled via games.gm_id
         cursor.execute("""
-            SELECT u.firstname, u.lastname
+            SELECT u.firstname, u.lastname, g.isBr
             FROM games g
             LEFT JOIN users u ON g.gm_id = u.id
             WHERE g.GameID = %s
         """, (game_id,))
         gm_row = cursor.fetchone()
         game_manager = f"{gm_row['firstname']} {gm_row['lastname']}" if gm_row and gm_row['firstname'] else None
+        is_br = int(gm_row['isBr']) if gm_row and gm_row['isBr'] is not None else 0
 
         team_query = "SELECT TeamID, teamName, season_id FROM teams WHERE gameID = %s"
         params = [game_id]
@@ -1101,7 +1103,7 @@ class EsportsStatistics:
         teams = cursor.fetchall()
 
         if not teams:
-            return {'game_id': game_id, 'game_manager': game_manager, 'teams': []}
+            return {'game_id': game_id, 'game_manager': game_manager, 'is_br': is_br, 'teams': []}
 
         team_ids = [t['TeamID'] for t in teams]
         placeholders = ','.join(['%s'] * len(team_ids))
@@ -1147,7 +1149,8 @@ class EsportsStatistics:
         # unfiltered row, matching the original league_clause == "" case).
         cursor.execute(f"""
             SELECT mr.team_id, ge.league_id, mr.is_playoffs, ge.EventName as label,
-                   mr.opponent_school, mr.result, mr.team_score, mr.opponent_score
+                    mr.opponent_school, mr.result, mr.team_score, mr.opponent_score,
+                    mr.points, mr.event_id
             FROM match_results mr
             JOIN generalevents ge ON mr.event_id = ge.EventID
             WHERE mr.team_id IN ({placeholders})
@@ -1164,6 +1167,18 @@ class EsportsStatistics:
             matches_by_team.setdefault(
                 row['team_id'], {'regular': [], 'playoffs': []}
             )[bucket_key].append(row)
+
+        avg_by_event = {}
+        if is_br:
+            cursor.execute(f"""
+                SELECT event_id, AVG(placement) AS avg_placement
+                FROM br_placements
+                WHERE event_id IN (
+                    SELECT event_id FROM match_results WHERE team_id IN ({placeholders})
+                )
+                GROUP BY event_id
+            """, tuple(team_ids))
+            avg_by_event = {r['event_id']: float(r['avg_placement']) for r in cursor.fetchall()}
 
         # Every playoffs placement for every team/league in one query
         placement_query = f"""
@@ -1192,12 +1207,13 @@ class EsportsStatistics:
                           if league_id is not None else matches_by_team.get(team_id)) \
                           or {'regular': [], 'playoffs': []}
 
-                regular_matches = self._format_matches(bucket['regular'])
-                playoffs_matches = self._format_matches(bucket['playoffs'])
+                regular_matches = self._format_matches(bucket['regular'], avg_by_event)
+                playoffs_matches = self._format_matches(bucket['playoffs'], avg_by_event)
 
                 wins = sum(1 for m in regular_matches if m['result'] == 'win')
                 losses = sum(1 for m in regular_matches if m['result'] == 'loss')
                 regular_season_record = f"{wins}-{losses}"
+                regular_season_points = sum(row['points'] or 0 for row in bucket['regular'])
 
                 placement = placement_by_team_league.get((team_id, league_id)) if league_id is not None else None
                 if placement is None:
@@ -1216,6 +1232,7 @@ class EsportsStatistics:
                     'game_manager': season_gm_map.get(team['season_id'], game_manager),
                     'regular_season_matches': regular_matches,
                     'regular_season_record': regular_season_record,
+                    'regular_season_points': regular_season_points,
                     'playoffs_matches': playoffs_matches,
                     'playoffs_status': playoffs_status,
                     'playoffs_outcome': playoffs_outcome,
@@ -1236,10 +1253,11 @@ class EsportsStatistics:
         return {
             'game_id': game_id,
             'game_manager': game_manager,
+            'is_br': is_br,
             'teams': result_rows,
         }
 
-    def _format_matches(self, rows):
+    def _format_matches(self, rows, placement_avgs=None):
         """
         Format raw match_results rows into the {label, opponent, result, score}
         shape the admin statistics frontend expects.
@@ -1251,6 +1269,11 @@ class EsportsStatistics:
             opponent_score = row['opponent_score']
             if team_score is not None and opponent_score is not None:
                 score_display = f"{team_score}-{opponent_score}"
+            elif row.get('points') is not None and not row['result']:
+                score_display = f"{row['points']} pts"
+                avg = (placement_avgs or {}).get(row.get('event_id'))
+                if avg is not None:
+                    score_display += f" | Average Placement: {math.ceil(avg)}th"
             else:
                 score_display = row['result'].upper() if row['result'] else None
 

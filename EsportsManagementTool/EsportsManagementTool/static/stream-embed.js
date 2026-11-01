@@ -22,7 +22,7 @@ async function initTwitchEmbed() {
             ? ['localhost', '127.0.0.1']
             : [host];
 
-        const opts = { width: '100%', height: '100%', parent, muted: true };
+        const opts = { width: '100%', height: '100%', parent, muted: true, layout: 'video' };
 
         if (data.is_live) {
             opts.channel = data.embed_id;
