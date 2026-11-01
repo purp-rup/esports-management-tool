@@ -59,6 +59,10 @@
                     <i class="fas fa-users tab-icon"></i>
                     <span>Community</span>
                 </button>
+                <button class="tab-button" data-view="contracts" onclick="switchStatsView('contracts', this)">
+                    <i class="fas fa-file-signature tab-icon"></i>
+                    <span>Contracts</span>
+                </button>
             </div>
         </div>
     </div>
@@ -851,6 +855,72 @@
         </section>
         </div><!-- /#communityGameContent -->
     </div>
+
+    <!-- ================================ -->
+    <!-- CONTRACTS OVERVIEW VIEW -->
+    <!-- ================================ -->
+    <div id="statsContractsView" style="display:none;">
+        <section class="stats-section">
+            <h2>Contracts Overview</h2>
+
+            <!-- Shown while the contracts overview is being fetched -->
+            <div id="contractsOverviewLoading" class="game-stats-card-loading" style="display:none;">
+                <i class="fas fa-spinner fa-spin"></i> Loading contracts...
+            </div>
+
+            <div id="contractsOverviewTableWrap" class="game-stats-table-wrap">
+                <table class="game-stats-table">
+                    <thead>
+                        <tr id="contractsOverviewHead">
+                            <th>Name</th>
+                            <th>Username</th>
+                            <!-- Contract columns injected by renderContractsOverviewTable() -->
+                        </tr>
+                    </thead>
+                    <tbody id="contractsOverviewTableBody">
+                        <!-- Rows injected by renderContractsOverviewTable() -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="contractsOverviewCardsWrap" class="game-stats-cards-wrap">
+                <!-- Cards injected by renderContractsOverviewTable() for mobile view -->
+            </div>
+        </section>
+    </div>
+
+    <!-- ================================ -->
+    <!-- PER-CONTRACT DETAIL VIEW -->
+    <!-- ================================ -->
+    <div id="statsContractDetailView" style="display:none;">
+        <section class="stats-section">
+            <h2 id="contractViewTitle">
+                <span class="game-view-title-icon"><i class="fas fa-file-signature" id="contractViewTitleIcon"></i></span> <span id="contractViewTitleText"></span>
+            </h2>
+
+            <!-- Shown while a contract's submissions are being fetched -->
+            <div id="contractDetailLoading" class="game-stats-card-loading" style="display:none;">
+                <i class="fas fa-spinner fa-spin"></i> Loading submissions...
+            </div>
+
+            <div id="contractDetailTableWrap" class="game-stats-table-wrap contract-table-scroll">
+                <table class="game-stats-table">
+                    <thead>
+                        <tr id="contractDetailHead">
+                            <!-- Columns injected by renderContractDetailTable() -->
+                        </tr>
+                    </thead>
+                    <tbody id="contractDetailTableBody">
+                        <!-- Rows injected by renderContractDetailTable() -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="contractDetailCardsWrap" class="game-stats-cards-wrap">
+                <!-- Cards injected by renderContractDetailTable() for mobile view -->
+            </div>
+        </section>
+    </div>
 </div>
 
 <!-- Floating bottom-right tabs: Overview + one per active game (placeholder, not yet functional) -->
@@ -860,7 +930,7 @@
     </button>
 
     <div class="stats-floating-tabs" id="statsFloatingTabsTrack">
-        <div class="stats-floating-tabs-inner">
+        <div class="stats-floating-tabs-inner" data-tabset="games">
             <button class="stats-floating-tab active" data-game="overview">
                 <i class="fas fa-chart-pie"></i>
                 <span class="stats-floating-tab-label">Overview</span>
@@ -877,6 +947,34 @@
                 <span class="stats-floating-tab-label">{{ game.game_title }}</span>
             </button>
             {% endfor %}
+        </div>
+
+        <!-- Contracts tab set (shown only when the Contracts view is active) -->
+        <div class="stats-floating-tabs-inner" data-tabset="contracts" style="display:none;">
+            <button class="stats-floating-tab active" data-contract="overview" data-icon="fa-chart-pie">
+                <i class="fas fa-chart-pie"></i>
+                <span class="stats-floating-tab-label">Overview</span>
+            </button>
+            <button class="stats-floating-tab" data-contract="player_agreement" data-icon="fa-file-signature">
+                <i class="fas fa-file-signature"></i>
+                <span class="stats-floating-tab-label">Player Agreement</span>
+            </button>
+            <button class="stats-floating-tab" data-contract="media_agreement" data-icon="fa-photo-video">
+                <i class="fas fa-photo-video"></i>
+                <span class="stats-floating-tab-label">Media Agreement</span>
+            </button>
+            <button class="stats-floating-tab" data-contract="jersey_interest" data-icon="fa-tshirt">
+                <i class="fas fa-tshirt"></i>
+                <span class="stats-floating-tab-label">Jersey Interest</span>
+            </button>
+            <button class="stats-floating-tab" data-contract="leadership_agreement" data-icon="fa-user-tie">
+                <i class="fas fa-user-tie"></i>
+                <span class="stats-floating-tab-label">Leadership Agreement</span>
+            </button>
+            <button class="stats-floating-tab" data-contract="leadership_jacket_interest" data-icon="fa-user-shield">
+                <i class="fas fa-user-shield"></i>
+                <span class="stats-floating-tab-label">Leadership Jacket Interest</span>
+            </button>
         </div>
     </div>
 

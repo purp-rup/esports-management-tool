@@ -865,6 +865,10 @@ input[type="number"] {
 }
 
 @media (max-width: 768px) {
+    .card-header p {
+        display: none;
+    }
+
     .filter-box-item--flyout .filter-box-flyout {
         position: static;
         display: none;

@@ -690,6 +690,10 @@ schedules.register_schedule_routes(app, mysql, login_required, roles_required)
 from EsportsManagementTool import playoffs_results
 playoffs_results.register_playoffs_results_routes(app, mysql, login_required, roles_required)
 
+# Register contracts routes
+from EsportsManagementTool import contracts
+contracts.register_contract_routes(app, mysql, login_required)
+
 # Initialize playoffs notification scheduler
 from EsportsManagementTool import playoffs_notification_scheduler
 playoffs_notification_scheduler.initialize_playoffs_scheduler(app, mysql)

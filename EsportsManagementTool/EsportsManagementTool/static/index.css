@@ -472,7 +472,7 @@ body {
     }
 }
 
-@media (max-width: 650px) {
+@media (max-width: 950px) {
     .devs-grid {
         display: flex;
         flex-direction: row;
@@ -512,6 +512,22 @@ body {
 
     .dev-name { font-size: 0.875rem; }
     .dev-role { font-size: 0.75rem; }
+}
+
+/* ============================================
+   Meet the Developers: two-up strip (769px - 950px)
+   Same strip mechanics as mobile, two cards in view, snapped to the left edge
+   ============================================ */
+@media (min-width: 769px) and (max-width: 950px) {
+    .devs-grid {
+        scroll-padding-left: 1rem; /* matches the grid's left padding */
+    }
+
+    .dev-card {
+        /* (100% - one 0.75rem gap) / 2 */
+        flex: 0 0 calc(50% - 0.375rem);
+        scroll-snap-align: start;
+    }
 }
 
 /* ============================================

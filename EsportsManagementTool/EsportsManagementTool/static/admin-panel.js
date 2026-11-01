@@ -206,10 +206,10 @@ async function submitPartnershipRename(partnershipId) {
             EventState.partnershipsListCache = null;
             loadPartnershipManagementList();
         } else {
-            alert(data.message || 'Failed to rename partnership');
+            showErrorToast(data.message || 'Failed to rename partnership');
         }
     } catch {
-        alert('Failed to rename partnership');
+        showErrorToast('Failed to rename partnership');
     }
 }
 
@@ -223,10 +223,10 @@ async function deletePartnership(partnershipId) {
             EventState.partnershipsListCache = null;
             loadPartnershipManagementList();
         } else {
-            alert(data.message || 'Failed to remove partnership');
+            showErrorToast(data.message || 'Failed to remove partnership');
         }
     } catch {
-        alert('Failed to remove partnership');
+        showErrorToast(data.message || 'Failed to remove partnership');
     }
 }
 
@@ -245,7 +245,9 @@ async function filterUsers() {
 //Utilizes the universal debounce function
 const debouncedUserSearch = debounce(async (searchQuery, userItemsContainer) => {
     try {
-        const response = await fetch(`/admin/search-users?query=${encodeURIComponent(searchQuery)}`);
+        const params = new URLSearchParams({ query: searchQuery });
+        if (userRoleFilter) params.set('role', userRoleFilter);
+        const response = await fetch(`/admin/search-users?${params}`);
         const data = await response.json();
 
         if (data.success) {
@@ -264,6 +266,55 @@ const debouncedUserSearch = debounce(async (searchQuery, userItemsContainer) => 
         revealUserList();
     }
 }, 300);
+
+// Currently selected role in the user-search role filter ('' = all roles).
+// Standard roles use keys like 'admin'; custom roles use 'custom:<id>'.
+let userRoleFilter = '';
+
+// Opens/closes the role filter dropdown and refreshes its custom role list
+function toggleUserRoleFilterBox() {
+    toggleFilterBox('userRoleFilterPanel');
+    populateUserRoleFilterCustomItems();
+}
+
+// Fills the dropdown with the current (non-archived) custom roles, reusing the shared roles cache
+async function populateUserRoleFilterCustomItems() {
+    const container = document.getElementById('userRoleFilterCustomItems');
+    if (!container) return;
+
+    try {
+        const roles = await getCustomRolesList();
+        container.innerHTML = roles.map(r => {
+            const value = `custom:${r.id}`;
+            const dotHex = CUSTOM_ROLE_COLOR_HEX[r.color] || CUSTOM_ROLE_COLOR_HEX.purple;
+            return `
+                <div class="filter-box-item${userRoleFilter === value ? ' active' : ''}"
+                     data-value="${value}"
+                     onclick="applyUserRoleFilter('${value}', '${escapeQuotes(r.name)}')">
+                    <span class="custom-role-option-label">
+                        <span class="custom-role-dot" style="background: ${dotHex};"></span>
+                        ${escapeHtml(r.name)}
+                    </span>
+                </div>`;
+        }).join('');
+    } catch (e) {
+        console.error('Error loading custom roles for filter:', e);
+        container.innerHTML = '<div class="filter-box-flyout-loading">Failed to load custom roles</div>';
+    }
+}
+
+// Selection handler for the role filter dropdown
+function applyUserRoleFilter(value, label) {
+    closeAllFilterPanels();
+
+    userRoleFilter = value;
+    document.getElementById('userRoleFilterLabel').textContent = label;
+    document.querySelectorAll('#userRoleFilterPanel .filter-box-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === value);
+    });
+
+    filterUsers();
+}
 
 // Render full user list on admin panel (left side list)
 function renderUserItems(users) {
@@ -545,8 +596,6 @@ async function handleUserItemClick(item) {
                 </button>
             </div>
 
-            <div id="roleStatusMessage" style="display: none; margin-top: 1rem; padding: 0.75rem; border-radius: 4px;"></div>
-
             <div class="action-buttons">
                 <button class="btn btn-secondary" onclick="openSuspendModal(${userid}, '${username}', '${firstname} ${lastname}')">
                     <i class="fas fa-user-clock"></i> Lock out User
@@ -603,9 +652,19 @@ function toggleRoleTypeFilterBox() {
     const btn = panel.previousElementSibling;
     if (!btn) return;
 
-    const rect = btn.getBoundingClientRect();
-    panel.style.top = `${rect.bottom + 4}px`;
-    panel.style.left = `${rect.left}px`;
+    // On mobile the panel becomes a bottom sheet (CSS !important)
+    if (window.innerWidth <= 768) return;
+
+    const place = () => {
+        // Closed (selection, click-off, ESC): stop tracking
+        if (!panel.classList.contains('open')) return false;
+        const rect = btn.getBoundingClientRect();
+        panel.style.top = `${rect.bottom + 4}px`;
+        panel.style.left = `${rect.left}px`;
+    };
+
+    place();
+    AnchoredPopups.track(panel, place);
 }
 
 // Selection handler for the role-type filter-box dropdown.
@@ -717,23 +776,29 @@ async function openCustomRoleModal() {
     await loadCustomRolesList(isRemoving);
 }
 
+
+async function getCustomRolesList() {
+    if (!EventState.customRolesListCache) {
+        const response = await fetch('/api/admin/custom-roles');
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Failed to load custom roles');
+        EventState.customRolesListCache = data.roles;
+    }
+    return EventState.customRolesListCache;
+}
+
 // Fetches (and caches on EventState) the list of existing, non-archived custom roles,
 // so previously-created roles can be reused instead of retyped/duplicated. Roles the
 // current user already has are highlighted with a checkmark; when removing, the list
 // is scoped down to only the roles they actually have.
+// Fetches (and caches on EventState) the list of existing, non-archived custom roles.
+// Shared by the Custom Role modal and the user-search role filter.
 async function loadCustomRolesList(isRemoving) {
     const list = document.getElementById('customRoleExistingList');
     if (!list) return;
 
     try {
-        if (!EventState.customRolesListCache) {
-            const response = await fetch('/api/admin/custom-roles');
-            const data = await response.json();
-            if (!data.success) throw new Error(data.message || 'Failed to load custom roles');
-            EventState.customRolesListCache = data.roles;
-        }
-
-        let roles = EventState.customRolesListCache;
+        let roles = await getCustomRolesList();
 
         if (isRemoving) {
             roles = roles.filter(r => currentUserCustomRoleNames.includes(r.name));
@@ -805,7 +870,7 @@ function selectCustomRoleColor(key) {
 }
 
 // Opens the universal delete confirmation modal (modalDelete.js) for a custom role,
-// instead of a browser confirm()/alert() dialog
+// instead of a browser confirm() dialog
 function deleteCustomRole(id, name) {
     openDeleteConfirmModal({
         title: 'Delete Custom Role?',
@@ -873,10 +938,10 @@ function submitCustomRoleName() {
         // No text input rendered means we're in remove mode and nothing was picked
         const list = document.getElementById('customRoleExistingList');
         if (list && !list.querySelector('.custom-role-option')) {
-            alert('This user has no custom roles to remove.');
+            showInfoToast('This user has no custom roles to remove.');
             return;
         }
-        alert('Select a custom role to remove.');
+        showInfoToast('Select a custom role to remove.');
         return;
     }
 
@@ -898,7 +963,6 @@ async function handleRoleChange(username) {
     const activeToggle = document.querySelector('.role-toggle.active');
     const roleSelect = document.getElementById('roleTypeSelect');
     const goBtn = document.getElementById('roleGoBtn');
-    const statusMessage = document.getElementById('roleStatusMessage');
 
     // Validate elements exist
     if (!activeToggle || !roleSelect) return;
@@ -919,22 +983,13 @@ async function handleRoleChange(username) {
     if (isCustomRole && action === 'assign' &&
         currentUserCustomRoleNames.length >= MAX_CUSTOM_ROLES_PER_USER &&
         !currentUserCustomRoleNames.includes(customRoleName)) {
-        statusMessage.style.display = 'block';
-        statusMessage.style.backgroundColor = '#f8d7da';
-        statusMessage.style.color = '#721c24';
-        statusMessage.style.border = '1px solid #f5c6cb';
-        statusMessage.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i> This user already has the maximum of ${MAX_CUSTOM_ROLES_PER_USER} custom roles. Remove one before adding another.
-        `;
+        showErrorToast(`This user already has the maximum of ${MAX_CUSTOM_ROLES_PER_USER} custom roles. Remove one before adding another.`);
         return;
     }
 
     // Disable button during request to prevent duplicate submissions
     goBtn.disabled = true;
     goBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-
-    // Hide any previous status messages
-    statusMessage.style.display = 'none';
 
     try {
         // Make API request to manage role
@@ -955,9 +1010,6 @@ async function handleRoleChange(username) {
 
         const data = await response.json();
 
-        // Show status message container
-        statusMessage.style.display = 'block';
-
         if (data.success) {
             // If a brand new custom role name may have just been created server-side,
             // drop the cache so it appears in the list next time the modal opens.
@@ -966,37 +1018,17 @@ async function handleRoleChange(username) {
                 adminCustomRoleColorsCache = null;
             }
 
-            // Display success message with green styling
-            statusMessage.style.backgroundColor = '#d4edda';
-            statusMessage.style.color = '#155724';
-            statusMessage.style.border = '1px solid #c3e6cb';
-            statusMessage.innerHTML = `
-                <i class="fas fa-check-circle"></i> ${data.message}
-            `;
-
-            // Reload page after 2 seconds to show updated stats and badges
+            showSuccessToast(data.message, 2000);
             setTimeout(() => {
                 window.location.reload();
             }, 2000);
         } else {
-            // Display error message with red styling
-            statusMessage.style.backgroundColor = '#f8d7da';
-            statusMessage.style.color = '#721c24';
-            statusMessage.style.border = '1px solid #f5c6cb';
-            statusMessage.innerHTML = `
-                <i class="fas fa-exclamation-circle"></i> ${data.message}
-            `;
+            showErrorToast(data.message || 'Failed to update role');
         }
     } catch (error) {
         // Handle network or other errors
         console.error('Error managing role:', error);
-        statusMessage.style.display = 'block';
-        statusMessage.style.backgroundColor = '#f8d7da';
-        statusMessage.style.color = '#721c24';
-        statusMessage.style.border = '1px solid #f5c6cb';
-        statusMessage.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i> Failed to update role. Please try again.
-        `;
+        showErrorToast('Failed to update role. Please try again.');
     } finally {
         // Re-enable button with original icon
         goBtn.disabled = false;
@@ -1313,6 +1345,8 @@ function renderLandingGalleryAdminGrid() {
 // ============================================
 window.initializeAdminPanel = initializeAdminPanel;
 window.filterUsers = filterUsers;
+window.toggleUserRoleFilterBox = toggleUserRoleFilterBox;
+window.applyUserRoleFilter = applyUserRoleFilter;
 window.closeRemoveUserModal = closeRemoveUserModal;
 window.openManageLandingGalleryModal  = openManageLandingGalleryModal;
 window.closeManageLandingGalleryModal = closeManageLandingGalleryModal;

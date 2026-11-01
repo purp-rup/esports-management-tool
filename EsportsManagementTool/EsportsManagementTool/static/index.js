@@ -5,7 +5,11 @@
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    function isMobile() { return window.innerWidth <= 640; }
+    // True whenever the devs section is a horizontal strip (matches the 950px CSS breakpoint)
+    function isMobile() { return window.innerWidth <= 950; }
+
+    // Two cards in view from 769px to 950px, one at 768px and below
+    function cardsPerView() { return window.innerWidth > 768 ? 2 : 1; }
 
     // Mobile infinite scroll strip
     function setupInfiniteScroll() {
@@ -35,14 +39,25 @@ document.addEventListener('DOMContentLoaded', function () {
         let setWidth   = 0;
         let jumping    = false;
 
+        // scrollLeft at which a card sits in its snap position:
+        // centered when one card is in view, left-aligned (after grid padding) when two are
+        function snapLeftFor(card) {
+            const gridRect = grid.getBoundingClientRect();
+            const cardRect = card.getBoundingClientRect();
+            const cardX    = cardRect.left - gridRect.left + grid.scrollLeft; // position in scroll content
+
+            if (cardsPerView() === 1) {
+                return cardX + cardRect.width / 2 - grid.clientWidth / 2;
+            }
+            return cardX - parseFloat(getComputedStyle(grid).paddingLeft);
+        }
+
         function measure() {
             const gap = originals.length > 1
                 ? originals[1].offsetLeft - originals[0].offsetLeft - originals[0].offsetWidth
                 : 12;
             setWidth   = originals.length * (originals[0].offsetWidth + gap);
-            baseScroll = originals[0].offsetLeft
-                       + originals[0].offsetWidth / 2
-                       - grid.offsetWidth / 2;
+            baseScroll = snapLeftFor(originals[0]);
         }
 
         function jumpToBase() {
@@ -116,16 +131,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Manually snap to nearest card center
             const allCards = Array.from(grid.querySelectorAll('.dev-card'));
-            const viewCenter = grid.scrollLeft + grid.offsetWidth / 2;
             let closest = allCards[0];
             let closestDist = Infinity;
             allCards.forEach(card => {
-                const dist = Math.abs((card.offsetLeft + card.offsetWidth / 2) - viewCenter);
+                const dist = Math.abs(snapLeftFor(card) - grid.scrollLeft);
                 if (dist < closestDist) { closestDist = dist; closest = card; }
             });
 
-            const snapTarget = closest.offsetLeft + closest.offsetWidth / 2 - grid.offsetWidth / 2;
-            grid.scrollTo({ left: snapTarget, behavior: 'smooth' });
+            grid.scrollTo({ left: snapLeftFor(closest), behavior: 'smooth' });
         });
     }
 
