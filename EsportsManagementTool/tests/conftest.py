@@ -9,10 +9,10 @@ fixture the first time a test needs the app or the database.
 Unit tests that never touch `app` do not start Docker.
 
 Fixture chain (each session):
-    test_services  -> starts MySQL + Mailpit (Docker, or already running in CI)
-    test_database  -> generates db/test-init/schema.sql from the source DB if it is
-                      missing (structure only), drops and re-creates the test DB,
-                      loads the schema, then deletes the file again
+    test_services  -> docker compose up --wait, then waits for Mailpit
+    test_database  -> requires db/test-init/schema.sql (exits with instructions if it is missing),
+                      drops and recreates `esmt_test`, ensures `test_user`,
+                      loads the schema (structure only), then checks tables were created
 
 Opt-in data helpers: `db` (raw connection) and `clean_db` (empty tables first).
 """
