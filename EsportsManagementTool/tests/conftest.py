@@ -88,8 +88,7 @@ def test_services():
         pytest.exit(f"Could not start test services:\n{result.stderr}", returncode=2)
     _wait_for_mailpit()
     yield
-    if os.getenv("ESMT_TEARDOWN") == "1":
-        subprocess.run(compose + ["down", "-v"], check=False)
+    subprocess.run(compose + ["down", "-v"], check=False)   # always clean up, pass or fail
 
 
 def _connect(user, password, database=None, attempts=30):
