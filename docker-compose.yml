@@ -40,5 +40,29 @@ services:
     volumes:
       - ./db/init:/dump
 
+  # Structure-only export of the source DB for the TEST database (no rows, so no
+  # real user data or password hashes). The output is gitignored. Run:
+  # docker compose --profile tools run --rm dump-test-schema
+  dump-test-schema:
+    image: mysql:8.0
+    profiles: [ "tools" ]
+    env_file:
+      - EsportsManagementTool/.env
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        export MYSQL_PWD="$$MYSQL_PASSWORD"
+        mysqldump -h "$$MYSQL_HOST" -u "$$MYSQL_USER" \
+          --no-data --no-tablespaces --set-gtid-purged=OFF --column-statistics=0 \
+          --skip-comments --skip-add-drop-table --skip-add-locks --skip-lock-tables \
+          --routines --triggers "$$MYSQL_DB" > /tmp/raw.sql
+        sed -E -e 's/ AUTO_INCREMENT=[0-9]+//' -e 's/DEFINER=[^ *]* ?//' /tmp/raw.sql > /dump/schema.sql
+        grep -q 'CREATE TABLE' /dump/schema.sql || { echo 'Dump contains no tables; refusing to continue' >&2; exit 1; }
+        echo "Wrote db/test-init/schema.sql ($$(grep -c 'CREATE TABLE' /dump/schema.sql) tables)"
+    volumes:
+      - ./db/test-init:/dump
+
 volumes:
   mysql-data:
