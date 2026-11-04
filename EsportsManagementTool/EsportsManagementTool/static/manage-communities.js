@@ -345,6 +345,32 @@ function showCommunityForm(community = null) {
 
             <div class="form-row">
                 <div class="form-group">
+                    <label for="communityDiscordServerId">Discord Server ID</label>
+                    <small>For the embedded chat.</small>
+                    <input type="text"
+                           id="communityDiscordServerId"
+                           name="discord_server_id"
+                           inputmode="numeric"
+                           pattern="[0-9]{17,20}"
+                           placeholder="e.g., 1285647382910562735"
+                           value="${community && community.discord_server_id ? escapeHtml(community.discord_server_id) : ''}">
+                </div>
+
+                <div class="form-group">
+                    <label for="communityDiscordChannelId">Discord Channel ID</label>
+                    <small>The channel shown in the chat box.</small>
+                    <input type="text"
+                           id="communityDiscordChannelId"
+                           name="discord_channel_id"
+                           inputmode="numeric"
+                           pattern="[0-9]{17,20}"
+                           placeholder="e.g., 1029385736274625719"
+                           value="${community && community.discord_channel_id ? escapeHtml(community.discord_channel_id) : ''}">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
                     <center><label>Game Icon/Image</label></center>
                     <div class="community-image-upload">
                         <div class="community-image-preview" id="communityImagePreview" onclick="document.getElementById('communityImage').click()">
@@ -441,6 +467,8 @@ async function submitCommunityForm(event) {
     const division = form.querySelector('#communityDivision').value;
     const description = form.querySelector('#communityDescription').value;
     const discordLink = form.querySelector('#communityDiscordLink').value.trim();
+    const discordServerId = form.querySelector('#communityDiscordServerId').value.trim();
+    const discordChannelId = form.querySelector('#communityDiscordChannelId').value.trim();
     const isBR = form.querySelector('#communityIsBR')?.checked || false;
 
     // Get selected team sizes
@@ -472,6 +500,10 @@ async function submitCommunityForm(event) {
         formData.append('discord_link', discordLink);
         formData.append('isBR', isBR ? 'true' : 'false');
     }
+
+    // Discord chat embed IDs (same keys for create and edit)
+    formData.append('discord_server_id', discordServerId);
+    formData.append('discord_channel_id', discordChannelId);
 
     // Handle image with correct key based on operation
     const croppedBlob = getCroppedImageBlob('community');
