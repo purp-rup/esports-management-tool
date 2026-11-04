@@ -1,0 +1,37 @@
+# Disposable services for automated tests (MySQL + Mailpit).
+# Kept separate from docker-compose.yml so it never touches the dev database.
+#
+#   Start:  docker compose -f docker-compose.test.yml up -d --wait
+#   Stop:   docker compose -f docker-compose.test.yml down -v
+#
+# pytest starts these automatically (see tests/conftest.py).
+name: esmt-test
+
+services:
+  mysql-test:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: test_root_password
+      MYSQL_DATABASE: esmt_test
+      MYSQL_USER: test_user
+      MYSQL_PASSWORD: test_password
+    ports:
+      - "127.0.0.1:3307:3306"          # uses port 3307 so the dev DB can keep 3306
+    volumes:
+      - ./db/test-init:/docker-entrypoint-initdb.d:ro   # first-start convenience; pytest rebuilds the DB from schema.sql every session
+    tmpfs:
+      - /var/lib/mysql                  # data lives in RAM: fresh DB every time the container is recreated
+    healthcheck:
+      # -h 127.0.0.1 matters: during first-time init the server has no TCP listener,
+      # so the check only passes once the real server is up.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-ptest_root_password"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "127.0.0.1:1025:1025"          # SMTP: the app sends mail here when MAILING_MODE=testing
+      - "127.0.0.1:8025:8025"          # web inbox + REST API

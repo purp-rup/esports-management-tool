@@ -116,9 +116,6 @@ def set_mysql_timezone() -> None:
     are consistent with application timezone. Handles DST transitions
     automatically.
     """
-    if app.config.get("TESTING"):
-        # During testing, avoid connection to DB
-        return
     if mysql.connection:
         cursor = mysql.connection.cursor()
         try:

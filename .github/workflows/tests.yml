@@ -1,0 +1,38 @@
+name: tests
+on: [pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test_root_password
+          MYSQL_DATABASE: esmt_test
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_password
+        ports: ["3307:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ptest_root_password"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      mailpit:
+        image: axllent/mailpit
+        ports: ["1025:1025", "8025:8025"]
+    env:
+      ESMT_NO_DOCKER: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: sudo apt-get update && sudo apt-get install -y libmysqlclient-dev pkg-config
+      - run: pip install -r EsportsManagementTool/requirements.txt
+      - run: playwright install --with-deps chromium
+      - name: Restore test schema from secret
+        env:
+          TEST_SCHEMA_B64: ${{ secrets.TEST_SCHEMA_B64 }}
+        run: |
+          test -n "$TEST_SCHEMA_B64" || { echo "TEST_SCHEMA_B64 secret is not available to this run" >&2; exit 1; }
+          echo "$TEST_SCHEMA_B64" | base64 -d | gunzip > db/test-init/schema.sql
+      - run: python -m pytest --maxfail=100
+        working-directory: EsportsManagementTool
