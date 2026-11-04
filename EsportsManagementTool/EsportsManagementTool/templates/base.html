@@ -312,6 +312,9 @@
                 </div>
                 <span class="nav-title">Esports Vantage</span>
             </a>
+            {% if show_test_build_flag %}
+            <span class="test-build-flag" title="Test Build"><i class="fas fa-flask"></i> Test Build</span>
+            {% endif %}
             <div class="navbar-menu">
                 {% if session.loggedin %}
                     <span class="user-info">Welcome back, {{ session.username }}</span>
