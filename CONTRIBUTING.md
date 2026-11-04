@@ -32,15 +32,20 @@ Now, run in terminal:
 flask --app EsportsManagementTool run --debug
 ```
 
-## Testing
-Unit testing is primarily executed using **pytest**.
-<br/>
-<br/>
-After activating the virtual environment, run **tests** with:
-```console
-python -m pytest
-```
-
 ## When Committing...
 
 Do **NOT** commit your .env file to the main branch.
+
+## Testing
+Unit, functional, and E2E testing is primarily executed using **pytest**.
+<br/>
+
+**Important Note:** **Docker** is required to run tests using the test DB and mailpit.
+<br/>
+
+Documentation can be found within the shared drive under the documentation folder called:
+<br/>
+`Vantage Testing Reference`
+<br/>
+
+See `test-init/README.md` for details on how to clone the real DB schema into the test DB.
