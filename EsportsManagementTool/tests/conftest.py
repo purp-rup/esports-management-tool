@@ -25,9 +25,11 @@ import subprocess
 import threading
 import time
 import urllib.request
+from types import SimpleNamespace
 from pathlib import Path
 
 from db_schema import assert_safe_target, load_schema
+from mail_helpers import clear_inbox
 
 TEST_DB_HOST = os.getenv("TEST_MYSQL_HOST", "127.0.0.1")
 TEST_DB_PORT = int(os.getenv("TEST_MYSQL_PORT", "3307"))
@@ -62,7 +64,6 @@ os.environ.update({
 
 from werkzeug.serving import make_server
 from EsportsManagementTool import app as application
-
 
 def _wait_for_mailpit(timeout=20):
     """Mailpit has no Docker healthcheck, so poll its API until it answers."""
@@ -213,3 +214,33 @@ def clean_db(db):
             cur.execute(f"TRUNCATE TABLE `{table}`")
         cur.execute("SET FOREIGN_KEY_CHECKS=1")
     return db
+
+# Empties the Mailpit inbox before the test. Opt-in (starts the Docker services if needed).
+# Use with mail_helpers.wait_for_email / first_link.
+@pytest.fixture()
+def inbox(test_services):
+    clear_inbox()
+    yield
+
+# Replaces Cloudinary uploads/deletes with fakes for EVERY test (autouse), so no test
+# can ever reach the real Cloudinary account. Returns a recorder for assertions:
+#   mock_cloudinary.uploads  -> list of kwargs passed to upload (e.g. folder=...)
+#   mock_cloudinary.destroys -> list of public_ids passed to destroy
+@pytest.fixture(autouse=True)
+def mock_cloudinary(monkeypatch):
+    import cloudinary.uploader
+    calls = SimpleNamespace(uploads=[], destroys=[])
+
+    def fake_upload(file, **kwargs):
+        calls.uploads.append(kwargs)
+        n = len(calls.uploads)
+        return {"secure_url": f"https://example.test/{kwargs.get('folder', 'img')}/test-{n}.png",
+                "public_id": f"test-{n}"}
+
+    def fake_destroy(public_id, **kwargs):
+        calls.destroys.append(public_id)
+        return {"result": "ok"}
+
+    monkeypatch.setattr(cloudinary.uploader, "upload", fake_upload)
+    monkeypatch.setattr(cloudinary.uploader, "destroy", fake_destroy)
+    return calls
