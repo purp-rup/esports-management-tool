@@ -79,17 +79,16 @@ def _wait_for_mailpit(timeout=20):
 # Starts MySQL + Mailpit once per test session, only if a test needs them
 @pytest.fixture(scope="session")
 def test_services():
-    if os.getenv("ESMT_NO_DOCKER") != "1":
-        if not shutil.which("docker"):
-            pytest.exit("Docker is not installed or not on PATH (set ESMT_NO_DOCKER=1 if you "
-                        "run MySQL and Mailpit yourself).", returncode=2)
-        compose = ["docker", "compose", "-f", str(COMPOSE_FILE)]
-        result = subprocess.run(compose + ["up", "-d", "--wait"], capture_output=True, text=True)
-        if result.returncode != 0:
-            pytest.exit(f"Could not start test services:\n{result.stderr}", returncode=2)
+    if not shutil.which("docker"):
+        pytest.exit("Docker is required to run the tests but was not found on PATH. "
+                    "Install and start Docker, then re-run.", returncode=2)
+    compose = ["docker", "compose", "-f", str(COMPOSE_FILE)]
+    result = subprocess.run(compose + ["up", "-d", "--wait"], capture_output=True, text=True)
+    if result.returncode != 0:
+        pytest.exit(f"Could not start test services:\n{result.stderr}", returncode=2)
     _wait_for_mailpit()
     yield
-    if os.getenv("ESMT_NO_DOCKER") != "1" and os.getenv("ESMT_TEARDOWN") == "1":
+    if os.getenv("ESMT_TEARDOWN") == "1":
         subprocess.run(compose + ["down", "-v"], check=False)
 
 
