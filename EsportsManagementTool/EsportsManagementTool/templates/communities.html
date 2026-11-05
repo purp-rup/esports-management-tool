@@ -126,13 +126,21 @@
             <div class="sheet-backdrop" id="userProfileSheetBackdrop" onclick="closeUserProfilePopup()"></div>
         </div>
 
-             <!-- Forum -->
+            <!-- Forum -->
             <div class="community-forum">
-                <div class="community-forum-header">{{ game.GameTitle }} Chat</div>
-                <div class="community-forum-placeholder">
-                    <i class="fas fa-comments"></i>
-                    <p>Forum coming soon.</p>
-                </div>
+                {% if game.discord_server_id and game.discord_channel_id %}
+                    <widgetbot
+                        server="{{ game.discord_server_id }}"
+                        channel="{{ game.discord_channel_id }}"
+                        width="100%"
+                        height="100%"
+                    ></widgetbot>
+                {% else %}
+                    <div class="community-forum-placeholder">
+                        <i class="fas fa-comments"></i>
+                        <p>No chat currently exists for this community.</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
 
@@ -192,6 +200,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/@widgetbot/html-embed"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <script src="{{ url_for('static', filename='universal-helpers.js') }}"></script>
 <script src="{{ url_for('static', filename='notifications.js') }}"></script>

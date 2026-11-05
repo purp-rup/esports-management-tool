@@ -25,12 +25,18 @@ def create_community():
         team_sizes_json = request.form.get('team_sizes', '[]')
         division = request.form.get('division', 'Other').strip()
         discord_link = request.form.get('discord_link', '').strip()
+        discord_server_id = request.form.get('discord_server_id', '').strip()
+        discord_channel_id = request.form.get('discord_channel_id', '').strip()
 
         is_br = 1 if request.form.get('isBR') == 'true' else 0
 
         # Field Validation
         team_sizes = json.loads(team_sizes_json)
         is_valid, error = validate_game_fields(game_title, abbreviation, description, team_sizes, division)
+        if not is_valid:
+            return jsonify({'success': False, 'message': error}), 400
+        
+        is_valid, error = validate_discord_ids(discord_server_id, discord_channel_id)
         if not is_valid:
             return jsonify({'success': False, 'message': error}), 400
 
@@ -57,9 +63,10 @@ def create_community():
                 public_id = upload_result.get('public_id')
 
         cursor.execute(
-            "INSERT INTO games (GameTitle, Abbreviation, Description, TeamSizes, Division, GameImage, cloudinary_public_id, discord_link, isBR) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            "INSERT INTO games (GameTitle, Abbreviation, Description, TeamSizes, Division, GameImage, cloudinary_public_id, discord_link, discord_server_id, discord_channel_id, isBR) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
             (game_title, abbreviation, description, team_sizes_str, division, image_url, public_id,
-             discord_link if discord_link else None, is_br)
+             discord_link if discord_link else None,
+             discord_server_id or None, discord_channel_id or None, is_br)
         )
 
         game_id = cursor.lastrowid
@@ -324,6 +331,8 @@ def get_all_games_for_management():
                 g.gm_id,
                 g.hidden,
                 g.discord_link,
+                g.discord_server_id,
+                g.discord_channel_id,
                 g.isBR,
                 CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image,
                 u.username as gm_username,
@@ -380,6 +389,8 @@ def get_all_games_for_management():
                 'current_gm': gm_info,
                 'hidden': bool(game['hidden']),
                 'discord_link': game['discord_link'],
+                'discord_server_id': game['discord_server_id'],
+                'discord_channel_id': game['discord_channel_id'],
                 'isBR': bool(game['isBR'])
             })
 
@@ -413,6 +424,8 @@ def update_game_details(game_id):
         description = request.form.get('description', '').strip()
         division = request.form.get('division', '').strip()
         discord_link = request.form.get('discord_link', '').strip()
+        discord_server_id = request.form.get('discord_server_id', '').strip()
+        discord_channel_id = request.form.get('discord_channel_id', '').strip()
         team_sizes_json = request.form.get('team_sizes', '[]')
 
         # Parse isBR string value from FormData to 1 or 0
@@ -421,6 +434,10 @@ def update_game_details(game_id):
         # Field Validation
         team_sizes = json.loads(team_sizes_json)
         is_valid, error = validate_game_fields(game_title, abbreviation, description, team_sizes, division)
+        if not is_valid:
+            return jsonify({'success': False, 'message': error}), 400
+
+        is_valid, error = validate_discord_ids(discord_server_id, discord_channel_id)
         if not is_valid:
             return jsonify({'success': False, 'message': error}), 400
 
@@ -468,18 +485,21 @@ def update_game_details(game_id):
             cursor.execute("""
                UPDATE games 
                SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, 
-                   TeamSizes = %s, GameImage = %s, cloudinary_public_id = %s, discord_link = %s, isBR = %s
+                   TeamSizes = %s, GameImage = %s, cloudinary_public_id = %s, discord_link = %s,
+                   discord_server_id = %s, discord_channel_id = %s, isBR = %s
                WHERE GameID = %s
            """, (game_title, abbreviation, description, division, team_sizes_str, image_url, public_id,
-                 discord_link if discord_link else None, is_br, game_id))
+                 discord_link if discord_link else None,
+                 discord_server_id or None, discord_channel_id or None, is_br, game_id))
         else:
             cursor.execute("""
                UPDATE games 
-               SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, TeamSizes = %s, discord_link = %s, isBR = %s
+               SET GameTitle = %s, Abbreviation = %s, Description = %s, Division = %s, TeamSizes = %s,
+                   discord_link = %s, discord_server_id = %s, discord_channel_id = %s, isBR = %s
                WHERE GameID = %s
            """, (game_title, abbreviation, description, division, team_sizes_str,
-                 discord_link if discord_link else None, is_br, game_id))
-
+                 discord_link if discord_link else None,
+                 discord_server_id or None, discord_channel_id or None, is_br, game_id))
         mysql.connection.commit()
 
         sync_discord_icon(game_id, discord_link)
@@ -626,7 +646,8 @@ def community_page(game_id):
         cursor.execute("""
            SELECT g.GameID, g.GameTitle, g.Abbreviation, g.Description, g.Division, g.gm_id,
                   CASE WHEN g.GameImage IS NOT NULL THEN 1 ELSE 0 END as has_image,
-                  g.GameBanner, g.discord_link, di.icon_url as discord_icon_url
+                  g.GameBanner, g.discord_link, g.discord_server_id, g.discord_channel_id,
+                  di.icon_url as discord_icon_url
            FROM games g
            LEFT JOIN game_discord_info di ON di.game_id = g.GameID
            WHERE g.GameID = %s AND g.hidden = 0
@@ -1303,6 +1324,14 @@ def validate_game_fields(title, abbreviation, description, team_sizes, division)
         return False, 'Invalid division selected'
     return True, None
 
+def validate_discord_ids(server_id, channel_id):
+    """Discord IDs are numeric snowflakes. Both must be set together, or both blank."""
+    for value in (server_id, channel_id):
+        if value and not (value.isdigit() and 17 <= len(value) <= 20):
+            return False, 'Discord server and channel IDs must be numeric (17-20 digits)'
+    if bool(server_id) != bool(channel_id):
+        return False, 'Provide both a Discord server ID and a channel ID, or leave both blank'
+    return True, None
 
 def get_game_stats(cursor, game_ids):
     """Fetch member counts and active-season team counts for a list of game IDs"""
