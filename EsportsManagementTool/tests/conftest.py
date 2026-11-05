@@ -54,10 +54,6 @@ os.environ.update({
     "MYSQL_USER": TEST_DB_USER,
     "MYSQL_PASSWORD": TEST_DB_PASSWORD,
     "MYSQL_DB": TEST_DB_NAME,
-    "AWS_REGION": "us-east-2",
-    "DYNAMODB_TABLE": "esmt-test-chat",
-    "AWS_ACCESS_KEY_ID": "testing",
-    "AWS_SECRET_ACCESS_KEY": "testing",
     "MAILING_MODE": "testing",
     "MAIL_DEFAULT_SENDER": "test@example.com",
 })
