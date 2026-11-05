@@ -287,20 +287,7 @@
     border: 1px solid var(--border-color);
     margin-top: 1.25rem;
     height: 500px;
-}
-
-.community-forum-header {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    padding-left: 20px;
-    margin-top: 1rem;
-    height: 40px;
-    text-align: center;
-    font-family: 'Inter', sans-serif;
-    font-weight: 500;
-    color: var(--text-stockton-white);
-    font-size: 1.125rem;
+    overflow: hidden;
 }
 
 .community-forum-placeholder {
@@ -321,6 +308,13 @@
     opacity: 0.4;
 }
 
+/* ── Widget Bot ── */
+.community-forum widgetbot {
+    display: block;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+}
 
 /* ── Cropper modal ── */
 .cropper-container-wrapper {
