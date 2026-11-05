@@ -38,8 +38,6 @@ app.config['MYSQL_HOST'] = os.environ.get('MYSQL_HOST')
 app.config['MYSQL_USER'] = os.environ.get('MYSQL_USER')
 app.config['MYSQL_PASSWORD'] = os.environ.get('MYSQL_PASSWORD')
 app.config['MYSQL_DB'] = os.environ.get('MYSQL_DB')
-app.config["AWS_REGION"] = os.environ.get("AWS_REGION")
-app.config["DYNAMODB_TABLE"] = os.environ.get("DYNAMODB_TABLE")
 
 # SSL Configuration for MySQL (enforces encrypted connections)
 app.config['MYSQL_SSL_DISABLED'] = False
@@ -88,14 +86,6 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # Initialize extensions
 mysql = MySQL(app)
 mail = Mail(app)
-
-# Initialize DynamoDB - NoSQL
-dynamodb = boto3.resource(
-    "dynamodb",
-    region_name=app.config["AWS_REGION"]
-)
-
-chat_table = dynamodb.Table(app.config["DYNAMODB_TABLE"])
 
 # Cloudinary Configuration for Profile Pictures
 cloudinary.config(
