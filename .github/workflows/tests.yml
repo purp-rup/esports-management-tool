@@ -1,24 +1,31 @@
 name: tests
 on: [pull_request]
+permissions:
+  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify no real key is committed
+        run: |
+          test "$(tr -d '\r' < .env | grep '^TEST_SCHEMA_KEY=')" = 'TEST_SCHEMA_KEY=ExampleKey' || { echo "Root .env must contain exactly one TEST_SCHEMA_KEY line with the placeholder. If a real key was committed, rotate it." >&2; exit 1; }
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: sudo apt-get update && sudo apt-get install -y libmysqlclient-dev pkg-config
       - run: pip install -r EsportsManagementTool/requirements.txt
       - run: playwright install --with-deps chromium
-      - name: Restore test schema from secret
-        env:
-          TEST_SCHEMA_B64: ${{ secrets.TEST_SCHEMA_B64 }}
+      - name: Verify no real key is committed
         run: |
-          test -n "$TEST_SCHEMA_B64" || { echo "TEST_SCHEMA_B64 secret is not available to this run" >&2; exit 1; }
-          printf '%s' "$TEST_SCHEMA_B64" | tr -d '[:space:]' > /tmp/schema.b64
-          echo "Secret length: $(wc -c < /tmp/schema.b64) chars (multiple of 4 expected)" >&2
-          base64 -d /tmp/schema.b64 | gunzip > db/test-init/schema.sql
-          test -s db/test-init/schema.sql || { echo "Restored schema.sql is empty" >&2; exit 1; }
+          tr -d '\r' < .env | grep -qx 'TEST_SCHEMA_KEY=ExampleKey' || { echo "Root .env must contain only the TEST_SCHEMA_KEY placeholder. If a real key was committed, rotate it." >&2; exit 1; }
+
+      - name: Decrypt test schema
+        env:
+          TEST_SCHEMA_KEY: ${{ secrets.TEST_SCHEMA_KEY }}
+        run: |
+          test -n "$TEST_SCHEMA_KEY" || { echo "TEST_SCHEMA_KEY secret is not available to this run" >&2; exit 1; }
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -md sha256 -pass env:TEST_SCHEMA_KEY -in db/test-init/schema.sql.gz.enc | gunzip > db/test-init/schema.sql
+          grep -q 'CREATE TABLE' db/test-init/schema.sql || { echo "Decrypted schema contains no tables" >&2; exit 1; }
       - run: python -m pytest --maxfail=100
         working-directory: EsportsManagementTool

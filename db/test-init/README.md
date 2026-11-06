@@ -2,32 +2,38 @@
 
 `schema.sql` is the **structure-only** (no rows) definition of the app database.
 It describes the production table layout, so it is deliberately kept out of git
-(`.gitignore`) and out of Docker images (`.dockerignore`). Only this README is committed.
+(`.gitignore`) and out of Docker images (`.dockerignore`).
 
-pytest loads it into a throwaway MySQL (`docker-compose.test.yml`, port 3307,
+`schema.sql.gz.enc` is gzipped and encrypted with the key `TEST_SCHEMA_KEY`.
+The schema travels with each branch and CI decrypts it automatically.
+
+Only this README is committed.
+
+pytest loads the plaintext of `schema.sql` into a throwaway MySQL (`docker-compose.test.yml`, port 3307,
 data in RAM, bound to 127.0.0.1) at the start of every session.
 
-## Local: generate / refresh
+#### When the app's database schema changes (needs source DB access)
+Needs `EsportsManagementTool/.env` pointing at the source DB and the real key in the root `.env`:
+    
+    powershell -ExecutionPolicy Bypass -File scripts\update-test-schema.ps1
 
-Needs `EsportsManagementTool/.env` pointing at the source DB (same as `dump-source-db`):
+This dumps the schema (read-only, no data), encrypts it, and verifies the round trip. Then, run:
 
-    docker compose --profile tools run --rm dump-test-schema
+    git add db/test-init/schema.sql.gz.enc
 
-Re-run whenever the app's schema changes. Read-only against the source DB; exports no data.
+Finally, commit it with the code change that needs it. Each run produces different ciphertext so only
+commit it when the schema actually changes. CI does not need a manual step.
 
-## CI: publish it as a secret
-
-CI restores the file from the `TEST_SCHEMA_B64` repository secret (gzip + base64,
-which keeps it under GitHub's 48 KB secret limit). After regenerating locally:
-
-    gzip -9c db/test-init/schema.sql | base64 | tr -d '\n' | gh secret set TEST_SCHEMA_B64
-
-Also add it under Settings > Secrets > Dependabot, or Dependabot PRs will fail.
-Fork PRs never receive secrets, so they cannot run the DB-backed tests.
-
-## How it is used
+## How it is Used
 
 1. `test_services` starts MySQL + Mailpit.
 2. `test_database` drops/creates `esmt_test`, then runs `schema.sql` as root.
 3. `app` points Flask at it (port 3307). Tests start with empty tables.
 4. Use the `clean_db` fixture when a test needs guaranteed-empty tables.
+
+## Maintainers: Rotating the Key
+
+Generate a new 32-byte random key, update the password manager and the GitHub
+secret `TEST_SCHEMA_KEY` (Actions and Dependabot), run the update script, commit
+the new `.enc`, and tell the team to update their `.env`. Old versions in git
+history stay readable with the old key.

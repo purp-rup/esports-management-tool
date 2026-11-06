@@ -141,9 +141,12 @@ def test_database(test_services):
     if not SCHEMA_FILE.exists():
         pytest.exit(
             f"Missing {SCHEMA_FILE}.\n"
-            "It is gitignored on purpose (it describes the production DB layout).\n"
+            "It is .gitignored on purpose (it describes the production DB layout).\n"
             "Generate it from the source DB (structure only):\n"
             "    docker compose --profile tools run --rm dump-test-schema\n"
+            "Or, without source DB access, decrypt the committed copy\n"
+            "(needs the real TEST_SCHEMA_KEY in the root .env):\n"
+            "    docker compose --profile tools run --rm decrypt-test-schema\n"
             "See db/test-init/README.md.",
             returncode=2,
         )
@@ -172,6 +175,15 @@ def test_database(test_services):
     yield TEST_DB_NAME
 
 
+# Initializes the application for testing but with no test database (no Docker needed)
+@pytest.fixture(scope="session")
+def bare_app():
+    application.config.update(
+        TESTING=True,
+        SESSION_COOKIE_SECURE=False,  # tests run over http
+    )
+    return application
+
 # Initializes the application for testing against the test database
 @pytest.fixture(scope="session")
 def app(bare_app, test_database):
@@ -179,21 +191,9 @@ def app(bare_app, test_database):
         MYSQL_CUSTOM_OPTIONS={"ssl_mode": "DISABLED"},  # local test DB w/o SSL
         MYSQL_PORT=TEST_DB_PORT,
     )
+    assert bare_app.config["MYSQL_PORT"] == TEST_DB_PORT
     assert_safe_target(bare_app.config["MYSQL_HOST"], bare_app.config["MYSQL_DB"])
     yield bare_app
-
-# Initializes the application for testing against the test database
-@pytest.fixture(scope="session")
-def app(test_database):
-    application.config.update(
-        TESTING=True,
-        SESSION_COOKIE_SECURE=False,  # tests run over http
-        MYSQL_CUSTOM_OPTIONS={"ssl_mode": "DISABLED"},  # local test DB w/o SSL
-        MYSQL_PORT=TEST_DB_PORT,
-    )
-    assert application.config["MYSQL_PORT"] == TEST_DB_PORT
-    assert_safe_target(application.config["MYSQL_HOST"], application.config["MYSQL_DB"])
-    yield application
 
 
 # Runs the app on a free port for the browser
