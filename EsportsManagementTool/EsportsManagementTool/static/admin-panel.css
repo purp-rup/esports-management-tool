@@ -183,6 +183,45 @@
   margin-bottom: 1rem;
 }
 
+/* Search bar + role filter row */
+.user-search-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.user-search-row .search-input {
+  flex: 0 0 calc(70% - 0.5rem);
+  width: auto;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.user-search-row .filter-box {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-search-row .filter-box-btn {
+  width: 100%;
+  height: 100%;
+  justify-content: space-between;
+}
+
+#userRoleFilterLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Scroll the list if many custom roles exist */
+#userRoleFilterPanel {
+  min-width: 100%;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
 /* User list items */
 .user-items {
   list-style: none;

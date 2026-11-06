@@ -4,8 +4,11 @@ Calculates comprehensive statistics for the admin statistics page
 """
 from EsportsManagementTool import playoffs_results
 from EsportsManagementTool.universal_helpers import format_time_to_12hr
+from datetime import date
+from EsportsManagementTool.contracts import CONTRACT_TYPES, FORMS, format_display_date, parse_responses, today_est
 from flask import render_template, request, jsonify
 import MySQLdb.cursors
+import math
 
 class EsportsStatistics:
     """Centralized statistics calculator for Stockton Esports program"""
@@ -95,6 +98,15 @@ class EsportsStatistics:
         """Return all seasons ordered oldest -> newest (season_id, season_name)."""
         self.cursor.execute("SELECT season_id, season_name FROM seasons ORDER BY start_date ASC")
         return self.cursor.fetchall()
+
+
+    def _get_scoped_seasons(self):
+        """Seasons in scope (just self.season_id when filtered, else all), newest first, with start_date."""
+        return self._fetch_seasonal(
+            "SELECT season_id, season_name, start_date FROM seasons",
+            " WHERE season_id = %s",
+            " ORDER BY start_date DESC"
+        )
 
 
     @staticmethod
@@ -1071,6 +1083,213 @@ class EsportsStatistics:
 
 
     # =====================================
+    # CONTRACTS
+    # =====================================
+    def get_contracts_overview(self):
+        """
+        Per-member completion of every contract in the registry (including
+        Qualtrics), one row per (member, season). Members are anyone on a team
+        or holding an admin/GM role that season.
+
+        Each status is True (submitted), False (expected but not submitted),
+        or None (the contract doesn't apply to that member). Applicability
+        mirrors contracts.get_contract_access: leadership forms and Qualtrics
+        only apply once the season has started.
+
+        season_name is only sent in the All-Time view, where the front end
+        groups rows into collapsible season sections.
+        """
+        forms = CONTRACT_TYPES
+        form_keys = {c['key'] for c in forms}
+
+        seasons = self._get_scoped_seasons()
+        today = today_est()
+        season_started = {s['season_id']: s['start_date'] <= today for s in seasons}
+        season_names = {s['season_id']: s['season_name'] for s in seasons}
+        season_order = {s['season_id']: idx for idx, s in enumerate(seasons)}
+
+        # (user_id, season_id) -> role flags + the contract keys already submitted
+        entries = {}
+
+        def entry(user_id, season_id):
+            return entries.setdefault(
+                (user_id, season_id), {'player': False, 'leadership': False, 'done': set()}
+            )
+
+        for row in self._fetch_seasonal(
+            """SELECT DISTINCT tm.user_id, t.season_id
+               FROM team_members tm
+               JOIN teams t ON tm.team_id = t.TeamID""",
+            " WHERE t.season_id = %s"
+        ):
+            entry(row['user_id'], row['season_id'])['player'] = True
+
+        for row in self._fetch_seasonal(
+            """SELECT DISTINCT userid AS user_id, season_id
+               FROM season_roles
+               WHERE (is_admin = 1 OR is_gm = 1)""",
+            " AND season_id = %s"
+        ):
+            entry(row['user_id'], row['season_id'])['leadership'] = True
+
+        for row in self._fetch_seasonal(
+            "SELECT user_id, season_id, contract_key FROM contract_submissions",
+            " WHERE season_id = %s"
+        ):
+            # Submissions only mark members already on the roster, so Qualtrics
+            # visits from non-members don't add rows
+            member = entries.get((row['user_id'], row['season_id']))
+            if member and row['contract_key'] in form_keys:
+                member['done'].add(row['contract_key'])
+
+        # One batched lookup for every member's name
+        names = {}
+        user_ids = list({user_id for user_id, _ in entries})
+        if user_ids:
+            placeholders = ','.join(['%s'] * len(user_ids))
+            self.cursor.execute(
+                f"SELECT id, firstname, lastname, username FROM users WHERE id IN ({placeholders})",
+                tuple(user_ids)
+            )
+            names = {u['id']: u for u in self.cursor.fetchall()}
+
+        members = []
+        for (user_id, season_id), e in entries.items():
+            if season_id not in season_order or user_id not in names:
+                continue
+
+            leadership = e['leadership'] and season_started[season_id]
+            applies = {
+                'everyone': True,
+                'everyone_started': season_started[season_id],
+                'player': e['player'],
+                'leadership': leadership,
+                'any_role': e['player'] or leadership,
+            }
+
+            statuses = {}
+            for c in forms:
+                if c['key'] in e['done']:
+                    statuses[c['key']] = True
+                elif applies.get(c['audience'], False):
+                    statuses[c['key']] = False
+                else:
+                    statuses[c['key']] = None
+
+            if all(s is None for s in statuses.values()):
+                continue
+
+            user = names[user_id]
+            members.append({
+                'id': user_id,
+                'name': f"{user['firstname']} {user['lastname']}",
+                'username': user['username'],
+                'season_id': season_id,
+                'season_name': None if self.season_id else season_names[season_id],
+                'statuses': statuses,
+            })
+
+        # Newest season first, then alphabetical by last name within each season
+        members.sort(key=lambda m: (
+            season_order[m['season_id']],
+            (names[m['id']]['lastname'] or '').lower(),
+            (names[m['id']]['firstname'] or '').lower(),
+        ))
+
+        return {
+            'contracts': [{'key': c['key'], 'label': c['label']} for c in forms],
+            'members': members,
+        }
+
+
+    @staticmethod
+    def _contract_cell(responses, column):
+        """One stored answer as a display value: text, or True/False for acknowledgements."""
+        value = responses.get(column['key'])
+        kind = column['kind']
+
+        if kind == 'acknowledge':
+            return bool(value)
+        if kind == 'checkbox_group':
+            return ', '.join(value) if isinstance(value, list) else ''
+        if kind == 'radio':
+            if value == 'Other':
+                other = responses.get(f"{column['key']}_other")
+                return f"Other: {other}" if other else 'Other'
+            return value or ''
+        if kind == 'date_auto':
+            try:
+                return format_display_date(date.fromisoformat(value))
+            except (TypeError, ValueError):
+                return value or ''
+        return value or ''
+
+
+    def get_contract_responses(self, contract_key):
+        """
+        Every submission of one contract, flattened into table cells: one row
+        per signer, one column per field the person fills in on the form's
+        latest version. Returns None for a contract that has no form.
+
+        Required acknowledgements are skipped as columns because every stored
+        submission has them checked. Rows saved under an older form version
+        simply show blanks for fields that version didn't have.
+
+        season_name is only sent in the All-Time view, where the front end
+        groups rows into collapsible season sections.
+        """
+        versions = FORMS.get(contract_key)
+        if not versions:
+            return None
+
+        columns = [
+            {'key': b['key'], 'label': b['label'], 'kind': b['kind']}
+            for b in versions[max(versions)]['blocks']
+            if b['type'] == 'field' and not (b['kind'] == 'acknowledge' and b.get('required'))
+        ]
+        columns.sort(key=lambda c: c['key'] != 'full_name')  # Name first, rest in form order
+
+        seasons = self._get_scoped_seasons()
+        season_names = {s['season_id']: s['season_name'] for s in seasons}
+        season_order = {s['season_id']: idx for idx, s in enumerate(seasons)}
+
+        submissions = self._fetch_seasonal(
+            """SELECT cs.user_id, cs.season_id, cs.responses, u.firstname, u.lastname
+               FROM contract_submissions cs
+               JOIN users u ON u.id = cs.user_id
+               WHERE cs.contract_key = %s""",
+            " AND cs.season_id = %s",
+            params=(contract_key,)
+        )
+
+        # Newest season first, then alphabetical by account last name within each season
+        submissions = sorted(
+            (s for s in submissions if s['season_id'] in season_order),
+            key=lambda s: (
+                season_order[s['season_id']],
+                (s['lastname'] or '').lower(),
+                (s['firstname'] or '').lower(),
+            )
+        )
+
+        rows = []
+        for sub in submissions:
+            responses = parse_responses(sub['responses'])
+            rows.append({
+                'id': sub['user_id'],
+                'season_id': sub['season_id'],
+                'season_name': None if self.season_id else season_names[sub['season_id']],
+                'values': {c['key']: self._contract_cell(responses, c) for c in columns},
+            })
+
+        return {
+            'contract_key': contract_key,
+            'columns': columns,
+            'rows': rows,
+        }
+
+
+    # =====================================
     # GAME-SPECIFIC STATISTICS
     # =====================================
     def get_game_statistics(self, game_id):
@@ -1082,13 +1301,14 @@ class EsportsStatistics:
 
         # Game Manager — one per game, pulled via games.gm_id
         cursor.execute("""
-            SELECT u.firstname, u.lastname
+            SELECT u.firstname, u.lastname, g.isBr
             FROM games g
             LEFT JOIN users u ON g.gm_id = u.id
             WHERE g.GameID = %s
         """, (game_id,))
         gm_row = cursor.fetchone()
         game_manager = f"{gm_row['firstname']} {gm_row['lastname']}" if gm_row and gm_row['firstname'] else None
+        is_br = int(gm_row['isBr']) if gm_row and gm_row['isBr'] is not None else 0
 
         team_query = "SELECT TeamID, teamName, season_id FROM teams WHERE gameID = %s"
         params = [game_id]
@@ -1101,7 +1321,7 @@ class EsportsStatistics:
         teams = cursor.fetchall()
 
         if not teams:
-            return {'game_id': game_id, 'game_manager': game_manager, 'teams': []}
+            return {'game_id': game_id, 'game_manager': game_manager, 'is_br': is_br, 'teams': []}
 
         team_ids = [t['TeamID'] for t in teams]
         placeholders = ','.join(['%s'] * len(team_ids))
@@ -1147,7 +1367,8 @@ class EsportsStatistics:
         # unfiltered row, matching the original league_clause == "" case).
         cursor.execute(f"""
             SELECT mr.team_id, ge.league_id, mr.is_playoffs, ge.EventName as label,
-                   mr.opponent_school, mr.result, mr.team_score, mr.opponent_score
+                    mr.opponent_school, mr.result, mr.team_score, mr.opponent_score,
+                    mr.points, mr.event_id
             FROM match_results mr
             JOIN generalevents ge ON mr.event_id = ge.EventID
             WHERE mr.team_id IN ({placeholders})
@@ -1164,6 +1385,18 @@ class EsportsStatistics:
             matches_by_team.setdefault(
                 row['team_id'], {'regular': [], 'playoffs': []}
             )[bucket_key].append(row)
+
+        avg_by_event = {}
+        if is_br:
+            cursor.execute(f"""
+                SELECT event_id, AVG(placement) AS avg_placement
+                FROM br_placements
+                WHERE event_id IN (
+                    SELECT event_id FROM match_results WHERE team_id IN ({placeholders})
+                )
+                GROUP BY event_id
+            """, tuple(team_ids))
+            avg_by_event = {r['event_id']: float(r['avg_placement']) for r in cursor.fetchall()}
 
         # Every playoffs placement for every team/league in one query
         placement_query = f"""
@@ -1192,12 +1425,13 @@ class EsportsStatistics:
                           if league_id is not None else matches_by_team.get(team_id)) \
                           or {'regular': [], 'playoffs': []}
 
-                regular_matches = self._format_matches(bucket['regular'])
-                playoffs_matches = self._format_matches(bucket['playoffs'])
+                regular_matches = self._format_matches(bucket['regular'], avg_by_event)
+                playoffs_matches = self._format_matches(bucket['playoffs'], avg_by_event)
 
                 wins = sum(1 for m in regular_matches if m['result'] == 'win')
                 losses = sum(1 for m in regular_matches if m['result'] == 'loss')
                 regular_season_record = f"{wins}-{losses}"
+                regular_season_points = sum(row['points'] or 0 for row in bucket['regular'])
 
                 placement = placement_by_team_league.get((team_id, league_id)) if league_id is not None else None
                 if placement is None:
@@ -1216,6 +1450,7 @@ class EsportsStatistics:
                     'game_manager': season_gm_map.get(team['season_id'], game_manager),
                     'regular_season_matches': regular_matches,
                     'regular_season_record': regular_season_record,
+                    'regular_season_points': regular_season_points,
                     'playoffs_matches': playoffs_matches,
                     'playoffs_status': playoffs_status,
                     'playoffs_outcome': playoffs_outcome,
@@ -1236,10 +1471,11 @@ class EsportsStatistics:
         return {
             'game_id': game_id,
             'game_manager': game_manager,
+            'is_br': is_br,
             'teams': result_rows,
         }
 
-    def _format_matches(self, rows):
+    def _format_matches(self, rows, placement_avgs=None):
         """
         Format raw match_results rows into the {label, opponent, result, score}
         shape the admin statistics frontend expects.
@@ -1251,6 +1487,11 @@ class EsportsStatistics:
             opponent_score = row['opponent_score']
             if team_score is not None and opponent_score is not None:
                 score_display = f"{team_score}-{opponent_score}"
+            elif row.get('points') is not None and not row['result']:
+                score_display = f"{row['points']} pts"
+                avg = (placement_avgs or {}).get(row.get('event_id'))
+                if avg is not None:
+                    score_display += f" | Average Placement: {math.ceil(avg)}th"
             else:
                 score_display = row['result'].upper() if row['result'] else None
 
@@ -1458,6 +1699,41 @@ def register_statistics_routes(app, mysql, login_required, roles_required):
         return jsonify({
             'success': True,
             'statistics': all_stats
+        }), 200
+
+
+    @app.route('/api/admin/statistics/contracts')
+    @login_required
+    @roles_required('admin', 'developer')
+    def api_contracts_statistics():
+        """Contracts tab overview: per-member completion of each built-in contract"""
+        season_id = request.args.get('season_id', type=int)
+
+        with EsportsStatistics(mysql, season_id) as stats:
+            contracts_stats = stats.get_contracts_overview()
+
+        return jsonify({
+            'success': True,
+            'statistics': contracts_stats
+        }), 200
+
+
+    @app.route('/api/admin/statistics/contracts/<contract_key>')
+    @login_required
+    @roles_required('admin', 'developer')
+    def api_contract_responses(contract_key):
+        """Contracts tab, per-contract view: every submission of one contract"""
+        season_id = request.args.get('season_id', type=int)
+
+        with EsportsStatistics(mysql, season_id) as stats:
+            contract_stats = stats.get_contract_responses(contract_key)
+
+        if contract_stats is None:
+            return jsonify({'success': False, 'message': 'Unknown contract.'}), 404
+
+        return jsonify({
+            'success': True,
+            'statistics': contract_stats
         }), 200
 
 

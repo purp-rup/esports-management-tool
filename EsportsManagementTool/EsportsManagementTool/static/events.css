@@ -505,7 +505,7 @@ textarea.panel-edit-input {
 
 /* Scheduled event specific colors */
 .event-card.scheduled-event:hover {
-    border: 2px solid white;
+    border: 1px solid white;
     box-shadow: 0 8px 16px rgba(255, 255, 255, 0.3);
 }
 
