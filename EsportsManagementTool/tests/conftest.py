@@ -171,14 +171,6 @@ def test_database(test_services):
         root.close()
     yield TEST_DB_NAME
 
-# Initializes the application for testing but with no test database (no Docker needed)
-@pytest.fixture(scope="session")
-def bare_app():
-    application.config.update(
-        TESTING=True,
-        SESSION_COOKIE_SECURE=False,  # tests run over http
-    )
-    return application
 
 # Initializes the application for testing against the test database
 @pytest.fixture(scope="session")

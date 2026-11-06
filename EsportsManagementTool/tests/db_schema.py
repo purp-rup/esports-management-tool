@@ -78,3 +78,18 @@ def load_schema(conn, path) -> int:
             count += 1
         cur.execute("SET FOREIGN_KEY_CHECKS=1")
     return count
+
+_CREATE_TABLE = re.compile(
+    r"^\s*CREATE\s+(?:TEMPORARY\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"
+    r"(?:`?[A-Za-z0-9_]+`?\.)?`?([A-Za-z0-9_]+)`?",
+    re.IGNORECASE,
+)
+
+def tables_in_schema(sql: str) -> set:
+    """Lower-cased names of every table that `sql` creates."""
+    found = set()
+    for statement in split_sql_statements(sql):
+        match = _CREATE_TABLE.match(statement)
+        if match:
+            found.add(match.group(1).lower())
+    return found

@@ -2,7 +2,7 @@
 
 import pytest
 
-from db_schema import assert_safe_target, split_sql_statements
+from db_schema import assert_safe_target, split_sql_statements, tables_in_schema
 
 
 def test_splits_plain_statements_and_skips_comments():
@@ -45,3 +45,29 @@ def test_safety_guard_refuses_dangerous_targets(host, name):
 
 def test_safety_guard_allows_local_test_db():
     assert_safe_target("127.0.0.1", "esmt_test")
+
+
+def test_tables_in_schema_finds_created_tables_only():
+    sql = (
+        "/*!40101 SET @x=1 */;\n"
+        "CREATE TABLE `users` (id int);\n"
+        "CREATE TABLE IF NOT EXISTS `app`.`Teams` (id int);\n"
+        "DROP TABLE old_things;\n"
+        "INSERT INTO users VALUES (1);\n"
+    )
+    assert tables_in_schema(sql) == {"users", "teams"}
+
+
+def test_tables_in_schema_ignores_trigger_bodies():
+    sql = (
+        "DELIMITER ;;\n"
+        "CREATE TRIGGER t BEFORE INSERT ON a FOR EACH ROW\n"
+        "BEGIN\n  -- CREATE TABLE not_a_table (id int);\n  SET NEW.id = 1;\nEND;;\n"
+        "DELIMITER ;\n"
+        "CREATE TABLE b (id int);\n"
+    )
+    assert tables_in_schema(sql) == {"b"}
+
+
+def test_tables_in_schema_empty_input():
+    assert tables_in_schema("") == set()

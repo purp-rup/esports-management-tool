@@ -18,9 +18,11 @@ the dev database's variables and a dev .env could point these tests at the wrong
 import os
 import re
 import urllib.request
-
 import pymysql
 import pytest
+
+from db_schema import tables_in_schema
+from conftest import SCHEMA_FILE
 
 pytestmark = pytest.mark.infra
 
@@ -32,10 +34,6 @@ DB_NAME = os.getenv("TEST_MYSQL_DB", "esmt_test")
 USER_NAME = os.getenv("TEST_MYSQL_USER", "test_user")
 USER_PASSWORD = os.getenv("TEST_MYSQL_USER_PASSWORD", "test_password")
 USER_HOST = os.getenv("TEST_MYSQL_USER_HOST", "%")
-
-# Tables the app needs for testing. Extend as the schema grows.
-REQUIRED_TABLES = {"users", "verified_users", "permissions", "user_activity"}
-
 MAILPIT_INFO_URL = os.getenv("TEST_MAILPIT_URL", "http://127.0.0.1:8025") + "/api/v1/info"
 
 ACCESS_DENIED = 1045      # wrong password
@@ -181,13 +179,20 @@ def test_alter_user_password(admin, user):
 
 
 def test_application_schema_is_loaded(user):
+    expected = tables_in_schema(SCHEMA_FILE.read_text(encoding="utf-8-sig"))
+    assert expected, f"{SCHEMA_FILE.name} defines no tables."
+
     conn = connect(USER_NAME, USER_PASSWORD, DB_NAME)
     with conn.cursor() as cur:
         cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = %s", (DB_NAME,))
         found = {row[0].lower() for row in cur.fetchall()}
     conn.close()
-    missing = REQUIRED_TABLES - found
-    assert not missing, f"Schema not loaded; missing tables: {sorted(missing)}. Regenerate db/test-init/schema.sql (see db/test-init/README.md)."
+
+    missing = expected - found
+    assert not missing, (
+        f"Schema not fully loaded; missing tables: {sorted(missing)}. "
+        "Regenerate db/test-init/schema.sql (see db/test-init/README.md)."
+    )
 
 
 def test_mailpit_is_reachable(test_services):

@@ -16,6 +16,9 @@ jobs:
           TEST_SCHEMA_B64: ${{ secrets.TEST_SCHEMA_B64 }}
         run: |
           test -n "$TEST_SCHEMA_B64" || { echo "TEST_SCHEMA_B64 secret is not available to this run" >&2; exit 1; }
-          echo "$TEST_SCHEMA_B64" | base64 -d | gunzip > db/test-init/schema.sql
+          printf '%s' "$TEST_SCHEMA_B64" | tr -d '[:space:]' > /tmp/schema.b64
+          echo "Secret length: $(wc -c < /tmp/schema.b64) chars (multiple of 4 expected)" >&2
+          base64 -d /tmp/schema.b64 | gunzip > db/test-init/schema.sql
+          test -s db/test-init/schema.sql || { echo "Restored schema.sql is empty" >&2; exit 1; }
       - run: python -m pytest --maxfail=100
         working-directory: EsportsManagementTool
