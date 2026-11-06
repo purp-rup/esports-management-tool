@@ -188,7 +188,6 @@ def bare_app():
 @pytest.fixture(scope="session")
 def app(bare_app, test_database):
     bare_app.config.update(
-        MYSQL_CUSTOM_OPTIONS={"ssl_mode": "DISABLED"},  # local test DB w/o SSL
         MYSQL_PORT=TEST_DB_PORT,
     )
     assert bare_app.config["MYSQL_PORT"] == TEST_DB_PORT
