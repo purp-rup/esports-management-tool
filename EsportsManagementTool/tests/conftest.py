@@ -49,18 +49,45 @@ MAILPIT_INFO_URL = "http://127.0.0.1:8025/api/v1/info"
 # Runs before the app starts
 # Updates env for test environment
 os.environ.update({
-    "FLASK_SECRET_KEY": "test-secret-key",
     "MYSQL_HOST": TEST_DB_HOST,
     "MYSQL_USER": TEST_DB_USER,
     "MYSQL_PASSWORD": TEST_DB_PASSWORD,
     "MYSQL_DB": TEST_DB_NAME,
-    "AWS_REGION": "us-east-2",
-    "DYNAMODB_TABLE": "esmt-test-chat",
-    "AWS_ACCESS_KEY_ID": "testing",
-    "AWS_SECRET_ACCESS_KEY": "testing",
+    "MAIL_USERNAME": "test-mail-user",
+    "MAIL_PASSWORD": "test-mail-password",
     "MAILING_MODE": "testing",
+    "BUILD_ENV": "test",
+    "MAIL_SERVER": "localhost",
+    "MAIL_PORT": "1025",
+    "MAIL_USE_TLS": "False",
+    "DISCORD_CLIENT_ID": "test-discord-id",
+    "DISCORD_CLIENT_SECRET": "test-discord-secret",
+    "DISCORD_REDIRECT_URI": "http://localhost/discord/callback",
+    "ENCRYPTION_KEY": "test-encryption-key",
     "MAIL_DEFAULT_SENDER": "test@example.com",
+    "YOUTUBE_API_KEY": "test-youtube-key",
+    "CLOUDINARY_CLOUD_NAME": "test-cloud",
+    "CLOUDINARY_API_KEY": "test-key",
+    "CLOUDINARY_API_SECRET": "test-secret",
+    "TWITCH_CLIENT_ID": "test-twitch-id",
+    "TWITCH_CLIENT_SECRET": "test-twitch-secret",
+    "MASTER_ENCRYPTION_SECRET": "test-master-secret",
+    "FLASK_SECRET_KEY": "test-secret-key",
 })
+
+# .env SAFETY CHECK (in case actual .env has different values than test .env)
+# Replaces .env BEFORE the app is imported.
+import dotenv
+import dotenv.main
+dotenv.load_dotenv = dotenv.main.load_dotenv = lambda *args, **kwargs: False
+
+
+# Stops background schedulers during tests.
+# Tests will call the job functions directly instead.
+from apscheduler.schedulers.background import BackgroundScheduler
+BackgroundScheduler.start = lambda self, *args, **kwargs: None
+BackgroundScheduler.shutdown = lambda self, *args, **kwargs: None
+
 
 from werkzeug.serving import make_server
 from EsportsManagementTool import app as application
@@ -144,8 +171,26 @@ def test_database(test_services):
         root.close()
     yield TEST_DB_NAME
 
+# Initializes the application for testing but with no test database (no Docker needed)
+@pytest.fixture(scope="session")
+def bare_app():
+    application.config.update(
+        TESTING=True,
+        SESSION_COOKIE_SECURE=False,  # tests run over http
+    )
+    return application
 
-# Initializes the application for testing
+# Initializes the application for testing against the test database
+@pytest.fixture(scope="session")
+def app(bare_app, test_database):
+    bare_app.config.update(
+        MYSQL_CUSTOM_OPTIONS={"ssl_mode": "DISABLED"},  # local test DB w/o SSL
+        MYSQL_PORT=TEST_DB_PORT,
+    )
+    assert_safe_target(bare_app.config["MYSQL_HOST"], bare_app.config["MYSQL_DB"])
+    yield bare_app
+
+# Initializes the application for testing against the test database
 @pytest.fixture(scope="session")
 def app(test_database):
     application.config.update(
@@ -190,6 +235,15 @@ def pytest_collection_modifyitems(items):
 @pytest.fixture()
 def client(app):
     return app.test_client()
+
+# Test client that never opens a MySQL connection (no Docker)
+# For routes/templates that do not query the DB
+# Any other DB access raises an AttributeError
+@pytest.fixture()
+def nodb_client(bare_app, monkeypatch):
+    from flask_mysqldb import MySQL
+    monkeypatch.setattr(MySQL, "connection", property(lambda self: None))
+    return bare_app.test_client()
 
 # Raw connection to the test DB (as test_user) for arranging/inspecting rows.
 # autocommit is on so the live_server thread sees writes immediately.

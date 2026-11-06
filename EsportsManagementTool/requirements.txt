@@ -31,6 +31,7 @@ pymysql==1.2.3
 pyparsing==3.2.5
 pytest==9.0.3
 pytest-playwright==0.10.0
+pytest-socket==0.8.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 pytz==2025.2
