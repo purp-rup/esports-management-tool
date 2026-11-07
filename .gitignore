@@ -208,3 +208,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Database schema/dumps: never commit (see db/test-init/README.md)
+db/test-init/*.sql
+db/init/*.sql
+db/**/*.sql.gz
+!db/**/README.md

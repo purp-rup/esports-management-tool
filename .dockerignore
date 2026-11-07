@@ -1,0 +1,7 @@
+# Keep schema/dump files and secrets out of the image build context
+# (the Dockerfile does `COPY . .` and CI pushes the image to Docker Hub).
+db/
+.env
+**/.env
+.git
+.idea

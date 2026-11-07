@@ -83,6 +83,26 @@ app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
+# Real deployments should set BUILD_ENV=production
+# Shows a "TEST BUILD" flag in the navbar.
+# It only appears if BOTH of these are true:
+#   1) the BUILD_ENV environment variable is exactly "test"
+#   2) the request's hostname is exactly "localhost" or "127.0.0.1"
+TEST_BUILD_HOSTNAMES = frozenset({'localhost', '127.0.0.1'})
+
+def is_test_build_flag_visible() -> bool:
+    try:
+        if os.environ.get('BUILD_ENV', '').strip().lower() != 'test':
+            return False
+        hostname = request.host.rsplit(':', 1)[0].lower()
+        return hostname in TEST_BUILD_HOSTNAMES
+    except Exception:
+        return False
+
+@app.context_processor
+def inject_test_build_flag():
+    return {'show_test_build_flag': is_test_build_flag_visible()}
+
 # Initialize extensions
 mysql = MySQL(app)
 mail = Mail(app)
@@ -116,9 +136,6 @@ def set_mysql_timezone() -> None:
     are consistent with application timezone. Handles DST transitions
     automatically.
     """
-    if app.config.get("TESTING"):
-        # During testing, avoid connection to DB
-        return
     if mysql.connection:
         cursor = mysql.connection.cursor()
         try:

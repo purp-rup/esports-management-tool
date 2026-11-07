@@ -40,5 +40,56 @@ services:
     volumes:
       - ./db/init:/dump
 
+  # Structure-only export of the source DB for the TEST database (no rows, so no
+  # real user data or password hashes).
+  # Writes the plaintext schema.sql (gitignored) AND the encrypted schema.sql.gz.enc
+  # Needs TEST_SCHEMA_KEY in the root .env.
+  # Run: docker compose --profile tools run --rm dump-test-schema
+  dump-test-schema:
+    image: mysql:8.0
+    profiles: [ "tools" ]
+    env_file:
+      - EsportsManagementTool/.env
+    environment:
+      TEST_SCHEMA_KEY: ${TEST_SCHEMA_KEY:-}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        [ -n "$$TEST_SCHEMA_KEY" ] && [ "$$TEST_SCHEMA_KEY" != "ExampleKey" ] || { echo 'TEST_SCHEMA_KEY is missing or still the placeholder. Put the real key in the root .env (see db/test-init/README.md)' >&2; exit 1; }
+        command -v openssl >/dev/null || { echo 'openssl is not available in this image' >&2; exit 1; }
+        export MYSQL_PWD="$$MYSQL_PASSWORD"
+        mysqldump -h "$$MYSQL_HOST" -u "$$MYSQL_USER" \
+          --no-data --no-tablespaces --set-gtid-purged=OFF --column-statistics=0 \
+          --skip-comments --skip-add-drop-table --skip-add-locks --skip-lock-tables \
+          --routines --triggers "$$MYSQL_DB" > /tmp/raw.sql
+        sed -E -e 's/ AUTO_INCREMENT=[0-9]+//' -e 's/DEFINER=[^ *]* ?//' /tmp/raw.sql > /dump/schema.sql
+        grep -q 'CREATE TABLE' /dump/schema.sql || { echo 'Dump contains no tables; refusing to continue' >&2; exit 1; }
+        gzip -9c /dump/schema.sql | openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -md sha256 -salt -pass env:TEST_SCHEMA_KEY -out /dump/schema.sql.gz.enc
+        echo "Wrote db/test-init/schema.sql ($$(grep -c 'CREATE TABLE' /dump/schema.sql) tables) and schema.sql.gz.enc"
+    volumes:
+      - ./db/test-init:/dump
+
+  # Restores db/test-init/schema.sql from the committed encrypted copy.
+  # Needs TEST_SCHEMA_KEY in the root .env; does NOT need source DB access.
+  # Run: docker compose --profile tools run --rm decrypt-test-schema
+  decrypt-test-schema:
+    image: mysql:8.0
+    profiles: [ "tools" ]
+    environment:
+      TEST_SCHEMA_KEY: ${TEST_SCHEMA_KEY:-}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        [ -n "$$TEST_SCHEMA_KEY" ] && [ "$$TEST_SCHEMA_KEY" != "ExampleKey" ] || { echo 'TEST_SCHEMA_KEY is missing or still the placeholder. Put the real key in the root .env (see db/test-init/README.md)' >&2; exit 1; }
+        openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -md sha256 -pass env:TEST_SCHEMA_KEY -in /dump/schema.sql.gz.enc | gunzip > /dump/schema.sql
+        grep -q 'CREATE TABLE' /dump/schema.sql || { echo 'Decrypted file has no tables; wrong key?' >&2; exit 1; }
+        echo "Wrote db/test-init/schema.sql ($$(grep -c 'CREATE TABLE' /dump/schema.sql) tables)"
+    volumes:
+      - ./db/test-init:/dump
+
 volumes:
   mysql-data:
