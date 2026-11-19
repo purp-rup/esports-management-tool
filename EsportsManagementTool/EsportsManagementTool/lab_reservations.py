@@ -105,8 +105,13 @@ def _check_and_resolve_conflicts(cursor, lab_choice, reservation_date, start_tim
         return {
             'blocked': True,
             'message': f"This reservation is blocked because {names_str} already {verb} a reservation with "
-                        f"equal or higher priority during this time. Please contact them directly to "
-                        f"coordinate lab access."
+                       f"equal or higher priority during this time. Please contact them directly to "
+                       f"coordinate lab access.",
+            'blockers': [{'name': f"{o['first_name']} ({o['username']})",
+                          'time': _format_time_range(o['start_time'], o['end_time']),
+                          'priority': o['priority'],
+                          'lab_status': o['lab_status'],
+                          'description': o['lab_description'] or ''} for o in blocking]
         }
 
     new_start = _parse_time_to_timedelta(start_time)
@@ -277,6 +282,7 @@ def register_lab_reservation_routes(app, mysql, login_required, roles_required):
         lab_status = request.form.get('labStatus', '').strip()
         reserved_game = request.form.get('reservedGame', '').strip()
         lab_description = request.form.get('labDescription', '').strip() or None
+        repeat_weekly = request.form.get('repeatWeekly') == 'true'
 
         if not (reservation_date and start_time and end_time and lab_choice and priority and lab_status and reserved_game):
             return jsonify({'success': False, 'message': 'Please fill out all required fields!'}), 400
@@ -296,6 +302,50 @@ def register_lab_reservation_routes(app, mysql, login_required, roles_required):
             acting_user = cursor.fetchone() or {}
             acting_name = acting_user.get('firstname', 'Someone')
             acting_username = acting_user.get('username', '')
+
+            # Weekly: try to book this day every week until the active season ends
+            if repeat_weekly:
+                cursor.execute('SELECT end_date FROM seasons WHERE is_active = 1 LIMIT 1')
+                season = cursor.fetchone()
+                if not season:
+                    return jsonify({'success': False, 'message': 'Weekly reservations need an active season.'}), 400
+
+                season_end = season['end_date']
+                if isinstance(season_end, datetime):
+                    season_end = season_end.date()
+
+                current = datetime.strptime(reservation_date, '%Y-%m-%d').date()
+                if current > season_end:
+                    return jsonify({'success': False,
+                                    'message': f"That date is after the active season ends ({season_end.strftime('%B %d, %Y')})."}), 400
+                created_at = datetime.now(EST)
+                conflicts = []
+                impacted = set()
+                booked = 0
+
+                while current <= season_end:
+                    date_str = current.strftime('%Y-%m-%d')
+                    result = _check_and_resolve_conflicts(cursor, lab_choice, date_str, start_time, end_time,
+                                                          priority, acting_name, acting_username)
+                    if result['blocked']:
+                        conflicts.append({'date': date_str, 'blockers': result['blockers']})
+                    else:
+                        impacted.update(result['impacted_names'])
+                        cursor.execute(
+                            'INSERT INTO lab_reservations '
+                            '(reservation_date, start_time, end_time, priority, lab_status, reserved_by, game_id, lab_choice, lab_description, created_at) '
+                            'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                            (date_str, start_time, end_time, priority, lab_status, session['id'], game_id,
+                             lab_choice, lab_description, created_at))
+                        booked += 1
+                    current += timedelta(days=7)
+
+                mysql.connection.commit()
+                return jsonify({'success': True,
+                                'message': f'{booked} weekly lab reservation(s) created!',
+                                'impacted_names': sorted(impacted),
+                                'conflicts': conflicts}), 200
+
 
             result = _check_and_resolve_conflicts(cursor, lab_choice, reservation_date, start_time, end_time,
                                                   priority, acting_name, acting_username)

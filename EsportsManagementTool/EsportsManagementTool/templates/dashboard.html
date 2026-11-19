@@ -1780,11 +1780,12 @@
                 <div class="form-row lab-date-row">
                     <div class="form-group lab-date-group" style="margin: 0;">
                         <label for="labReservationDate" class="required-field">Date</label>
-                        <input type="date" id="labReservationDate" name="labReservationDate" required>
+                        <input type="date" id="labReservationDate" name="labReservationDate" required
+                               onchange="updateLabWeeklyHint()">
                     </div>
                 </div>
 
-                <div class="form-row lab-time-row">
+                <div class="form-row time-row">
                     <div class="form-group" style="margin: 0;">
                         <label for="labStartTime" class="required-field">Start Time</label>
                         <input type="time" id="labStartTime" name="labStartTime" step="900" required>
@@ -1794,7 +1795,18 @@
                         <label for="labEndTime" class="required-field">End Time</label>
                         <input type="time" id="labEndTime" name="labEndTime" step="900" required>
                     </div>
+
+                    <div class="form-group all-day-field lab-repeat-weekly-field" style="margin: 0;">
+                        <label class="all-day-toggle-wrapper toggle-switch-wrapper" title="Book this lab, day and time every week until the active season ends">
+                            <input type="checkbox" id="labRepeatWeekly" name="repeatWeekly" value="true"
+                                   class="toggle-switch-checkbox" onchange="updateLabWeeklyHint()">
+                            <span class="toggle-switch-slider"></span>
+                            <span class="toggle-switch-label">Weekly</span>
+                        </label>
+                    </div>
                 </div>
+
+                <small id="labWeeklyHint" style="display: none;"></small>
 
                 <div class="form-row form-row--paired">
                     <!-- Priority combobox -->
@@ -1852,6 +1864,18 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+<div id="labConflictsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Conflicting Dates</h2>
+            <button class="modal-close" onclick="closeLabConflictsModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-subtitle">These weeks are already booked. Change the date or cancel them.</p>
+            <div id="labConflictsList" class="event-form-modal"></div>
         </div>
     </div>
 </div>
