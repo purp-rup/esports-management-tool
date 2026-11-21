@@ -332,11 +332,15 @@ def get_new_available_teammates(team_id):
                    p.is_gm,
                    p.is_player,
                    p.is_developer,
+                   d.discord_username,
+                   d.discord_discriminator,
+                   ic.joined_at,
                    GROUP_CONCAT(DISTINCT cr.name ORDER BY cr.name SEPARATOR ', ') AS custom_role_names
             FROM users u
             LEFT JOIN permissions p ON u.id = p.userid
             LEFT JOIN user_custom_roles ucr ON ucr.user_id = u.id
             LEFT JOIN custom_roles cr ON cr.id = ucr.custom_role_id AND cr.is_archived = 0
+            LEFT JOIN discord d ON d.userid = u.id
             INNER JOIN in_communities ic ON u.id = ic.user_id
             WHERE ic.game_id = %s
               AND u.id NOT IN (
@@ -349,6 +353,9 @@ def get_new_available_teammates(team_id):
         """, (game_id, team_id))
 
         users = cursor.fetchall()
+
+        #Add each member's communities and teams for their profile panel
+        attach_profile_extras(cursor, users, current_game_id=game_id)
 
         # Format response for member profiles
         formatted_members = [build_member_profile(m) for m in users]

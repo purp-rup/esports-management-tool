@@ -1248,31 +1248,42 @@
 
             <!-- Body -->
             <div class="modal-body">
-                <p class="modal-subtitle">Select members to add to this team</p>
+                <div class="add-members-layout">
 
-                <!-- Search Bar -->
-                <div class="member-search">
-                    <input type="text"
-                           id="addMemberSearch"
-                           placeholder="Search members..."
-                           oninput="filterAvailableMembers()">
-                </div>
+                <!-- View Profile -->
+                    <aside id="addMembersProfilePanel" class="add-members-profile">
+                        <div class="add-members-profile-empty">
+                            <i class="fas fa-user"></i>
+                            <p>Select a member to view their profile</p>
+                        </div>
+                    </aside>
 
-                <!-- Loading State -->
-                <div id="availableMembersLoading" class="members-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>Loading available members...</p>
-                </div>
+                    <div class="add-members-main">
+                        <!-- Search Bar -->
+                        <div class="member-search">
+                            <input type="text"
+                                   id="addMemberSearch"
+                                   placeholder="Search members..."
+                                   oninput="filterAvailableMembers()">
+                        </div>
 
-                <!-- Empty State -->
-                <div id="noAvailableMembers" class="members-empty" style="display: none;">
-                    <i class="fas fa-users-slash"></i>
-                    <p>No available members to add</p>
-                </div>
+                        <!-- Loading State -->
+                        <div id="availableMembersLoading" class="members-loading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Loading available members...</p>
+                        </div>
 
-                <!-- Members List Container (scrollable) -->
-                <div id="availableMembersList" class="members-list-container" style="display: none;">
-                    <!-- Member items will be populated here by JavaScript -->
+                        <!-- Empty State -->
+                        <div id="noAvailableMembers" class="members-empty" style="display: none;">
+                            <i class="fas fa-users-slash"></i>
+                            <p>No available members to add</p>
+                        </div>
+
+                                            <!-- Members List Container (scrollable) -->
+                        <div id="availableMembersList" class="members-list-container" style="display: none;">
+                            <!-- Member items will be populated here by JavaScript -->
+                        </div>
+                    </div>
                 </div>
             </div>
 
