@@ -12,7 +12,7 @@ dotenv==0.9.9
 Flask==3.1.2
 Flask-Mail==0.10.0
 Flask-MySQLdb==2.0.0
-google-api-core==2.28.1
+google-api-core==2.44.0
 google-api-python-client==2.187.0
 google-auth==2.43.0
 google-auth-httplib2==0.2.1
