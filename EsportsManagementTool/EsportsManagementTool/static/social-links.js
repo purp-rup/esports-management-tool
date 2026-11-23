@@ -4,8 +4,7 @@
  * ========================
  *
  * - Socials management modal on admin panel
- * - Socials card strip on landing page
- * - Socials cards with links on landing page
+ * - Social Icons row(s) on landing page
  */
 
 function openManageSocialsModal() {
@@ -23,6 +22,31 @@ function closeManageSocialsModal() {
     unlockBodyScroll('manageSocialsModal');
     cancelAddCustomSocialLink();
 }
+
+/**
+ * Initials shown in place of the chain icon for links with no hard-coded logo.
+ * Uses the first two capital letters in the name ("Discord Server" -> "DS").
+ * With fewer than two capitals, falls back to the first two letters/digits.
+ */
+function getSocialInitials(linkName) {
+    const name = (linkName || '').trim();
+    const caps = name.match(/[A-Z]/g) || [];
+    if (caps.length >= 2) return caps[0] + caps[1];
+
+    return name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase();
+}
+
+// Returns the icon markup: a brand icon, or initials for custom links
+function renderSocialGlyph(linkName, meta) {
+    if (meta.slug === 'custom') {
+        const initials = getSocialInitials(linkName);
+        if (initials) {
+            return `<span class="social-initials" aria-hidden="true">${escapeHtml(initials)}</span>`;
+        }
+    }
+    return `<i class="${meta.icon}" aria-hidden="true"></i>`;
+}
+
 
 // Fetches and renders the current social links in the admin modal
 async function loadSocialLinksAdmin() {
@@ -80,8 +104,7 @@ function renderSocialLinkRow(link) {
 
     return `
         <div class="social-link-row" data-platform="${meta.slug}">
-            <div class="social-link-icon"><i class="${meta.icon}"></i></div>
-            <div class="social-link-name">${link.link_name}</div>
+            <div class="social-link-icon">${renderSocialGlyph(link.link_name, meta)}</div>            <div class="social-link-name">${link.link_name}</div>
             <div class="social-link-input-group">
                 ${inputGroup}
                 ${deleteCustomBtn}
@@ -204,23 +227,9 @@ function showSocialLinksMessage(message, isError) {
  * Public landing page social links strip
  * ========================================
  */
-const SOCIAL_CTA_PHRASES = {
-    discord: 'Join our Discord!',
-    youtube: 'Visit our channel!',
-    instagram: 'Follow us!',
-    twitch: 'Follow us!',
-    twitter: 'Follow us!',
-    tiktok: 'Follow us!'
-};
-
-function getSocialCtaPhrase(linkName) {
-    const key = linkName.trim().toLowerCase();
-    return SOCIAL_CTA_PHRASES[key] || 'Check this out!';
-}
-
 document.addEventListener('DOMContentLoaded', initLandingSocialsStrip);
 
-// Constructs the landing page strip containing all socials cards
+// Constructs the landing page row of social icon links
 async function initLandingSocialsStrip() {
     const strip = document.getElementById('socialLinksStrip');
     const track = document.getElementById('socialLinksTrack');
@@ -243,36 +252,23 @@ async function initLandingSocialsStrip() {
             return;
         }
 
-        /*
-         * Render the set once for desktop's static row, then a second, hidden-on-desktop
-         * copy so mobile can loop the marquee seamlessly.
-         */
-        const cardsHtml = activeLinks.map(link => renderSocialCard(link, false)).join('');
-        const duplicateCardsHtml = activeLinks.map(link => renderSocialCard(link, true)).join('');
-        track.innerHTML = cardsHtml + duplicateCardsHtml;
-
-        // Only matters on mobile (desktop has no animation applied), but harmless either way
-        track.style.animationDuration = `${activeLinks.length * 4}s`;
+        track.innerHTML = activeLinks.map(renderSocialIconLink).join('');
     } catch (e) {
         console.error('Error loading social links strip:', e);
         strip.style.display = 'none';
     }
 }
 
-// Builds a single social link card. isDuplicate marks the second, mobile-marquee-only copy.
-function renderSocialCard(link, isDuplicate) {
+// Builds a single icon-only social link. The name lives in aria-label/title
+// since there's no visible text anymore.
+function renderSocialIconLink(link) {
     const meta = getSocialPlatformMeta(link.link_name);
-    const cta = getSocialCtaPhrase(link.link_name);
-    const duplicateClass = isDuplicate ? ' social-card--duplicate' : '';
-    const ariaHidden = isDuplicate ? ' aria-hidden="true" tabindex="-1"' : '';
+    const name = escapeHtml(link.link_name);
 
     return `
-        <a class="social-card${duplicateClass}" data-platform="${meta.slug}" href="${link.url}" target="_blank" rel="noopener noreferrer"${ariaHidden}>
-            <div class="social-card-icon"><i class="${meta.icon}"></i></div>
-            <div class="social-card-text">
-                <span class="social-card-name">${link.link_name}</span>
-                <span class="social-card-cta">${cta}</span>
-            </div>
+        <a class="social-link" data-platform="${meta.slug}" href="${escapeHtml(link.url)}"
+           target="_blank" rel="noopener noreferrer" aria-label="${name}" title="${name}">
+            ${renderSocialGlyph(link.link_name, meta)}
         </a>
     `;
 }

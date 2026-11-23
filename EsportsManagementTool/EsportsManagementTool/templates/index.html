@@ -40,21 +40,18 @@
                     <a href="{{ url_for('login') }}" class="btn btn-secondary btn-large">Sign In</a>
                 {% endif %}
             </div>
+
+            <!-- Social Links (icons only) -->
+            <div class="social-links-strip" id="socialLinksStrip">
+                <div class="social-links-track" id="socialLinksTrack">
+                    <!-- Populated by social-links.js -->
+                </div>
+            </div>
         </div>
         <div class="hero-twitch" id="twitchContainer" style="display: none;">
             <h3 class="live-indicator" id="twitchLiveIndicator"></h3>
             <div id="twitchEmbed"></div>
         </div>
-    </div>
-    <div class="scroll-indicator">
-        <div class="scroll-arrow">↓</div>
-    </div>
-</section>
-
-<!-- Social Links Strip -->
-<section class="social-links-strip" id="socialLinksStrip">
-    <div class="social-links-track" id="socialLinksTrack">
-        <!-- Populated by social-links.js -->
     </div>
 </section>
 
