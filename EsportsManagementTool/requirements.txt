@@ -21,7 +21,7 @@ httplib2==0.31.0
 idna==3.11
 itsdangerous==2.2.0
 Jinja2==3.1.6
-MarkupSafe==3.0.3
+MarkupSafe==3.0.4
 proto-plus==1.26.1
 protobuf==6.33.1
 pyasn1==0.6.1
