@@ -171,3 +171,13 @@
     color: rgba(250, 204, 21, 1);
     border-color: rgba(250, 204, 21, 0.3);
 }
+
+/* Fallback in case events.css only styles the Create Event modal's time row */
+.event-form-modal .form-row.time-row {
+    grid-template-columns: 1fr 1fr auto;   /* Start, End, then the switch only as wide as it needs */
+    align-items: end;
+}
+
+.lab-repeat-weekly-field .toggle-switch-wrapper {
+    height: 2.5rem;   /* same height as the time inputs so the switch lines up with them */
+}
