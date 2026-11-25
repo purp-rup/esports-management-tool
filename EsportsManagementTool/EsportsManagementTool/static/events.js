@@ -614,16 +614,6 @@ async function handleCreateLabReservationSubmit(e) {
         if (response.ok && data.success) {
             showSuccessToast(data.message || (isEditing ? 'Lab reservation updated!' : 'Lab reservation created successfully!'));
 
-            // Weekly booking with blocked weeks: show the conflicts popup instead of reloading
-            if (data.conflicts && data.conflicts.length > 0) {
-                if (data.impacted_names && data.impacted_names.length > 0) {
-                    showInfoToast(buildLabImpactMessage(data.impacted_names));
-                }
-                closeCreateLabReservationModal();
-                showLabConflictsModal(data.conflicts, formData);
-                return;
-            }
-
             if (data.impacted_names && data.impacted_names.length > 0) {
                 setTimeout(() => showInfoToast(buildLabImpactMessage(data.impacted_names)), 500);
                 setTimeout(() => window.location.reload(), 3200);
