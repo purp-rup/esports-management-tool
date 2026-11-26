@@ -572,6 +572,8 @@ function openAddTeamMembersModal() {
     modal.style.display = 'block';
     lockBodyScroll('addTeamMembersModal');
 
+    resetAddMembersModal();
+
     if (loading) loading.style.display = 'block';
     if (list) list.style.display = 'none';
     if (empty) empty.style.display = 'none';
@@ -602,10 +604,13 @@ function openAddTeamMembersModal() {
 function displayAvailableMembersNew(members) {
     const list = document.getElementById('availableMembersList');
     list.innerHTML = '';
+    addModalSelectionOrder = [];
+    list.onchange = handleAddModalSelectionChange;
 
     members.forEach(member => {
         const memberItem = document.createElement('div');
         memberItem.className = 'member-item';
+        memberItem._member = member;
 
         memberItem.setAttribute('data-username', member.username.toLowerCase());
         memberItem.setAttribute('data-name', member.name.toLowerCase());
@@ -616,7 +621,8 @@ function displayAvailableMembersNew(members) {
             }
             const checkbox = this.querySelector('input[type="checkbox"]');
             if (checkbox) {
-                checkbox.checked = !checkbox.checked;
+                checkbox.click();
+
             }
         };
 
@@ -664,12 +670,87 @@ function displayAvailableMembersNew(members) {
                 <div class="member-name">${member.name}</div>
                 <div class="member-username">${member.username}</div>
             </div>
+            <!--
             <div style="display: flex; gap: 0.5rem; align-items: center;">
                 ${badgesHTML}
             </div>
+            -->
         `;
         list.appendChild(memberItem);
     });
+
+    renderAddModalProfile();
+
+}
+
+// Show a member's profile in the add-members modal's side pane
+function showMemberInAddModal(member) {
+    const pane = document.getElementById('addMembersProfilePanel');
+    if (!pane) return;
+
+    pane.innerHTML = `
+        <div class="user-profile-panel">
+            ${buildUserProfileHeader(member, {
+                showCaptainControl: false,                 // not on the team yet
+                teamId: window.currentSelectedTeamId,
+                seasonId: null                             // adding only happens in the active season
+            })}
+        </div>
+    `;
+}
+// Checkboxes in the order they were checked; the last one is the "most recent"
+let addModalSelectionOrder = [];
+
+// Runs whenever any checkbox in the list changes
+function handleAddModalSelectionChange(e) {
+    const cb = e.target;
+    if (cb.type !== 'checkbox') return;
+
+    addModalSelectionOrder = addModalSelectionOrder.filter(x => x !== cb);
+    if (cb.checked) addModalSelectionOrder.push(cb);
+
+    renderAddModalProfile();
+}
+
+// Show the profile of the most recently checked member (or the placeholder)
+function renderAddModalProfile() {
+    const pane = document.getElementById('addMembersProfilePanel');
+    if (!pane) return;
+
+    // Ignore any checkbox that's no longer in the page (list was rebuilt)
+    addModalSelectionOrder = addModalSelectionOrder.filter(cb => cb.isConnected);
+
+    const latest = addModalSelectionOrder[addModalSelectionOrder.length - 1];
+    const member = latest?.closest('.member-item')?._member;
+
+    if (!member) {
+        pane.innerHTML = `
+            <div class="add-members-profile-empty">
+                <i class="fas fa-user"></i>
+                <p>Select a member to view their profile</p>
+            </div>`;
+        return;
+    }
+
+    pane.innerHTML = `
+        <div class="user-profile-panel">
+            ${buildUserProfileHeader(member, {
+                showCaptainControl: false,
+                teamId: window.currentSelectedTeamId,
+                seasonId: null
+            })}
+        </div>`;
+}
+
+function resetAddMembersModal() {
+    const list = document.getElementById('availableMembersList');
+    if (list) list.innerHTML = '';
+
+    const search = document.getElementById('addMemberSearch');
+    if (search) search.value = '';
+
+    addModalSelectionOrder = [];
+    renderAddModalProfile();
 }
 
 // Add selected members to team
@@ -721,6 +802,7 @@ function closeAddTeamMembersModal() {
         modal.style.display = 'none';
         unlockBodyScroll('addTeamMembersModal');
     }
+    resetAddMembersModal();
 }
 
 /**
