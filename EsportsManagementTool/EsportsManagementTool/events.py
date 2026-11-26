@@ -147,6 +147,11 @@ def register_event_routes(app, mysql, login_required, roles_required):
                 start_date = current_date - timedelta(days=30)
                 conditions.append("ge.Date >= %s AND ge.Date < %s")
                 params.extend([start_date, current_date])
+            elif event_filter == 'archived':
+                # Archived events are only visible to admins and Developers
+                if not (is_admin or is_developer):
+                    return jsonify({'success': False, 'message': 'Unauthorized filter'}), 403
+                conditions.append("ge.is_archived = 1")
             elif event_filter == 'created_by_me':
                 # Only allow this filter for admins, GMs, and Developers
                 if not (is_admin or is_gm or is_developer):
@@ -187,6 +192,10 @@ def register_event_routes(app, mysql, login_required, roles_required):
                                         )
                                     """)
                     params.append(partnership_id)
+
+            # Archived events only show up under the "archived" filter
+            if event_filter != 'archived':
+                conditions.append("ge.is_archived = 0")
 
             # Build WHERE clause
             where_clause = " AND ".join(conditions) if conditions else "1=1"
@@ -307,14 +316,16 @@ def register_event_routes(app, mysql, login_required, roles_required):
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
             cursor.execute("""
-                    SELECT COUNT(*) as event_count, MAX(created_at) as latest_created
+                    SELECT COUNT(*) as event_count,
+                           MAX(created_at) as latest_created,
+                           COALESCE(SUM(is_archived), 0) as archived_count
                     FROM generalevents
                 """)
             result = cursor.fetchone()
             latest = result['latest_created'].isoformat() if result['latest_created'] else None
             return jsonify({
                 'success': True,
-                'version': f"{result['event_count']}:{latest}"
+                'version': f"{result['event_count']}:{latest}:{result['archived_count']}"
             }), 200
         except Exception as e:
             print(f"Error checking events version: {str(e)}")
@@ -376,7 +387,8 @@ def register_event_routes(app, mysql, login_required, roles_required):
                 'league_name': event.get('league_name'),
                 'is_scheduled': bool(event.get('is_scheduled', False)),
                 'schedule_id': event.get('schedule_id'),
-                'partnerships': partnerships
+                'partnerships': partnerships,
+                'is_archived': bool(event.get('is_archived', 0))
             }
 
             return jsonify(event_data)
@@ -674,6 +686,93 @@ def register_event_routes(app, mysql, login_required, roles_required):
             mysql.connection.rollback()
             return jsonify({'success': False, 'message': 'Failed to delete event'}), 500
 
+    @app.route('/api/events/<int:event_id>/archive', methods=['POST'])
+    @login_required
+    def archive_event(event_id):
+        """Archive an event instead of deleting it (admins and developers only)"""
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            user_id = session['id']
+            permissions = get_user_permissions(user_id)
+            is_admin_or_dev = permissions['is_admin'] or permissions['is_developer']
+
+            cursor.execute("""
+                SELECT EventName, is_archived, created_by
+                FROM generalevents
+                WHERE EventID = %s
+            """, (event_id,))
+            event = cursor.fetchone()
+
+            if not event:
+                return jsonify({'success': False, 'message': 'Event not found'}), 404
+
+            # Admins and developers can archive any event; GMs only events they created
+            if not is_admin_or_dev and not (permissions['is_gm'] and event['created_by'] == user_id):
+                return jsonify({'success': False, 'message': 'You can only archive events you created'}), 403
+
+            if event['is_archived']:
+                return jsonify({'success': False, 'message': 'Event is already archived'}), 400
+
+            cursor.execute("""
+                UPDATE generalevents
+                SET is_archived = 1
+                WHERE EventID = %s
+            """, (event_id,))
+            mysql.connection.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'Event "{event["EventName"]}" archived successfully'
+            }), 200
+
+        except Exception as e:
+            print(f"Error archiving event: {str(e)}")
+            mysql.connection.rollback()
+            return jsonify({'success': False, 'message': 'Failed to archive event'}), 500
+        finally:
+            cursor.close()
+
+    @app.route('/api/events/<int:event_id>/unarchive', methods=['POST'])
+    @login_required
+    def unarchive_event(event_id):
+        """Restore an archived event (admins and developers only)"""
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        try:
+            permissions = get_user_permissions(session['id'])
+            if not (permissions['is_admin'] or permissions['is_developer']):
+                return jsonify({'success': False, 'message': 'Only admins and developers can unarchive events'}), 403
+
+            cursor.execute("""
+                SELECT EventName, is_archived
+                FROM generalevents
+                WHERE EventID = %s
+            """, (event_id,))
+            event = cursor.fetchone()
+
+            if not event:
+                return jsonify({'success': False, 'message': 'Event not found'}), 404
+
+            if not event['is_archived']:
+                return jsonify({'success': False, 'message': 'Event is not archived'}), 400
+
+            cursor.execute("""
+                UPDATE generalevents
+                SET is_archived = 0
+                WHERE EventID = %s
+            """, (event_id,))
+            mysql.connection.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'Event "{event["EventName"]}" unarchived successfully'
+            }), 200
+
+        except Exception as e:
+            print(f"Error unarchiving event: {str(e)}")
+            mysql.connection.rollback()
+            return jsonify({'success': False, 'message': 'Failed to unarchive event'}), 500
+        finally:
+            cursor.close()
 
     @app.route('/api/event/<int:event_id>/subscription-status')
     @login_required

@@ -448,7 +448,7 @@
 .delete-confirmation-actions {
     display: flex;
     gap: 1rem;
-    justify-content: flex-end;
+    justify-content: center;
 }
 
 .delete-confirmation-actions .btn {
@@ -475,6 +475,16 @@
 
 .delete-confirmation-actions .btn-confirm-delete:hover {
     background: #dc2626;
+}
+
+.delete-confirmation-actions .btn-confirm-archive {
+    background: var(--stockton-blue);
+    color: var(--stockton-black);
+    border: none;
+}
+
+.delete-confirmation-actions .btn-confirm-archive:hover {
+    filter: brightness(0.9);
 }
 
 .modal-body ul {

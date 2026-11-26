@@ -227,6 +227,8 @@ function loadEventsForPastSeason() {
 
     if (secondaryFilter === 'created_by_me') {
         queryParams += '&filter=created_by_me';
+    } else if (secondaryFilter === 'archived') {
+        queryParams += '&filter=archived';
     } else if (secondaryFilter === 'type') {
         const typeFilter = document.getElementById('eventTypeFilter')?.value;
         if (typeFilter) {
@@ -1012,7 +1014,12 @@ async function openDeleteEventModal(eventId, eventName) {
     }
 
     const eventData = EventState.currentEventData;
-    const { is_developer } = EventState.permissions;
+    const { is_developer, is_admin } = EventState.permissions;
+    const canArchive = eventData ? canUserArchiveEvent(eventData) : false;
+    const canUnarchive = is_admin || is_developer;
+    const canDelete = eventData ? canUserDeleteEvent(eventData) : true;
+    const isArchived = !!eventData?.is_archived;
+
     const timeRemaining = eventData ? getDeletionTimeRemaining(eventData.created_at) : null;
 
     // Build additional info for time window
@@ -1028,15 +1035,111 @@ async function openDeleteEventModal(eventId, eventName) {
     }
 
     // Open universal modal with event-specific config
+    let modalTitle, modalMessage;
+    if (canDelete) {
+        modalTitle = 'Delete Event?';
+        modalMessage = `Are you sure you want to delete ${eventName}? This action cannot be undone.`;
+    } else if (isArchived) {
+        modalTitle = 'Unarchive Event?';
+        modalMessage = `${eventName} is archived. Unarchive it to show it in the events list again?`;
+    } else {
+        modalTitle = 'Archive Event?';
+        modalMessage = `${eventName} can no longer be deleted. Archive it to hide it from the events list?`;
+    }
+
     window.openDeleteConfirmModal({
-        title: 'Delete Event?',
+        title: modalTitle,
         itemName: eventName,
-        message: `Are you sure you want to delete ${eventName}? This action cannot be undone.`,
+        message: modalMessage,
         additionalInfo: additionalInfo,
         buttonText: 'Delete Event',
         onConfirm: confirmDeleteEvent,
-        itemId: eventId
+        itemId: eventId,
+        hideConfirmButton: !canDelete,
+        onArchive: isArchived
+            ? (canUnarchive ? confirmUnarchiveEvent : null)
+            : (canArchive ? confirmArchiveEvent : null),
+        archiveButtonText: isArchived ? 'Unarchive' : 'Archive',
+        archiveLoadingText: isArchived ? 'Unarchiving...' : 'Archiving...'
     });
+}
+
+// Function triggered when an event is confirmed to be archived
+async function confirmArchiveEvent(eventId) {
+    try {
+        const response = await fetch(`/api/events/${eventId}/archive`, { method: 'POST' });
+        const data = await response.json();
+
+        window.closeDeleteConfirmModal();
+
+        if (!data.success) {
+            showErrorToast(data.message || 'Failed to archive event');
+            return;
+        }
+
+        // Keep the cached event details in sync so the next open sees it as archived
+        if (EventState.currentEventData) EventState.currentEventData.is_archived = true;
+
+        // If archiving was started from the event modal, close that too
+        if (EventState.deletionFromModal) {
+            window.closeEventModal();
+            EventState.deletionFromModal = false;
+        }
+
+        showSuccessToast(data.message);
+
+        setTimeout(() => {
+            if (EventState.deletionSource === 'events') {
+                loadEvents();
+            } else {
+                window.location.reload();
+            }
+        }, 1000);
+    } catch (error) {
+        console.error('Error archiving event:', error);
+        showErrorToast('An error occurred while archiving the event');
+        window.closeDeleteConfirmModal();
+    }
+}
+
+// Function triggered when an event is confirmed to be unarchived
+async function confirmUnarchiveEvent(eventId) {
+    try {
+        const response = await fetch(`/api/events/${eventId}/unarchive`, { method: 'POST' });
+        const data = await response.json();
+
+        window.closeDeleteConfirmModal();
+
+        if (!data.success) {
+            showErrorToast(data.message || 'Failed to unarchive event');
+            return;
+        }
+
+        // Keep the cached event details in sync
+        if (EventState.currentEventData) EventState.currentEventData.is_archived = false;
+
+        if (EventState.deletionFromModal) {
+            window.closeEventModal();
+            EventState.deletionFromModal = false;
+        }
+
+        showSuccessToast(data.message);
+
+        // The event leaves the Archived list, so close its detail panel
+        closeEventDetailPanel();
+
+        setTimeout(() => {
+            if (EventState.deletionSource === 'events') {
+                loadEvents();
+            } else {
+                window.location.reload();
+            }
+        }, 1000);
+    } catch (error) {
+        console.error('Error unarchiving event:', error);
+        showErrorToast('An error occurred while unarchiving the event');
+        window.closeDeleteConfirmModal();
+    }
 }
 
 // Function triggered when an event is confirmed to be deleted
@@ -1123,7 +1226,7 @@ async function deleteEvent() {
     }
 
     // Check if user can delete
-    if (!canUserDeleteEvent(event)) {
+    if (!canUserDeleteEvent(event) && !canUserArchiveEvent(event)) {
         const { is_developer } = EventState.permissions;
 
         if (!is_developer && event.created_by === (window.currentUserId || 0)) {
@@ -1229,8 +1332,8 @@ async function openEventDetailPanel(eventId, prefetchedEventData = null, prefetc
                                     onclick="togglePanelEditMode()">
                                 <i class="fas fa-edit"></i>
                             </button>` : ''}
-                        ${canUserDeleteEvent(event) ? `
-                            <button class="events-detail-banner-btn delete" title="Delete event"
+                        ${(canUserDeleteEvent(event) || canUserArchiveEvent(event)) ? `
+                            <button class="events-detail-banner-btn delete" title="Delete or archive event"
                                     onclick="openDeleteEventModal(${event.id}, '${escapeQuotes(event.name)}')">
                                 <i class="fas fa-trash"></i>
                             </button>` : ''}
@@ -2308,6 +2411,8 @@ function getEmptyStateMessage(filterValue) {
 
         if (secondaryFilter === 'created_by_me') {
             return { title: `No Events Created in ${seasonName}`, text: `You haven't created any events in ${seasonName}.` };
+        } else if (secondaryFilter === 'archived') {
+            return { title: `No Archived Events in ${seasonName}`, text: `No events have been archived in ${seasonName}.` };
         } else if (secondaryFilter === 'type') {
             const typeSelect = document.getElementById('eventTypeFilter');
             const typeName = typeSelect?.options[typeSelect.selectedIndex]?.text || 'Selected';
@@ -2340,6 +2445,10 @@ function getEmptyStateMessage(filterValue) {
         created_by_me: {
             title: 'No Events Created',
             text: 'You haven\'t created any events yet. Click "Create Event" to add your first event.'
+        },
+        archived: {
+            title: 'No Archived Events',
+            text: 'Events that have been archived will show up here.'
         }
     };
 
@@ -2458,6 +2567,19 @@ function canUserDeleteEvent(event) {
 
     // Non-GM, non-admin, non-developer users cannot delete
     return false;
+}
+
+// Check if current user can archive an event (admins and developers only)
+function canUserArchiveEvent(event) {
+    const { is_admin, is_developer, is_gm } = EventState.permissions;
+
+    // Admins and developers can always archive
+    if (is_admin || is_developer) return true;
+
+    // GMs can archive their own events, but only once deletion is no longer allowed
+    if (!is_gm || !event) return false;
+    const sessionUserId = window.currentUserId || 0;
+    return event.created_by === sessionUserId && !canUserDeleteEvent(event);
 }
 
 // Get time remaining for deletion window

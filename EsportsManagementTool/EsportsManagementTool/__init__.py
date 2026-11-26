@@ -741,6 +741,7 @@ def get_calendar_events() -> tuple[Response, int] | Response:
                 FROM generalevents ge
                 LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
                 WHERE YEAR(ge.Date) = %s AND MONTH(ge.Date) = %s
+                AND ge.is_archived = 0
                 AND (
                     ge.schedule_id IS NULL
                     OR se.visibility = 'all_members'
@@ -755,6 +756,7 @@ def get_calendar_events() -> tuple[Response, int] | Response:
                 FROM generalevents ge
                 LEFT JOIN scheduled_events se ON ge.schedule_id = se.schedule_id
                 WHERE YEAR(ge.Date) = %s AND MONTH(ge.Date) = %s
+                AND ge.is_archived = 0
                 AND (
                     ge.schedule_id IS NULL
                     OR se.created_by = %s
