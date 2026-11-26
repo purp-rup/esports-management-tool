@@ -242,6 +242,7 @@ def check_and_send_notifications():
                        ge.EventType as event_type
                 FROM generalevents ge
                 WHERE ge.Date = DATE(%s)
+                  AND ge.is_archived = 0
                   AND ge.StartTime BETWEEN %s AND %s
                   AND ({where_clause})
                   AND NOT EXISTS (

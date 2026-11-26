@@ -27,11 +27,15 @@ const DeleteModalState = {
     /** Item name being deleted */
     itemName: '',
 
+    /** Optional archive callback (button only shows if provided) */
+    onArchive: null,
+
     /** Reset state */
     reset() {
         this.onConfirm = null;
         this.itemId = null;
         this.itemName = '';
+        this.onArchive = null;
     }
 };
 
@@ -193,7 +197,11 @@ function openDeleteConfirmModal(config) {
         additionalInfo = '',
         buttonText = 'Delete',
         onConfirm,
-        itemId = null
+        itemId = null,
+        onArchive = null,
+        archiveButtonText = 'Archive',
+        archiveLoadingText = 'Archiving...',
+        hideConfirmButton = false
     } = config;
 
     // Validate required parameters
@@ -241,6 +249,26 @@ function openDeleteConfirmModal(config) {
     // Reset button state (in case previous operation left it disabled)
     confirmButton.disabled = false;
     confirmButton.innerHTML = buttonText;
+    confirmButton.style.display = hideConfirmButton ? 'none' : '';
+
+    // Remove any archive button left over from a previous open
+    const oldArchiveButton = document.getElementById('archiveConfirmButton');
+    if (oldArchiveButton) oldArchiveButton.remove();
+
+    // Add an Archive button next to Delete only when the caller provides one
+    if (typeof onArchive === 'function') {
+        DeleteModalState.onArchive = onArchive;
+
+        const archiveButton = document.createElement('button');
+        archiveButton.type = 'button';
+        archiveButton.id = 'archiveConfirmButton';
+        archiveButton.className = 'btn btn-confirm-archive';
+        archiveButton.textContent = archiveButtonText;
+        archiveButton.dataset.loadingText = archiveLoadingText;
+        archiveButton.addEventListener('click', executeArchiveConfirm);
+
+        confirmButton.parentNode.insertBefore(archiveButton, confirmButton);
+    }
 
     // Show modal
     modal.classList.add('active');
@@ -254,6 +282,9 @@ function closeDeleteConfirmModal() {
 
     modal.classList.remove('active');
     unlockBodyScroll('deleteConfirmModal');
+
+    const archiveButton = document.getElementById('archiveConfirmButton');
+    if (archiveButton) archiveButton.remove();
 
     // Reset state
     DeleteModalState.reset();
@@ -298,6 +329,38 @@ async function executeDeleteConfirm() {
         closeDeleteConfirmModal();
     }
 }
+
+/**
+ * Execute the archive action when the user clicks Archive.
+ * Mirrors executeDeleteConfirm: the callback closes the modal and shows its own message.
+ */
+async function executeArchiveConfirm() {
+    if (!DeleteModalState.onArchive) {
+        console.error('No archive callback registered');
+        closeDeleteConfirmModal();
+        return;
+    }
+
+    const archiveButton = document.getElementById('archiveConfirmButton');
+    const confirmButton = document.getElementById('deleteConfirmButton');
+
+    // Disable both buttons so the user can't click twice
+    if (confirmButton) confirmButton.disabled = true;
+    if (archiveButton) {
+        archiveButton.disabled = true;
+        archiveButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${archiveButton.dataset.loadingText || 'Archiving...'}`;
+    }
+
+    try {
+        await DeleteModalState.onArchive(DeleteModalState.itemId);
+    } catch (error) {
+        console.error('Error during archive:', error);
+        alert('An error occurred while archiving. Please try again.');
+        closeDeleteConfirmModal();
+    }
+}
+
+window.executeArchiveConfirm = executeArchiveConfirm;
 
 window.openDeleteConfirmModal = openDeleteConfirmModal;
 window.closeDeleteConfirmModal = closeDeleteConfirmModal;

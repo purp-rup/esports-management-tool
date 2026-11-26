@@ -660,10 +660,12 @@
                                 <option value="type">Type</option>
                                 <option value="game">Game</option>
                                 {% if user.is_admin or user.is_developer %}<option value="past_season">Past Seasons</option>{% endif %}
+                                {% if user.is_admin or user.is_developer %}<option value="archived">Archived</option>{% endif %}
                             </select>
                             <select id="pastSeasonSecondaryFilter" onchange="filterEventsByPastSeason()">
                                 <option value="all">All Events</option>
                                 <option value="created_by_me">Created by Me</option>
+                                <option value="archived">Archived</option>
                                 <option value="type">Type</option>
                                 <option value="game">Game</option>
                                 <option value="partnership">Partnership</option>
@@ -743,6 +745,9 @@
                                     </div>
                                 </div>
                                 {% endif %}
+                                {% if user.is_admin or user.is_developer %}
+                                <div class="filter-box-item" onclick="applyPrimaryFilter('archived', 'Archived')">Archived</div>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -777,6 +782,7 @@
                                         <div class="filter-box-flyout-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
                                     </div>
                                 </div>
+                                <div class="filter-box-item" onclick="applySecondaryFilter('archived', 'Archived')">Archived</div>
                             </div>
                         </div>
                     </div>
