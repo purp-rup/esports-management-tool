@@ -6,6 +6,7 @@ from flask import Flask, render_template, request, session, jsonify
 from datetime import datetime, timedelta
 import MySQLdb.cursors
 
+MAX_AVAILABLE_MEMBERS = 50
 
 def idgen(abbreviation, existing_ids):
     """
@@ -350,7 +351,8 @@ def get_new_available_teammates(team_id):
               )
             GROUP BY u.id
             ORDER BY u.firstname, u.lastname
-        """, (game_id, team_id))
+            LIMIT %s
+        """, (game_id, team_id, MAX_AVAILABLE_MEMBERS))
 
         users = cursor.fetchall()
 

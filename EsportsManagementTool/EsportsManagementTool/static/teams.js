@@ -572,6 +572,8 @@ function openAddTeamMembersModal() {
     modal.style.display = 'block';
     lockBodyScroll('addTeamMembersModal');
 
+    resetAddMembersModal();
+
     if (loading) loading.style.display = 'block';
     if (list) list.style.display = 'none';
     if (empty) empty.style.display = 'none';
@@ -800,6 +802,7 @@ function closeAddTeamMembersModal() {
         modal.style.display = 'none';
         unlockBodyScroll('addTeamMembersModal');
     }
+    resetAddMembersModal();
 }
 
 /**

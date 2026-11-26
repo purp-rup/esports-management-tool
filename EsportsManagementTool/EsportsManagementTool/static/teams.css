@@ -1415,24 +1415,41 @@
 
 /* Add members modal: phones and small tablets */
 @media (max-width: 768px) {
-    #addTeamMembersModal .add-members-profile { display: none; }   /* hide the side panel */
-    #addTeamMembersModal .modal-subtitle      { display: none; }   /* hide "Select members..." */
+    #addTeamMembersModal .modal-content {
+        display: flex;
+        flex-direction: column;
+        width: calc(100% - 1.5rem);
+        margin: 0.75rem auto;
+        max-height: calc(100vh - 1.5rem);      /* fallback */
+        max-height: calc(100dvh - 1.5rem);     /* dvh = the actually visible height on iOS */
+    }
+
+    #addTeamMembersModal .modal-header,
+    #addTeamMembersModal .modal-footer { flex: 0 0 auto; }
 
     #addTeamMembersModal .modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: auto;                          /* overrides the desktop fixed height */
+        display: flex;
+        flex-direction: column;
         padding: 1rem;
-        height: min(60vh, 460px);     /* the list scrolls inside this */
     }
-}
 
-/* iPhone SE and similar (375px) */
-@media (max-width: 480px) {
-    #addTeamMembersModal .modal-content { width: 96%; margin: 3% auto; }
-    #addTeamMembersModal .modal-header  { padding: 1rem; }
-    #addTeamMembersModal .modal-header h2 { font-size: 1.05rem; }
+    #addTeamMembersModal .add-members-layout { flex: 1; height: auto; min-height: 0; }
+    #addTeamMembersModal .add-members-profile { display: none; }
 
+    #addTeamMembersModal .modal-header { padding: 1rem; }
+    #addTeamMembersModal .modal-header h2 { font-size: clamp(1rem, 4.5vw, 1.25rem); }
     #addTeamMembersModal .modal-footer { padding: 0.75rem 1rem 1rem; gap: 0.5rem; }
     #addTeamMembersModal .modal-footer .btn { padding: 0.625rem 0.5rem; font-size: 0.875rem; }
 
-    /* 16px stops iOS Safari from zooming the page when the search box is tapped */
-    #addMemberSearch { font-size: 16px; }
+    #addMemberSearch { font-size: 16px; }      /* stops iOS Safari from zooming on focus */
+}
+
+/* Short screens, such as phones in landscape */
+@media (max-height: 500px) {
+    #addTeamMembersModal .modal-header { padding: 0.5rem 1rem; }
+    #addTeamMembersModal .modal-body   { padding: 0.5rem 1rem; }
+    #addTeamMembersModal .modal-footer { padding: 0.5rem 1rem; }
 }
