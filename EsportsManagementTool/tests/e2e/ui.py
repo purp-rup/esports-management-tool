@@ -46,3 +46,25 @@ def open_dashboard_tab(page: Page, tab: str) -> None:
     page.wait_for_timeout(250)  # > the 100 ms startup timer above
     page.locator(f"#mainTabNavigation .tab-button[data-tab='{tab}']").click()
     expect(page.locator(f"#{tab}.tab-content")).to_have_class(re.compile(r"\bactive\b"))
+
+
+# Replaces Twitch's real embed script. Instead of loading a player, it records what the app
+# asked for on the #twitchEmbed element, so tests can assert on it.
+_TWITCH_SDK_STUB = """
+window.Twitch = { Embed: function (id, opts) {
+    var el = document.getElementById(id);
+    el.setAttribute('data-channel', opts.channel || '');
+    el.setAttribute('data-video', opts.video || '');
+}};
+"""
+
+def stub_twitch_sdk(page: Page) -> None:
+    """
+    Serve a fake https://embed.twitch.tv/embed/v1.js for this page only (the hermetic
+    browser blocks the real one). Call BEFORE page.goto().
+    """
+    page.route(
+        "https://embed.twitch.tv/embed/v1.js",
+        lambda route: route.fulfill(status=200, content_type="application/javascript",
+                                    body=_TWITCH_SDK_STUB),
+    )

@@ -10,7 +10,7 @@ RULES
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import bcrypt
@@ -117,3 +117,68 @@ def count_rows(db, table: str, where: str = "1=1", *params) -> int:
     """SELECT COUNT(*) for `table`."""
     row = fetch_one(db, f"SELECT COUNT(*) AS n FROM `{table}` WHERE {where}", *params)
     return row["n"]
+
+## --- landing page content (events, streams, photos) ---
+def create_game(db, title: str = "Test Game") -> int:
+    """Insert a minimal community (games row) and return its id. Scheduled events need one."""
+    with db.cursor() as cur:
+        cur.execute(
+            "INSERT INTO games (GameTitle, Description, TeamSizes) VALUES (%s, %s, %s)",
+            (title, "Test description", "1"),
+        )
+        return cur.lastrowid
+
+def create_schedule(db, creator: User, game_id: int, name: str, *, on: date,
+                    visibility: str = "all_members") -> int:
+    """
+    Insert a one-time scheduled_events row and return its id. Only exists so a generalevents
+    row can point at it: the calendar's visibility filter reads visibility from this table.
+    """
+    with db.cursor() as cur:
+        cur.execute(
+            "INSERT INTO scheduled_events (game_id, event_name, event_type, specific_date, "
+            "start_time, end_time, frequency, visibility, schedule_end_date, schedule_start_date, "
+            "created_by, is_active) "
+            "VALUES (%s, %s, 'Misc', %s, '18:00:00', '20:00:00', 'Once', %s, %s, %s, %s, 1)",
+            (game_id, name, on, visibility, on, on, creator.id),
+        )
+        return cur.lastrowid
+
+def create_event(db, creator: User, name: str, *, on: date, start: str = "18:00:00",
+                 end: str = "20:00:00", event_type: str = "Event", location: str = "Esports Lab",
+                 description: str = "", schedule_id: int | None = None) -> int:
+    """
+    Insert one calendar event (generalevents row) and return its id.
+    `schedule_id=None` -> a standalone event, visible to everyone.
+    `schedule_id=<id>` -> a scheduled occurrence; visibility then comes from that schedule.
+    """
+    with db.cursor() as cur:
+        cur.execute(
+            "INSERT INTO generalevents (EventName, Date, StartTime, EndTime, Description, "
+            "EventType, Location, created_by, schedule_id, is_scheduled) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (name, on, start, end, description, event_type, location, creator.id,
+             schedule_id, 1 if schedule_id else 0),
+        )
+        return cur.lastrowid
+
+def create_stream(db, name: str, *, on: date, at: str = "19:00:00", platform: str = "twitch",
+                  hidden: bool = False) -> int:
+    """Insert a stream_schedule row (hidden=True is how the app 'deletes' a stream)."""
+    with db.cursor() as cur:
+        cur.execute(
+            "INSERT INTO stream_schedule (stream_name, stream_date, stream_time, platform, hidden) "
+            "VALUES (%s, %s, %s, %s, %s)",
+            (name, on, at, platform, 1 if hidden else 0),
+        )
+        return cur.lastrowid
+
+def create_photo(db, url: str, *, hidden: bool = False) -> int:
+    """Insert a photo_upload row for the landing gallery (stub URL; Cloudinary is never called)."""
+    with db.cursor() as cur:
+        cur.execute(
+            "INSERT INTO photo_upload (photo_url, cloudinary_public_id, is_hidden) "
+            "VALUES (%s, %s, %s)",
+            (url, f"test/{abs(hash(url))}", 1 if hidden else 0),
+        )
+        return cur.lastrowid

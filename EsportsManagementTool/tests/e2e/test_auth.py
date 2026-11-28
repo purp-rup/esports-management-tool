@@ -3,9 +3,6 @@ E2E-AU | Auth & Session Journeys
 
 Scope rule for this file: a test here exists because it needs a rendered page, JavaScript,
 several pages in a row, or an email.
-
-Input-validation matrices (bad password, expired
-token, 405 on GET /logout, ...) live in FN-EC-01..04 and UT-01/UT-05, NOT here.
 """
 
 import secrets
