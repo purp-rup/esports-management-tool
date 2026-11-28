@@ -88,8 +88,12 @@ def change_password():
             return jsonify({'error': 'Unauthorized'}), 401
 
         # Validate required fields
-        if not all(key in data for key in ['current_password', 'new_password']):
+        if not all(key in data for key in ['current_password', 'new_password', 'confirm_password']):
             return jsonify({'error': 'Missing required fields'}), 400
+
+        # Validate new password and confirmation match
+        if data['new_password'] != data['confirm_password']:
+            return jsonify({'error': 'Passwords do not match'}), 400
 
         # Validate new password length
         if len(data['new_password']) < 8:
